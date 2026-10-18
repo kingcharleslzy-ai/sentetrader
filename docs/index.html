@@ -1,0 +1,1410 @@
+<!-- 官网 https://qilinshuzhi.com/trader/download 的静态快照，由 ai-trader scripts/sync_public_repo.mjs 生成，以官网为准 -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sente｜AI 私人交易助理｜启临数智</title>
+<meta name="description" content="一个 AI 看多，一个 AI 看空，吵完再给你结论。盯盘、研究、下单、复盘，交给你自己的 AI 交易助理。">
+<meta name="theme-color" content="#060708">
+<link rel="canonical" href="https://qilinshuzhi.com/trader/download">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="启临数智">
+<meta property="og:title" content="Sente · AI 私人交易助理">
+<meta property="og:description" content="一个 AI 看多，一个 AI 看空，吵完再给你结论。盯盘、研究、下单、复盘，交给你自己的 AI 交易助理。">
+<meta property="og:url" content="https://qilinshuzhi.com/trader/download">
+<meta property="og:image" content="https://qilinshuzhi.com/static/ai-trader-workbench.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Sente · AI 私人交易助理">
+<link rel="icon" href="https://qilinshuzhi.com/favicon.ico">
+<link rel="preload" href="https://qilinshuzhi.com/static/fonts/NotoSerifSC-Black.subset.woff2" as="font" type="font/woff2" crossorigin>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Sente", "alternateName": "弈先", "applicationCategory": "FinanceApplication", "operatingSystem": "macOS, Windows", "softwareVersion": "1.8.0", "description": "一个 AI 看多，一个 AI 看空，吵完再给你结论。盯盘、研究、下单、复盘，交给你自己的 AI 交易助理。", "downloadUrl": ["https://qilinshuzhi.com/downloads/ai-trader/AI-Trader_latest_aarch64.dmg", "https://qilinshuzhi.com/downloads/ai-trader/AI-Trader_latest_x64-setup.exe"], "author": {"@type": "Organization", "name": "杭州富阳启临数智科技工作室", "url": "https://qilinshuzhi.com/"}}</script>
+<script>
+document.documentElement.classList.add('js');
+addEventListener('error',()=>document.documentElement.classList.remove('js'));
+</script>
+<style>
+@font-face{font-family:"Noto Serif SC";font-style:normal;font-weight:700;font-display:swap;src:url("https://qilinshuzhi.com/static/fonts/NotoSerifSC-Bold.subset.woff2") format("woff2")}
+@font-face{font-family:"Noto Serif SC";font-style:normal;font-weight:900;font-display:swap;src:url("https://qilinshuzhi.com/static/fonts/NotoSerifSC-Black.subset.woff2") format("woff2")}
+@font-face{font-family:"JetBrains Mono";font-style:normal;font-weight:400;font-display:swap;src:url("https://qilinshuzhi.com/static/fonts/JetBrainsMono-Regular.subset.woff2") format("woff2")}
+@font-face{font-family:"JetBrains Mono";font-style:normal;font-weight:500;font-display:swap;src:url("https://qilinshuzhi.com/static/fonts/JetBrainsMono-Medium.subset.woff2") format("woff2")}
+:root{
+  color-scheme: dark;
+  --bg:#060708; --panel:#0b0d10; --raised:#11141a; --line:rgba(255,255,255,.08); --line2:rgba(255,255,255,.14); --line-strong:#2a2f37;
+  --ink:#eceee8; --muted:#9a9f98; --faint:#5d625c;
+  --brand:#3d6bff; --brand-hi:#8ea8ff; --brand-soft:rgba(61,107,255,.14); --primary:#3866f8;
+  --up:#ff4a3d; --up-soft:#2a1412; --down:#22c47a; --down-soft:#0e241a;   /* 红涨绿跌、多红空绿，只用于行情与多空 */
+  --warn:#f2b84b; --warn-soft:#2e2413; --remind:#f47fb0; --remind-soft:#33141f;
+  --alert-line:#a78bfa; --stop:#fb923c; --take:#67e8f9; --draw:#e879f9;
+  --serif:"Noto Serif SC","Songti SC",serif;
+  --sans:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  --ease:cubic-bezier(.22,1,.36,1);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+.skip-link{position:fixed;left:16px;top:12px;z-index:200;padding:10px 14px;border-radius:8px;background:var(--ink);color:#08090a;transform:translateY(-160%)}
+.skip-link:focus{transform:none}
+a:focus-visible,summary:focus-visible,button:focus-visible{outline:2px solid var(--brand-hi);outline-offset:4px}
+h1,h2,h3,p{margin:0}
+.wrap{width:min(1200px,calc(100% - 32px));margin:0 auto}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:100;opacity:.05;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+/* ---------- nav ---------- */
+.nav{position:fixed;inset:0 0 auto;z-index:50;transition:background .4s,border-color .4s;border-bottom:1px solid transparent}
+.nav.scrolled{background:rgba(6,7,8,.72);backdrop-filter:blur(14px);border-color:var(--line)}
+.nav .wrap{height:68px;display:flex;align-items:center;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:12px;font-weight:600;letter-spacing:.02em}
+.brand svg{width:28px;height:28px;flex:none}
+.brand small{color:var(--muted);font-weight:400;margin-left:4px}
+.nav-links{display:flex;gap:26px;font-size:14px;color:var(--muted)}
+.nav-links a:hover{color:var(--ink)}
+.nav-cta{font-size:13px;padding:7px 14px;border:1px solid var(--line2);border-radius:999px;display:flex;align-items:center;gap:8px}
+.nav-cta i{width:6px;height:6px;border-radius:50%;background:var(--down)}
+.nav-cta:hover{border-color:var(--ink)}
+
+/* ---------- hero ---------- */
+.hero{position:relative;min-height:max(100svh,760px);overflow:hidden;display:flex;align-items:center;
+  background:radial-gradient(760px 520px at 70% 55%,rgba(61,107,255,.13),transparent 62%),var(--bg)}
+.hero-grid{position:absolute;inset:0;pointer-events:none;
+  background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+  background-size:80px 80px;mask-image:linear-gradient(to bottom,transparent 0,#000 25%,#000 75%,transparent)}
+.hero-spot{position:absolute;inset:0;pointer-events:none;background:radial-gradient(420px 420px at var(--mx,70%) var(--my,40%),rgba(142,168,255,.07),transparent 70%)}
+.hero-in{position:relative;z-index:3;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,520px);gap:56px;align-items:center;padding:clamp(100px,12vh,140px) 0 64px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.16em;color:var(--muted);display:flex;align-items:center;gap:10px}
+.eyebrow i{width:6px;height:6px;border-radius:50%;background:var(--brand);box-shadow:0 0 0 4px var(--brand-soft);animation:blink 1.8s infinite}
+@keyframes blink{50%{opacity:.3}}
+.hero h1{font-family:var(--serif);font-weight:900;font-size:clamp(46px,5.6vw,88px);line-height:1.04;letter-spacing:-.02em;margin-top:22px}
+.hero h1 span{display:block;white-space:nowrap}
+.hero h1 .h-a{background:linear-gradient(100deg,#ff8a7f 0%,#ff4a3d 30%,#eceee8 52%,#22c47a 78%,#7fe3b4 100%);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:sweep 7s ease-in-out infinite alternate}
+@keyframes sweep{to{background-position:100% 0}}
+.hero h1 em{font-style:normal;background:linear-gradient(100deg,#eceee8 5%,#8ea8ff 55%,#3d6bff 95%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero-sub{margin-top:24px;max-width:26em;color:var(--muted);font-size:clamp(15px,1.3vw,18px)}
+.hero-sub b{color:var(--ink);font-weight:500}
+.cta-row{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:34px}
+.btn{display:inline-flex;align-items:center;gap:10px;height:48px;padding:0 22px;border-radius:999px;font-size:15px;font-weight:500;transition:transform .3s var(--ease),border-color .3s}
+.btn svg{width:16px;height:16px}
+.btn-primary{background:var(--ink);color:#08090a}
+.btn-primary:hover{transform:translateY(-2px)}
+.btn-ghost{border:1px solid var(--line2)}
+.btn-ghost:hover{border-color:var(--ink)}
+.meta{margin-top:18px;font-family:var(--mono);font-size:12px;color:var(--faint)}
+.meta a{border-bottom:1px solid var(--line2);white-space:nowrap}
+.meta a:hover{color:var(--ink)}
+
+/* web-app launcher */
+@property --ang{syntax:'<angle>';inherits:false;initial-value:0deg}
+.webapp{position:relative;display:inline-flex;align-items:center;gap:14px;height:56px;padding:0 8px 0 18px;border-radius:999px;isolation:isolate;
+  background:conic-gradient(from var(--ang),#3d6bff,#ff4a3d 25%,#3d6bff 50%,#22c47a 75%,#3d6bff);animation:spin 4s linear infinite;font-size:15px;font-weight:500}
+.webapp::before{content:"";position:absolute;inset:1.5px;border-radius:inherit;background:#0b0d12;z-index:-1;transition:background .5s var(--ease)}
+.webapp::after{content:"";position:absolute;inset:-10px;border-radius:inherit;z-index:-2;background:inherit;filter:blur(18px);opacity:.3;transition:opacity .4s}
+.webapp:hover::after{opacity:.65}
+.webapp:hover::before{background:#10152a}
+@keyframes spin{to{--ang:360deg}}
+.wa-live{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--down);letter-spacing:.06em}
+.wa-live i{width:7px;height:7px;border-radius:50%;background:var(--down);animation:ping 1.8s infinite}
+@keyframes ping{0%{box-shadow:0 0 0 0 rgba(34,196,122,.6)}70%,100%{box-shadow:0 0 0 7px rgba(34,196,122,0)}}
+.wa-spark{width:44px;height:22px;display:block}
+.wa-label{position:relative;height:22px;overflow:hidden;min-width:9.5em}
+.wa-label span{display:block;height:22px;line-height:22px;transition:transform .5s var(--ease)}
+.wa-label span+span{font-family:var(--mono);font-size:13px;color:var(--brand-hi)}
+.webapp:hover .wa-label span{transform:translateY(-100%)}
+.wa-go{width:40px;height:40px;border-radius:50%;background:var(--ink);color:#08090a;display:grid;place-items:center;transition:transform .5s var(--ease)}
+.webapp:hover .wa-go{transform:rotate(-45deg)}
+.wa-go svg{width:16px;height:16px}
+
+/* ---------- arena: 多空两个 AI 当场对质 ---------- */
+.arena-wrap{position:relative}
+.amb{position:absolute;z-index:0;width:70%;aspect-ratio:1;border-radius:50%;pointer-events:none;filter:blur(40px);opacity:.5;transition:opacity .6s,transform .6s var(--ease)}
+.g-bull{left:-22%;top:-8%;background:radial-gradient(closest-side,rgba(255,74,61,.55),transparent)}
+.g-bear{right:-22%;bottom:-10%;background:radial-gradient(closest-side,rgba(34,196,122,.5),transparent)}
+.arena-wrap[data-speak="bull"] .g-bull,.arena-wrap[data-speak="bear"] .g-bear{opacity:1;transform:scale(1.08)}
+.arena{position:relative;z-index:1;border:1px solid var(--line2);border-radius:16px;background:rgba(11,13,16,.86);backdrop-filter:blur(16px);
+  box-shadow:0 40px 100px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.04);overflow:hidden}
+.ar-topic{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);font-size:13px;color:var(--muted)}
+.ar-topic b{color:var(--ink);font-weight:500}
+.ar-topic .t{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ar-time{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap}
+.tag{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:5px;font-size:11.5px;white-space:nowrap;flex:none}
+.tag.hot{background:var(--warn-soft);color:var(--warn)}
+.ar-vs{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;padding:16px 16px 10px}
+.side{display:flex;align-items:center;gap:10px;min-width:0}
+.side.bear{justify-content:flex-end;text-align:right}
+.side b{font-family:var(--serif);font-weight:900;font-size:24px;line-height:1}
+.side.bull b{color:var(--up)} .side.bear b{color:var(--down)}
+.side small{display:block;font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:4px}
+.side .av{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;border:2px solid currentColor;position:relative}
+.side .av::after{content:"";width:10px;height:10px;border-radius:50%;background:currentColor}
+.side.bull .av{color:var(--up)} .side.bear .av{color:var(--down)}
+.arena-wrap[data-speak="bull"] .side.bull .av,.arena-wrap[data-speak="bear"] .side.bear .av{box-shadow:0 0 0 6px color-mix(in srgb,currentColor 20%,transparent)}
+.vs{font-family:var(--serif);font-weight:900;font-style:italic;font-size:44px;line-height:1;letter-spacing:-.04em;background:linear-gradient(180deg,#fff,#8ea8ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.meter{position:relative;margin:0 16px;height:8px;border-radius:99px;background:var(--down);overflow:visible}
+.meter i{position:absolute;inset:0 auto 0 0;width:calc(var(--p,.5)*100%);border-radius:99px 0 0 99px;background:var(--up);transition:width .7s var(--ease)}
+.meter b{position:absolute;top:50%;left:calc(var(--p,.5)*100%);width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;background:#fff;box-shadow:0 0 0 4px rgba(255,255,255,.12),0 0 18px rgba(255,255,255,.6);transition:left .7s var(--ease)}
+.meter-n{display:flex;justify-content:space-between;margin:6px 16px 0;font-family:var(--mono);font-size:11px;color:var(--muted)}
+.meter-n span:first-child{color:var(--up)} .meter-n span:last-child{color:var(--down)}
+.ar-stage{position:relative;padding:12px 16px 16px}
+.ar-round{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--brand-hi);margin-bottom:10px;min-height:20px}
+.ar-round i{width:6px;height:6px;border-radius:50%;background:var(--brand-hi);animation:blink .9s infinite}
+.ar-cols{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ar-col{display:flex;flex-direction:column;gap:8px}
+.arg{position:relative;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:13px;line-height:1.5;background:var(--panel);transition:opacity .45s var(--ease),transform .45s var(--ease),border-color .4s,background .4s}
+.bull .arg{border-left:2px solid var(--up)} .bear .arg{border-left:2px solid var(--down)}
+.arg em{font-style:normal;font-family:var(--mono);font-size:11px;color:var(--muted);margin-right:6px}
+.arg.reb{background:var(--raised)}
+.arg.reb em{color:var(--brand-hi)}
+.cite{display:inline-flex;align-items:center;gap:3px;height:18px;margin-left:6px;padding:0 6px;border-radius:4px;font-family:var(--mono);font-size:10.5px;vertical-align:1px;background:rgba(255,255,255,.06);color:var(--muted);transition:background .3s,color .3s}
+.arg.ok .cite{background:var(--brand-soft);color:var(--brand-hi)}
+.arg.ok .cite::before{content:"✓"}
+.arg.bad{opacity:.5}
+.arg.bad .txt{text-decoration:line-through;text-decoration-color:var(--up)}
+.arg.bad .cite{background:var(--up-soft);color:var(--up)}
+.arg.hit{border-color:rgba(142,168,255,.55);box-shadow:0 0 0 3px rgba(142,168,255,.12)}
+.arg.out{opacity:.45}
+.arg.out .txt{text-decoration:line-through;text-decoration-color:var(--muted)}
+.js .arena .arg{opacity:0;transform:translateY(8px)}
+.js .arena .arg.on{opacity:1;transform:none}
+.js .arena .arg.on.bad,.js .arena .arg.on.out{opacity:.45}
+.verdict{position:absolute;inset:8px 10px 10px;border:1px solid rgba(142,168,255,.45);border-radius:12px;padding:16px;
+  background:linear-gradient(180deg,#121a33,#0b0d10);box-shadow:0 0 0 1px rgba(61,107,255,.25),0 30px 80px rgba(0,0,0,.6),0 0 60px rgba(61,107,255,.25);
+  display:flex;flex-direction:column;gap:12px}
+.js .verdict{opacity:0;transform:scale(1.18);filter:blur(10px);pointer-events:none;transition:opacity .35s ease,transform .55s cubic-bezier(.2,1.5,.4,1),filter .35s}
+.js .arena.judged .verdict{opacity:1;transform:none;filter:none}
+.v-head{display:flex;align-items:center;gap:10px;font-size:13px}
+.v-head b{font-weight:600}
+.v-head small{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--muted)}
+.orb{position:relative;flex:none;width:22px;height:22px;border-radius:50%;border:3px solid var(--brand)}
+.orb::before{content:"";position:absolute;inset:0;margin:auto;width:7px;height:7px;border-radius:50%;background:var(--brand)}
+.orb::after{content:"";position:absolute;inset:-3px;border-radius:50%;border:1.5px solid var(--brand);opacity:0;animation:ripple 2.4s var(--ease) infinite}
+@keyframes ripple{0%{transform:scale(1);opacity:.7}100%{transform:scale(2);opacity:0}}
+.v-main{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.v-main strong{font-family:var(--serif);font-weight:900;font-size:clamp(40px,4.4vw,56px);line-height:1;color:var(--up);text-shadow:0 0 30px rgba(255,74,61,.35)}
+.v-main span{font-size:13px;color:var(--muted)}
+.v-main span b{color:var(--ink);font-weight:500}
+.v-dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0;font-size:13px}
+.v-dl dt{color:var(--muted)} .v-dl dd{margin:0}
+.v-dl dd.n{font-family:var(--mono)}
+.v-btns{display:flex;gap:8px;margin-top:auto;flex-wrap:wrap}
+.b{display:inline-flex;align-items:center;justify-content:center;height:32px;padding:0 14px;border-radius:6px;font-size:13px;white-space:nowrap}
+.b.pri{background:var(--primary);color:#fff;font-weight:600}
+.b.alt{border:1px solid var(--line-strong);color:var(--ink)}
+.arena-flash{position:absolute;inset:0;z-index:5;pointer-events:none;border-radius:16px;opacity:0;background:radial-gradient(closest-side,rgba(142,168,255,.5),transparent)}
+.arena.judged .arena-flash{animation:flash .9s ease-out}
+@keyframes flash{0%{opacity:.9;transform:scale(.4)}100%{opacity:0;transform:scale(1.6)}}
+.arena.fade .ar-stage,.arena.fade .meter,.arena.fade .meter-n{opacity:0;transition:opacity .6s}
+.ar-foot{display:flex;justify-content:space-between;gap:12px;padding:10px 16px;border-top:1px solid var(--line);font-family:var(--mono);font-size:11px;color:var(--faint)}
+
+/* ---------- ticker ---------- */
+.ticker{border-top:1px solid var(--line);border-bottom:1px solid var(--line);overflow:hidden;background:var(--bg);position:relative;z-index:2}
+.ticker-track{display:flex;gap:48px;width:max-content;padding:14px 0;font-family:var(--mono);font-size:13px;animation:scroll 70s linear infinite}
+.ticker-track b{font-weight:500;color:var(--ink);margin-right:10px}
+.ticker-track .px{transition:color .6s}
+.ticker-track .px.fu{color:var(--up)} .ticker-track .px.fd{color:var(--down)}
+.ticker-track .u{color:var(--up)} .ticker-track .d{color:var(--down)}
+@keyframes scroll{to{transform:translateX(-50%)}}
+
+/* ---------- sections ---------- */
+.sec{padding:clamp(96px,13vw,160px) 0;position:relative}
+.sec-head{display:flex;align-items:end;justify-content:space-between;gap:24px;margin-bottom:56px;flex-wrap:wrap}
+.sec-head h2{font-family:var(--serif);font-weight:700;font-size:clamp(36px,5vw,64px);line-height:1.12;letter-spacing:-.01em}
+.sec-head p{color:var(--muted);max-width:27em}
+.label{font-family:var(--mono);font-size:12px;letter-spacing:.16em;color:var(--muted);margin-bottom:18px;display:flex;gap:12px}
+.label b{color:var(--brand-hi);font-weight:400}
+
+.frag{border:1px solid var(--line2);border-radius:14px;background:linear-gradient(180deg,#0f1216,#0a0c0f);padding:20px;box-shadow:0 30px 60px rgba(0,0,0,.35);font-size:14px;min-width:0}
+.frag.bare{border:0;background:none;box-shadow:none;padding:0;display:grid;place-items:center}
+.js .frag>*{opacity:0;transform:translateY(10px);transition:opacity .6s var(--ease),transform .6s var(--ease);transition-delay:calc(var(--i,0)*90ms + 150ms)}
+.js .in .frag>*{opacity:1;transform:none}
+.frag-top{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:12px;color:var(--muted);font-family:var(--mono);padding-bottom:14px;border-bottom:1px solid var(--line);margin-bottom:12px}
+.chip{display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:999px;font-size:12px;font-family:var(--sans);white-space:nowrap}
+.chip.up{background:var(--up-soft);color:var(--up)}
+.chip.dn{background:var(--down-soft);color:var(--down)}
+.chip.brand{background:var(--brand-soft);color:var(--brand-hi)}
+.chip.muted{background:rgba(255,255,255,.06);color:var(--muted)}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.chip.plan{background:var(--down-soft);color:var(--down)}
+.chip.remind{background:var(--remind-soft);color:var(--remind)}
+.chip.adhoc{background:var(--warn-soft);color:var(--warn)}
+.blk{border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:12px 14px}
+.blk+.blk{margin-top:10px}
+.blk-h{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin-bottom:10px}
+.blk-h b{color:var(--ink);font-weight:600;font-size:13px}
+.blk-h .q{width:16px;height:16px;border-radius:50%;border:1px solid var(--line-strong);display:grid;place-items:center;font-size:10px;color:var(--muted)}
+.blk-h span:last-child{margin-left:auto}
+
+/* 06:55 锁屏 */
+.phone{position:relative;width:min(300px,100%);aspect-ratio:9/17;border-radius:40px;padding:12px;background:#000;border:1px solid var(--line2);
+  box-shadow:0 40px 90px rgba(0,0,0,.6),0 0 0 6px #111318,0 0 0 7px var(--line2)}
+.screen{position:relative;height:100%;border-radius:30px;overflow:hidden;padding:46px 12px 12px;
+  background:radial-gradient(120% 70% at 50% 110%,rgba(255,150,90,.35),transparent 60%),radial-gradient(90% 60% at 20% 0%,rgba(61,107,255,.35),transparent 70%),linear-gradient(#0a0f22,#141127 55%,#2a1820)}
+.screen::before{content:"";position:absolute;top:10px;left:50%;width:84px;height:24px;margin-left:-42px;border-radius:14px;background:#000}
+.ls-date{text-align:center;font-size:13px;color:rgba(255,255,255,.75)}
+.ls-time{text-align:center;font-size:62px;font-weight:600;line-height:1.05;color:#fff;letter-spacing:-.02em;margin-bottom:18px;font-variant-numeric:tabular-nums}
+.nt{display:flex;gap:9px;padding:10px 11px;border-radius:16px;background:rgba(40,44,56,.62);backdrop-filter:blur(14px);font-size:12.5px;line-height:1.45;color:#f2f3f5;margin-bottom:7px}
+.nt svg{flex:none;width:30px;height:30px;border-radius:8px}
+.nt-h{display:flex;justify-content:space-between;font-size:11.5px;color:rgba(255,255,255,.62);margin-bottom:1px}
+.nt-h b{color:#fff;font-weight:600}
+.js .nt{opacity:0;transform:translateY(-14px) scale(.96);transition:opacity .5s var(--ease),transform .6s var(--ease);transition-delay:calc(var(--i,0)*700ms + 300ms)}
+.js .in .nt{opacity:1;transform:none}
+
+/* 08:30 新闻 */
+.nw{display:grid;grid-template-columns:44px minmax(0,1fr);gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px}
+.nw:last-of-type{border-bottom:0}
+.nw time{font-family:var(--mono);font-size:12px;color:var(--muted);padding-top:1px}
+.nw-t{display:flex;gap:6px;align-items:flex-start}
+.nw-t .lv{flex:none;font-size:11px;height:18px;padding:0 5px;border-radius:4px;margin-top:1px;display:inline-flex;align-items:center}
+.lv.heavy{background:var(--warn-soft);color:var(--warn)} .lv.light{background:rgba(255,255,255,.06);color:var(--muted)}
+.nw-m{display:flex;flex-wrap:wrap;gap:6px 10px;margin-top:6px;font-size:12px;color:var(--muted);align-items:center}
+.nw-m .sym{font-family:var(--mono)} .nw-m .u{color:var(--up)} .nw-m .d{color:var(--down)}
+.nw-m .ai{color:var(--brand-hi)}
+.bars{display:inline-flex;gap:2px;vertical-align:-1px}.bars i{width:3px;height:9px;border-radius:1px;background:currentColor;opacity:.3}.bars i.f{opacity:1}
+.filt{margin-top:10px;padding:9px 12px;border-radius:8px;background:var(--brand-soft);color:#dbe3ff;font-size:12.5px;display:flex;justify-content:space-between;gap:10px}
+.filt b{font-family:var(--mono);font-weight:500;color:#fff}
+.cal{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--muted);align-items:center}
+.cal span{border:1px solid var(--line);border-radius:6px;padding:3px 8px}
+.cal span b{font-family:var(--mono);font-weight:400;color:var(--ink);margin-right:6px}
+
+/* 09:10 调研 */
+.verd-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.flip{position:relative;display:inline-grid;height:40px;min-width:5.6em;perspective:400px}
+.flip span{grid-area:1/1;display:grid;place-items:center;padding:0 14px;border-radius:8px;font-family:var(--serif);font-weight:900;font-size:22px;backface-visibility:hidden;transition:transform .8s var(--ease) 1.1s}
+.flip .f-old{background:var(--warn-soft);color:var(--warn)}
+.flip .f-new{background:var(--up-soft);color:var(--up);transform:rotateX(180deg)}
+.js .in .flip .f-old{transform:rotateX(-180deg)}
+.js .in .flip .f-new{transform:none}
+html:not(.js) .flip .f-old{display:none} html:not(.js) .flip .f-new{transform:none}
+.verd-meta{font-size:12px;color:var(--muted)}
+.verd-meta b{color:var(--ink);font-weight:500}
+.verd-say{margin-top:10px;font-size:14px}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.stats div{background:var(--panel);padding:9px 11px;min-width:0}
+.stats small{display:block;font-size:11px;color:var(--muted)}
+.stats b{display:block;font-family:var(--mono);font-weight:500;font-size:17px;line-height:1.3;white-space:nowrap}
+.stats em{font-style:normal;font-size:11px;color:var(--faint);font-family:var(--mono)}
+.stats .stale em{color:var(--warn)}
+.sbs{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sbs>div{border-radius:8px;padding:10px 12px;font-size:13px;line-height:1.55}
+.sbs .p{background:var(--up-soft)} .sbs .n{background:var(--down-soft)}
+.sbs h4{margin:0 0 6px;font-size:12px;font-weight:600}
+.sbs .p h4{color:var(--up)} .sbs .n h4{color:var(--down)}
+.sbs p+p{margin-top:6px}
+.sbs .c{font-family:var(--mono);font-size:10.5px;color:var(--muted);border:1px solid var(--line2);border-radius:4px;padding:0 4px;margin-left:4px}
+.recon{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:12.5px;color:var(--muted)}
+.recon b{font-family:var(--mono);font-weight:500;color:var(--ink)}
+.recon .dots{display:inline-flex;gap:4px}.recon .dots i{width:9px;height:9px;border-radius:2px;background:var(--line-strong)}
+.js .in .recon .dots i{animation:tick .4s var(--ease) both;animation-delay:calc(var(--k)*180ms + 1.6s)}
+@keyframes tick{from{background:var(--line-strong)}to{background:var(--brand-hi)}}
+.res-grid{display:grid;grid-template-columns:1.05fr 1fr;gap:10px}
+.res-grid .blk+.blk{margin-top:0}
+.res-grid .wide{grid-column:1/-1}
+
+/* 10:47 盘中 */
+.alert{display:flex;gap:12px;align-items:flex-start}
+.alert .orb{flex:none;margin-top:2px}
+.alert-body{flex:1;background:var(--brand-soft);color:#dbe3ff;border-radius:12px;border-top-left-radius:4px;padding:10px 12px;font-size:13.5px}
+.reply{display:flex;justify-content:flex-end;margin:12px 0}
+.reply span{max-width:88%;padding:9px 12px;border-radius:12px;border-bottom-right-radius:4px;background:rgba(255,255,255,.08);font-size:13.5px;line-height:1.55}
+.combo{border:1px solid var(--line2);border-radius:10px;background:var(--panel);overflow:hidden}
+.combo-h{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line);font-size:13px}
+.combo-h b{font-weight:600}
+.combo-r{display:grid;grid-template-columns:22px 1fr auto;gap:8px;align-items:center;padding:9px 12px;font-size:13px;border-bottom:1px dashed var(--line)}
+.combo-r .k{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-family:var(--mono);font-size:11px;background:var(--raised);color:var(--muted)}
+.combo-r .n{font-family:var(--mono);font-size:12.5px;white-space:nowrap}
+.combo-r .old{color:var(--faint);text-decoration:line-through;margin-right:4px}
+.combo-r .new{color:var(--stop)}
+.combo-a{display:flex;justify-content:flex-end;gap:8px;padding:10px 12px;position:relative}
+.combo-a .done{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--down-soft);color:var(--down);font-size:13px;font-weight:600;opacity:0}
+.js .play .combo-a .done{animation:done .5s var(--ease) 2.4s both}
+html:not(.js) .combo-a .done{opacity:1}
+@keyframes done{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
+.js .play .combo-a .pri{animation:press .3s ease 2.1s}
+@keyframes press{50%{transform:scale(.94)}}
+.later{margin-top:14px;border-top:1px solid var(--line);padding-top:10px;font-size:12px;color:var(--muted);display:grid;gap:6px}
+.later div{display:flex;gap:10px}.later time{font-family:var(--mono);color:var(--faint)}
+
+/* 11:30 老规矩 */
+.ask{font-size:13px;color:var(--muted);margin-bottom:12px}.ask b{color:var(--ink);font-weight:500;font-family:var(--serif);font-size:18px}
+.step{display:grid;grid-template-columns:22px 1fr auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
+.step:last-of-type{border-bottom:0}
+.step .ck{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--line-strong);display:grid;place-items:center;position:relative}
+.step .ck::after{content:"";width:9px;height:5px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg) translate(1px,-1px);opacity:0}
+.step small{font-family:var(--mono);font-size:11.5px;color:var(--muted);white-space:nowrap}
+.js .step .ck{transition:background .3s,border-color .3s;transition-delay:calc(var(--s)*450ms + .8s)}
+.js .step .ck::after{transition:opacity .2s;transition-delay:calc(var(--s)*450ms + .8s)}
+.js .step small{opacity:0;transition:opacity .3s;transition-delay:calc(var(--s)*450ms + .9s)}
+.js .play .step .ck,html:not(.js) .step .ck{background:var(--primary);border-color:var(--primary)}
+.js .play .step .ck::after,html:not(.js) .step .ck::after{opacity:1}
+.js .play .step small{opacity:1}
+.step.last .ck{border-color:var(--warn)}
+.js .play .step.last .ck,html:not(.js) .step.last .ck{background:var(--warn);border-color:var(--warn)}
+.wait{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;padding:10px 12px;border-radius:10px;border:1px solid rgba(242,184,75,.35);background:var(--warn-soft);font-size:13px;color:var(--warn)}
+
+/* 13:30 策略编辑卡 */
+.flow{position:relative;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:30px 20px;padding:4px 0 6px}
+.flow svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+.flow path{fill:none;stroke:#59606c;stroke-width:1.5;vector-effect:non-scaling-stroke}
+.js .flow svg{opacity:0;transition:opacity .8s var(--ease) .8s}
+.js .in .flow svg{opacity:1}
+.fn{position:relative;z-index:1;border:1px solid var(--line2);border-radius:8px;background:var(--panel);padding:7px 9px;font-size:12.5px;line-height:1.45}
+.fn small{display:block;font-size:10.5px;margin-bottom:2px}
+.fn.c small{color:var(--brand-hi)} .fn.o small{color:var(--up)} .fn.s small{color:var(--stop)} .fn.t small{color:var(--take)}
+.fn.c{border-color:rgba(142,168,255,.4)} .fn.o{border-color:rgba(255,74,61,.4)} .fn.s{border-color:rgba(251,146,60,.4)} .fn.t{border-color:rgba(103,232,249,.35)}
+.inds{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
+.inds span{height:24px;padding:0 9px;border-radius:6px;border:1px solid var(--line);font-family:var(--mono);font-size:11.5px;display:inline-flex;align-items:center;color:var(--muted)}
+.inds span.sel{border-color:var(--brand);color:var(--brand-hi);background:var(--brand-soft)}
+.stats.four{grid-template-columns:repeat(4,minmax(0,1fr))}
+.aisay{margin-top:10px;display:flex;gap:10px;align-items:flex-start;font-size:13px;color:#dbe3ff;background:var(--brand-soft);border-radius:10px;padding:10px 12px}
+.aisay .orb{width:18px;height:18px;border-width:2.5px;margin-top:1px}.aisay .orb::before{width:6px;height:6px}
+.btns{display:flex;justify-content:flex-end;gap:8px;margin-top:12px;flex-wrap:wrap}
+
+/* 15:15 复盘 */
+.rev-item{display:grid;grid-template-columns:48px 1fr auto;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px;align-items:start}
+.rev-item time{font-family:var(--mono);color:var(--muted)}
+.rev-item small{display:block;color:var(--muted);margin-top:2px}
+.note{margin-top:14px;padding:12px 14px;border-radius:10px;background:var(--brand-soft);font-size:13px;color:#dbe3ff}
+.note b{display:block;font-size:12px;color:var(--brand-hi);font-weight:600;margin-bottom:2px}
+
+/* ---------- 在哪都能用 ---------- */
+.pts{list-style:none;margin:36px 0 0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.pts li{background:var(--bg);padding:20px 22px}
+.pts b{display:block;font-family:var(--serif);font-weight:700;font-size:19px;margin-bottom:4px}
+.pts span{color:var(--muted);font-size:14px}
+
+/* ---------- 别的 AI 也能用它 ---------- */
+.agents{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:64px;align-items:center}
+.agents h2{font-family:var(--serif);font-weight:700;font-size:clamp(34px,4.6vw,60px);line-height:1.15}
+.agents>div>p{margin-top:20px;color:var(--muted);max-width:26em}
+.paste{margin-top:32px;border:1px dashed rgba(142,168,255,.5);border-radius:14px;padding:16px 18px;background:rgba(61,107,255,.06)}
+.paste-h{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:13px;color:var(--brand-hi);margin-bottom:10px}
+.paste-h button{height:32px;padding:0 14px;border:0;border-radius:6px;background:var(--primary);color:#fff;font:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.paste p{font-size:14px;line-height:1.75;color:#dbe3ff}
+.paste code{font-family:var(--mono);font-size:12.5px;background:rgba(255,255,255,.08);border-radius:4px;padding:1px 5px}
+.term{border:1px solid var(--line2);border-radius:14px;background:#08090b;box-shadow:0 40px 90px rgba(0,0,0,.5);overflow:hidden;font-family:var(--mono);font-size:12.5px;line-height:1.7}
+.term-h{display:flex;align-items:center;gap:7px;padding:11px 14px;border-bottom:1px solid var(--line);color:var(--faint);font-size:11px}
+.term-h i{width:10px;height:10px;border-radius:50%;background:#2a2f37}
+.term-h span{margin-left:8px}
+.term-b{padding:16px 18px;min-height:250px}
+.tl{white-space:pre-wrap;word-break:break-word}
+.tl.me{color:var(--ink)} .tl.me::before{content:"› ";color:var(--brand-hi)}
+.tl.call{color:var(--muted)} .tl.call::before{content:"● ";color:var(--down)}
+.tl.call b{color:var(--brand-hi);font-weight:400}
+.tl.ok{color:var(--down)}
+.tl.ai{color:#dbe3ff;font-family:var(--sans);font-size:13.5px;margin-top:6px}
+.js .term .tl{display:none}
+.js .term .tl.on{display:block}
+.tl.typing::after{content:"";display:inline-block;width:7px;height:1.05em;margin-left:2px;vertical-align:-2px;background:currentColor;animation:blink .8s steps(1) infinite}
+
+/* memory */
+.mem{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;height:520px;-webkit-mask-image:linear-gradient(transparent,#000 14%,#000 86%,transparent);mask-image:linear-gradient(transparent,#000 14%,#000 86%,transparent)}
+.mem-col{overflow:hidden;position:relative}
+.mem-track{display:flex;flex-direction:column;gap:14px;animation:rise var(--d,40s) linear infinite}
+.mem-col:hover .mem-track{animation-play-state:paused}
+@keyframes rise{to{transform:translateY(calc(-50% - 7px))}}
+.mem-card{border:1px solid var(--line2);border-radius:12px;padding:16px;background:linear-gradient(180deg,#0f1216,#0a0c0f)}
+.mem-card p{font-size:15px}
+.mem-card small{display:flex;justify-content:space-between;gap:8px;margin-top:10px;font-family:var(--mono);font-size:11px;color:var(--faint)}
+.mem-card small span:first-child{color:var(--brand-hi)}
+.mem-heads{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:18px}
+.mem-heads div{font-family:var(--serif);font-size:20px;font-weight:700;display:flex;align-items:baseline;gap:10px}
+.mem-heads small{font-family:var(--sans);font-size:13px;font-weight:400;color:var(--muted)}
+.mem-foot{margin-top:28px;display:flex;flex-wrap:wrap;gap:10px 28px;color:var(--muted);font-size:14px}
+.mem-foot span::before{content:"— ";color:var(--brand)}
+
+/* facts */
+.facts{border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.facts .wrap{display:grid;grid-template-columns:repeat(4,1fr)}
+.facts.facts-3 .wrap{grid-template-columns:repeat(3,1fr)}
+.fact{padding:56px 28px;border-left:1px solid var(--line)}
+.fact:first-child{border-left:0;padding-left:0}
+.fact b{display:block;font-family:var(--serif);font-weight:900;font-size:clamp(36px,4.6vw,68px);line-height:1;white-space:nowrap;font-variant-numeric:tabular-nums}
+.fact b sup{font-size:.32em;font-family:var(--sans);font-weight:500;color:var(--muted);margin-left:6px;vertical-align:top;position:relative;top:.7em}
+.fact>span{display:block;margin-top:14px;color:var(--muted);font-size:14px}
+
+/* film */
+.film{position:relative;aspect-ratio:16/9;border-radius:18px;overflow:hidden;border:1px solid var(--line2);background:#000;box-shadow:0 40px 90px rgba(0,0,0,.45)}
+.film video{position:absolute;inset:0;width:100%;height:100%;display:block;object-fit:cover;background:#000}
+.film-play{position:absolute;inset:0;display:grid;place-items:center;width:100%;padding:0;border:0;color:var(--ink);font:inherit;cursor:pointer;
+  background:linear-gradient(180deg,rgba(6,7,8,0) 55%,rgba(6,7,8,.72)),rgba(6,7,8,.18);transition:background .4s var(--ease)}
+.film-play[hidden]{display:none}
+.film-play:hover{background:linear-gradient(180deg,rgba(6,7,8,0) 55%,rgba(6,7,8,.72)),rgba(6,7,8,.04)}
+.film-play:focus-visible{outline:2px solid var(--brand-hi);outline-offset:-6px}
+.fp-ring{position:relative;display:grid;place-items:center;width:clamp(64px,8vw,92px);height:clamp(64px,8vw,92px);border-radius:50%;
+  border:1px solid rgba(255,255,255,.22);background:rgba(13,15,19,.5);backdrop-filter:blur(12px);transition:transform .5s var(--ease)}
+.fp-ring::before{content:"";position:absolute;inset:-10px;border-radius:50%;border:1px solid var(--brand);opacity:.5;animation:halo 2.4s var(--ease) infinite}
+@keyframes halo{0%{transform:scale(.86);opacity:.6}100%{transform:scale(1.25);opacity:0}}
+.fp-ring span{display:grid;place-items:center;width:62%;height:62%;border-radius:50%;background:var(--ink);color:#08090a}
+.fp-ring svg{width:34%;height:34%;margin-left:8%}
+.film-play:hover .fp-ring{transform:scale(1.06)}
+.fp-tag{position:absolute;left:28px;bottom:28px;display:flex;align-items:center;gap:10px;height:34px;padding:0 14px;border:1px solid var(--line2);border-radius:999px;background:rgba(6,7,8,.6);font-family:var(--mono);font-size:12px;letter-spacing:.08em;color:var(--muted)}
+.fp-tag i{width:6px;height:6px;border-radius:50%;background:var(--brand);box-shadow:0 0 0 4px var(--brand-soft)}
+.fp-tag b{font-weight:400;color:var(--ink)}
+.film.playing .film-play{display:none}
+.film-note{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:14px;padding:20px;text-align:center;
+  background:linear-gradient(rgba(6,7,8,.86),rgba(6,7,8,.9)),center/cover no-repeat var(--poster)}
+.film-note[hidden]{display:none}
+.film-note p{max-width:26em;margin:0;font-size:14px;line-height:1.7;color:var(--muted)}
+.film-note b{display:block;margin-bottom:2px;color:var(--ink);font-weight:600;font-size:15px}
+.film-note button{height:38px;padding:0 18px;border:0;border-radius:999px;background:var(--ink);color:#08090a;font:inherit;font-size:14px;font-weight:600;cursor:pointer}
+.film.resume .film-play{background:linear-gradient(180deg,rgba(6,7,8,0) 55%,rgba(6,7,8,.72)),center/cover no-repeat var(--poster)}
+/* 手机宽度放竖版：和脚本里 matchMedia('(max-width:560px)') 用同一个断点 */
+.film{--poster:var(--poster-h)}
+@media (max-width:560px){.film{aspect-ratio:9/16;max-width:420px;margin-inline:auto;--poster:var(--poster-v)}}
+
+/* final */
+.final{text-align:center;padding:clamp(120px,16vw,200px) 0;background:radial-gradient(700px 360px at 50% 100%,rgba(61,107,255,.16),transparent 70%)}
+.final h2{font-family:var(--serif);font-weight:900;font-size:clamp(40px,7vw,96px);line-height:1.1;letter-spacing:-.01em}
+.final .cta-row{justify-content:center;margin-top:40px}
+.final .meta{margin-top:22px}
+
+.log{padding:80px 0;border-top:1px solid var(--line)}
+.log h3{font-family:var(--serif);font-size:24px;margin-bottom:20px}
+details{border-top:1px solid var(--line);padding:16px 0}
+details:last-child{border-bottom:1px solid var(--line)}
+summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;font-family:var(--mono);font-size:14px}
+summary::-webkit-details-marker{display:none}
+summary span{color:var(--muted)}
+details ul{margin:12px 0 0;padding-left:18px;color:var(--muted);font-size:14px}
+footer{padding:36px 0 48px;color:var(--faint);font-size:12px}
+footer .wrap{display:flex;justify-content:space-between;gap:8px 16px;flex-wrap:wrap}
+footer .legal,footer .maker{flex-basis:100%}
+footer .maker{color:var(--muted)}
+footer a:hover{color:var(--muted)}
+
+.js .rv{opacity:0;transform:translateY(24px);transition:opacity .9s var(--ease),transform .9s var(--ease)}
+.js .rv.in{opacity:1;transform:none}
+
+/* ---------- 首屏：三位团队成员 ---------- */
+.team{position:relative;display:flex;flex-direction:column;gap:12px}
+.mx{display:block;color:inherit;position:relative;--ac:#8ea8ff;border:1px solid var(--line2);border-radius:14px;background:rgba(11,13,16,.88);backdrop-filter:blur(14px);padding:14px 16px 16px;
+  box-shadow:0 24px 60px rgba(0,0,0,.45);transition:border-color .5s,box-shadow .5s,transform .6s var(--ease),opacity .5s}
+.mx.m2{--ac:#ff6a52}.mx.m3{--ac:#67e8f9}
+.team.cycling .mx{opacity:.62}
+.team.cycling .mx.on{opacity:1;transform:translateX(-10px);border-color:color-mix(in srgb,var(--ac) 55%,transparent);
+  box-shadow:0 0 0 1px color-mix(in srgb,var(--ac) 25%,transparent),0 30px 70px rgba(0,0,0,.55),0 0 70px color-mix(in srgb,var(--ac) 20%,transparent)}
+.js .team .mx{animation:enter .8s var(--ease) both;animation-delay:calc(var(--n)*160ms + 200ms)}
+@keyframes enter{from{opacity:0;transform:translateX(40px)}}
+.mx-h{display:flex;align-items:center;gap:12px}
+.mx-h b{display:block;font-family:var(--serif);font-weight:900;font-size:21px;line-height:1.1}
+.mx-h small{display:block;font-size:12px;color:var(--muted);margin-top:3px}
+.mx-st{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ac);white-space:nowrap}
+.mx-st i{width:6px;height:6px;border-radius:50%;background:currentColor;animation:blink 1.4s infinite}
+.badge{flex:none;width:40px;height:40px;display:grid;place-items:center;font-family:var(--serif);font-weight:900;font-size:20px;line-height:1}
+.badge.b1{border-radius:50%;border:4px solid var(--brand);position:relative}
+.badge.b1::before{content:"";width:13px;height:13px;border-radius:50%;background:var(--brand)}
+.badge.b1::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:2px solid var(--brand);opacity:0;animation:ripple 2.4s var(--ease) infinite}
+.seal{display:inline-grid;place-items:center;background:#c8372d;color:#fff4ec;border-radius:5px;font-family:var(--serif);font-weight:900;box-shadow:inset 0 0 0 2px rgba(255,244,236,.28);transform:rotate(-4deg)}
+.badge.b2{width:40px;height:40px}
+.badge.b3{border:1.5px solid #67e8f9;color:#67e8f9;border-radius:6px;font-size:19px;
+  background:linear-gradient(rgba(103,232,249,.12) 1px,transparent 1px) 0 0/8px 8px,linear-gradient(90deg,rgba(103,232,249,.12) 1px,transparent 1px) 0 0/8px 8px}
+.mx-b{margin-top:12px;font-size:13px}
+/* 助理 */
+.as-msg{display:flex;gap:10px;align-items:flex-start;background:var(--brand-soft);color:#dbe3ff;border-radius:10px;border-top-left-radius:3px;padding:9px 11px;min-height:44px}
+.as-msg .chip{flex:none;height:20px;font-size:11px;background:rgba(142,168,255,.18)}
+.as-mem{display:flex;gap:8px;align-items:center;margin-top:8px;font-size:12px;color:var(--muted)}
+.as-mem b{font-weight:500;color:var(--ink)}
+.mx.go .as-msg{animation:pop .45s var(--ease)}
+@keyframes pop{from{opacity:0;transform:translateY(6px)}}
+/* 研究员 */
+.rs-row{display:flex;align-items:baseline;gap:8px;color:var(--muted);font-size:12px}
+.rs-row b{font-family:var(--mono);font-weight:500;font-size:18px;color:var(--ink)}
+.rs-row .to{color:var(--faint)}
+.rs-vs{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:10px;margin-top:10px;font-size:12px}
+.rs-vs .bl{color:var(--up);font-weight:600}.rs-vs .br{color:var(--down);font-weight:600}
+.rs-bar{position:relative;height:6px;border-radius:9px;background:var(--down)}
+.rs-bar i{position:absolute;inset:0 auto 0 0;width:60%;border-radius:9px 0 0 9px;background:var(--up)}
+.rs-bar b{position:absolute;top:50%;left:60%;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:#fff;box-shadow:0 0 10px rgba(255,255,255,.6)}
+.mx.go .rs-bar i{animation:tugw 2.4s var(--ease) both}.mx.go .rs-bar b{animation:tugl 2.4s var(--ease) both}
+@keyframes tugw{0%{width:50%}25%{width:58%}45%{width:46%}70%{width:64%}100%{width:60%}}
+@keyframes tugl{0%{left:50%}25%{left:58%}45%{left:46%}70%{left:64%}100%{left:60%}}
+.rs-v{width:auto;height:26px;padding:0 8px;font-size:13px}
+.mx.go .rs-v{animation:stamp .5s cubic-bezier(.2,1.6,.4,1) 2.3s both}
+@keyframes stamp{from{opacity:0;transform:rotate(-4deg) scale(2.2)}}
+/* 策略工程师 */
+.en{display:grid;grid-template-columns:132px 1fr;gap:14px;align-items:center}
+.en svg{width:100%;height:58px;display:block;border:1px solid rgba(103,232,249,.25);border-radius:6px;
+  background:linear-gradient(rgba(103,232,249,.08) 1px,transparent 1px) 0 0/12px 12px,linear-gradient(90deg,rgba(103,232,249,.08) 1px,transparent 1px) 0 0/12px 12px}
+.mx.go .en .dl{stroke-dasharray:1;animation:drawin 1s var(--ease) both}
+@keyframes drawin{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+.lanes{position:relative;display:grid;gap:5px;font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+.lanes::after{content:"";position:absolute;top:-4px;bottom:-4px;left:calc(var(--div,70%));border-left:1px dashed rgba(103,232,249,.5)}
+.ln{position:relative;height:7px;border-radius:4px;background:rgba(255,255,255,.05)}
+.ln i{position:absolute;inset:0 auto 0 0;width:var(--w);border-radius:4px;background:#67e8f9;opacity:.85}
+.ln.bad i{background:linear-gradient(90deg,#67e8f9 85%,var(--warn))}
+.ln.bad::after{content:"✕";position:absolute;left:calc(var(--w) + 4px);top:50%;transform:translateY(-50%);font-size:10px;color:var(--warn)}
+.ln.best i{background:var(--brand-hi);box-shadow:0 0 10px rgba(142,168,255,.7)}
+.mx.go .ln i{animation:run 2.2s var(--ease) both;animation-delay:calc(var(--k)*90ms)}
+@keyframes run{from{width:0}}
+.mx.go .ln.bad::after{animation:pop .3s ease 2.1s both}
+.lanes-n{display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:var(--muted)}
+
+/* ---------- 三大板块 ---------- */
+.pillar{position:relative;padding:clamp(96px,12vw,150px) 0;border-top:1px solid var(--line);overflow:hidden}
+.p-head{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,26em);gap:24px 48px;align-items:end;margin-bottom:64px}
+.p-num{position:absolute;right:-1%;top:-60px;font-family:var(--serif);font-weight:900;font-size:clamp(180px,22vw,320px);line-height:1;color:rgba(255,255,255,.03);pointer-events:none;user-select:none}
+.p-tag{display:flex;align-items:center;gap:12px;margin-bottom:18px;font-size:13px;color:var(--muted)}
+.p-tag b{font-family:var(--mono);font-weight:400;color:var(--brand-hi);letter-spacing:.16em;font-size:12px}
+.p-head h2{font-family:var(--serif);font-weight:900;font-size:clamp(40px,5.6vw,76px);line-height:1.1;letter-spacing:-.01em}
+.p-head p{color:var(--muted)}
+.row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:56px;align-items:center}
+.row+.row{margin-top:96px}
+.h3s,.row h3{font-family:var(--serif);font-weight:700;font-size:clamp(26px,2.8vw,36px);line-height:1.3}
+.row .txt>p{margin-top:14px;color:var(--muted);max-width:26em}
+.p1 .phone{margin:0 auto}
+.cap{margin-top:16px;text-align:center;font-size:13px;color:var(--muted)}
+.cap time{font-family:var(--mono);color:var(--ink);margin-right:8px}
+/* 板块一：一天里的几个时刻 */
+.tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.tabs button{height:36px;padding:0 14px;border:1px solid var(--line2);border-radius:999px;background:none;color:var(--muted);font:inherit;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:all .3s}
+.tabs button time{font-family:var(--mono);font-size:12px}
+.tabs button[aria-selected="true"]{border-color:var(--brand);background:var(--brand-soft);color:var(--ink)}
+.tabs button:hover{color:var(--ink)}
+.tabs button .pg{width:28px;height:2px;border-radius:2px;background:var(--line2);overflow:hidden;display:none}
+.js .tabs.auto button[aria-selected="true"] .pg{display:block}
+.tabs button .pg i{display:block;height:100%;width:100%;background:var(--brand-hi);transform-origin:left;transform:scaleX(0)}
+.tabs.auto button[aria-selected="true"] .pg i{animation:prog var(--tab-ms,6500ms) linear both}
+@keyframes prog{to{transform:scaleX(1)}}
+.tabw{display:grid}
+.tabp h4{margin:0 0 12px;font-family:var(--serif);font-weight:700;font-size:22px}
+html:not(.js) .tabp+.tabp{margin-top:24px}
+.js .tabp{grid-area:1/1;visibility:hidden;opacity:0;transition:opacity .4s}
+.js .tabp.cur{visibility:visible;opacity:1}
+.js .tabp:not(.play) .frag>*{opacity:0;transform:translateY(10px);transition:none}
+.memory{margin-top:96px}
+.memory .mem{height:400px}
+.mem-title{display:flex;justify-content:space-between;align-items:end;gap:24px;flex-wrap:wrap;margin-bottom:24px}
+.mem-title p{color:var(--muted);max-width:27em}
+.film-h{display:flex;justify-content:space-between;align-items:end;gap:16px;flex-wrap:wrap;margin:96px 0 24px}
+.film-h p{color:var(--muted)}
+.film-h .seal-n{font-family:var(--mono);font-size:12px;color:var(--brand-hi);letter-spacing:.12em;margin-bottom:10px}
+/* 板块二：水墨、印章点缀 */
+.p2::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(520px 320px at 12% 18%,rgba(255,255,255,.035),transparent 70%),radial-gradient(420px 300px at 88% 46%,rgba(200,55,45,.08),transparent 70%),radial-gradient(600px 260px at 30% 92%,rgba(255,255,255,.03),transparent 70%)}
+.p2 .p-num{color:rgba(200,55,45,.07)}
+.p2 .p-tag b{color:#ff8a7a}
+.big-n{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 18px;font-family:var(--serif);font-weight:900;line-height:1}
+.big-n .a{font-size:clamp(64px,8vw,112px);color:rgba(236,238,232,.32);font-variant-numeric:tabular-nums}
+.big-n .ar{font-size:clamp(32px,3vw,44px);color:var(--faint)}
+.big-n .b{font-size:clamp(64px,8vw,112px);color:#ff6a52;text-shadow:0 0 40px rgba(255,106,82,.35)}
+.big-cap{margin-top:12px;color:var(--muted)}
+.srcs{display:flex;flex-wrap:wrap;gap:10px;margin-top:28px}
+.srcs span{display:inline-flex;align-items:center;height:32px;padding:0 12px;border:1.5px solid rgba(200,55,45,.55);border-radius:5px;color:#ff9b8c;font-family:var(--serif);font-weight:700;font-size:14px;transform:rotate(var(--r,0deg));background:rgba(200,55,45,.06)}
+.js .p2 .srcs span{opacity:0;transform:rotate(var(--r,0deg)) scale(1.6)}
+.js .p2 .in .srcs span{opacity:1;transform:rotate(var(--r,0deg));transition:opacity .3s,transform .45s cubic-bezier(.2,1.6,.4,1);transition-delay:calc(var(--k)*140ms + .3s)}
+.tr{font-size:11.5px;color:var(--faint);margin-top:2px}
+.verdict .seal-stamp{position:absolute;right:16px;top:14px;width:58px;height:58px;font-size:32px}
+.js .verdict .seal-stamp{opacity:0;transform:rotate(-8deg) scale(2.4)}
+.js .arena.judged .verdict .seal-stamp{opacity:.95;transform:rotate(-8deg);transition:opacity .2s .35s,transform .45s cubic-bezier(.2,1.6,.4,1) .35s}
+.arena .v-head small{margin-left:auto;margin-right:70px}
+.res{margin-top:96px}
+.res .frag{box-shadow:0 40px 90px rgba(0,0,0,.45),0 0 0 1px rgba(200,55,45,.18)}
+.res-h{display:flex;justify-content:space-between;align-items:end;gap:24px;flex-wrap:wrap;margin-bottom:24px}
+.res-h p{color:var(--muted);max-width:26em}
+/* 板块三：蓝图网格、尺规标注 */
+.p3::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.9;
+  background:linear-gradient(rgba(103,232,249,.045) 1px,transparent 1px) 0 0/24px 24px,linear-gradient(90deg,rgba(103,232,249,.045) 1px,transparent 1px) 0 0/24px 24px,
+  linear-gradient(rgba(103,232,249,.07) 1px,transparent 1px) 0 0/120px 120px,linear-gradient(90deg,rgba(103,232,249,.07) 1px,transparent 1px) 0 0/120px 120px;
+  -webkit-mask-image:linear-gradient(transparent,#000 12%,#000 88%,transparent);mask-image:linear-gradient(transparent,#000 12%,#000 88%,transparent)}
+.p3 .p-num{color:rgba(103,232,249,.06)}
+.p3 .p-tag b{color:#67e8f9}
+.bp{position:relative;border:1px solid rgba(103,232,249,.32);border-radius:12px;background:rgba(8,20,30,.55);padding:18px 18px 30px 18px}
+.bp::before{content:"";position:absolute;left:18px;right:18px;bottom:8px;height:10px;
+  background:linear-gradient(90deg,rgba(103,232,249,.5) 1px,transparent 1px) 0 100%/12px 6px repeat-x,linear-gradient(90deg,rgba(103,232,249,.7) 1px,transparent 1px) 0 100%/60px 10px repeat-x}
+.bp-h{display:flex;justify-content:space-between;gap:12px;font-family:var(--mono);font-size:11.5px;color:rgba(103,232,249,.85);margin-bottom:10px}
+.bp svg{display:block;width:100%;height:auto}
+.bp .dl{stroke-dasharray:1}
+.js .bp .dl{stroke-dashoffset:1;transition:stroke-dashoffset 1.2s var(--ease) .5s}
+.js .in .bp .dl,html:not(.js) .bp .dl{stroke-dashoffset:0}
+.js .bp .ann{opacity:0;transition:opacity .5s 1.5s}
+.js .in .bp .ann{opacity:1}
+.say{font-size:14px;color:var(--muted);margin-bottom:14px}.say b{font-family:var(--serif);font-weight:700;font-size:19px;color:var(--ink)}
+.rule{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:baseline;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel);font-size:13.5px}
+.rule+.rule{margin-top:8px}
+.rule .pd{font-family:var(--mono);font-size:11.5px;color:var(--muted);white-space:nowrap}
+.rule em{font-style:normal;font-weight:600;color:#67e8f9;padding:0 2px}
+.rule.warn{border-color:rgba(242,184,75,.45);background:var(--warn-soft)}
+.rule .wn{grid-column:2;font-size:12px;color:var(--warn)}
+.tunnel{margin-top:0}
+.tn-lanes{position:relative;display:grid;gap:22px;margin:26px 0 6px}
+.tn-div{position:absolute;top:-22px;bottom:-6px;left:calc(110px + (100% - 110px - 120px)*.7);border-left:1.5px dashed rgba(103,232,249,.6)}
+.tn-div span{position:absolute;top:0;white-space:nowrap;font-family:var(--mono);font-size:11px;color:rgba(103,232,249,.85)}
+.tn-div span:first-child{right:8px}.tn-div span:last-child{left:8px}
+.tn{display:grid;grid-template-columns:110px 1fr 120px;gap:0;align-items:center;font-size:12.5px}
+.tn>span:first-child{font-family:var(--mono);color:var(--muted)}
+.tn .trk{position:relative;height:16px;border-radius:3px;background:repeating-linear-gradient(90deg,rgba(103,232,249,.08) 0 2px,transparent 2px 18px)}
+.tn .trk i{position:absolute;left:0;top:3px;height:10px;width:var(--w);border-radius:3px;background:linear-gradient(90deg,rgba(103,232,249,.25),#67e8f9)}
+.tn.best .trk i{background:linear-gradient(90deg,rgba(142,168,255,.3),var(--brand-hi));box-shadow:0 0 14px rgba(142,168,255,.6)}
+.tn.bad .trk i{background:linear-gradient(90deg,rgba(103,232,249,.25),#67e8f9 85%,var(--warn))}
+.tn .trk b{position:absolute;bottom:13px;right:calc(100% - var(--w));font-size:11px;font-weight:600;white-space:nowrap}
+.tn.bad .trk b{color:var(--warn)}
+.tn .r{text-align:right;font-family:var(--mono);font-size:12.5px}
+.tn .r small{display:block;font-size:10.5px;color:var(--faint)}
+.js .in .tn .trk i{animation:race 7s var(--ease) infinite;animation-delay:calc(var(--k)*120ms)}
+.js .in .tn .trk b,.js .in .tn .r{animation:show 7s linear infinite}
+@keyframes race{0%{width:0}45%,100%{width:var(--w)}}
+@keyframes show{0%,46%{opacity:0}52%,100%{opacity:1}}
+.tn-foot{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:14px;padding-top:12px;border-top:1px dashed rgba(103,232,249,.25);font-size:12.5px;color:var(--muted)}
+.tn-foot b{color:var(--ink);font-weight:500}
+.sig{border:1px solid var(--line2);border-radius:10px;background:var(--panel);overflow:hidden}
+.sig-h{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line);font-size:13px}
+.sig-h b{font-weight:600}
+.sig-b{padding:12px;font-size:13px;display:grid;gap:8px}
+.sig-b .big{font-size:18px;font-weight:600}
+.sig-b .big span{color:var(--up)}
+.sig-b .why{font-size:12px;color:var(--brand-hi);background:var(--brand-soft);border-radius:8px;padding:8px 10px}
+.sig .btns{margin:0;padding:0 12px 12px}
+/* 尾部两块 */
+.short{padding:clamp(80px,10vw,120px) 0;border-top:1px solid var(--line)}
+.short-in{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:56px;align-items:start}
+.short h2{font-family:var(--serif);font-weight:700;font-size:clamp(32px,4vw,52px);line-height:1.15}
+.short .lead{margin-top:16px;color:var(--muted);max-width:24em}
+.short .pts{margin-top:0}
+
+@media (max-width:1100px){
+  .hero-in{grid-template-columns:minmax(0,1fr) minmax(0,480px);gap:36px}
+  .nav-links{gap:18px}
+}
+@media (max-width:980px){
+  .nav-links{display:none}
+  .hero{min-height:auto}
+  .hero-in{grid-template-columns:minmax(0,1fr);gap:44px;padding-bottom:56px}
+  .team.cycling .mx.on{transform:none}
+  .p-head{grid-template-columns:minmax(0,1fr);margin-bottom:44px}
+  .p-num{top:-30px;font-size:160px}
+  .row{grid-template-columns:minmax(0,1fr);gap:32px}
+  .row+.row,.memory,.res{margin-top:72px}
+  .row.flip>:first-child{order:2}
+  .short-in{grid-template-columns:minmax(0,1fr);gap:32px}
+  .mem{grid-template-columns:1fr}
+  .memory .mem{height:360px}
+  .mem-col:nth-child(n+2){display:none}
+  .mem-heads{grid-template-columns:1fr}
+  .mem-heads div:nth-child(n+2){display:none}
+  .facts .wrap{grid-template-columns:1fr 1fr}
+  .fact{padding:36px 16px}.fact:nth-child(3){border-left:0;padding-left:0}
+  .fact:nth-child(n+3){border-top:1px solid var(--line)}
+  .fp-tag{left:16px;bottom:16px}
+  .film-note{gap:10px;padding:14px}.film-note p{font-size:12.5px}.film-note b{font-size:13.5px}.film-note button{height:34px;font-size:13px}
+}
+@media (max-width:560px){
+  .wa-spark{display:none}.wa-label{min-width:6.5em}
+  .hero h1{font-size:12.6vw}
+  .final h2{font-size:9vw}
+  .tabs button{padding:0 11px}.js .tabs button[aria-selected="true"] .pg{display:none}
+  .mx{padding:12px 13px 14px}
+  .en{grid-template-columns:96px 1fr;gap:10px}
+  .ar-topic{padding:10px 12px;align-items:flex-start}.ar-topic .t{white-space:normal}
+  .ar-vs{padding:14px 12px 8px;gap:8px}.side b{font-size:20px}.side .av{width:28px;height:28px}.vs{font-size:30px}
+  .meter{margin:0 12px}.meter-n{margin:6px 12px 0}
+  .ar-stage{padding:10px 12px 12px}
+  .ar-cols{gap:8px}
+  .arg{font-size:12px;padding:7px 8px}
+  .cite{margin-left:4px;padding:0 4px}
+  .verdict{inset:6px;padding:12px;gap:10px}
+  .verdict .seal-stamp{width:46px;height:46px;font-size:26px;right:12px;top:10px}
+  .arena .v-head small{display:none}
+  .v-dl{font-size:12px;gap:5px 10px}
+  .frag{padding:16px}
+  .res-grid{grid-template-columns:1fr}
+  .stats b{font-size:15px}
+  .stats.four{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .sbs{grid-template-columns:1fr}
+  .flow{gap:24px 10px}.fn{font-size:11.5px;padding:6px 7px}
+  .pts{grid-template-columns:1fr}
+  .tn{grid-template-columns:70px 1fr 74px;font-size:11.5px}
+  .tn-div{left:calc(70px + (100% - 70px - 74px)*.7)}
+  .tn .trk b{display:none}
+  .rule{grid-template-columns:1fr}.rule .wn{grid-column:1}
+  .term-b{min-height:300px;padding:14px}
+  .film{border-radius:12px}.fp-ring{width:56px;height:56px}.fp-ring::before{inset:-7px}
+  .fp-tag{left:10px;bottom:10px;height:26px;padding:0 10px;gap:8px;font-size:10.5px;letter-spacing:.06em}
+}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  .js .rv,.js .frag>*,.js .nt,.js .tabp:not(.play) .frag>*{opacity:1;transform:none}
+  .js .arena .arg{opacity:1;transform:none}
+  .js .verdict{opacity:1;transform:none;filter:none}
+  .js .verdict .seal-stamp{opacity:.95;transform:rotate(-8deg)}
+  .js .flow svg{opacity:1}.js .bp .dl{stroke-dashoffset:0}.js .bp .ann{opacity:1}
+  .js .p2 .srcs span{opacity:1;transform:rotate(var(--r,0deg))}
+  .js .step .ck{background:var(--primary);border-color:var(--primary)}.js .step .ck::after,.js .step small{opacity:1}
+  .js .step.last .ck{background:var(--warn);border-color:var(--warn)}
+  .js .flip .f-old{transform:rotateX(-180deg)}.js .flip .f-new{transform:none}
+  .js .combo-a .done{opacity:1}
+  .js .term .tl{display:block}
+  .orb::after,.badge.b1::after{display:none}
+}
+
+</style>
+</head>
+<body>
+
+<a class="skip-link" href="#main">跳到正文</a>
+
+<header class="nav" id="nav">
+  <div class="wrap">
+    <a class="brand" href="https://qilinshuzhi.com/" aria-label="Sente · 启临数智首页"><svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#0b0d10" stroke="rgba(255,255,255,.14)" stroke-width="2"/><circle cx="27" cy="38" r="13" fill="#eceee8"/><circle cx="46" cy="19" r="7" fill="#3d6bff"/></svg>Sente<small>启临数智</small></a>
+    <nav class="nav-links" aria-label="页面导航"><a href="#assistant">助理与记忆</a><a href="#intel">新闻与研讨</a><a href="#workshop">策略工坊</a><a href="#agents">给你的 AI 用</a><a href="#log">更新日志</a></nav>
+    <a class="nav-cta" href="https://qilinshuzhi.com/trader/"><i aria-hidden="true"></i>网页版</a>
+  </div>
+</header>
+
+<main id="main">
+<section class="hero" id="hero" aria-labelledby="hero-title">
+  <div class="hero-grid" aria-hidden="true"></div><div class="hero-spot" aria-hidden="true"></div>
+  <div class="wrap hero-in">
+    <div class="hero-copy">
+      <div class="eyebrow"><i aria-hidden="true"></i>Sente · AI 私人交易助理 · 期货</div>
+      <h1 id="hero-title"><span class="h-a">一个人，</span><span><em>一支交易团队。</em></span></h1>
+      <p class="hero-sub">三个 AI 给你打下手：<b>助理</b>盯盘、提醒、记住你的习惯；<b>研究员</b>读遍全球消息，几个模型吵完再给结论；<b>策略工程师</b>把你的想法造成规矩，先在历史里跑一遍。你只管拿主意。</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="https://qilinshuzhi.com/downloads/ai-trader/AI-Trader_latest_aarch64.dmg" download aria-label="下载 macOS 版"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.4 12.6c0-2.4 2-3.6 2.1-3.7-1.1-1.7-2.9-1.9-3.5-1.9-1.5-.2-2.9.9-3.7.9-.8 0-1.9-.9-3.2-.8-1.6 0-3.1 1-4 2.4-1.7 3-.4 7.3 1.2 9.7.8 1.2 1.8 2.5 3 2.4 1.2 0 1.7-.8 3.1-.8 1.5 0 1.9.8 3.2.8 1.3 0 2.2-1.2 3-2.4.9-1.4 1.3-2.7 1.3-2.8-.1 0-2.5-1-2.5-3.8zM14 5.4c.7-.8 1.1-1.9 1-3-1 0-2.1.7-2.8 1.5-.6.7-1.2 1.8-1 2.9 1.1.1 2.1-.6 2.8-1.4z"/></svg>macOS</a>
+        <a class="btn btn-ghost" href="https://qilinshuzhi.com/downloads/ai-trader/AI-Trader_latest_x64-setup.exe" download aria-label="下载 Windows 版"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5 10.4 4.5v7H3zm8.3-1.1L21 3v8.5h-9.7zM3 12.5h7.4v7L3 18.5zm8.3 0H21V21l-9.7-1.4z"/></svg>Windows</a>
+        <a class="webapp" href="https://qilinshuzhi.com/trader/" aria-label="打开网页版，不装也能用"><span class="wa-live" aria-hidden="true"><i></i>LIVE</span><svg class="wa-spark" viewBox="0 0 44 22" aria-hidden="true"></svg><span class="wa-label" aria-hidden="true"><span>不装也能用 · 网页版</span><span>qilinshuzhi.com/trader</span></span><span class="wa-go" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a>
+      </div>
+      <p class="meta">v<span data-release-version>1.8.0</span> · macOS 13+ Apple Silicon · Windows 10/11 x64 · 快期模拟账户 · <a href="https://qilinshuzhi.com/downloads/ai-trader/SHA256SUMS">SHA-256</a></p>
+    </div>
+
+    <div class="team" id="team" aria-label="Sente 的三位 AI 成员">
+      <a class="mx m1" href="#assistant" style="--n:0" data-m="0">
+        <div class="mx-h"><span class="badge b1" aria-hidden="true"></span><div><b>助理</b><small>盯盘 · 提醒 · 记忆</small></div><span class="mx-st"><i></i>盯着呢</span></div>
+        <div class="mx-b" aria-hidden="true">
+          <div class="as-msg"><span class="chip" id="as-tag">保本提醒</span><span id="as-text">螺纹拉了 18 跳，止损可以挪到成本了。</span></div>
+          <div class="as-mem"><span class="chip brand" style="height:20px;font-size:11px">记得你</span><b>浮盈过千，先落袋一半</b></div>
+        </div>
+      </a>
+      <a class="mx m2" href="#intel" style="--n:1" data-m="1">
+        <div class="mx-h"><span class="badge b2 seal" aria-hidden="true">研</span><div><b>研究员</b><small>全球消息 · 多空研讨</small></div><span class="mx-st"><i></i>在读</span></div>
+        <div class="mx-b" aria-hidden="true">
+          <div class="rs-row">一夜读过 <b id="rs-n">426</b> 条<span class="to">→</span>和你有关 <b>3</b> 条</div>
+          <div class="rs-vs"><span class="bl">多</span><span class="rs-bar"><i></i><b></b></span><span class="br">空</span><span class="seal rs-v">略偏多</span></div>
+        </div>
+      </a>
+      <a class="mx m3" href="#workshop" style="--n:2" data-m="2">
+        <div class="mx-h"><span class="badge b3" aria-hidden="true">造</span><div><b>策略工程师</b><small>画线 · 规则 · 回测</small></div><span class="mx-st"><i></i>在跑回测</span></div>
+        <div class="mx-b en" aria-hidden="true">
+          <svg viewBox="0 0 132 58" preserveAspectRatio="none" id="en-chart"><line class="dl" pathLength="1" x1="6" y1="50" x2="128" y2="16" stroke="#e879f9" stroke-width="1.5"/></svg>
+          <div><div class="lanes"><div class="ln" style="--w:92%;--k:0"><i></i></div><div class="ln bad" style="--w:76%;--k:1"><i></i></div><div class="ln best" style="--w:100%;--k:2"><i></i></div><div class="ln" style="--w:88%;--k:3"><i></i></div></div>
+          <div class="lanes-n"><span>4 组参数</span><span>样本内 | 样本外</span></div></div>
+        </div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<div class="ticker" aria-hidden="true"><div class="ticker-track" id="ticker"></div></div>
+
+<!-- ========== 板块一：助理与记忆（对应片一《它懂你》） ========== -->
+<section class="pillar p1" id="assistant" aria-labelledby="p1-title">
+  <div class="wrap">
+    <div class="p-head rv">
+      <div class="p-num" aria-hidden="true">壹</div>
+      <div><div class="p-tag"><b>01</b>助理与记忆</div><h2 id="p1-title">它替你盯着，<br>也记得你。</h2></div>
+      <p>有事它先开口，锁屏直接推；平仓顺手改止损，一张卡办完；说一声“老规矩”，一串事挨个做完；收盘后把今天讲给你听。</p>
+    </div>
+
+    <div class="row rv">
+      <div>
+          <div class="phone" aria-hidden="true"><div class="screen">
+            <div class="ls-date">10月12日 星期一</div>
+            <div class="ls-time">07:40</div>
+            <div class="nt" style="--i:0"><svg viewBox="0 0 64 64"><rect width="64" height="64" fill="#0b0d10"/><circle cx="27" cy="38" r="13" fill="#eceee8"/><circle cx="46" cy="19" r="7" fill="#3d6bff"/></svg><div><div class="nt-h"><b>Sente · 今日要点</b><span>现在</span></div>夜里有 3 条消息和你的持仓有关：唐山高炉检修、公积金放松、铁矿到港减少。</div></div>
+            <div class="nt" style="--i:1"><svg viewBox="0 0 64 64"><rect width="64" height="64" fill="#0b0d10"/><circle cx="27" cy="38" r="13" fill="#eceee8"/><circle cx="46" cy="19" r="7" fill="#3d6bff"/></svg><div><div class="nt-h"><b>Sente · 夜盘</b><span>23:01</span></div>螺纹夜盘收涨 0.55%，你那 2 手多单浮盈 +620。</div></div>
+            <div class="nt" style="--i:2"><svg viewBox="0 0 64 64"><rect width="64" height="64" fill="#0b0d10"/><circle cx="27" cy="38" r="13" fill="#eceee8"/><circle cx="46" cy="19" r="7" fill="#3d6bff"/></svg><div><div class="nt-h"><b>Sente · 风险度</b><span>23:00</span></div>风险度 38%，正常。</div></div>
+          </div></div>
+        <p class="cap"><time>07:40</time>你还没醒，它已经推了三条</p>
+      </div>
+      <div class="day-tabs" id="day-tabs">
+        <div class="tabs" role="tablist" aria-label="它的一天">
+          <button type="button" role="tab" id="tab-0" aria-controls="tp-0" aria-selected="true"><time>10:47</time>盯盘<span class="pg"><i></i></span></button>
+          <button type="button" role="tab" id="tab-1" aria-controls="tp-1" aria-selected="false"><time>11:30</time>老规矩<span class="pg"><i></i></span></button>
+          <button type="button" role="tab" id="tab-2" aria-controls="tp-2" aria-selected="false"><time>15:15</time>复盘<span class="pg"><i></i></span></button>
+        </div>
+        <div class="tabw">
+          <div class="tabp cur play" role="tabpanel" id="tp-0" aria-labelledby="tab-0">
+            <h4>一张卡，平仓顺手改止损。</h4>
+        <div class="frag">
+          <div class="frag-top" style="--i:0"><span>AI 动态</span><span class="chip brand">保本提醒</span></div>
+          <div class="alert" style="--i:1"><div class="orb" aria-hidden="true"></div><div class="alert-body">螺纹 5 分钟拉了 18 跳，放量。你那 2 手多单已经在成本上方 30 点，止损可以挪到成本了。</div></div>
+          <div class="reply" style="--i:2"><span>先走一手，另一手保本</span></div>
+          <div class="combo" style="--i:3">
+            <div class="combo-h"><b>合并卡 · 螺纹2701</b><span class="chip muted">AI 建议</span></div>
+            <div class="combo-r"><span class="k">1</span><span>平多 1 手 · 市价</span><span class="n" style="color:var(--up)">+300</span></div>
+            <div class="combo-r"><span class="k">2</span><span>剩下 1 手改止损</span><span class="n"><span class="old">3,040</span><span class="new">3,090</span></span></div>
+            <div class="combo-a"><span class="b alt">取消</span><span class="b pri">确认</span><span class="done">✓ 已成交 · 止损已改到成本 3,090</span></div>
+          </div>
+          <div class="later" style="--i:4"><div><time>09:58</time>风险度 41%，正常</div><div><time>14:50</time>收盘前还有 1 手螺纹多单，要带过夜吗？</div></div>
+        </div>
+          </div>
+          <div class="tabp" role="tabpanel" id="tp-1" aria-labelledby="tab-1">
+            <h4>说一声“老规矩”，一串事挨个做完。</h4>
+        <div class="frag">
+          <div class="ask" style="--i:0">你：<b>“老规矩”</b></div>
+          <div class="frag-top" style="--i:1"><span>我的流程 · 老规矩</span><span>6 步</span></div>
+          <div class="step" style="--i:2;--s:0"><span class="ck"></span><span>看今日新闻要点</span><small>3 条相关</small></div>
+          <div class="step" style="--i:3;--s:1"><span class="ck"></span><span>更新三个自选品种的判断</span><small>螺纹 略偏多</small></div>
+          <div class="step" style="--i:4;--s:2"><span class="ck"></span><span>查风险度和保证金</span><small>41%</small></div>
+          <div class="step" style="--i:5;--s:3"><span class="ck"></span><span>对照你定的规矩</span><small>夜盘不开新仓</small></div>
+          <div class="step" style="--i:6;--s:4"><span class="ck"></span><span>挂好到价提醒</span><small>3,150 / 3,060</small></div>
+          <div class="step last" style="--i:7;--s:5"><span class="ck"></span><span>该下的单出成卡</span><small>2 张</small></div>
+          <div class="wait" style="--i:8"><span>2 张卡等你确认</span><span class="b pri">去看看</span></div>
+        </div>
+          </div>
+          <div class="tabp" role="tabpanel" id="tp-2" aria-labelledby="tab-2">
+            <h4>收盘后，每一笔都标清楚。</h4>
+        <div class="frag">
+          <div class="frag-top" style="--i:0"><span>今日复盘 · 10-12</span><span style="color:var(--up)">+1,486</span></div>
+          <div class="rev-item" style="--i:1"><time>09:03</time><div>买开 RB2701 × 2 @ 3,090<small>回踩支撑，分两笔进</small></div><span class="chip plan">计划内</span></div>
+          <div class="rev-item" style="--i:2"><time>10:48</time><div>平多 RB2701 × 1 @ 3,120<small>保本提醒后先走一手，剩下的止损挪到成本</small></div><span class="chip remind">提醒后</span></div>
+          <div class="rev-item" style="--i:3"><time>13:52</time><div>买开 MA2701 × 1 @ 2,412<small>看到拉升追进去，没有计划</small></div><span class="chip adhoc">临时</span></div>
+          <div class="note" style="--i:4"><b>习惯观察</b>这周 3 笔临时单，2 笔是在连亏之后开的。</div>
+        </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="memory" id="memory">
+      <div class="mem-title rv"><h3 class="h3s">它记得你。</h3><p>每个账号一份私人记忆，只从你的原话和真实成交里来，每一条都能查、能改、能撤销。</p></div>
+    <div class="mem-heads rv"><div>画像<small>你是什么样的交易者</small></div><div>约定<small>你要它怎么做事</small></div><div>经验<small>你的成交教会它的</small></div></div>
+    <div class="mem rv">
+      <div class="mem-col"><div class="mem-track" style="--d:46s" data-col="0"></div></div>
+      <div class="mem-col"><div class="mem-track" style="--d:38s" data-col="1"></div></div>
+      <div class="mem-col"><div class="mem-track" style="--d:52s" data-col="2"></div></div>
+    </div>
+    <div class="mem-foot rv"><span>每天早上 6 点自动整理</span><span>听着像授权的话不会记</span><span>不想被记，一个开关关掉</span></div>
+    </div>
+
+    <div class="film-h rv">
+      <div><div class="seal-n">片一</div><h3 class="h3s">它懂你。</h3></div>
+      <p>43 秒，你说得越来越少，它做得越来越多。</p>
+    </div>
+    <div class="film rv" id="film-assistant" data-src="https://media.qilinshuzhi.com/site/sente/sente-assistant-cut-e236b378.mp4" data-src-v="https://media.qilinshuzhi.com/site/sente/sente-assistant-cut-vertical-3da52f1c.mp4" data-poster="https://qilinshuzhi.com/static/sente/assistant-poster-6c45a496.webp" data-poster-v="https://qilinshuzhi.com/static/sente/assistant-poster-vertical-cf12e00b.webp" style="--poster-h:url('https://qilinshuzhi.com/static/sente/assistant-poster-6c45a496.webp');--poster-v:url('https://qilinshuzhi.com/static/sente/assistant-poster-vertical-cf12e00b.webp')">
+      <noscript><video controls preload="none" playsinline poster="https://qilinshuzhi.com/static/sente/assistant-poster-6c45a496.webp" src="https://media.qilinshuzhi.com/site/sente/sente-assistant-cut-e236b378.mp4" aria-label="Sente 宣传片《它懂你》"></video></noscript>
+      <div class="film-note" hidden><p><b class="film-note-title">这个浏览器会把网页里的视频拦下来，这里放不了。</b>换个浏览器打开这一页就能看，比如手机自带的浏览器。</p><button type="button" class="film-copy">复制这页链接</button></div>
+      <button class="film-play" type="button" hidden aria-label="播放 Sente 宣传片《它懂你》，43 秒"><span class="fp-ring" aria-hidden="true"><span><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z"/></svg></span></span><span class="fp-tag" aria-hidden="true"><i></i><b>SENTE</b>它懂你 · 00:43</span></button>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 板块二：全球新闻情报与多 AI 研讨（对应片二《一支交易团队》） ========== -->
+<section class="pillar p2" id="intel" aria-labelledby="p2-title">
+  <div class="wrap">
+    <div class="p-head rv">
+      <div class="p-num" aria-hidden="true">贰</div>
+      <div><div class="p-tag"><b>02</b>新闻情报与研讨</div><h2 id="p2-title">全世界的消息，<br>它们替你吵完。</h2></div>
+      <p>交易所通知、部委数据、英文外电、行业网站、中文财经，三十多路一起看。几个 AI 吵完一架，才把结论递给你。</p>
+    </div>
+
+    <div class="row rv">
+      <div class="txt">
+        <div class="big-n" aria-label="一夜读过 426 条，和你有关的 3 条"><span class="a" id="big-a">426</span><span class="ar">→</span><span class="b">3</span></div>
+        <p class="big-cap">一夜的消息，和你有关的就这几条。同一件事几家都在报，合成一条；分出轻重，标好品种，外电翻成中文。</p>
+        <div class="srcs" aria-label="消息来源"><span style="--k:0;--r:-3deg">交易所通知</span><span style="--k:1;--r:2deg">部委数据</span><span style="--k:2;--r:-1deg">英文外电</span><span style="--k:3;--r:3deg">行业网站</span><span style="--k:4;--r:-2deg">中文财经</span><span style="--k:5;--r:1deg">财经日历</span></div>
+      </div>
+        <div class="frag">
+          <div class="frag-top" style="--i:0"><span>今日新闻要点 · 10-12</span><span class="chip brand">AI 筛过</span></div>
+          <div class="nw" style="--i:1"><time>07:12</time><div><div class="nw-t"><span class="lv heavy">重</span><span>唐山部分钢厂高炉检修，日均铁水预计降 1.2 万吨</span></div><div class="nw-m"><span class="sym">螺纹 <span class="u">+0.55%</span></span><span class="sym">铁矿 <span class="d">−0.82%</span></span><span>3 家报道</span><span class="ai">偏多 <span class="bars"><i class="f"></i><i class="f"></i><i></i></span></span></div></div></div>
+          <div class="nw" style="--i:2"><time>06:40</time><div><div class="nw-t"><span class="lv heavy">重</span><span>多地优化住房公积金政策，房地产成交活跃</span></div><div class="nw-m"><span class="sym">螺纹</span><span class="sym">热卷</span><span>5 家报道</span><span class="ai">偏多 <span class="bars"><i class="f"></i><i></i><i></i></span></span></div></div></div>
+          <div class="nw" style="--i:3"><time>05:58</time><div><div class="nw-t"><span class="lv light">轻</span><span>外电：LME 铜库存连降 6 日</span></div><div class="tr">英文原文，已翻译</div><div class="nw-m"><span class="sym">沪铜 <span class="u">+0.21%</span></span><span>2 家报道</span></div></div></div>
+          <div class="filt" style="--i:4"><span>筛掉无关新闻 <b>412</b> 条 · 合并重复报道 <b>11</b> 条</span><span>看筛掉了什么</span></div>
+          <div class="cal" style="--i:5"><span><b>10-12</b>9 月社融</span><span><b>10-15</b>CPI</span><span><b>10-16</b>螺纹周度库存</span></div>
+        </div>
+    </div>
+
+    <div class="row rv" style="align-items:center">
+      <div class="txt">
+        <h3>一个看多，一个看空，<br>当面对质。</h3>
+        <p>多方、空方用不同家的模型，先各说各的，再按编号互相反驳；对不上出处的数字当场作废。调研员只看到 A 方、B 方，听完给结论、失效位，和“什么情况会改判”。</p>
+      </div>
+    <div class="arena-wrap" id="arena-wrap">
+      <p class="sr">演示：一条公积金新闻对螺纹钢意味着什么。多方 AI 和空方 AI 各自立论、互相反驳，一条查不到出处的论点被划掉；调研员裁决为略偏多，给出失效位 3,060 和改判条件。</p>
+      <span class="amb g-bull" aria-hidden="true"></span><span class="amb g-bear" aria-hidden="true"></span>
+      <div class="arena" id="arena" aria-hidden="true">
+        <div class="arena-flash"></div>
+        <div class="ar-topic"><span class="tag hot">重要</span><span class="t">公积金政策放松 · <b>螺纹2701 怎么看？</b></span><span class="ar-time" id="ar-time">用时 00:41</span></div>
+        <div class="ar-vs">
+          <div class="side bull"><span class="av"></span><div><b>多方</b><small>DeepSeek</small></div></div>
+          <div class="vs">VS</div>
+          <div class="side bear"><div><b>空方</b><small>GLM</small></div><span class="av"></span></div>
+        </div>
+        <div class="meter" id="meter" style="--p:.6"><i></i><b></b></div>
+        <div class="meter-n"><span>多 6</span><span>4 空</span></div>
+        <div class="ar-stage">
+          <div class="ar-round" id="ar-round"><i></i><span>第二轮 · 按编号互相反驳</span></div>
+          <div class="ar-cols">
+            <div class="ar-col bull">
+              <div class="arg ok on" data-k="b1"><em>多1</em><span class="txt">公积金放松，商品房成交先受益。</span><span class="cite">快讯</span></div>
+              <div class="arg ok on" data-k="b2"><em>多2</em><span class="txt">RSI 29，进了超卖区。</span><span class="cite">#4</span></div>
+              <div class="arg ok on out" data-k="b3"><em>多3</em><span class="txt">前 20 席位净多增 10.7 万手。</span><span class="cite">#7</span></div>
+              <div class="arg reb ok on" data-k="b4"><em>驳 空1</em><span class="txt">期货先交易预期，盘面今天已经先动了。</span><span class="cite">#2</span></div>
+            </div>
+            <div class="ar-col bear">
+              <div class="arg ok on" data-k="s1"><em>空1</em><span class="txt">政策传到新开工，至少两三个季度。</span><span class="cite">#15</span></div>
+              <div class="arg ok on" data-k="s2"><em>空2</em><span class="txt">仓单本周又增 19.1 万吨。</span><span class="cite">#9</span></div>
+              <div class="arg bad on" data-k="s3"><em>空3</em><span class="txt">去年同期螺纹跌了 8%。</span><span class="cite">查无此数</span></div>
+              <div class="arg reb ok on" data-k="s4"><em>驳 多3</em><span class="txt">净多是两家席位换月移仓，不是新钱。</span><span class="cite">#7</span></div>
+            </div>
+          </div>
+          <div class="verdict">
+            <span class="seal seal-stamp" aria-hidden="true">裁</span>
+            <div class="v-head"><span class="orb"></span><b>调研员裁决</b></div>
+            <div class="v-main"><strong>略偏多</strong><span><b>多方略胜</b> · 信心 中</span></div>
+            <dl class="v-dl">
+              <dt>失效位</dt><dd class="n">3,060</dd>
+              <dt>会改判</dt><dd>仓单继续增加，且收盘跌破 3,060</dd>
+              <dt>对账</dt><dd>5 个交易日后按收盘价算对错</dd>
+            </dl>
+            <div class="v-btns"><span class="b pri">写进今日判断</span><span class="b alt">在对话里接着问</span></div>
+          </div>
+        </div>
+        <div class="ar-foot"><span>2 轮 · 引用 9 处资料</span><span>1 条没过核对，不采信</span></div>
+      </div>
+    </div>
+    </div>
+
+    <div class="res rv">
+      <div class="res-h"><h3 class="h3s">结论放第一行，<br>出处一条不少。</h3><p>关键数据、多空两边的理由并排摆着，旧数据标“可能过时”。5 个交易日后自己对账，对没对一目了然。</p></div>
+          <div class="frag">
+            <div class="frag-top" style="--i:0"><span>调研 · 螺纹2701</span><span class="chip warn">仓单是 10-09 的，可能过时</span></div>
+            <div class="res-grid">
+              <div class="blk" style="--i:1">
+                <div class="blk-h"><b>今日判断</b><span class="q">?</span><span>研讨后更新 09:41</span></div>
+                <div class="verd-row"><span class="flip"><span class="f-old">震荡</span><span class="f-new">略偏多</span></span><span class="verd-meta">信心 <b>中</b> · 多方略胜</span></div>
+                <p class="verd-say">短线情绪偏多，需求真改善要等两三个季度。</p>
+                <p class="verd-meta" style="margin-top:6px">失效位 <b>3,060</b> · 仓单续增且跌破 3,060 就改判</p>
+                <p class="verd-meta" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">研讨前的单模型判断是 <b>震荡</b>，到期两个一起对账</p>
+              </div>
+              <div class="blk" style="--i:2">
+                <div class="blk-h"><b>关键数据</b><span class="q">?</span></div>
+                <div class="stats">
+                  <div><small>主力</small><b style="color:var(--up)">3,097</b><em>+0.55%</em></div>
+                  <div><small>近 20 日</small><b style="color:var(--down)">−1.78%</b><em>10-12</em></div>
+                  <div><small>日线 RSI</small><b>29</b><em>10-12</em></div>
+                  <div><small>现货基差</small><b>−92</b><em>10-12</em></div>
+                  <div><small>前 20 净多</small><b>+10.7万</b><em>10-09</em></div>
+                  <div class="stale"><small>仓单</small><b>+19.1万吨</b><em>10-09 · 旧</em></div>
+                </div>
+              </div>
+              <div class="blk wide" style="--i:3">
+                <div class="blk-h"><b>多空对照</b><span class="q">?</span><span>每条理由都标着资料编号</span></div>
+                <div class="sbs">
+                  <div class="p"><h4>多方 · 采纳</h4><p>期货先交易预期，盘面今天已先反应<span class="c">#2</span></p><p>RSI 29，空头动能在减弱<span class="c">#4</span></p></div>
+                  <div class="n"><h4>空方 · 采纳</h4><p>政策传到新开工有时滞，所以只给“略偏多”<span class="c">#15</span></p><p>仓单还在增，库存在累<span class="c">#9</span></p></div>
+                </div>
+              </div>
+              <div class="blk wide" style="--i:4">
+                <div class="recon"><span>到期对账 <b>10-19</b> 收盘</span><span class="dots"><i style="--k:0"></i><i style="--k:1"></i><i style="--k:2"></i><i style="--k:3"></i><i style="--k:4"></i></span><span>对、错由程序按收盘价算，不让模型自己说</span></div>
+              </div>
+            </div>
+          </div>
+    </div>
+    <div class="film-h rv">
+      <div><div class="seal-n" style="color:#ff8a7a">片二</div><h3 class="h3s">一支交易团队。</h3></div>
+      <p>43 秒，全世界的消息流进来，几个 AI 吵完一架。</p>
+    </div>
+    <div class="film rv" id="film-team" data-src="https://media.qilinshuzhi.com/site/sente/sente-team-cut-8f4476de.mp4" data-src-v="https://media.qilinshuzhi.com/site/sente/sente-team-cut-vertical-4fde8170.mp4" data-poster="https://qilinshuzhi.com/static/sente/team-poster-60879e9a.webp" data-poster-v="https://qilinshuzhi.com/static/sente/team-poster-vertical-7a67c58c.webp" style="--poster-h:url('https://qilinshuzhi.com/static/sente/team-poster-60879e9a.webp');--poster-v:url('https://qilinshuzhi.com/static/sente/team-poster-vertical-7a67c58c.webp')">
+      <noscript><video controls preload="none" playsinline poster="https://qilinshuzhi.com/static/sente/team-poster-60879e9a.webp" src="https://media.qilinshuzhi.com/site/sente/sente-team-cut-8f4476de.mp4" aria-label="Sente 宣传片《一支交易团队》"></video></noscript>
+      <div class="film-note" hidden><p><b class="film-note-title">这个浏览器会把网页里的视频拦下来，这里放不了。</b>换个浏览器打开这一页就能看，比如手机自带的浏览器。</p><button type="button" class="film-copy">复制这页链接</button></div>
+      <button class="film-play" type="button" hidden aria-label="播放 Sente 宣传片《一支交易团队》，43 秒"><span class="fp-ring" aria-hidden="true"><span><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z"/></svg></span></span><span class="fp-tag" aria-hidden="true"><i></i><b>SENTE</b>一支交易团队 · 00:43</span></button>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 板块三：策略工坊（对应片三《造规矩》） ========== -->
+<section class="pillar p3" id="workshop" aria-labelledby="p3-title">
+  <div class="wrap">
+    <div class="p-head rv">
+      <div class="p-num" aria-hidden="true">叁</div>
+      <div><div class="p-tag"><b>03</b>策略工坊</div><h2 id="p3-title">你出想法，<br>它造规矩。</h2></div>
+      <p>在盘面上画线，挑指标，一条条把规则写细，连成流程图，拿几组参数在历史里跑一遍。AI 帮你拆规则、挑毛病、看结果；上线后信号来了，先出卡给你。</p>
+    </div>
+
+    <div class="row rv">
+      <div class="bp" aria-hidden="true">
+        <div class="bp-h"><span>螺纹2701 · 日线 · 你画的线</span><span>电脑、手机都能画</span></div>
+        <svg viewBox="0 0 600 300" id="bp-chart">
+          <g id="bp-candles"></g>
+          <line class="dl" pathLength="1" id="bp-sup" stroke="#e879f9" stroke-width="2"/>
+          <line class="dl" pathLength="1" x1="20" x2="580" y1="252" y2="252" stroke="#fb923c" stroke-width="1.5" stroke-dasharray="6 5"/>
+          <g class="ann" font-family="JetBrains Mono, monospace" font-size="12">
+            <g id="bp-tag"><rect width="92" height="22" rx="4" fill="#33143a" stroke="#e879f9"/><text x="8" y="15" fill="#f5c2fb">我画的支撑线</text></g>
+            <rect x="476" y="241" width="104" height="22" rx="4" fill="#2a1a0c" stroke="#fb923c"/><text x="484" y="256" fill="#fdba74">跌破走人 3,100</text>
+            <g id="bp-dim" stroke="#67e8f9" stroke-width="1"><line id="bp-dim-l"/><text id="bp-dim-t" fill="#67e8f9" stroke="none">50 点</text></g>
+          </g>
+        </svg>
+      </div>
+      <div class="txt">
+        <p class="say">你：<b>“回踩我画的线就买，跌破 3,100 走人。”</b></p>
+        <div class="rule"><span class="pd">日线</span><span>收盘价 <em>回踩</em> 我画的支撑线，且不破</span></div>
+        <div class="rule"><span class="pd">5 分钟</span><span>MA5 <em>上穿</em> MA20，最近 3 根内</span></div>
+        <div class="rule"><span class="pd">日线</span><span>收盘 <em>跌破</em> 3,100，全部平仓</span></div>
+        <div class="rule warn"><span class="pd">日线</span><span>成交量 <em>放大到</em> 20 日均量的 3 倍</span><span class="wn">AI 体检：这条近两年只触发过 2 次，要不要放宽？</span></div>
+        <div class="inds"><span class="sel">MA</span><span>EMA</span><span>MACD</span><span>KDJ</span><span>RSI</span><span>BOLL</span><span>ADX</span><span>ATR</span><span class="sel">成交量</span><span>+40</span></div>
+      </div>
+    </div>
+
+    <div class="row rv" style="grid-template-columns:minmax(0,1fr)">
+      <div class="bp tunnel" aria-label="回测：4 组参数跑近 2 年行情，样本外一组失效，均线 10/30 最稳">
+        <div class="bp-h"><span>回测 · 4 组参数 · 近 2 年 · 34 秒</span><span>样本内外分开看</span></div>
+        <div class="tn-lanes">
+          <div class="tn-div" aria-hidden="true"><span>样本内</span><span>样本外</span></div>
+          <div class="tn" style="--w:92%;--k:0"><span>均线 5/20</span><span class="trk"><i></i></span><span class="r" style="color:var(--up)">+21.0%<small>样本外 +0.4%</small></span></div>
+          <div class="tn bad" style="--w:74%;--k:1"><span>均线 3/10</span><span class="trk"><i></i><b>样本外失效</b></span><span class="r" style="color:var(--up)">+9.6%<small style="color:var(--down)">样本外 −4.8%</small></span></div>
+          <div class="tn best" style="--w:100%;--k:2"><span>均线 10/30</span><span class="trk"><i></i><b style="color:var(--brand-hi)">选这组</b></span><span class="r" style="color:var(--up)">+18.4%<small>样本外 +6.2%</small></span></div>
+          <div class="tn" style="--w:86%;--k:3"><span>均线 20/60</span><span class="trk"><i></i></span><span class="r" style="color:var(--up)">+5.7%<small>样本外 +1.1%</small></span></div>
+        </div>
+        <div class="tn-foot"><span>AI 怎么看：<b>3/10 只在过去跑得好，10/30 样本外还稳</b></span><span>回测结果都存着，随时比一比</span></div>
+      </div>
+    </div>
+
+    <div class="row rv">
+        <div class="frag">
+          <div class="frag-top" style="--i:0"><span>策略编辑 · 回踩做多 v2</span><span>RB · 日线</span></div>
+          <div class="flow" style="--i:1">
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M31 22 H36"/><path d="M64 22 H69"/><path d="M84 40 V50 M16 50 H84 M16 50 V60 M50 50 V60 M84 50 V60"/></svg>
+            <div class="fn c"><small>条件</small>MA10 上穿 MA30</div>
+            <div class="fn c"><small>过滤</small>回踩 MA10 不破</div>
+            <div class="fn o"><small>开仓</small>买开 2 手，分两笔</div>
+            <div class="fn s"><small>止损</small>前低下方 10 点</div>
+            <div class="fn t"><small>止盈</small>前高附近</div>
+            <div class="fn s"><small>保本</small>浮盈过千挪到成本</div>
+          </div>
+          <div class="aisay" style="--i:2"><span class="orb" aria-hidden="true"></span><span>AI 怎么看：亏损多在横盘的月份，加了 ADX 过滤后少了 9 笔来回打脸。</span></div>
+          <div class="btns" style="--i:3"><span class="b alt">和 v1 比一比</span><span class="b pri">上线</span></div>
+        </div>
+      <div class="txt">
+        <h3>连成一张流程图，<br>上线后先出卡。</h3>
+        <p>条件、过滤、开仓、止损、止盈、保本，一眼看清这套规矩怎么走。上线以后，信号来了不自己下单，先把卡递给你。</p>
+        <div class="sig" style="margin-top:20px">
+          <div class="sig-h"><b>信号来了 · 回踩做多 v2</b><span class="chip brand">策略</span></div>
+          <div class="sig-b"><div class="big"><span>买开</span> 螺纹2701 × 2 手</div><div class="why">依据：回踩你画的支撑线，5 分钟均线金叉</div></div>
+          <div class="btns"><span class="b alt">忽略</span><span class="b pri">确认</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="film-h rv">
+      <div><div class="seal-n" style="color:#67e8f9">片三</div><h3 class="h3s">造规矩。</h3></div>
+      <p>42 秒，一句话的想法，造成一套会自己跑的规矩。</p>
+    </div>
+    <div class="film rv" id="film-rules" data-src="https://media.qilinshuzhi.com/site/sente/sente-rules-cut-6c027074.mp4" data-src-v="https://media.qilinshuzhi.com/site/sente/sente-rules-cut-vertical-4da89463.mp4" data-poster="https://qilinshuzhi.com/static/sente/rules-poster-62bfb1cf.webp" data-poster-v="https://qilinshuzhi.com/static/sente/rules-poster-vertical-ab75a113.webp" style="--poster-h:url('https://qilinshuzhi.com/static/sente/rules-poster-62bfb1cf.webp');--poster-v:url('https://qilinshuzhi.com/static/sente/rules-poster-vertical-ab75a113.webp')">
+      <noscript><video controls preload="none" playsinline poster="https://qilinshuzhi.com/static/sente/rules-poster-62bfb1cf.webp" src="https://media.qilinshuzhi.com/site/sente/sente-rules-cut-6c027074.mp4" aria-label="Sente 宣传片《造规矩》"></video></noscript>
+      <div class="film-note" hidden><p><b class="film-note-title">这个浏览器会把网页里的视频拦下来，这里放不了。</b>换个浏览器打开这一页就能看，比如手机自带的浏览器。</p><button type="button" class="film-copy">复制这页链接</button></div>
+      <button class="film-play" type="button" hidden aria-label="播放 Sente 宣传片《造规矩》，42 秒"><span class="fp-ring" aria-hidden="true"><span><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z"/></svg></span></span><span class="fp-tag" aria-hidden="true"><i></i><b>SENTE</b>造规矩 · 00:42</span></button>
+    </div>
+  </div>
+</section>
+
+<section class="short" id="anywhere" aria-labelledby="anywhere-title">
+  <div class="wrap short-in">
+    <div class="rv"><h2 id="anywhere-title">电脑上没看完，<br>手机上接着看。</h2><p class="lead">macOS、Windows、网页，手机还能装到桌面。</p></div>
+    <ul class="pts rv">
+      <li><b>手机上看盘、画线</b><span>报价、多图、副图都能调。</span></li>
+      <li><b>按住说话</b><span>松手就发，它听完就去办。</span></li>
+      <li><b>装到手机桌面</b><span>锁屏收提醒。</span></li>
+      <li><b>受限网络也能连</b><span>网页版走 443，公司、酒店的网也通。</span></li>
+      <li><b>一个登录框</b><span>本站账号、快期账号，都从这儿进。</span></li>
+      <li><b>AI 首页</b><span>提醒、成交、简报，按时间排好。</span></li>
+    </ul>
+  </div>
+</section>
+
+<section class="short" id="agents" aria-labelledby="agents-title">
+  <div class="wrap short-in agents-in">
+    <div class="rv">
+      <h2 id="agents-title">你的 AI，<br>也能来用它。</h2>
+      <p class="lead">Claude Code、Codex 这类 AI 通过 MCP 或命令行接上 Sente：看行情、管策略、操作界面，还能指明用哪个账户。下单照样只出卡。</p>
+      <div class="paste">
+        <div class="paste-h"><span>复制这段话给你的 AI，它自己接上</span><button type="button" id="paste-copy">复制</button></div>
+        <p id="paste-text">我在这台电脑上装了 Sente 并已登录。请运行 <code>ai-trader-runtime cli mcp-config</code>，把输出的配置加进你的 MCP 设置；接上后先读能力目录再动手。要下单只出卡，等我确认。</p>
+      </div>
+    </div>
+    <div class="term rv" id="term" aria-hidden="true">
+      <div class="term-h"><i></i><i></i><i></i><span>你的 AI · 终端</span></div>
+      <div class="term-b" id="term-b">
+        <div class="tl me" data-type>看看螺纹今天怎么判断，再把回踩做多那个策略回测一下</div>
+        <div class="tl call">Sente <b>读今日判断</b> 螺纹2701</div>
+        <div class="tl ok">  略偏多 · 失效位 3,060 · 09:41 研讨后更新</div>
+        <div class="tl call">Sente <b>回测</b> 回踩做多 v2 · 近 3 年日线</div>
+        <div class="tl ok">  净值 +18.4% · 最大回撤 −6.1% · 38 次</div>
+        <div class="tl call">Sente <b>打开策略面板</b> 窗口 1</div>
+        <div class="tl ok">  applied</div>
+        <div class="tl ai">螺纹今天略偏多，跌破 3,060 就不成立。策略回测结果已经在你的 Sente 里打开了，要上线的话我出张卡给你确认。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="facts" aria-label="Sente 进展">
+  <div class="wrap">
+    <div class="fact rv"><b data-n="54">54<sup>天</sup></b><span>从第一行代码到今天</span></div>
+    <div class="fact rv"><b>v<span data-release-version>1.8.0</span></b><span>当前版本</span></div>
+    <div class="fact rv"><b data-n="1">1<sup>天前</sup></b><span>最近一次更新</span></div>
+    <div class="fact rv"><b data-n="3">3<sup>端</sup></b><span>macOS · Windows · 网页</span></div>
+  </div>
+</section>
+
+<section class="final" aria-labelledby="final-title">
+  <div class="wrap rv">
+    <h2 id="final-title">明早开盘前，<br>让你的团队先上班。</h2>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://qilinshuzhi.com/downloads/ai-trader/AI-Trader_latest_aarch64.dmg" download>下载 macOS 版</a>
+      <a class="btn btn-ghost" href="https://qilinshuzhi.com/downloads/ai-trader/AI-Trader_latest_x64-setup.exe" download>下载 Windows 版</a>
+      <a class="webapp" href="https://qilinshuzhi.com/trader/" aria-label="打开网页版，不装也能用"><span class="wa-live" aria-hidden="true"><i></i>LIVE</span><svg class="wa-spark" viewBox="0 0 44 22" aria-hidden="true"></svg><span class="wa-label" aria-hidden="true"><span>不装也能用 · 网页版</span><span>qilinshuzhi.com/trader</span></span><span class="wa-go" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a>
+    </div>
+    <p class="meta">当前支持快期模拟账户 · 模拟交易，不构成投资建议</p>
+  </div>
+</section>
+
+
+<section class="log" id="log" aria-labelledby="log-title">
+  <div class="wrap">
+    <h3 id="log-title">更新日志</h3>
+    
+    <details open><summary>v1.8.0 <span>2026-10-17</span></summary><ul><li>下单统一出卡：打字、语音说的下单都先出一张确认卡，一句话说两单按顺序出两张卡、各自确认；同品种不同月份可各自一单，改单只改你说到的部分。</li><li>提醒中心：成交、撤单、保本等提醒集中在一处，按成交去重，两个账户时标题带账户名。</li><li>回答卡：AI 给的行情读数由程序按实际读到的数据填写，结论与数值一致，回答更快、更省。</li><li>本站模拟更接近真实交易：按盘口排队成交、交易所结算价逐日盯市，开仓成本按笔先开先平。</li><li>语音：说话直接查行情、直接出卡；语音通道无响应时自动重连并重念，不再静默卡住。</li><li>行情与回放：报价推送只推看得见的、K 线增量更新；回放从当天第一根 1 分钟线开盘开始，每步一根 1 分钟 K 线。</li><li>Windows 桌面退出时只结束本程序启动的进程，不会误关同号的其他程序。</li></ul></details>
+    
+    <details><summary>v1.7.2 <span>2026-10-06</span></summary><ul><li>桌面正式构建回报实际发布提交，修正 1.7.1 中仍显示 dev 的标识。</li><li>外部 Agent 的窗口观察同步提供构建号，便于确认实际连接的客户端来源。</li></ul></details>
+    
+    <details><summary>v1.7.1 <span>2026-10-06</span></summary><ul><li>桌面版同步账户切换修复：成交与复盘跟随当前账户，切换后清除原先选中的成交和图表定位。</li><li>手机版语音、对话和通知修复；AI 简报可订阅多个品种，并在通知中按品种查看。</li><li>网页发现新版本后在空闲时自动刷新；正在输入、通话、下单或回放时保留当前操作。</li><li>新账号只开本站模拟账户，注册与登录使用同一入口；老账号已有的快期模拟账户保留。</li><li>桌面移除退役的本机启动和凭据代码，继续使用云端登录、打包 CLI / MCP 与正式更新功能。</li></ul></details>
+    
+    <details><summary>v1.7.0 <span>2026-10-04</span></summary><ul><li>品牌改为 Sente（弈先）：新图标，应用里和系统里（访达、程序坞、开始菜单、应用列表）都显示 Sente；安装包文件名与自动更新不变，从旧版升级不用重装。</li><li>界面换装：深浅两套新配色和等宽数字；AI 回答逐字流出，卡片进入与确认、成交都有动效；语音通话有实时波形。</li><li>对话结构化卡片：问看法先出当天的判断卡；说要下单、平仓、调仓时，一定出方案卡或“需要确认”的追问卡；到价、风险度、收盘前等提醒，以及 AI 自主下单的回报、快讯和异动，都以卡片出现。</li><li>本站模拟成为新用户默认账户；所有账号用同一个登录框，新账号确认后创建，自带 100 万模拟资金。</li><li>手机浏览器版：调研、看盘、通知、“我的”和下单页。</li><li>急停只作用于当前交易账户；复盘、记忆、提醒、回放、本站模拟引擎等一批问题修复。</li></ul></details>
+    
+    <details><summary>v1.6.12 <span>2026-09-30</span></summary><ul><li>新闻面板改为“调研 / 资讯 / 研究数据”三页：AI 按品种汇总行情、基本面与机构观点并给出判断，每条注明来源。</li><li>策略：积木与经典模板大幅扩充（加仓、分批止盈、价差等），可以和 AI 聊出策略，最后一步统一“回测与体检”。</li><li>价差策略：两个合约同时下单，自动处理瘸腿，每秒按价差止损止盈。</li><li>策略实验室：一次对比多组参数，前 70% 历史用来挑、后 30% 用来检验，默认在你自己的电脑上计算。</li><li>交易日志与引导复盘：每笔交易能看到当时的理由和 AI 判断，可以用语音像聊天一样复盘。</li><li>私人记忆：AI 记住你的交易习惯和约定，每天早上自动整理，随时可以查看、修改或关掉。</li><li>界面全新配色与分块版面；设置重新分组、高级项放进二级页；左键不再误选价，右键可一键清空图上标记。</li><li>登录只剩一个登录框，可先免登录浏览行情；语音、下单、行情推送等多处提速与修正。</li></ul></details>
+    
+    <details><summary>v1.6.11 <span>2026-09-24</span></summary><ul><li>修复：新闻面板按钮完整遵循明暗主题；媒体缺失时以来源域名显示，引用编号不作媒体名，网站首页标注“查看来源网站”而非“阅读原文”，缺少发布时间不补造。</li><li>功能：游客、测试与会员共用正式工作区，删除独立游客页及样式；功能入口保留，游客受限时提示登录，会员未开通时说明权限。</li><li>修复：新闻文章保持完整高度并在面板内滚动。</li><li>功能：普通用户与游客共用指定快期账号的页面行情源，合约目录、报价、图表及纯行情 AI/CLI 查询合并取数；普通图表按更新通知独立推送，同一版本仅校验/编码一次，慢连接保留最新图表…</li><li>性能：游客公共行情与个人模拟交易会话分离；陌生品种异步加载，热行情按更新唤醒共享推送，同合约/周期只取数、编码一次，慢连接直接恢复最新快照。</li><li>修复：游客行情显式选择已有快期成员账号，复用其认证与池进程并支持无人登录时恢复；不再隐式使用默认主账号，失败不切换来源，游客不会启动私人策略或下单循环。</li><li>功能：新闻成为与策略并列的阅读面板，保留图表；新闻 / 研究数据页签支持跟随或固定阅读品种，研究数据从策略详情移入。</li><li>功能：首次进入可免密浏览公共行情、指标和独立新闻；游客身份只读取公开数据，不请求私人账户、订单、策略或回放数据。</li><li>功能：新增独立短期游客身份、只读共享行情与新闻接口、本人窗口控制和有限按住说话；游客不能进入交易账户、私人数据或通用 Agent。</li><li>修复：AI 用 update_preferences 改了账号偏好（如「把复盘与日结放到快捷栏」）后界面不跟随——偏好文档只在连接时读一次。</li><li>修复：后台「技能」矩阵同一分类的组头重复出现（注册表按 id 列出、同分类不相邻，而分组只合并相邻行），重复的组 key 还让切回「档位」分区时技能行残留在档位矩阵里、模型/tok…</li><li>功能：技能注册表第二期——后台「技能」矩阵、客户端技能可用性视图、快捷技能栏。</li><li>功能：内置 AI 技能注册表（第一期）。</li><li>修复：图表周期只影响当前账户的跟随策略；同一库策略在不同账户验证时生成各自执行副本并读取本账户行情，已有副本继续沿用；历史行情会话持续接收更新，缓存到期可读到新 K 线；实例租约在…</li></ul></details>
+    
+    <details><summary>v1.6.10 <span>2026-09-24</span></summary><ul><li>修复：Runtime 蓝绿换槽后进行中的回放丢失（回放随旧槽退出被关闭）。</li><li>修复：回放「先开后补」偶发未生效。</li><li>修复：StrategyGuideCard.test.tsx 偶发失败（CI 一次 expected [] to have a length of 2）。</li><li>修复：GET /api/auth/owner/status 等每小时约 1 次的偶发 500（ExceptionGroup: unhandled errors in a TaskG…</li><li>修复：蓝绿部署后成员按需连接失效（页面持续「当前行情不可用」、positions/activity/workbench 503）。</li><li>后台管理「账户与授权」的类型列改为「快期模拟 · 常驻连接 / 按需连接」（原「快期模拟 / 快期接入池」让成员账户看起来不像模拟账户；两者都是快期模拟账户，只是连接方式不同）。</li></ul></details>
+    
+    <details><summary>v1.6.9 <span>2026-09-24</span></summary><ul><li>修复：后台管理「账户与授权」把成员对自己账户的 owner 角色显示成「主账号」，改为「所有者 / 操作员 / 只读」；顶栏复盘/回放按钮在收起文字后读屏无名称，补 aria-la…</li><li>功能：AI 语音提问引导设计策略（用户需求：“AI 通过问问题的方式引导我设计自己的策略，有时候我不是不知道策略而是不会表达”）。</li><li>修复：回放打开后图表一直空白、提示 Runtime 请求失败。</li><li>策略信号解读与主动提醒：让 AI 按当前策略讲“现在该怎么做”并在图上画出来。</li><li>性能：回放“先开后补”＋客户端重连 3 秒静默＋Runtime 蓝绿无缝部署。</li><li>回放语音与 AI 控制回放：① 回放窗口的用户级接口转发主 Runtime——/api/replays/&lt;id&gt;/runtime 命名空间里与回放无关的账号级表面（语音状态/音色/…</li><li>主账号「后台管理」从设置抽屉改为整页控制台（仅主账号可见：顶栏用户图标 + 设置 → 用户管理里只剩“打开后台管理”按钮，非主账号不渲染入口，UI 命令 rejected）。</li><li>CI：4090D 的 Windows runner 改用独立 Windows 账户 aitrader-ci（冒烟安装/卸载不再触碰用户日常账户里的 AI Trader），Rust …</li><li>安全修复：多用户数据隔离——成员不再获得主账号（默认）交易账户的任何权限。</li><li>撤回 1.6.8 里的「Windows 冒烟自动清理自身残留登记」（#285）：4090D 的 runner 与日常桌面使用同一 Windows 账户，冒烟安装会改写同一份 HKC…</li></ul></details>
+    
+    <details><summary>v1.6.8 <span>2026-09-23</span></summary><ul><li>CI：Windows 安装包冒烟测试遇到自己上次被取消/中断时留下的卸载登记（安装位置在 runner 临时目录 ai-trader-nsis-smoke-*）会自动卸载并清理后继…</li><li>修复：顶栏按实际可用空间逐级收起，不再按视口宽度断点提前隐藏——Windows 客户端窗口调窄（约 750px）时明明还有大半空间，权益却被隐藏、复盘/回放只剩图标；上线后实测两处…</li><li>修复：窄窗口下行情栏品种名只剩一个字（如「中证2612」显示成「中.」）——合约代码在窄布局隐藏后，品种按钮收缩到最小内容宽度而不是撑满所在格子；改为按钮占满格子，名称按可用宽度显…</li><li>桌面版发现新版本时自动弹出更新窗口（原来只在设置里显示）：useDesktopUpdater 在启动检查后每 6 小时后台静默再查一次（仅在 current/available/e…</li><li>修复：桌面客户端外部链接（登录页快期「去注册」、AI 回复与资讯原文链接）改为用系统浏览器打开，修复 Mac/Windows 点击无反应——Tauri WebView 不处理 ta…</li><li>多人档位改存数据库并全量后台可调：① 档位存库——新表 plan_tiers，首次启动空表时播种一次 基础档/高级档/测试档 三档（此后主账号的编辑、新建、删除不被重启复原）；删除…</li></ul></details>
+    
+    <details><summary>v1.6.7 <span>2026-09-22</span></summary><ul><li>CI 自动重跑不再把所有作业跳过：各作业的执行者门禁原来同时要求 github.actor 与 github.triggering_actor 都是仓库属主，而 rerun-che…</li><li>云端页面加载不再报 404 控制台错误：GET /api/auth/owner/status 在没有管理员口令认证的 Runtime（本机 token、云端 JWT）不再回 404…</li><li>下单台「目标持仓」模式（差额出卡 + 两段接力 + 语音）：① 客户端下单台第三模式——开仓/平仓/目标持仓三段切换（ticketMode 增 target），目标净持仓带符号步进…</li><li>五档盘口与语音/对话小修：① 价格阶梯五档——sidecar 透传 TqSdk bid/ask_price2..5、bid/ask_volume2..5（缺档归一 None，空快照…</li><li>TqSdk 未用能力 A 档（M3，七项接入）：① 官方 TqSdk Skills 包 vendored 到 services/tqkq-sidecar/skills/tqsdk-…</li><li>多人接入 M2（用户档位）：每个云端用户按档位运行，主账号不限。</li><li>多人接入 M1b（登录页快期直登、解绑与主账号防重绑）：① POST /api/auth/tqkq（body {username, password, inviteCode?}）—…</li><li>多人接入 M1a（后台基础设施，HTTP/CLI 验收；登录页在 M1b）：用户绑定自己的快期模拟账号，后台按需起停连接进程，主账号常驻不变。</li><li>语音下单闭环修复（09-21 夜盘实测四问题的收口）：① 口头确认失败不丢卡——_confirm 不再先清本地待确认记录，只有服务端终态码（approval_already_use…</li><li>语音通话体验修复：① 判停交给豆包动态判停——Runtime 看门狗降为安全网，账号偏好 voice.endpointStallSeconds 改 2.0–5.0 s（默认 3.0…</li></ul></details>
+    
+  </div>
+</section>
+
+</main>
+
+<footer><div class="wrap"><span class="maker">Sente（弈先）由启临数智出品</span><span>© 2026 杭州富阳启临数智科技工作室</span><span>模拟交易，不构成投资建议 · 页面中的行情、判断、研讨与成交为示意数据</span><span class="legal"><a href="https://qilinshuzhi.com/privacy">隐私与数据说明</a> · <a href="mailto:lzy619202200@163.com?subject=AI%20%E9%A1%B9%E7%9B%AE%E5%92%A8%E8%AF%A2&amp;body=%E6%83%B3%E8%A7%A3%E5%86%B3%E4%BB%80%E4%B9%88%E4%BA%8B%EF%BC%9A%0A%E7%8E%B0%E5%9C%A8%E6%98%AF%E6%80%8E%E4%B9%88%E5%81%9A%E7%9A%84%EF%BC%9A%0A%E6%89%8B%E4%B8%8A%E6%9C%89%E5%93%AA%E4%BA%9B%E8%B5%84%E6%96%99%E6%88%96%E7%B3%BB%E7%BB%9F%EF%BC%9A%0A">联系启临数智</a> · 浙ICP备2026050498号-1</span></div></footer>
+
+<script>
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $=id=>document.getElementById(id);
+function rnd(s){return()=>{s=(s*16807)%2147483647;return s/2147483647}}
+
+/* reveal + counters (first, so a later failure cannot leave content hidden) */
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(!e.isIntersecting)return;e.target.classList.add('in');
+  const b=e.target.querySelector('b[data-n]');if(b&&!b.dataset.done&&!reduce){b.dataset.done=1;const n=+b.dataset.n,sup=b.querySelector('sup').outerHTML,st=performance.now();
+    (function tick(now){const k=Math.min(1,(now-st)/1400),v=Math.round(n*(1-Math.pow(1-k,3)));b.innerHTML=v.toLocaleString('en-US')+sup;if(k<1)requestAnimationFrame(tick)})(st)}}),{threshold:.15});
+document.querySelectorAll('.rv').forEach(el=>io.observe(el));
+
+/* nav + spotlight */
+addEventListener('scroll',()=>$('nav').classList.toggle('scrolled',scrollY>40),{passive:true});
+$('hero').addEventListener('pointermove',e=>{const r=e.currentTarget.getBoundingClientRect();e.currentTarget.style.setProperty('--mx',e.clientX-r.left+'px');e.currentTarget.style.setProperty('--my',e.clientY-r.top+'px')});
+
+/* ticker */
+const quotes=[["RB2701",3097,.55],["HC2701",3248,.31],["I2701",786.5,-.82],["CU2611",81420,.21],["AL2611",20915,-.12],["AU2612",986.2,.18],["SC2611",548.2,-1.06],["MA2701",2412,.42],["TA2701",4872,.45],["M2701",2951,.07],["SR2701",5628,-.33],["IF2610",4086.2,.52]];
+const fmt=v=>v>=1000?Math.round(v).toLocaleString('en-US'):v.toFixed(1);
+$('ticker').innerHTML=[...quotes,...quotes].map((q,i)=>`<span><b>${q[0]}</b><span class="px" data-q="${i%quotes.length}">${fmt(q[1])}</span> <span class="${q[2]>=0?'u':'d'}">${q[2]>=0?'+':'−'}${Math.abs(q[2]).toFixed(2)}%</span></span>`).join('');
+if(!reduce)setInterval(()=>{for(let k=0;k<3;k++){const i=Math.floor(Math.random()*quotes.length),q=quotes[i],up=Math.random()>.5;q[1]+=(up?1:-1)*(q[1]>1000?1:.2);
+  document.querySelectorAll(`.px[data-q="${i}"]`).forEach(el=>{el.textContent=fmt(q[1]);el.classList.remove('fu','fd');void el.offsetWidth;el.classList.add(up?'fu':'fd');setTimeout(()=>el.classList.remove('fu','fd'),700)})}},1100);
+
+/* live spark in web-app buttons */
+const sparks=[...document.querySelectorAll('.wa-spark')];let sp=[.5,.45,.55,.5,.6,.55,.65];
+function drawSpark(){sp.shift();const last=sp[sp.length-1];sp.push(Math.min(.95,Math.max(.05,last+(Math.random()-.47)*.35)));
+  const h=sp.map((v,i)=>{const p=i?sp[i-1]:v,up=v>=p,y1=22-Math.max(v,p)*20-1,hh=Math.max(2,Math.abs(v-p)*20);return `<rect x="${i*6+1}" y="${y1}" width="4" height="${hh}" rx="1" fill="${up?'#ff4a3d':'#22c47a'}"/>`}).join('');
+  sparks.forEach(s=>s.innerHTML=h)}
+drawSpark();if(!reduce)setInterval(drawSpark,900);
+
+/* ---------- hero arena: 立论 → 核对 → 反驳 → 裁决，循环播放 ---------- */
+(function(){
+  const wrap=$('arena-wrap'),A=$('arena'),meter=$('meter'),round=$('ar-round').querySelector('span'),clock=$('ar-time');
+  const arg=k=>A.querySelector(`[data-k="${k}"]`);
+  const R1='第一轮 · 同时立论，互相看不到',R2='第二轮 · 按编号互相反驳',R3='调研员在看双方的论点和出处';
+  const JUDGE=7400,SHOWN=41;   // 动画 7.4 秒走完，界面上显示真实的 41 秒
+  let timers=[],t0=0,raf=0,running=false;
+  const at=(ms,fn)=>timers.push(setTimeout(fn,ms));
+  const setP=p=>meter.style.setProperty('--p',p);
+  const speak=s=>wrap.dataset.speak=s||'';
+  function show(...ks){ks.forEach(k=>arg(k).classList.add('on'))}
+  function ok(...ks){ks.forEach(k=>arg(k).classList.add('ok'))}
+  function reset(){
+    A.classList.remove('judged','fade');A.querySelectorAll('.arg').forEach(e=>e.classList.remove('on','ok','bad','hit','out'));
+    setP(.5);speak('');round.textContent=R1;clock.textContent='用时 00:00';
+  }
+  function tickClock(now){const s=Math.min(SHOWN,Math.round((now-t0)/JUDGE*SHOWN));clock.textContent='用时 00:'+String(s).padStart(2,'0');if(s<SHOWN&&running)raf=requestAnimationFrame(tickClock)}
+  function play(){
+    stop();running=true;reset();t0=performance.now();raf=requestAnimationFrame(tickClock);
+    at(400,()=>{show('b1','s1');speak('bull')});
+    at(1000,()=>{ok('b1','s1');speak('bear')});
+    at(1500,()=>{show('b2','s2');setP(.53);speak('bull')});
+    at(2100,()=>{ok('b2','s2');setP(.5);speak('bear')});
+    at(2600,()=>{show('b3','s3');setP(.56);speak('bull')});
+    at(3200,()=>{ok('b3');arg('s3').classList.add('bad');setP(.58);speak('')});
+    at(4000,()=>{round.textContent=R2});
+    at(4400,()=>{show('b4');ok('b4');arg('s1').classList.add('hit');setP(.64);speak('bull')});
+    at(5400,()=>{show('s4');ok('s4');arg('s1').classList.remove('hit');arg('b3').classList.add('hit');setP(.57);speak('bear')});
+    at(6400,()=>{round.textContent=R3;arg('b3').classList.remove('hit');arg('b3').classList.add('out');speak('')});
+    at(JUDGE,()=>{A.classList.add('judged');setP(.6)});
+    at(JUDGE+5600,()=>A.classList.add('fade'));
+    at(JUDGE+6400,play);
+  }
+  function stop(){running=false;timers.forEach(clearTimeout);timers=[];cancelAnimationFrame(raf)}
+  if(reduce)return;   // 静止时直接停在裁决后的完整画面（HTML 默认状态）
+  A.classList.add('judged');
+  new IntersectionObserver(es=>es.forEach(e=>e.isIntersecting?play():stop()),{threshold:.2}).observe(A);
+})();
+
+/* ---------- 首屏：三位成员轮流亮相 ---------- */
+(function(){
+  const team=$('team'),ms=[...team.querySelectorAll('.mx')];
+  const asMsgs=[['保本提醒','螺纹拉了 18 跳，止损可以挪到成本了。'],['收盘前','还有 1 手螺纹多单，要带过夜吗？'],['锁屏推送','夜里 3 条消息和你的持仓有关。'],['老规矩','6 步做完了，2 张卡等你确认。']];
+  let cur=-1,ai=0,timer=0,read=426;
+  function go(i){
+    ms.forEach((m,k)=>{m.classList.toggle('on',k===i);m.classList.remove('go')});
+    const m=ms[i];void m.offsetWidth;m.classList.add('go');
+    if(i===0){ai=(ai+1)%asMsgs.length;$('as-tag').textContent=asMsgs[ai][0];$('as-text').textContent=asMsgs[ai][1]}
+    if(i===1){const from=read,to=read+=17+Math.floor(Math.random()*20),st=performance.now();
+      (function t(now){const k=Math.min(1,(now-st)/1600);$('rs-n').textContent=Math.round(from+(to-from)*k).toLocaleString('en-US');if(k<1)requestAnimationFrame(t)})(st)}
+    cur=i}
+  function start(){if(timer)return;team.classList.add('cycling');go((cur+1)%3);timer=setInterval(()=>go((cur+1)%3),4200)}
+  function stop(){clearInterval(timer);timer=0}
+  if(reduce)return;
+  new IntersectionObserver(es=>es.forEach(e=>e.isIntersecting?start():stop()),{threshold:.25}).observe(team);
+})();
+
+/* mini chart in the engineer card */
+(function(){const svg=$('en-chart'),r=rnd(5);let h='';
+  for(let i=0;i<16;i++){const base=50-i*2.1,o=base-r()*10,c=base-r()*12,x=8+i*7.6,up=c<o,col=up?'#ff4a3d':'#22c47a';
+    h+=`<line x1="${x}" x2="${x}" y1="${Math.min(o,c)-r()*4}" y2="${Math.max(o,c)+r()*3}" stroke="${col}" stroke-width="1"/><rect x="${x-2.2}" y="${Math.min(o,c)}" width="4.4" height="${Math.max(1.2,Math.abs(c-o))}" fill="${col}"/>`}
+  svg.insertAdjacentHTML('afterbegin',h)})();
+
+/* 板块一：一天里的三个时刻，自动轮播，可点 */
+(function(){
+  const box=$('day-tabs'),tabs=[...box.querySelectorAll('[role=tab]')],ps=[...box.querySelectorAll('[role=tabpanel]')],MS=6500;
+  let i=0,timer=0,manual=false;
+  function sel(k,focus){i=k;tabs.forEach((t,n)=>{t.setAttribute('aria-selected',n===k);t.tabIndex=n===k?0:-1});
+    ps.forEach((p,n)=>{p.classList.toggle('cur',n===k);p.classList.remove('play')});void ps[k].offsetWidth;ps[k].classList.add('play');
+    const bar=tabs[k].querySelector('.pg i');if(bar){bar.style.animation='none';void bar.offsetWidth;bar.style.animation=''}
+    if(focus)tabs[k].focus()}
+  tabs.forEach((t,n)=>{t.addEventListener('click',()=>{manual=true;stopAuto();sel(n)});
+    t.addEventListener('keydown',e=>{const d=e.key==='ArrowRight'?1:e.key==='ArrowLeft'?-1:0;if(d){e.preventDefault();manual=true;stopAuto();sel((i+d+tabs.length)%tabs.length,true)}})});
+  sel(0);
+  function startAuto(){if(timer||manual||reduce)return;box.querySelector('.tabs').classList.add('auto');box.style.setProperty('--tab-ms',MS+'ms');timer=setInterval(()=>sel((i+1)%tabs.length),MS)}
+  function stopAuto(){clearInterval(timer);timer=0;box.querySelector('.tabs').classList.remove('auto')}
+  new IntersectionObserver(es=>es.forEach(e=>e.isIntersecting?(sel(i),startAuto()):stopAuto()),{threshold:.35}).observe(box);
+})();
+
+/* 板块二：一夜的消息数从 0 数上来 */
+(function(){const el=$('big-a');if(reduce)return;let done=false;
+  new IntersectionObserver(es=>es.forEach(e=>{if(!e.isIntersecting||done)return;done=true;const st=performance.now();
+    (function t(now){const k=Math.min(1,(now-st)/1600);el.textContent=Math.round(426*(1-Math.pow(1-k,3)));if(k<1)requestAnimationFrame(t)})(st)}),{threshold:.5}).observe(el)})();
+
+/* 板块三：蓝图 K 线，支撑线就是用户画的那条 */
+(function(){const r=rnd(23),N=34,X=i=>36+i*(520/(N-1)),sup=i=>214-i*3.6;let h='',lows=[];
+  for(let i=0;i<N;i++){const touch=i===6||i===17||i===27,base=sup(i)-(touch?2:8+r()*34),o=base-r()*16,c=base-r()*18,hi=Math.min(o,c)-r()*10,lo=touch?sup(i)-1:Math.max(o,c)+r()*8,x=X(i),up=c<o,col=up?'#ff4a3d':'#22c47a';
+    h+=`<line x1="${x}" x2="${x}" y1="${hi}" y2="${Math.max(lo,Math.max(o,c))}" stroke="${col}" stroke-width="1"/><rect x="${x-4}" y="${Math.min(o,c)}" width="8" height="${Math.max(1.5,Math.abs(c-o))}" fill="${col}"/>`;
+    if(touch)lows.push([x,sup(i)])}
+  $('bp-candles').innerHTML=h+lows.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="4" fill="none" stroke="#e879f9"/>`).join('');
+  const s=$('bp-sup');s.setAttribute('x1',20);s.setAttribute('y1',sup(-16/(520/(N-1))+0));s.setAttribute('x2',580);s.setAttribute('y2',sup((580-36)/(520/(N-1))));
+  $('bp-tag').setAttribute('transform',`translate(${X(30)-30},${sup(30)+10})`);
+  const dx=X(8),l=$('bp-dim-l');l.setAttribute('x1',dx);l.setAttribute('x2',dx);l.setAttribute('y1',sup(8)+2);l.setAttribute('y2',250);
+  const t=$('bp-dim-t');t.setAttribute('x',dx+6);t.setAttribute('y',(sup(8)+252)/2+4);
+})();
+
+/* copy-to-your-AI */
+$('paste-copy').addEventListener('click',e=>{
+  const btn=e.currentTarget,text=$('paste-text').textContent.trim(),done=()=>{btn.textContent='已复制'};
+  (navigator.clipboard?navigator.clipboard.writeText(text):Promise.reject()).then(done).catch(()=>{
+    const t=document.createElement('textarea');t.value=text;document.body.appendChild(t);t.select();
+    try{document.execCommand('copy')&&done()}catch(_){}t.remove()})});
+
+/* terminal: types the request, then the calls come back one by one */
+(function(){
+  if(reduce)return;
+  const lines=[...$('term-b').children],first=lines[0],full=first.textContent;let timers=[],busy=false;
+  function run(){
+    if(busy)return;busy=true;lines.forEach(l=>l.classList.remove('on','typing'));first.textContent='';first.classList.add('on','typing');
+    let i=0;const type=()=>{first.textContent=full.slice(0,++i);if(i<full.length)timers.push(setTimeout(type,45));else{first.classList.remove('typing');next(1)}};type();
+    function next(k){if(k>=lines.length){timers.push(setTimeout(()=>{busy=false;run()},6000));return}
+      timers.push(setTimeout(()=>{lines[k].classList.add('on');next(k+1)},lines[k].classList.contains('ok')?380:700))}
+  }
+  new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)run();else{timers.forEach(clearTimeout);timers=[];busy=false;lines.forEach(l=>l.classList.add('on'));first.textContent=full;first.classList.remove('typing')}}),{threshold:.3}).observe($('term'));
+})();
+
+/* memory columns */
+const mem=[
+  [['常做螺纹、热卷、甲醇','画像','按近 90 天成交'],['日内为主，偶尔隔夜','画像','按近 90 天成交'],['单笔一般 2 手','画像','按近 90 天成交'],['回答先说结论，再说理由','画像','你的原话 · 09-14'],['不碰原油','画像','你的原话 · 09-18'],['喜欢看持仓排名','画像','你的原话 · 09-22']],
+  [['下单前先告诉我止损位','约定','你的原话 · 09-13'],['浮盈过千先落袋一半','约定','你的原话 · 09-20'],['夜盘不开新仓','约定','你的原话 · 09-21'],['回答别超过三句','约定','你的原话 · 09-16'],['分两笔进，第二笔低 10 个点','约定','你的原话 · 09-25']],
+  [['回踩进场的单，赚钱的多','经验','近 90 天 38 笔'],['和调研判断反着做，多数亏','经验','近 90 天 11 笔'],['周五尾盘开仓，常被套','经验','你的原话 · 09-27'],['止盈放前高，比固定点数拿得住','经验','近 90 天 21 笔'],['连亏两笔后最好停一停','经验','你的原话 · 09-29']],
+];
+document.querySelectorAll('.mem-track').forEach(tr=>{const c=mem[+tr.dataset.col],h=c.map(x=>`<div class="mem-card"><p>${x[0]}</p><small><span>${x[1]}</span><span>${x[2]}</span></small></div>`).join('');tr.innerHTML=h+'<div aria-hidden="true" style="display:contents">'+h+'</div>'});
+
+/* films: one per pillar. Poster + our play button; the <video> is created with preload="none" and only the
+   source for the current width (vertical under 560px), so nothing downloads until someone presses play. */
+// 夸克/UC 会扫描页内 <video> 并接管到自带播放器，页面被拽走、回来黑屏，全屏接口也拦不住（所有者 10-05 用夸克反馈）。
+// 跳去只放视频的页面、换自定义域名都试过，夸克仍弹下载或黑屏。所有者决定：这两种浏览器里不放视频，给封面、提示和复制链接。
+const hijack=/Quark|UCBrowser|UCWEB/i.test(navigator.userAgent);
+const narrow=matchMedia('(max-width:560px)');
+const android=/Android/i.test(navigator.userAgent);
+const fsEl=()=>document.fullscreenElement||document.webkitFullscreenElement;
+const vids=[];
+document.querySelectorAll('.film[data-src]').forEach(box=>{
+  const fp=box.querySelector('.film-play');
+  if(hijack){
+    box.querySelector('.film-note-title').textContent=(/Quark/i.test(navigator.userAgent)?'夸克':'UC 浏览器')+'会把网页里的视频拦下来，这里放不了。';
+    box.querySelector('.film-note').hidden=false;
+    box.querySelector('.film-copy').addEventListener('click',e=>{
+      const btn=e.currentTarget,url=location.origin+'/trader/download#'+box.id,done=()=>{btn.textContent='已复制，去别的浏览器粘贴打开'};
+      (navigator.clipboard?navigator.clipboard.writeText(url):Promise.reject()).then(done).catch(()=>{
+        const t=document.createElement('textarea');t.value=url;document.body.appendChild(t);t.select();
+        try{document.execCommand('copy')?done():(btn.textContent=url)}catch(_){btn.textContent=url}t.remove()})});
+    return;
+  }
+  const fv=document.createElement('video');
+  fv.preload='none';fv.playsInline=true;fv.setAttribute('playsinline','');fv.setAttribute('webkit-playsinline','');fv.setAttribute('x5-playsinline','');fv.setAttribute('x5-video-player-type','h5-page');
+  fv.setAttribute('aria-label',fp.getAttribute('aria-label').replace(/^播放 /,''));
+  const pick=()=>{const v=narrow.matches;fv.poster=v?box.dataset.posterV:box.dataset.poster;fv.src=v?box.dataset.srcV:box.dataset.src;fv.dataset.v=v?'1':''};
+  pick();box.prepend(fv);vids.push(fv);
+  // 没开始放的片子跟着宽度换横竖版；放过的不打断。
+  const onWidth=()=>{if(fv.paused&&!fv.currentTime&&!box.classList.contains('playing'))pick()};
+  if(narrow.addEventListener)narrow.addEventListener('change',onWidth);else if(narrow.addListener)narrow.addListener(onWidth);   // 老 Safari 只有 addListener
+  fv.controls=false;fp.hidden=false;
+  // 安卓浏览器常把页内视频接管到自带播放器，页面被拽到别处、回来后这块黑屏（所有者 10-05 反馈）。
+  // 安卓上主动全屏播放（横版锁横屏）；记住点击时的位置，被拽走或退出全屏后滚回原处，并换成封面加播放键，再点接着放。
+  let backY=null,guardUntil=0;
+  function goBack(){if(backY!==null)scrollTo({top:backY,behavior:'instant'})}
+  function resume(){box.classList.remove('playing');box.classList.add('resume');fv.controls=false;goBack()}
+  fp.addEventListener('click',()=>{
+    backY=scrollY;guardUntil=android?Date.now()+2000:0;fv.controls=true;box.classList.remove('resume');box.classList.add('playing');
+    if(android){const rq=fv.requestFullscreen||fv.webkitRequestFullscreen;
+      if(rq)Promise.resolve(rq.call(fv)).then(()=>!fv.dataset.v&&screen.orientation&&screen.orientation.lock&&screen.orientation.lock('landscape').catch(()=>{})).catch(()=>{})}
+    const p=fv.play();if(p)p.catch(()=>{})});
+  addEventListener('scroll',()=>{if(Date.now()<guardUntil&&!fsEl()&&Math.abs(scrollY-backY)>200)goBack()},{passive:true});
+  ['fullscreenchange','webkitfullscreenchange'].forEach(ev=>document.addEventListener(ev,()=>{if(android&&!fsEl()&&backY!==null&&box.classList.contains('playing')){fv.pause();resume()}}));
+  fv.addEventListener('pause',()=>{if(android&&!fsEl()&&!fv.ended)resume()});
+  fv.addEventListener('play',()=>{vids.forEach(o=>{if(o!==fv&&!o.paused)o.pause()});fv.controls=true;box.classList.remove('resume');box.classList.add('playing')});
+  fv.addEventListener('ended',()=>{if(fsEl()&&document.exitFullscreen)document.exitFullscreen().catch(()=>{});box.classList.remove('playing','resume');fv.controls=false;fv.load();if(android)goBack()});
+});
+
+</script>
+<script>
+if (location.hostname === "qilinshuzhi.com" || location.hostname === "www.qilinshuzhi.com") {
+  fetch("https://qilinshuzhi.com/ai-trader-updates/latest.json", { cache: "no-store" })
+    .then((r) => r.ok ? r.json() : Promise.reject(new Error("release_unavailable")))
+    .then((release) => {
+      if (typeof release.version === "string") {
+        document.querySelectorAll("[data-release-version]").forEach((node) => { node.textContent = release.version; });
+      }
+    })
+    .catch(() => {});
+}
+</script>
+</body>
+</html>
