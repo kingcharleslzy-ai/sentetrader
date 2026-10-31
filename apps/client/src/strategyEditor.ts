@@ -15,6 +15,18 @@ export { OPERATORS, defaultPeriod, type Operator } from "./strategyIndicators";
  */
 export type Timeframe = Exclude<StrategyPlan["timeframeSeconds"], 0>;
 export type Direction = StrategyPlan["direction"];
+/** 提醒怎么响 (改版第一步 2026-10-31): 响几次、到期、整张自选表 (plan.reminder, 提醒 only). */
+export type ReminderOptions = NonNullable<StrategyPlan["reminder"]>;
+/** 信号来了怎么办 (策略): the 上线运行 dialog's preselected 执行方式; null = 出卡确认. */
+export type SignalChoice = NonNullable<StrategyPlan["signalAction"]>;
+/** An older 提醒 (no plan.reminder) keeps the original way: 条件再满足再响, 一直. */
+export const REMINDER_ORIGINAL: ReminderOptions = { repeat: "rearm", until: "forever", watchlist: false };
+/** A new 提醒 (the approved design): 只响一次, 到今天收盘. */
+export const REMINDER_NEW: ReminderOptions = { repeat: "once", until: "today", watchlist: false };
+export const REPEAT_CHOICES: { value: ReminderOptions["repeat"]; label: string }[] = [
+  { value: "once", label: "只响一次" }, { value: "rearm", label: "条件再满足再响" }, { value: "bar", label: "每根 K 线最多一次" }];
+export const UNTIL_CHOICES: { value: ReminderOptions["until"]; label: string }[] = [
+  { value: "today", label: "今天收盘" }, { value: "week", label: "本周" }, { value: "forever", label: "一直" }];
 export type GroupKey = "entryLong" | "entryShort" | "exitLong" | "exitShort";
 export type ScaleTier = NonNullable<StrategyPlan["scaleOut"]>[number];
 export type TrailingMode = NonNullable<StrategyPlan["trailingStop"]>["mode"];
@@ -108,11 +120,15 @@ export interface EditorForm {
   cooldownBars: number | null;
   maxEntriesPerDirection: number | null;
   maxLoss: number | null;
+  /** 提醒: 响几次 / 到期 / 整张自选表 (written by the store with reminderOnly). */
+  reminderOptions: ReminderOptions;
+  /** 信号来了怎么办 (策略); null = 出卡确认. */
+  signalAction: SignalChoice | null;
 }
 export type FieldName = Exclude<keyof EditorForm, never>;
 export const FIELD_NAMES = ["name", "symbol", "timeframe", "direction", "entryLong", "entryShort", "stop", "take", "trailing", "closeBeforeEnd",
   "lots", "maxOrdersPerDay", "entryWindows", "allowNightEntries", "pyramiding", "breakeven", "scaleOut", "timeTakeProfit",
-  "maxHoldBars", "exitLong", "exitShort", "sizing", "maxDrawdown", "cooldownBars", "maxEntriesPerDirection", "maxLoss"] as const satisfies readonly FieldName[];
+  "maxHoldBars", "exitLong", "exitShort", "sizing", "maxDrawdown", "cooldownBars", "maxEntriesPerDirection", "maxLoss", "reminderOptions", "signalAction"] as const satisfies readonly FieldName[];
 
 /** 开仓时段's HH:MM (24 hours; the engine's EntryWindow pattern). */
 export const isTime = (value: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
@@ -157,6 +173,7 @@ export function emptyForm(symbol: string, timeframe: number): EditorForm {
     lots: null, maxOrdersPerDay: null, entryWindows: [], allowNightEntries: true, pyramiding: { ...PYRAMID_OFF },
     breakeven: { on: false, unit: "ticks", trigger: null, offsetTicks: null }, scaleOut: [], timeTakeProfit: [], maxHoldBars: null,
     sizing: { ...SIZING_FIXED }, maxDrawdown: { on: false, percent: null }, cooldownBars: null, maxEntriesPerDirection: null, maxLoss: null,
+    reminderOptions: { ...REMINDER_ORIGINAL }, signalAction: null,
   };
 }
 
@@ -404,6 +421,8 @@ export function formFromPlan(plan: StrategyPlan, symbol: string): EditorForm {
     cooldownBars: plan.cooldownBars ?? DEFAULTS.cooldownBars,
     maxEntriesPerDirection: plan.maxEntriesPerDirection ?? null,
     maxLoss: plan.maxLoss ?? null,
+    reminderOptions: { ...REMINDER_ORIGINAL, ...plan.reminder },
+    signalAction: plan.signalAction ?? null,
   };
 }
 
@@ -534,6 +553,8 @@ export function planFromForm(form: EditorForm, base?: StrategyPlan | null, descr
   if (changed("cooldownBars")) plan.cooldownBars = form.cooldownBars ?? DEFAULTS.cooldownBars;
   if (changed("maxEntriesPerDirection")) { if (form.maxEntriesPerDirection != null) plan.maxEntriesPerDirection = form.maxEntriesPerDirection; else clear(plan, "maxEntriesPerDirection"); }
   if (changed("maxLoss")) { if (form.maxLoss != null) plan.maxLoss = form.maxLoss; else clear(plan, "maxLoss"); }
+  // plan.reminder is written by the store with reminderOnly (a strategy has none).
+  if (changed("signalAction")) { if (form.signalAction) plan.signalAction = form.signalAction; else clear(plan, "signalAction"); }
   if (description !== undefined) plan.description = description;
   // The form is the answer: the designer's open questions stay on the card as optional prompts, but the
   // plan built from the form carries none (the Runtime refuses to backtest or save a plan that has some).

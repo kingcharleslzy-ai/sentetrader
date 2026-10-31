@@ -750,6 +750,20 @@ IDEA_RETIRED = "我的策略的输入框已换成策略编辑卡：用 strategyE
 EDITOR_START = r"^(blank|habits|template:[a-z][a-z0-9_]{0,59})$"
 
 
+class StrategyEditorChoice(BaseModel):
+    """编辑卡上点选的几项 (改版第一步 2026-10-31)：提醒的响几次、到期、整张自选表；策略的“信号来了怎么办”。"""
+    model_config = ConfigDict(extra="forbid")
+    repeat: Literal["once", "rearm", "bar"] | None = Field(default=None,
+        description="提醒·响几次：once 只响一次（响过自动停）/ rearm 条件再满足再响 / bar 每根 K 线最多一次")
+    until: Literal["today", "week", "forever"] | None = Field(default=None,
+        description="提醒·到期：today 今天收盘 / week 本周 / forever 一直（到期自动停并说一声）")
+    watchlist: bool | None = Field(default=None,
+        description="提醒·盯哪个品种：true 整张自选表（开始提醒时按每个自选品种的主力合约各上线一个，分别判断）/ false 只盯卡上的合约")
+    signalAction: Literal["alert", "confirm", "auto"] | None = Field(default=None,
+        description="策略·信号来了怎么办：上线运行对话框默认选中的执行方式（alert 只提醒 / confirm 出卡确认 / auto 自动下单，"
+                    "auto 要 设置 → 交易 → AI 自主执行 开着）；上线仍由用户点")
+
+
 class StrategyEditorChange(BaseModel):
     """策略编辑卡 (2026-10-08): 新建或修改策略都打开这张卡（策略面板里）。One command may combine keys, applied in
     order: close → open / new / edit → start → answers → ask → focus → save. The card only designs: saving stores a
@@ -780,12 +794,17 @@ class StrategyEditorChange(BaseModel):
     save: Literal[True] | None = Field(default=None,
         description="存为草稿（开仓条件和止损填好才能存；修改已有策略时存为新版本），存好后打开它的结果页并自动回测")
     close: Literal[True] | None = Field(default=None, description="关闭编辑卡，放弃没存的改动")
+    choose: StrategyEditorChoice | None = Field(default=None,
+        description="点选卡上的几项（不经 AI，改了要存）：提醒模式的 repeat / until / watchlist，策略的 signalAction；"
+                    "快照 state.strategyEditor.fields.reminder 与 fields.signalAction")
 
     @model_validator(mode="after")
     def valid(self):
         keys = self.model_fields_set
         if not keys or any(getattr(self, key) is None for key in keys):
-            raise ValueError("strategyEditor 至少包含 open、new、edit、start、answers、ask、focus、save、close 之一")
+            raise ValueError("strategyEditor 至少包含 open、new、edit、start、answers、ask、focus、choose、save、close 之一")
+        if self.choose is not None and not self.choose.model_fields_set:
+            raise ValueError("choose 至少包含 repeat、until、watchlist、signalAction 之一")
         if self.close and len(keys) > 1:
             raise ValueError("close 不和其他字段一起用")
         if sum(key in keys for key in ("open", "new", "edit")) > 1:
@@ -1382,7 +1401,7 @@ class UiChanges(BaseModel):
                        "aiFilter 已退役（对话面板只放对话），仍接受但只打开对话面板；"
                        "strategyLaunch 填上线对话框的合约与执行方式（先 dialog: strategy-launch 打开；验证并上线由用户点）；"
                        "strategyInstance 已退役：运行中实例的执行方式（alert / confirm / auto）只用 start_strategy_monitoring 改，快照 state.strategyInstances 照常；"
-                       "strategy-actions / strategy-delete-confirm 开关已有策略的更多操作 / 删除确认，id=library:<策略id> 或 replay:<策略id>，不执行删除；strategyEditor 操作策略编辑卡（新建或修改策略都用它，电脑放在策略面板里，手机布局是盖住底部标签的整屏页（disclosure strategy-editor-section {id: basics|entry|exit|sizing|flow} 切四段与策略流程、strategy-editor-condition {id: 组:第几条，如 entryLong:1} 开合某条条件的底部面板，strategy-editor-trades 展开预填依据）；电脑上打开时策略面板约占窗口四分之三，右栏是策略流程图与回测；disclosure strategy-editor-picker {id: 组:第几条:left|right，如 entryLong:1:left} 打开某条条件一侧的指标选择器（全部指标分类可搜索，手机打开该条的底部面板并停在那一侧），strategy-editor-sizing-more 展开④的更多，help-tip {id: 说明的 key} 打开一个“?”说明；只设计不下单）：new:true 新建（起点默认按我的习惯：近 20 个交易日已平仓成交至少 5 笔时程序按成交预填合约、方向、止损跳数、收盘前平仓、开仓时段、每次手数，带 AI 标记与依据，不够就空白；合约默认当前图表合约），edit:\"<strategyId>\" 修改已有策略（卡片表达不了的规则原样保留，存为新版本、原版本保留），open:true 打开（有没存的草稿接着改），start 换起点（blank / habits / template:<模板id>），ask:\"一句话\" 补一句（表单空时生成整份计划，已有内容时只改相关字段，改到的字段高亮、不直接保存），answers {问题 id: 回答} 回答 AI 追问，focus 把表单定位到流程图的某一块（同点方块：basics/entry/exit/sizing 或 trigger/entryLong/entryShort/action/stop/take/trailing/breakeven/scaleOut/timeTakeProfit/maxHold/closeBeforeEnd/exitRules/limits），save:true 存为草稿（开仓条件和止损填好才能存，存好电脑打开结果页、手机回到我的策略，都自动回测），close:true 关闭并放弃没存的改动；上线运行仍由用户在卡里点（打开上线对话框）。改动后约 1.5 秒自动用已收盘 K 线回测最近 60 个交易日（默认在本机浏览器算，算不了自动转云端；快照 state.strategyEditor：各字段、aiFields、prefill、backtest 四格、flow 流程图结构（触发、开多 / 开空条件组与每条满足次数、开仓、各平仓方式与回测里实际触发次数、冷却与每天次数；次数只取当前表单的预览回测，拿不到不写）、focus、canSave、missing、questions；backtest.source browser/server 与 fallbackReason、engine 本机引擎状态只供排障）；"
+                       "strategy-actions / strategy-delete-confirm 开关已有策略的更多操作 / 删除确认，id=library:<策略id> 或 replay:<策略id>，不执行删除；strategyEditor 操作策略编辑卡（新建或修改策略都用它，电脑放在策略面板里，手机布局是盖住底部标签的整屏页（disclosure strategy-editor-section {id: basics|entry|exit|sizing|flow} 切四段与策略流程、strategy-editor-condition {id: 组:第几条，如 entryLong:1} 开合某条条件的底部面板，strategy-editor-trades 展开预填依据）；电脑上打开时策略面板约占窗口四分之三，右栏是策略流程图与回测；disclosure strategy-editor-picker {id: 组:第几条:left|right，如 entryLong:1:left} 打开某条条件一侧的指标选择器（全部指标分类可搜索，手机打开该条的底部面板并停在那一侧），strategy-editor-sizing-more 展开④的更多，help-tip {id: 说明的 key} 打开一个“?”说明；只设计不下单）：new:true 新建（起点默认按我的习惯：近 20 个交易日已平仓成交至少 5 笔时程序按成交预填合约、方向、止损跳数、收盘前平仓、开仓时段、每次手数，带 AI 标记与依据，不够就空白；合约默认当前图表合约），edit:\"<strategyId>\" 修改已有策略（卡片表达不了的规则原样保留，存为新版本、原版本保留），open:true 打开（有没存的草稿接着改），start 换起点（blank / habits / template:<模板id>），ask:\"一句话\" 补一句（表单空时生成整份计划，已有内容时只改相关字段，改到的字段高亮、不直接保存），answers {问题 id: 回答} 回答 AI 追问，focus 把表单定位到流程图的某一块（同点方块：basics/entry/exit/sizing 或 trigger/entryLong/entryShort/action/stop/take/trailing/breakeven/scaleOut/timeTakeProfit/maxHold/closeBeforeEnd/exitRules/limits），choose 点选卡上的几项（提醒模式 repeat once 只响一次 / rearm 条件再满足再响 / bar 每根 K 线最多一次、until today / week / forever 到期、watchlist 整张自选表；策略 signalAction＝信号来了怎么办，上线对话框默认选中的执行方式，auto 要 AI 自主执行开着；快照 fields.reminder / fields.signalAction），save:true 存为草稿（开仓条件和止损填好才能存，存好电脑打开结果页、手机回到我的策略，都自动回测），close:true 关闭并放弃没存的改动；上线运行仍由用户在卡里点（打开上线对话框）。改动后约 1.5 秒自动用已收盘 K 线回测最近 60 个交易日（默认在本机浏览器算，算不了自动转云端；快照 state.strategyEditor：各字段、aiFields、prefill、backtest 四格、flow 流程图结构（触发、开多 / 开空条件组与每条满足次数、开仓、各平仓方式与回测里实际触发次数、冷却与每天次数；次数只取当前表单的预览回测，拿不到不写）、focus、canSave、missing、questions；backtest.source browser/server 与 fallbackReason、engine 本机引擎状态只供排障）；"
                        "strategyBacktest 操作选中策略结果页的回测（界面只有这一种回测：规则回测，默认最近 6 个月、扣手续费；默认在本机浏览器算，算不了自动转云端，存为策略后的那次由服务端重跑）：tradingDays / slippageTicks 改参数，run:true 按当前参数回测，"
                        "mark 把开平仓点画到图上或清除，trades 展开逐笔清单，applyAdvice:\"<建议 id>\" 按回测体检的这条建议改好、存为新版本并重跑回测（快照 state.strategyBacktest，verdict 是“AI 怎么看”：程序算的事实句与模型写的那句；source browser/server 是这次在哪算的、fallbackReason 是为何转云端、browserCheck 是服务端按同一份输入复核本机结果是否一致、engine 是本机引擎状态，只供排障，界面不显示）；"
                        "strategyTemplate {restore:true} 让结果页里来自模板的策略恢复模板默认（快照 state.strategyTemplate）；模板画廊已并入策略编辑卡的“从模板”（strategyEditor start template:<id>）。"
@@ -1780,6 +1799,11 @@ def _editor_matches(card, value) -> bool:
         return False
     if value.get("focus") is not None and "focus" in card and card.get("focus") != value["focus"]:
         return False   # a card before 第二版 reports no focus: the client's receipt stands
+    choose = value.get("choose") if isinstance(value.get("choose"), dict) else {}
+    fields = card.get("fields") if isinstance(card.get("fields"), dict) else {}
+    shown = {**(fields.get("reminder") or {}), "signalAction": fields.get("signalAction")}
+    if any(shown.get(key) != choice for key, choice in choose.items() if choice is not None):
+        return False   # 点选: the card shows every chosen value
     if value.get("save"):
         return bool(card.get("saving") or card.get("savedStrategyId") or card.get("error"))
     return True

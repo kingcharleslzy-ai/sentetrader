@@ -842,7 +842,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   // 手机编辑卡 (2026-10-08): the 策略编辑卡's draft and its `strategyEditor` command on the phone; the page is full screen.
   const mobileEditorEnabled = mobile && !isGuest && !strategyBlocked && Boolean(connectedRuntimeUrl);
   const mobileEditor = useMobileStrategyEditor({ enabled: mobileEditorEnabled, rootUrl: mobileRootUrl,
-    baseUrl: connectedRuntimeUrl, chartSymbol: quote?.symbol ?? props.selectedSymbol ?? "", chartTimeframe: props.duration, strategies: mobileStrategies,
+    baseUrl: connectedRuntimeUrl, chartSymbol: quote?.symbol ?? props.selectedSymbol ?? "", chartTimeframe: props.duration, instruments: props.instruments, strategies: mobileStrategies,
     onShowMine: () => { setMobilePage("strategy"); setRightDock(null); setMobileSub(null); setMobileStrategyTab("mine"); },
     onShowReminders: () => showMyReminders() });
   const mobileEditorOpen = mobile && mobileEditor.editor.open;

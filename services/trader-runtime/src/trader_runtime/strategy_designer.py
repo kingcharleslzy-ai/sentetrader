@@ -67,6 +67,10 @@ constraints.editorRevision为true时，这是策略编辑卡里的一句改动�
 
 def _design_schema(provider: str) -> dict:
     schema = StrategyPlan.model_json_schema()
+    # 提醒怎么响、上线默认的执行方式由用户在卡片上选，AI 设计不写（不替用户选自动下单）。
+    for key in ("reminder", "signalAction"):
+        schema["properties"].pop(key, None)
+    schema.get("$defs", {}).pop("ReminderOptions", None)
 
     def strict(value):
         if isinstance(value, dict):

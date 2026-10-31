@@ -4,7 +4,7 @@ import asyncio
 import json
 import logging
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 from time import time_ns
 from typing import Any
@@ -112,6 +112,15 @@ def _bar_gap(current: str, previous: str | None, timeframe_seconds: int) -> floa
             return (current_time - previous_time).total_seconds() / timeframe_seconds
         except ValueError:
             return None
+
+
+def _reminder_options(strategy: dict[str, Any]) -> dict[str, Any]:
+    """提醒页的提醒怎么响 (plan.reminder, 改版第一步 2026-10-31); {} = the original way."""
+    plan = (strategy.get("definition") or {}).get("plan") or {}
+    return dict(plan.get("reminder") or {}) if plan.get("reminderOnly") else {}
+
+
+UNTIL_WORDS = {"today": "今天收盘", "week": "本周收盘"}
 
 
 def _active_order_for_symbol(activity: dict[str, Any], symbol: str) -> bool:
@@ -256,6 +265,9 @@ class StrategyMonitorService:
             del self._waiting_since[stale]
         for strategy in monitoring:
             strategy_id, user_id = strategy["strategyId"], strategy["userId"]
+            if self._reminder_expired(strategy):
+                results.append(await self._expire_reminder(strategy))
+                continue
             existing = self.store.strategy_monitor_state(
                 strategy_id=strategy_id, user_id=user_id
             )
@@ -704,7 +716,9 @@ class StrategyMonitorService:
             LOGGER.info("strategy_auto_as_confirm_ai_autonomy_disabled strategy=%s user=%s bar=%s action=%s",
                         strategy_id, user_id, bar_time, action)
         if mode != "auto":
-            if self.store.signal_already_offered(strategy_id=strategy_id, user_id=user_id, action=action):
+            # 每根 K 线最多一次 (提醒): every bar the condition holds reminds; the attempt per bar is the dedupe.
+            every_bar = _reminder_options(strategy).get("repeat") == "bar"
+            if not every_bar and self.store.signal_already_offered(strategy_id=strategy_id, user_id=user_id, action=action):
                 return {"strategyId": strategy_id, "status": "waiting", "action": action,
                         "detail": "这个信号已提醒过，等待信号变化。" if mode == "alert"
                         else "这个信号已出确认卡，等待确认或信号变化。"}
@@ -1301,8 +1315,43 @@ class StrategyMonitorService:
             text += f"：{legs_text}"
         self.store.finish_strategy_execution_attempt(attempt_id=attempt_id, status="SKIPPED",
                                                      detail=f"只提醒，未下单：{act}条件满足")
+        if _reminder_options(strategy).get("repeat") == "once" and self._stop_reminder(strategy):
+            text += "；只响一次，这条提醒已自动停了"
         await self._session_notice(strategy, text, kind="strategy-signal")
         return {"strategyId": strategy_id, "status": "alerted", "action": action, "detail": text}
+
+    def _stop_reminder(self, strategy: dict[str, Any]) -> bool:
+        """A 提醒 that is done (响过一次 / 到期) stops itself like 停止: back to ready, its history kept."""
+        strategy_id, user_id = str(strategy["strategyId"]), str(strategy["userId"])
+        try:
+            self.proposals.transition_strategy_status(strategy_id=strategy_id, user_id=user_id, target="ready")
+        except (KeyError, ProposalConflict):
+            return False   # already stopped or paused meanwhile
+        self.forget_offer(strategy_id, user_id)
+        return True
+
+    def _reminder_expired(self, strategy: dict[str, Any]) -> bool:
+        """到期 (提醒): 今天收盘 = the trading day it started on has ended; 本周 = that week's last trading day
+        has ended. Counted from its last start in 改动留痕; a start not recorded there never expires."""
+        from .reminders import current_trading_day
+        until = _reminder_options(strategy).get("until")
+        if until not in UNTIL_WORDS:
+            return False
+        since = self.store.monitoring_since(strategy_id=strategy["strategyId"], user_id=strategy["userId"])
+        if since is None:
+            return False
+        started = date.fromisoformat(current_trading_day(int(datetime.fromisoformat(since).timestamp() * 1e9)))
+        today = date.fromisoformat(current_trading_day())
+        return today > started and (until == "today" or today.isocalendar()[:2] != started.isocalendar()[:2])
+
+    async def _expire_reminder(self, strategy: dict[str, Any]) -> dict[str, Any]:
+        until = UNTIL_WORDS[_reminder_options(strategy)["until"]]
+        if not self._stop_reminder(strategy):
+            return {"strategyId": strategy["strategyId"], "status": "waiting", "detail": "提醒已到期"}
+        text = (f"{self._display_name(strategy)} · {strategy['symbol']}：提醒到期（{until}），已自动停了；"
+                "要再提醒，在提醒面板的我的提醒里重新开始。")
+        await self._session_notice(strategy, text, kind="strategy-paused", speak=False)
+        return {"strategyId": strategy["strategyId"], "status": "stopped", "detail": text}
 
     async def _propose_signal(
         self, *, strategy: dict[str, Any], intent: dict[str, Any], action: str, volume: int,

@@ -14,13 +14,13 @@ import { useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNod
 import { BookmarkPlus, Bot, Play, Plus } from "lucide-react";
 import { requestJson, getOrderEstimate, getStrategyMonitor, stopStrategyMonitoring, type StrategyMonitorSnapshot, type AccountOverviewSnapshot, type InstrumentCatalog, type MarketWorkbenchSnapshot } from "../api";
 import { marketClosedNow, marketSessionDisplay } from "../marketSession";
-import { launchBlockedReason, resumeAfterDrawdown, requestStatus, strategyError, strategyQuestions, strategyText, strategyStatusText, allowsSymbol, scopeLabel, spreadLegsWords, spreadWords, strategyScope, strategySymbol, needsAnswersOf, CONTRACT, type InstrumentScope, defaultFees, designerPlanProblem, designerRows, directions, followChart, loadStrategies, conditionParts, operandLabel, periodLabel, planBlockRows, ruleNames, triggerRises, validateAndStart,
+import { launchBlockedReason, resumeAfterDrawdown, requestStatus, strategyError, strategyQuestions, strategyText, strategyStatusText, allowsSymbol, scopeLabel, spreadLegsWords, spreadWords, strategyScope, strategySymbol, needsAnswersOf, CONTRACT, type InstrumentScope, defaultFees, designerPlanProblem, designerRows, directions, followChart, loadStrategies, conditionParts, operandLabel, periodLabel, planBlockRows, reminderContracts, ruleNames, triggerRises, validateAndStart,
   type FeeRate, type FeeSchedule, type RuleCondition, type RuleGroup, type SavedStrategy, type StrategyPlan } from "../strategyApi";
 import { contractLabel, formatFee, formatSigned, isForeignSymbol, moneyUnit, signClass, type StrategyTab } from "./futures/support";
 import "./StrategyWorkbench.css";
 import { StrategyItemActions } from "./StrategyItemActions";
 import type { AskAi } from "./AiMenu";
-import { SIGNAL_ACTIONS, SignalActionMenu, StrategyLaunchDialog, type SignalAction } from "./StrategySignalAction";
+import { AUTO_BLOCKED, SIGNAL_ACTIONS, SignalActionMenu, StrategyLaunchDialog, type SignalAction } from "./StrategySignalAction";
 import { prewarmEngine, useEngineStatus } from "../strategyEngine/browserEngine";
 import { applyStrategyAdvice, backtestSelection, loadStoredBacktest, requestVerdict, runStrategyBacktest, selectBacktestStrategy, setBacktestParams, setBacktestTradesOpen, useBacktestCard, type StrategyBacktestResult, type StrategyHealthAdvice } from "../strategyBacktests";
 import { backtestMarksOf, setBacktestMarks, useBacktestMarks } from "../aiAnnotations";
@@ -983,8 +983,14 @@ function StrategyWorkbenchContent({ rootUrl, baseUrl, symbol, chartTimeframe = 6
       created(item); if (launch) setLaunchFor(item.strategyId);
     }).catch(() => undefined);
   };
-  // 开始提醒: a 提醒 has one 执行方式 (只提醒) and the card's contract, so it starts without the launch dialog.
-  const startReminder = (item: SavedStrategy, contract: string) => start(item, { symbol: contract || symbolFor(item), signalAction: "alert", reminder: true });
+  // 开始提醒: a 提醒 has one 执行方式 (只提醒) and the card's contract — or, for 整张自选表, every watchlist product's
+  // main contract, one instance each — so it starts without the launch dialog.
+  const startReminder = async (item: SavedStrategy, contract: string) => {
+    let contracts: string[];
+    try { contracts = await reminderContracts(baseUrl, item, contract || symbolFor(item), instruments); }
+    catch (error) { setError(strategyError(error, "自选表没读到，提醒没有开始，请稍后再试")); return; }
+    for (const symbol of contracts) await start(item, { symbol, signalAction: "alert", reminder: true });
+  };
   const launchEditor = () => {
     const item = editorState().item;
     if (editorState().reminder && item && editorState().mode === "edit" && !needsSave()) { const contract = editorState().form.symbol; discardDraft(); void startReminder(item, contract); return; }
@@ -1005,7 +1011,7 @@ function StrategyWorkbenchContent({ rootUrl, baseUrl, symbol, chartTimeframe = 6
   };
   // `strategyEditor` (AI 可操作性): every control of the card is reachable by these keys; the card is the snapshot.
   useUiSurface("strategyEditor", { state: { ...editorSnapshot(editor), ...(editor.open ? { engine } : {}) },
-    apply: value => applyEditorChange(value as EditorChange, { edit: editById, save: () => saveEditor() }) }, [editor, items, symbol, baseUrl, engine]);
+    apply: value => applyEditorChange(value as EditorChange, { edit: editById, save: () => saveEditor(), autoBlocked: autonomy === false ? AUTO_BLOCKED : null }) }, [editor, items, symbol, baseUrl, engine, autonomy]);
   // A tab chosen while the card is open (strategyTab, a card's 结果页) hides the card; the draft stays.
   const shownTab = useRef(tab);
   useEffect(() => { if (shownTab.current === tab) return; shownTab.current = tab; if (editorState().open) hideDraft(); }, [tab]);
@@ -1099,7 +1105,7 @@ function StrategyWorkbenchContent({ rootUrl, baseUrl, symbol, chartTimeframe = 6
     onSubmit={(launchSymbol, signalAction) => void start(current, { symbol: launchSymbol, signalAction, fromDialog: true })}/>;
   const count = (value: "library" | "running") => value === "running" ? instances.length : library.length;
   if (editor.open) return <section data-help="strategy" data-popover-bounds className="strategy-workbench strategy-panel strategy-panel-editing">{launchDialog}
-    <StrategyEditorCard key={editor.draftId} state={editor} chartTimeframe={chartTimeframe} instruments={instruments} onBack={() => { const reminder = editor.reminder; hideDraft(); if (reminder) onShowReminders?.(); }}
+    <StrategyEditorCard key={editor.draftId} state={editor} chartTimeframe={chartTimeframe} instruments={instruments} autonomy={autonomy} onBack={() => { const reminder = editor.reminder; hideDraft(); if (reminder) onShowReminders?.(); }}
       onDiscard={() => { const reminder = editor.reminder; discardDraft(); if (reminder) onShowReminders?.(); }}
       onStart={start => setStart(start)} onAsk={text => { try { askEditor(text); } catch (error) { setEditorError(error); } }}
       onSave={() => { try { saveEditor(); } catch (error) { setEditorError(error); } }}

@@ -1,12 +1,13 @@
 import { createContext, useContext, useEffect, useRef, useState, type Dispatch, type ReactNode, type RefObject, type SetStateAction } from "react";
 import { ArrowLeft, Plus, Sparkles, X } from "lucide-react";
 import { conditionParts } from "../strategyApi";
-import { DIRECTIONS, DEFAULTS, LIST_WORDS, OPERATORS, normalizeTime, QUICK_ADDS, SIDE_WORDS, SIZING_MODES, TIMEFRAMES, advancedRules, withSizingMode, emptyRow, listKey, maxPositionOf, missingParts, operandText, rowContext,
+import { DIRECTIONS, DEFAULTS, LIST_WORDS, OPERATORS, normalizeTime, QUICK_ADDS, REPEAT_CHOICES, SIDE_WORDS, SIZING_MODES, TIMEFRAMES, UNTIL_CHOICES, advancedRules, withSizingMode, emptyRow, listKey, maxPositionOf, missingParts, operandText, rowContext,
   planFromForm, quickAddLabel, quickRows, rowParts, timeframeLabel, usedEntryGroups, withLeft, withOp, LOTS_RULE, MAX_ORDERS_RULE, TAKE_TICKS_RULE, stopRule, type EditorForm, type FieldName, type GroupForm, type GroupKey,
   type OperandForm, type PyramidForm, type RowContext, type RowForm, type RowList, type ScaleTier } from "../strategyEditor";
 import { isTrend, operatorProblem, type Operator } from "../strategyIndicators";
 import { focusPlace, type FlowTarget, type FocusTarget } from "../strategyFlow";
-import { backtestProgress, editFields, editorFlow, focusEditor, groupHits, setEditorAnswer, regenerate, PREVIEW_TRADING_DAYS, type EditorStart, type EditorState } from "../strategyEditorStore";
+import { backtestProgress, chooseEditor, editFields, editorFlow, focusEditor, groupHits, setEditorAnswer, regenerate, PREVIEW_TRADING_DAYS, type EditorStart, type EditorState } from "../strategyEditorStore";
+import { AUTO_BLOCKED, SIGNAL_ACTIONS } from "./StrategySignalAction";
 import { backtestMarksOf, currentBacktestMarks, setBacktestMarks } from "../aiAnnotations";
 import { useTemplateCatalog } from "../strategyTemplates";
 import { useDisclosureSurface } from "../uiSurfaces";
@@ -35,6 +36,8 @@ type Props = {
   state: EditorState;
   chartTimeframe: number;
   instruments?: InstrumentCatalog;
+  /** 设置 → 交易 → AI 自主执行 (false = off: 自动下单 cannot be the default). */
+  autonomy?: boolean;
   onBack: () => void;
   onDiscard: () => void;
   onStart: (start: EditorStart) => void;
@@ -77,7 +80,11 @@ export const EDITOR_HELP = {
     + "和回撤停机不同：这里按当天亏损只停新开仓，不平仓、第二天照常；回撤停机按从最高点的回落停止并平仓，要手动恢复。",
   advanced: "这些规则卡片里改不了，保存时原样带上；要改，用上面的“补一句”说给 AI。",
   flow: "按表单实时画出策略怎么跑：每根 K 线收盘先过时段和方向，再看开仓条件；开仓后哪种平仓先到按哪种走。方块里的次数来自下面的预览回测，没有就不写；点方块，表单跳到对应的地方。",
-  reminder: "只在这些时段里判断条件（按 K 线收盘时刻）；不填就整个交易时段都提醒。条件满足时发一条提醒（对话、桌面通知和锁屏推送，按通用提醒的开关），不出卡、不下单；同一个信号只提醒一次，条件不再满足后再满足才会再提醒。",
+  reminder: "只在这些时段里判断条件（按 K 线收盘时刻）；不填就整个交易时段都提醒。条件满足时发一条提醒（对话、桌面通知和锁屏推送，按通用提醒的开关），不出卡、不下单。",
+  repeat: "只响一次：响过这条提醒就自动停。条件再满足再响：同一个信号只响一次，条件不再满足、之后又满足才再响。每根 K 线最多一次：条件一直满足就每根 K 线收盘响一次。"
+    + "到期：今天收盘＝开始提醒的那个交易日收盘后停（夜盘开始算下一个交易日），本周＝这周最后一个交易日收盘后停；到期自动停并在对话里说一声，要再提醒就重新开始。",
+  scope: "整张自选表：开始提醒时按自选表里每个品种的主力合约各开一份，每个品种分别判断、分别提醒；开始之后自选表再增减不会跟着变，要跟上就重新开始。近 60 个交易日的次数按上面这个合约数。",
+  signalAction: "这里选的是“上线运行”对话框默认选中的执行方式，上线仍要你在对话框里点“验证并上线”，那里还能改。只提醒：信号来了提醒一句，不出卡、不下单；出卡确认：出一张确认卡，你确认才下单；自动下单：信号通过检查后直接下模拟单，要先在 设置 → 交易 打开 AI 自主执行。",
   backtest: "只用已收盘的 K 线，按收盘确认、下一根开盘成交，扣手续费；改动后约 1.5 秒自动重算，和上次改动比。图上标出了每笔开平（图表是同一合约和周期时）。",
 } as const;
 const Help = ({ id, label }: { id: keyof typeof EDITOR_HELP; label: string }) => <HelpTip helpKey={`strategy-editor:${id}`} label={label}>{EDITOR_HELP[id]}</HelpTip>;
@@ -303,6 +310,11 @@ export function BasicsFields({ state, chartTimeframe, instruments }: { state: Ed
       </span>
       {symbolText !== form.symbol ? <span className="se-hint se-symbol-name">{symbolText}</span> : null}<Basis state={state} field="symbol"/>
     </Row>
+    {state.reminder ? <Row label="范围" help={<Help id="scope" label="整张自选表"/>}>
+      <span data-changed={changed("reminderOptions") || undefined} className="se-mark">
+        <Seg label="盯哪个品种" value={form.reminderOptions.watchlist ? "watchlist" : "contract"} onChange={value => chooseEditor({ watchlist: value === "watchlist" })}
+          options={[{ value: "contract", label: "只盯这个合约" }, { value: "watchlist", label: "整张自选表（每个品种分别判断）" }]}/></span>
+    </Row> : null}
     <Row label="周期">
       <span data-changed={changed("timeframe") || undefined} className="se-mark"><Seg label="周期" value={form.timeframe || null} options={TIMEFRAMES.map(item => ({ ...item, label: item.label.replace("1小时", "1时").replace("日线", "日") }))} onChange={value => edit("timeframe", value)}/></span>
       {timeframeNote ? <span className="se-hint">{timeframeNote}</span> : null}
@@ -458,6 +470,33 @@ export function WindowFields({ state }: { state: EditorState }) {
       <Switch label={night} checked={form.allowNightEntries} onChange={on => edit("allowNightEntries", on)}/>
     </Row>
   </>;
+}
+
+/** 响几次 and 到期 (提醒, 改版第一步 2026-10-31): the desktop's ④ and the phone's 提醒时段 section. */
+export function RepeatFields({ state }: { state: EditorState }) {
+  const { form, changed } = fieldKit(state);
+  return <>
+    <Row label="响几次">
+      <span data-changed={changed("reminderOptions") || undefined} className="se-mark">
+        <Seg label="响几次" value={form.reminderOptions.repeat} options={REPEAT_CHOICES} onChange={repeat => chooseEditor({ repeat })}/></span>
+    </Row>
+    <Row label="到期">
+      <span data-changed={changed("reminderOptions") || undefined} className="se-mark">
+        <Seg label="到期" value={form.reminderOptions.until} options={UNTIL_CHOICES} onChange={until => chooseEditor({ until })}/></span>
+    </Row>
+  </>;
+}
+
+/** 信号来了怎么办 (策略, 改版第一步): the 上线运行 dialog's preselected 执行方式; 自动下单 only while AI 自主执行 is on. */
+function SignalActionFields({ state, autonomy }: { state: EditorState; autonomy?: boolean }) {
+  const { form, changed } = fieldKit(state);
+  const blocked = autonomy === false ? AUTO_BLOCKED : null;
+  return <div className="se-inline">
+    <span data-changed={changed("signalAction") || undefined} className="se-mark">
+      <Seg label="信号来了怎么办" value={form.signalAction ?? "confirm"} onChange={signalAction => chooseEditor({ signalAction }, blocked)}
+        options={SIGNAL_ACTIONS.map(option => ({ value: option.value, label: option.label, reason: option.value === "auto" ? blocked : null }))}/></span>
+    {blocked ? <span className="se-hint">{blocked}</span> : null}
+  </div>;
 }
 
 export function SizingFields({ state, more }: { state: EditorState; more?: Fold }) {
@@ -623,7 +662,7 @@ export function useFocusFollow(state: EditorState, root: RefObject<HTMLElement |
   }, [seq]);   // eslint-disable-line react-hooks/exhaustive-deps
 }
 
-export function StrategyEditorCard({ state, chartTimeframe, instruments, onBack, onDiscard, onStart, onAsk, onSave, onLaunch }: Props) {
+export function StrategyEditorCard({ state, chartTimeframe, instruments, autonomy, onBack, onDiscard, onStart, onAsk, onSave, onLaunch }: Props) {
   const { form, backtest } = state;
   const { changed, edit } = fieldKit(state);
   const prefill = state.prefill;
@@ -674,19 +713,30 @@ export function StrategyEditorCard({ state, chartTimeframe, instruments, onBack,
       <button type="button" className="se-back" aria-label={reminder ? "返回我的提醒" : "返回我的策略"} onClick={onBack}><ArrowLeft size={14}/>{reminder ? "我的提醒" : "我的策略"}</button>
       <input className="se-name" aria-label={reminder ? "提醒名称" : "策略名称"} value={form.name} placeholder={reminder ? "未命名提醒" : "未命名策略"} maxLength={80}
         data-changed={changed("name") || undefined} onChange={event => edit("name", event.target.value)}/>
-      <form className="se-ask" aria-label="补一句" onSubmit={event => { event.preventDefault(); submitAsk(); }}>
+      {reminder ? <span className="se-grow"/> : <form className="se-ask" aria-label="补一句" onSubmit={event => { event.preventDefault(); submitAsk(); }}>
         <Sparkles size={14} aria-hidden="true"/>
         <input aria-label="补一句" value={askText} maxLength={500} disabled={asking}
-          placeholder={reminder ? "说一句什么时候提醒，比如“5 分钟线放量突破开盘区间高点”" : "说或打一句要改的，比如“止损改成 ATR 两倍”"} onChange={event => setAskText(event.target.value)}/>
+          placeholder="说或打一句要改的，比如“止损改成 ATR 两倍”" onChange={event => setAskText(event.target.value)}/>
         <button type="submit" className="se-btn" disabled={asking || !askText.trim()}>{asking ? "AI 在改…" : "改"}</button>
-      </form>
+      </form>}
       <button type="button" className="se-btn danger" onClick={onDiscard}>放弃</button>
     </header>
 
     <div className="se-cols">
       <div className="se-form">
+        {/* 提醒 (改版第一步): the sentence is the first block — the AI fills the four below from it. */}
+        {reminder ? <form className="se-say" aria-label="补一句" onSubmit={event => { event.preventDefault(); submitAsk(); }}>
+          <label htmlFor="se-say-input">说一句什么时候提醒你</label>
+          <span className="se-ask">
+            <Sparkles size={14} aria-hidden="true"/>
+            <input id="se-say-input" aria-label="补一句" value={askText} maxLength={500} disabled={asking}
+              placeholder="比如“5 分钟线放量突破开盘区间高点提醒我”" onChange={event => setAskText(event.target.value)}/>
+            <button type="submit" className="se-btn primary" disabled={asking || !askText.trim()}>{asking ? "AI 在填…" : "填好"}</button>
+          </span>
+          {state.ask?.status === "done" ? <span className="se-say-done" role="status">AI 已经把下面几项填好，看一眼再开始</span> : null}
+        </form> : null}
         {state.ask?.status === "running" ? <p className="se-status" role="status">“{state.ask.text}” · {state.ask.stage ?? "AI 正在改"}</p> : null}
-        {state.ask?.status === "done" && state.changed.length ? <p className="se-status" role="status">已按“{state.ask.text}”改好，改到的地方标了出来，还没保存。</p> : null}
+        {!reminder && state.ask?.status === "done" && state.changed.length ? <p className="se-status" role="status">已按“{state.ask.text}”改好，改到的地方标了出来，还没保存。</p> : null}
         {state.ask?.status === "failed" ? <p className="se-error" role="alert">{state.ask.error}</p> : null}
         {state.questions.length ? <div className="se-questions">
           <span className="se-hint">AI 还有几处要问你，答完再改一遍：</span>
@@ -731,11 +781,14 @@ export function StrategyEditorCard({ state, chartTimeframe, instruments, onBack,
           </SectionCard>
         </div>
 
-        {reminder ? <div data-section="sizing" data-focus="sizing">
+        {reminder ? <div className="se-pair" data-section="sizing" data-focus="sizing">
           <SectionCard title={<><span className="se-num">3</span>提醒时段</>} label="提醒时段" hint={EDITOR_HELP.reminder} helpKey="strategy-editor:section-reminder">
             <div className="section-card-body"><WindowFields state={state}/></div>
           </SectionCard>
-        </div> : <div className="se-pair">
+          <SectionCard title={<><span className="se-num">4</span>响几次</>} label="响几次" hint={EDITOR_HELP.repeat} helpKey="strategy-editor:section-repeat">
+            <div className="section-card-body"><RepeatFields state={state}/></div>
+          </SectionCard>
+        </div> : <><div className="se-pair">
           <div data-section="exit" data-focus="exit">
             <SectionCard title={<><span className="se-num">3</span>怎么平仓</>} label="怎么平仓" hint={EDITOR_HELP.exit} helpKey="strategy-editor:section-exit">
               <div className="section-card-body">
@@ -750,15 +803,18 @@ export function StrategyEditorCard({ state, chartTimeframe, instruments, onBack,
               <div className="section-card-body"><SizingFields state={state} more={[sizingMoreOpen, setSizingMoreOpen]}/></div>
             </SectionCard>
           </div>
-        </div>}
+        </div>
+        <SectionCard title="信号来了怎么办" label="信号来了怎么办" hint={EDITOR_HELP.signalAction} helpKey="strategy-editor:section-signal">
+          <div className="section-card-body"><SignalActionFields state={state} autonomy={autonomy}/></div>
+        </SectionCard></>}
       </div>
 
       <aside className="se-side" aria-label={reminder ? "开始提醒" : "流程与回测"}>
         {reminder ? <div className="se-bar se-remind">
           {missing.length ? <p className="se-oneline se-missing">还差：{missing.join("、")}</p>
-            : <p className="se-oneline" role="status">{remindHits.length ? `近 ${PREVIEW_TRADING_DAYS} 个交易日条件满足 ${formatNumber(remindHits.reduce((sum, hits) => sum + hits, 0), 0)} 次` : backtestProgress(backtest) || "正在数近 60 个交易日满足几次…"}</p>}
+            : <p className="se-oneline" role="status">{remindHits.length ? `近 ${PREVIEW_TRADING_DAYS} 个交易日${form.reminderOptions.watchlist ? `${contractLabel(form.symbol, instruments)}上` : ""}条件满足 ${formatNumber(remindHits.reduce((sum, hits) => sum + hits, 0), 0)} 次` : backtestProgress(backtest) || "正在数近 60 个交易日满足几次…"}</p>}
           <div className="se-footrow">
-            <button type="button" className="se-btn" disabled={missing.length > 0 || busy} onClick={onSave}>{state.saving ? "保存中…" : "保存"}</button>
+            <button type="button" className="se-btn" disabled={missing.length > 0 || busy} onClick={onSave}>{state.saving ? "保存中…" : "先存着不开始"}</button>
             <button type="button" className="se-btn primary" disabled={missing.length > 0 || busy} onClick={onLaunch}>开始提醒</button>
           </div>
         </div> : <>

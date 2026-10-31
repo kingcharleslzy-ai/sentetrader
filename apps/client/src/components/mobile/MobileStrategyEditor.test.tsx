@@ -310,7 +310,7 @@ test("提醒模式（手机）：只有品种、什么时候提醒、提醒时�
   const page = await screen.findByTestId("mobile-strategy-editor");
   expect(within(page).getByRole("button", { name: "返回我的提醒" })).toBeVisible();
   expect(within(page).getByRole("button", { name: "什么时候提醒" })).toBeVisible();
-  expect(within(page).getByRole("button", { name: "提醒时段" })).toBeVisible();
+  expect(within(page).getByRole("button", { name: "提醒时段与响几次" })).toBeVisible();
   expect(within(page).queryByRole("button", { name: "怎么平仓" })).toBeNull();
   expect(within(page).queryByRole("button", { name: "上线运行…" })).toBeNull();
   expect(within(page).getByText(/还差：提醒条件/)).toBeVisible();

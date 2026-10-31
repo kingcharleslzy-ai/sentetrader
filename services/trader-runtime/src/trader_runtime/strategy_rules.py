@@ -495,6 +495,18 @@ class SpreadSpec(BaseModel):
         return self
 
 
+class ReminderOptions(BaseModel):
+    """提醒页的提醒怎么响 (改版第一步 2026-10-31)，只用于 reminderOnly 的计划。"""
+    model_config = ConfigDict(extra="forbid")
+    repeat: Literal["once", "rearm", "bar"] = Field(default="rearm",
+        description="响几次：once 只响一次（响过就自动停）；rearm 同一个信号只响一次，条件不再满足后再满足才再响（原来的做法）；"
+                    "bar 条件满足的每根 K 线最多响一次。")
+    until: Literal["today", "week", "forever"] = Field(default="forever",
+        description="到期：today 开始提醒那个交易日收盘、week 本周最后一个交易日收盘、forever 一直；到期自动停并说一声。")
+    watchlist: bool = Field(default=False,
+        description="整张自选表：开始提醒时按自选表每个品种的主力合约各上线一个实例，每个品种分别判断（上线后自选表再变不跟）。")
+
+
 class StrategyPlan(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
     name: str = Field(min_length=1, max_length=80)
@@ -543,12 +555,22 @@ class StrategyPlan(BaseModel):
     reminderOnly: bool = Field(default=False,
         description="只提醒 (2026-10-25 第 6 批)：提醒面板“新建提醒”存的策略——只填条件和时段，手数止损不用；"
                     "上线只能“信号来了只提醒”，不出卡、不下单，列在“我的提醒”、不出现在“我的策略”。")
+    reminder: ReminderOptions | None = Field(default=None,
+        description="提醒页的提醒的响几次、到期与自选表（只用于 reminderOnly）；null＝原来的做法（条件再满足才再响、一直提醒）。")
+    signalAction: Literal["alert", "confirm", "auto"] | None = Field(default=None,
+        description="信号来了怎么办：上线运行对话框默认选中的执行方式（只是默认，上线仍由用户点；自动下单仍要 AI 自主执行开着）。"
+                    "null＝出卡确认。")
     questions: list[str] = Field(default_factory=list, max_length=20)
 
     clarifications: list[Clarification] = Field(default_factory=list, max_length=3)
 
     @model_validator(mode="after")
     def fixed_conditions_use_fixed_clock(self):
+        # 提醒的选项只属于提醒，执行方式的默认只属于策略：放错地方的不报错，直接去掉。
+        if not self.reminderOnly and self.reminder is not None:
+            self.reminder = None
+        if self.reminderOnly and self.signalAction is not None:
+            self.signalAction = None
         if len({target.afterBars for target in self.timeTakeProfit}) != len(self.timeTakeProfit):
             raise ValueError("分段止盈各档的持仓根数不能重复")
         periods = [c.left.timeframe for group in (self.rules.entryLong, self.rules.entryShort,

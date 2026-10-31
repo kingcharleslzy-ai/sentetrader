@@ -7,7 +7,7 @@ import { backtestError, type StrategyBacktestResult } from "./strategyBacktests"
 import { prewarmEngine, ruleBacktest, StaleEngine } from "./strategyEngine/browserEngine";
 import { designerPlanProblem, previewStrategyFunds, requestStatus, strategyError, strategyQuestions, strategyScope, type Clarification, type SavedStrategy, type StrategyPlan } from "./strategyApi";
 import { advancedRules, applyPrefill, changedFields, DEFAULT_NAME, emptyForm, FIELD_NAMES, fieldDiffers, formFromPlan, hitsOf, maxPositionOf, missingParts,
-  planFromForm, DEFAULTS, rowLabel, rowModifiers, type EditorForm, type FieldName, type GroupForm, type PrefillResponse } from "./strategyEditor";
+  planFromForm, DEFAULTS, REMINDER_NEW, rowLabel, rowModifiers, type EditorForm, type ReminderOptions, type SignalChoice, type FieldName, type GroupForm, type PrefillResponse } from "./strategyEditor";
 import { FOCUS_TARGETS, strategyFlow, type FocusTarget, type StrategyFlowModel } from "./strategyFlow";
 
 /**
@@ -155,7 +155,8 @@ export function newDraft(start?: EditorStart, reminder?: { name?: string; ask?: 
   const blank = emptyForm(context.chartSymbol, context.chartTimeframe);
   // A 提醒 asks no stop: the plan keeps the default ticks, which an alert-only run never uses. It asks no 方向 either
   // (改版第一步): one condition group, kept on the long side, and 常用 offers the down forms too.
-  state = fresh("new", reminder ? { ...blank, name: reminder.name ?? "", direction: "long", stop: { ...blank.stop, value: DEFAULTS.stopLossTicks } } : blank, { reminder: Boolean(reminder) });
+  state = fresh("new", reminder ? { ...blank, name: reminder.name ?? "", direction: "long", stop: { ...blank.stop, value: DEFAULTS.stopLossTicks },
+    reminderOptions: { ...REMINDER_NEW } } : blank, { reminder: Boolean(reminder) });
   notify();
   if (!reminder) { void chooseStart(start ?? "default"); return; }
   schedule();
@@ -266,15 +267,31 @@ export function setStart(start: EditorStart) {
 }
 
 /** The `strategyEditor` UI command's keys. */
+export type EditorChoice = Partial<ReminderOptions> & { signalAction?: SignalChoice };
 export interface EditorChange { open?: boolean; new?: boolean; reminder?: boolean; edit?: string; start?: EditorStart; answers?: Record<string, string>; ask?: string;
-  focus?: FocusTarget; save?: boolean; close?: boolean }
+  focus?: FocusTarget; choose?: EditorChoice; save?: boolean; close?: boolean }
+
+/** 点选 (改版第一步): 提醒的响几次 / 到期 / 整张自选表, 策略的信号来了怎么办 — the card's own buttons and `choose`.
+ *  `autoBlocked`: why 自动下单 cannot be the default now (设置 → 交易 → AI 自主执行 off). */
+export function chooseEditor(choice: EditorChoice, autoBlocked?: string | null) {
+  if (!state.open) throw new Error("先打开编辑卡");
+  const { signalAction, ...reminder } = choice;
+  const reminderKeys = Object.keys(reminder).filter(key => reminder[key as keyof typeof reminder] != null);
+  if (reminderKeys.length && !state.reminder) throw new Error("响几次、到期和自选表只用于提醒");
+  if (signalAction != null && state.reminder) throw new Error("提醒只提醒，不能选执行方式");
+  if (signalAction === "auto" && autoBlocked) throw new Error(autoBlocked);
+  const fields: FieldName[] = [...(reminderKeys.length ? ["reminderOptions" as const] : []), ...(signalAction != null ? ["signalAction" as const] : [])];
+  editFields(fields, form => ({ ...form,
+    ...(reminderKeys.length ? { reminderOptions: { ...form.reminderOptions, ...Object.fromEntries(reminderKeys.map(key => [key, reminder[key as keyof typeof reminder]])) } } : {}),
+    ...(signalAction != null ? { signalAction } : {}) }));
+}
 
 /**
  * The `strategyEditor` UI command, the same for the desktop panel's card and the phone's full-screen page
  * (2026-10-08): close → open / new / edit → start → answers → ask → focus → save. `edit` (it needs the host's
  * strategy list) and `save` (what follows a save differs) are the host's.
  */
-export function applyEditorChange(change: EditorChange, host: { edit: (strategyId: string) => void | Promise<boolean>; save: () => void }) {
+export function applyEditorChange(change: EditorChange, host: { edit: (strategyId: string) => void | Promise<boolean>; save: () => void; autoBlocked?: string | null }) {
   if (change.close) { discardDraft(); return; }
   if (change.focus !== undefined && !FOCUS_TARGETS.includes(change.focus)) throw new Error(`没有这一块：${change.focus}`);
   const rest = () => {
@@ -282,6 +299,7 @@ export function applyEditorChange(change: EditorChange, host: { edit: (strategyI
     if (change.answers) answerEditor(change.answers);
     if (change.ask !== undefined) askEditor(change.ask);
     if (change.focus !== undefined) focusEditor(change.focus);
+    if (change.choose) chooseEditor(change.choose, host.autoBlocked);
     if (change.save) host.save();
   };
   if (change.edit !== undefined) {
@@ -322,7 +340,7 @@ export function editFields(fields: FieldName[], change: (form: EditorForm) => Ed
 /** The plan as it would be saved now (the description aside). */
 export function currentPlan(description?: string): StrategyPlan {
   const plan = planFromForm(state.form, state.base, description);
-  return state.reminder ? { ...plan, reminderOnly: true } : plan;
+  return state.reminder ? { ...plan, reminderOnly: true, reminder: { ...state.form.reminderOptions } } : plan;
 }
 
 function backtestRequest() {
@@ -521,6 +539,8 @@ async function design(description: string, history: { question: string; answer: 
 /** The designed plan into the form (not saved): what it changed is highlighted once. */
 function applyDesigned(plan: StrategyPlan, sent?: StrategyPlan) {
   const proposed = formFromPlan(plan, state.form.symbol);
+  // 响几次 / 到期 / 自选表 and 信号来了怎么办 are the user's picks: the designer never writes them.
+  proposed.reminderOptions = state.form.reminderOptions; proposed.signalAction = state.form.signalAction;
   if (!plan.timeframeSeconds && state.form.timeframe) proposed.timeframe = state.form.timeframe;
   // 补一句 on a filled form: only what the designer actually changed against the plan it was sent lands on
   // the form — a field it merely echoed (an empty field's default, a value it kept) stays as the user left it.
@@ -663,6 +683,7 @@ export function editorSnapshot(current: EditorState = state): Record<string, unk
       sizingMore: { perTradeRisk: form.stop.mode === "lookback" ? null : form.stop.risk, sizing: sizingSnapshot(form.sizing),
         maxDrawdown: form.maxDrawdown.on ? { percent: form.maxDrawdown.percent } : null, pyramiding: form.pyramiding.on ? form.pyramiding : null,
         cooldownBars: form.cooldownBars, maxEntriesPerDirection: form.maxEntriesPerDirection, maxLoss: form.maxLoss },
+      ...(current.reminder ? { reminder: form.reminderOptions } : { signalAction: form.signalAction ?? "confirm" }),
     },
     // 策略流程图: the form as the engine runs it, with the preview's counts (only while the result is this form's).
     flow: { basis: flow.basis, trigger: box(flow.trigger), entries: flow.entries.map(box), action: box(flow.action), exits: flow.exits.map(box), notes: flow.notes },

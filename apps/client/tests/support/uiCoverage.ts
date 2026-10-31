@@ -51,6 +51,15 @@ export const COMMANDABLE: Rule[] = [
   { match: control => control.group === "strategy-editor" && control.role === "summary" && /^高级规则/.test(control.label), via: "disclosure: strategy-editor-advanced（卡片改不了的规则，保存时原样带上；快照 state.strategyEditor.advanced）" },
   { match: control => control.group === "strategy-editor" && control.label === "回测明细", via: "disclosure: strategy-editor-backtest（最近 60 个交易日预览回测的逐笔；快照 state.strategyEditor.backtest）" },
   { match: control => control.group === "strategy-editor" && /^(存为草稿|保存中…)$/.test(control.label), via: "strategyEditor: {save: true}（= POST /api/strategy-plans，编辑时带 baseStrategyId 存为新版本）" },
+  // 改版第一步 (2026-10-31): 提醒's sentence block, 盯 / 响几次 / 到期, its footer, and the strategy's 信号来了怎么办.
+  { match: control => control.group === "strategy-editor" && /^(填好|AI 在填…)$/.test(control.label), via: "strategyEditor: {ask: 一句话}（提醒模式顶上的“说一句什么时候提醒你”）" },
+  { match: control => control.group === "strategy-editor" && /^(只盯这个合约|整张自选表（每个品种分别判断）|只响一次|条件再满足再响|每根 K 线最多一次|今天收盘|本周|一直)$/.test(control.label),
+    via: "strategyEditor: {choose: {watchlist | repeat | until}}（提醒模式；快照 state.strategyEditor.fields.reminder）" },
+  { match: control => control.group === "strategy-editor" && /^(只提醒|出卡确认|自动下单)$/.test(control.label),
+    via: "strategyEditor: {choose: {signalAction: alert | confirm | auto}}（信号来了怎么办＝上线运行对话框默认选中的执行方式；快照 state.strategyEditor.fields.signalAction）" },
+  { match: control => control.group === "strategy-editor" && control.label === "先存着不开始", via: "strategyEditor: {save: true}（提醒模式：存好不开始）" },
+  { match: control => control.group === "strategy-editor" && control.label === "开始提醒",
+    via: "strategyEditor: {save: true} 后 POST /api/strategy-plans/{id}/validate + POST /api/strategies/{runId}/monitor/start {signalAction: alert}（整张自选表：每个自选品种的主力合约各一份）" },
   { match: control => control.group === "strategy-editor" && control.label === "上线运行…", via: "strategyEditor: {save: true} 后 dialog: {name: strategy-launch, open: true}（验证并上线仍由用户点；手机：存好回到我的策略并打开那条策略的上线确认）" },
   // 手机编辑卡 (2026-10-08): the four sections, the prefill's basis fold, a condition's bottom sheet.
   { match: control => control.group === "strategy-editor" && control.role === "button" && /^(品种与周期|开仓|平仓|仓位与时段)$/.test(control.label),

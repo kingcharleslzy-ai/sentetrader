@@ -577,6 +577,19 @@ class StrategyStore(StoreBase):
         ).fetchone()
         return offer, (state["signal_reset_at"] if state is not None else None)
 
+    def monitoring_since(self, *, strategy_id: str, user_id: str) -> str | None:
+        """When the instance last went into monitoring (start or 继续), read from 改动留痕: a 提醒's
+        到期 (今天收盘 / 本周) counts from here. None = no recorded start (started before 2026-10-30)."""
+        with self.lock:
+            row = self.connection.execute(
+                """SELECT at FROM state_changes WHERE object_type = 'strategy' AND object_id = ? AND user_id = ?
+                  AND change = 'updated' AND json_extract(after_json, '$.status') = 'monitoring'
+                  AND json_extract(before_json, '$.status') IS NOT 'monitoring'
+                ORDER BY seq DESC LIMIT 1""",
+                (strategy_id, user_id),
+            ).fetchone()
+        return str(row["at"]) if row is not None else None
+
     def signal_already_offered(self, *, strategy_id: str, user_id: str, action: str) -> bool:
         """只提醒 / 出卡确认: the latest reminder or card was for this same action and the signal has
         not moved away from it since — so it is still the same signal, already offered."""

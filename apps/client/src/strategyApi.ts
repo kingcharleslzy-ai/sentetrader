@@ -1,4 +1,5 @@
-import { foreignStrategyScope, requestJson, type AiExecutionSnapshot, type StrategyFunds, type StrategyMonitorSnapshot } from "./api";
+import { foreignStrategyScope, requestJson, type AiExecutionSnapshot, type InstrumentCatalog, type StrategyFunds, type StrategyMonitorSnapshot } from "./api";
+import { normalizeWatchlist, watchlistMainSymbol } from "./components/futures/support";
 
 import type { components } from "./workbench.generated";
 import { workbenchClient, responseData } from "./runtimeClient";
@@ -358,6 +359,21 @@ export async function resumeAfterDrawdown(url: string, strategyId: string) {
 
 /** 验证并上线: validate on `symbol`, then start monitoring. `start` carries the 执行方式 and the
  *  conversation for reminders and cards; omitted, a paused instance keeps its own (继续). */
+/**
+ * 开始提醒's contracts (改版第一步 2026-10-31): the card's contract, or for 整张自选表 the main contract of every
+ * watchlist product — one 只提醒 instance each, so every product is judged on its own.
+ * shortcut: the list is read at the start; a later change to the watchlist is not followed until the next 开始提醒.
+ */
+export async function reminderContracts(url: string, item: SavedStrategy, contract: string, instruments?: InstrumentCatalog): Promise<string[]> {
+  if (!item.definition.plan?.reminder?.watchlist) return [contract];
+  const document = await requestJson<{ preferences: { watchlist?: { products?: unknown } } }>(`${url}/api/preferences`);
+  const items = instruments?.items ?? [];
+  const contracts = normalizeWatchlist(document.preferences.watchlist?.products).map(product => watchlistMainSymbol(items, product))
+    .filter((symbol): symbol is string => Boolean(symbol));
+  if (!contracts.length) throw new Error("自选表里还没有品种（或合约目录还没读到）：先在报价里给品种点星，再开始提醒");
+  return [...new Set(contracts)];
+}
+
 export async function validateAndStart(url: string, id: string, symbol: string, chartTimeframeSeconds: number, onValidated?: (executionId: string) => void,
   start: { signalAction?: "alert" | "confirm" | "auto"; sessionId?: string } = {}) {
   const validation = await requestJson<{strategyId: string}>(`${url}/api/strategy-plans/${id}/validate`, { method: "POST", body: JSON.stringify({symbol, chartTimeframeSeconds}) });

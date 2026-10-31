@@ -267,3 +267,9 @@
 /* 提醒模式 (第 6 批): no 回测 block to hang under — the bar is its own card, and its line (满足几次 / 还差) always shows. */
 .se-desk .se-bar.se-remind { margin: 0; border: 1px solid var(--line); border-radius: var(--radius-card); }
 @container se-card (min-width: 880px) { .se-desk .se-bar.se-remind .se-oneline { display: flex; } }
+/* 提醒 (改版第一步 2026-10-31): the sentence is the form's first block; the header keeps only 返回 / 名称 / 放弃. */
+.se-desk .se-head .se-grow { flex: 1 1 auto; }
+.se-card .se-say { display: grid; gap: var(--space-2); margin: 0; padding: var(--space-3); border: 1px solid var(--accent); border-radius: var(--radius-card); background: var(--accent-soft); }
+.se-card .se-say > label { color: var(--ink); font-size: var(--font-sm); font-weight: 600; }
+.se-card .se-say .se-ask { background: var(--panel); }
+.se-card .se-say-done { color: var(--accent); font-size: var(--font-sm); }

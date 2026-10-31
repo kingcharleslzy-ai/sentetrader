@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import type { InstrumentCatalog } from "../../api";
-import { loadStrategies, needsAnswersOf, strategyError, strategySymbol, validateAndStart, type SavedStrategy } from "../../strategyApi";
+import { loadStrategies, needsAnswersOf, reminderContracts, strategyError, strategySymbol, validateAndStart, type SavedStrategy } from "../../strategyApi";
 import { EDITOR_SECTIONS, OPERATORS, SIDE_WORDS, advancedRules, missingParts, planFromForm, rowParts, sectionOfGroup, sectionSummary, usedEntryGroups,
   withLeft, withOp, findRow, listKey, rowContext, rowProblem, LIST_WORDS, type EditorSection, type GroupForm, type GroupKey, type RowContext, type RowForm } from "../../strategyEditor";
 import { isTrend, operatorProblem, usesPeriod } from "../../strategyIndicators";
@@ -11,7 +11,7 @@ import { backtestProgress, applyEditorChange, askEditor, discardDraft, editDraft
   type EditorChange, type EditorStart, type EditorState } from "../../strategyEditorStore";
 import { loadTemplates } from "../../strategyTemplates";
 import { useDisclosureSurface, useUiSurface } from "../../uiSurfaces";
-import { AiTag, BacktestDetail, BasicsFields, EDITOR_HELP, EntryFields, ExitFields, SizingFields, StartChoice, WindowFields, backtestDetailHint, useFocusFollow } from "../StrategyEditorCard";
+import { AiTag, BacktestDetail, BasicsFields, EDITOR_HELP, EntryFields, ExitFields, RepeatFields, SizingFields, StartChoice, WindowFields, backtestDetailHint, useFocusFollow } from "../StrategyEditorCard";
 import { HelpTip } from "../Blocks";
 import { ModifierChips, PickerPanel, QuadrantRight, TrendRight } from "../IndicatorPicker";
 import { StrategyFlow } from "../StrategyFlow";
@@ -166,7 +166,7 @@ export function MobileStrategyEditor({ state, chartTimeframe, instruments, ptt, 
   // 提醒模式 (第 6 批; the phone's since 2026-10-25): 品种、什么时候提醒、提醒时段 — no stop, lots, exits or 回测 figures.
   const missing = missingParts(form).map(part => reminder ? part.replace("开仓条件", "提醒条件") : part);
   const remindHits = reminder ? usedEntryGroups(form).map(key => groupHits(state, key).together).filter((hits): hits is number => hits != null) : [];
-  const sections = reminder ? [{ id: "basics" as const, title: "品种、周期与方向" }, { id: "entry" as const, title: "什么时候提醒" }, { id: "sizing" as const, title: "提醒时段" }]
+  const sections = reminder ? [{ id: "basics" as const, title: "品种、周期与方向" }, { id: "entry" as const, title: "什么时候提醒" }, { id: "sizing" as const, title: "提醒时段与响几次" }]
     : EDITOR_SECTIONS;
   const result = backtest.result;
   const together = { entryLong: groupHits(state, "entryLong").together, entryShort: groupHits(state, "entryShort").together };
@@ -183,7 +183,7 @@ export function MobileStrategyEditor({ state, chartTimeframe, instruments, ptt, 
   const body = (id: EditorSection) => id === "basics" ? <BasicsFields state={state} chartTimeframe={chartTimeframe} instruments={instruments} />
     : id === "entry" ? <EntryFields state={state} onOpenRow={(key, rowId, added) => openRow(key, rowId, undefined, added)} />
       : id === "exit" ? <ExitFields state={state} plan={plan} advanced={advanced} more={[moreOpen, setMoreOpen]} advancedFold={[advancedOpen, setAdvancedOpen]} onOpenRow={(key, rowId, added) => openRow(key, rowId, undefined, added)} />
-        : reminder ? <WindowFields state={state} /> : <SizingFields state={state} more={[sizingMoreOpen, setSizingMoreOpen]} />;
+        : reminder ? <><WindowFields state={state} /><RepeatFields state={state} /></> : <SizingFields state={state} more={[sizingMoreOpen, setSizingMoreOpen]} />;
   const block = (id: Block, title: string, number: string, summary: string, content: () => ReactNode, help: ReactNode) => {
     const open = section === id;
     return <section key={id} className="fdm-se-sec" data-open={open || undefined} aria-label={title} data-section={id}>
@@ -268,7 +268,7 @@ export function MobileStrategyEditor({ state, chartTimeframe, instruments, ptt, 
         : <p className="se-status" role="status">{remindHits.length ? `近 ${PREVIEW_TRADING_DAYS} 个交易日条件满足 ${formatNumber(remindHits.reduce((sum, hits) => sum + hits, 0), 0)} 次`
           : backtestProgress(backtest) || "正在数近 60 个交易日满足几次…"}</p>}
       <div className="fdm-se-actions">
-        <button type="button" className="se-btn" disabled={missing.length > 0 || busy} onClick={onSave}>{state.saving ? "保存中…" : "保存"}</button>
+        <button type="button" className="se-btn" disabled={missing.length > 0 || busy} onClick={onSave}>{state.saving ? "保存中…" : "先存着不开始"}</button>
         <button type="button" className="se-btn primary" disabled={missing.length > 0 || busy} onClick={onLaunch}>开始提醒</button>
       </div>
     </footer> : <footer className="fdm-se-foot" aria-label="回测结果">
@@ -314,8 +314,10 @@ export function MobileStrategyEditor({ state, chartTimeframe, instruments, ptt, 
  * to 我的策略 and runs that strategy's 回测 there (the desktop opens its 结果页 and backtests); 上线运行… returns
  * there with the strategy's 上线 confirmation open.
  */
-export function useMobileStrategyEditor({ enabled, rootUrl, baseUrl, chartSymbol, chartTimeframe, strategies, onShowMine, onShowReminders }: {
+export function useMobileStrategyEditor({ enabled, rootUrl, baseUrl, chartSymbol, chartTimeframe, instruments, strategies, onShowMine, onShowReminders }: {
   enabled: boolean; rootUrl?: string; baseUrl?: string; chartSymbol: string; chartTimeframe: number;
+  /** 整张自选表的提醒: each watchlist product's main contract comes from the catalog. */
+  instruments?: InstrumentCatalog;
   strategies: MobileStrategies;
   /** The 策略 tab on 我的策略, any full-screen page closed. */
   onShowMine: () => void;
@@ -343,11 +345,14 @@ export function useMobileStrategyEditor({ enabled, rootUrl, baseUrl, chartSymbol
       setEditorError("策略不存在"); return false;
     }, error => { if (current()) setEditorError(strategyError(error, "策略列表读取失败")); return false; });
   };
-  // 开始提醒 (提醒模式): the saved 提醒 starts as 只提醒 on its contract, then the 提醒 page; a refusal stays on the card.
+  // 开始提醒 (提醒模式): the saved 提醒 starts as 只提醒 on its contract (整张自选表: on every watchlist product's main
+  // contract, one after another), then the 提醒 page; a refusal stays on the card.
   const startReminder = (item: SavedStrategy) => {
     if (!baseUrl) { setEditorError("先连接 Runtime"); return; }
     const draft = editorState().draftId;
-    void validateAndStart(baseUrl, item.strategyId, editorState().form.symbol || chartSymbol, chartTimeframe, undefined, { signalAction: "alert" }).then(() => {
+    void reminderContracts(baseUrl, item, editorState().form.symbol || chartSymbol, instruments).then(async contracts => {
+      for (const contract of contracts) await validateAndStart(baseUrl, item.strategyId, contract, chartTimeframe, undefined, { signalAction: "alert" });
+    }).then(() => {
       window.dispatchEvent(new Event("ai-trader-strategies-changed"));
       if (editorState().draftId === draft) { discardDraft(); onShowReminders(); }
     }, error => { if (editorState().draftId === draft) setEditorError(strategyError(error, "提醒没有开始，请稍后再试")); });

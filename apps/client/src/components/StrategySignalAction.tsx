@@ -23,10 +23,12 @@ export function lockedSymbol(item: SavedStrategy): string | null {
 }
 
 export function launchDefaults(item: SavedStrategy, chartSymbol: string): { symbol: string; symbolLocked: boolean; signalAction: SignalAction } {
+  // 信号来了怎么办 (改版第一步): the strategy's own choice from the editor, else 出卡确认.
+  const signalAction = item.definition.plan?.signalAction ?? "confirm";
   const spread = item.definition.plan?.spread;
-  if (spread) return { symbol: spread.legs[0].symbol, symbolLocked: true, signalAction: "confirm" };
+  if (spread) return { symbol: spread.legs[0].symbol, symbolLocked: true, signalAction };
   const locked = lockedSymbol(item);
-  return { symbol: locked ?? (allowsSymbol(item, chartSymbol) && CONTRACT.test(chartSymbol) ? chartSymbol : ""), symbolLocked: Boolean(locked), signalAction: "confirm" };
+  return { symbol: locked ?? (allowsSymbol(item, chartSymbol) && CONTRACT.test(chartSymbol) ? chartSymbol : ""), symbolLocked: Boolean(locked), signalAction };
 }
 
 /**
@@ -49,7 +51,8 @@ export function StrategyLaunchDialog({ open, item, chartSymbol, instruments, aut
   const [signalAction, setSignalAction] = useState<SignalAction>(defaults.signalAction);
   const autoBlocked = autonomy === false ? AUTO_BLOCKED : null;
   // A fresh dialog each time it opens (or the strategy changes).
-  useEffect(() => { if (open && item) { const next = launchDefaults(item, chartSymbol); setSymbol(next.symbol); setSignalAction(next.signalAction); } },
+  useEffect(() => { if (open && item) { const next = launchDefaults(item, chartSymbol); setSymbol(next.symbol);
+    setSignalAction(next.signalAction === "auto" && autoBlocked ? "confirm" : next.signalAction); } },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [open, item?.strategyId]);
   useEffect(() => { if (open) dialog.current?.showModal(); else dialog.current?.close(); }, [open]);

@@ -286,9 +286,10 @@ export function matches(state: unknown, changes: unknown): boolean {
 }
 
 type EditorCard = { open?: boolean; strategyId?: string | null; start?: string; prefill?: { eligible?: boolean } | null; loading?: string | null; focus?: string | null;
-  ask?: { text?: string; status?: string } | null; saving?: boolean; savedStrategyId?: string | null; error?: string | null; reminder?: boolean };
+  ask?: { text?: string; status?: string } | null; saving?: boolean; savedStrategyId?: string | null; error?: string | null; reminder?: boolean;
+  fields?: { reminder?: Record<string, unknown>; signalAction?: unknown } };
 type EditorChange = { open?: boolean; new?: boolean; reminder?: boolean; edit?: string; start?: string; answers?: Record<string, string>; ask?: string; focus?: string;
-  save?: boolean; close?: boolean };
+  choose?: Record<string, unknown>; save?: boolean; close?: boolean };
 /** 策略编辑卡 (2026-10-08): the same rule as the Runtime's `_editor_matches` (ui_control.py) — keep the two in step. */
 export function editorMatches(card: EditorCard | undefined, value: EditorChange): boolean {
   if (card === undefined) return true;   // a client before the card: its receipt stands
@@ -308,6 +309,11 @@ export function editorMatches(card: EditorCard | undefined, value: EditorChange)
   if (value.answers !== undefined && !card.ask?.status) return false;
   // 流程图定位 (第二版): a card before it reports no focus, and its client's receipt stands.
   if (value.focus !== undefined && "focus" in card && card.focus !== value.focus) return false;
+  // 点选 (改版第一步): the card shows every chosen value.
+  if (value.choose) {
+    const shown: Record<string, unknown> = { ...card.fields?.reminder, signalAction: card.fields?.signalAction };
+    if (Object.entries(value.choose).some(([key, choice]) => choice != null && shown[key] !== choice)) return false;
+  }
   if (value.save) return Boolean(card.saving || card.savedStrategyId || card.error);
   return true;
 }
