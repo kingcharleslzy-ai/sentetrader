@@ -1,15 +1,24 @@
 {
-  "about": "右侧栏各面板与页签（2026-10-25 侧栏重排后）：调研（含辩论页签）、提醒（三页签）、策略（打法页）。只读，不写数据。",
+  "about": "右侧栏各面板与页签（2026-10-31 改版第一步后）：调研三个页签（今天 / 品种 / 快讯）与品种下的相关报道、辩论子页；提醒三页签与新建提醒（面板读作“提醒”、不问多空）；策略面板；旧命令 strategyTab: playbooks 打开复盘页的交易笔记。只读，不写数据。",
   "steps": [
     {"ui": {"view": "trade"}, "expect": {"view": "trade"}},
     {"ui": {"panel": "news"}, "expect": {"panel": "news"}},
+    {"ui": {"news": {"tab": "desk"}}, "expect": {"news.tab": "desk", "observation.text": {"includes": "以前的辩论"}}},
+    {"screenshot": "panels-news-desk"},
+    {"ui": {"news": {"tab": "news"}}, "expect": {"news.tab": "news", "observation.text": {"includes": "‹ 品种"}}},
     {"ui": {"panel": "debate"}, "expect": {"panel": "news", "news.tab": "debate"}},
     {"ui": {"panel": "reminders"}, "expect": {"panel": "reminders", "reminders.tab": {"exists": true}}},
     {"ui": {"reminders": {"tab": "general"}}, "expect": {"reminders.tab": "general"}},
     {"ui": {"reminders": {"tab": "history"}}, "expect": {"reminders.tab": "history", "reminderCenter.open": true}},
+    {"ui": {"strategyEditor": {"new": true, "reminder": true}}, "expect": {"panel": "strategy", "strategyEditor.open": true, "strategyEditor.reminder": true,
+     "observation.text": {"includes": "盯哪个品种"}}},
+    {"screenshot": "panels-reminder-editor"},
+    {"ui": {"strategyEditor": {"close": true}}, "expect": {"strategyEditor.open": false}},
     {"ui": {"panel": "strategy"}, "expect": {"panel": "strategy"}},
-    {"ui": {"strategyTab": "playbooks"}, "expect": {"strategyTab": "playbooks"}},
-    {"screenshot": "panels-strategy-playbooks"},
+    {"screenshot": "panels-strategy"},
+    {"ui": {"strategyTab": "playbooks"}, "expect": {"view": "review", "observation.text": {"includes": "交易笔记"}}},
+    {"screenshot": "panels-review-notes"},
+    {"ui": {"view": "trade"}, "expect": {"view": "trade"}},
     {"ui": {"panel": null}, "expect": {"panel": null}}
   ]
 }
