@@ -1,0 +1,41 @@
+/* 下单面板 (2026-10-03): 五档 → 下单票 → 本合约持仓 in one scroll region (the ticket no longer
+   scrolls by itself); a hairline and a small title separate the three, no explanatory text. */
+.fdw-order-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.fdw-order-section > h3 { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: 32px; margin: 0; padding: 0 var(--space-3); color: var(--fdw-faint); font-size: var(--font-md); font-weight: 600; }
+.fdw-order-section > h3 small { color: var(--fdw-faint); font-size: var(--font-sm); font-weight: 500; }
+.fdw-order-depth { border-bottom: 1px solid var(--line); }
+.fdw-order-depth > h3 > button { display: inline-flex; align-items: center; gap: var(--space-1); height: 24px; margin-left: calc(-1 * var(--space-1)); padding: 0 var(--space-1); border: 0; border-radius: var(--radius-control); background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.fdw-order-depth > h3 > button:hover { color: var(--ink); background: var(--fdw-surface-hover); }
+.fdw-order-depth > h3 > button svg { width: 14px; height: 14px; transition: transform var(--dur-2) var(--ease-standard); }
+.fdw-order-depth > h3 > button[aria-expanded="false"] svg { transform: rotate(-90deg); }
+.fdw-ladder-rows { flex: 0 0 auto; display: flex; flex-direction: column; padding-bottom: var(--space-1); }
+.fdw-ladder-rows button { position: relative; isolation: isolate; display: grid; grid-template-columns: 44px 1fr 1.2fr 1fr; align-items: center; gap: var(--space-1); min-height: 22px; padding: 0 var(--space-3); border: 0; border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); background: transparent; color: var(--muted); font-size: var(--font-md); text-align: right; cursor: pointer; }
+.fdw-ladder-rows button span { text-align: left; }
+.fdw-ladder-rows button::before { content: ""; position: absolute; z-index: -1; top: 3px; bottom: 3px; width: calc(var(--depth, 0) * 62%); transition: width var(--dur-3) var(--ease-out); }
+.fdw-ladder-rows button.ask::before { right: 0; border-radius: var(--radius-sm) 0 0 var(--radius-sm); background: color-mix(in srgb, var(--market-up) 14%, transparent); }
+.fdw-ladder-rows button.bid::before { left: 0; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; background: color-mix(in srgb, var(--market-down) 14%, transparent); }
+.fdw-ladder-rows button:not(:disabled):hover { background: var(--fdw-surface-hover); }
+.fdw-ladder-rows button.selected { background: var(--accent-soft); box-shadow: var(--shadow-2); }
+.fdw-ladder-rows button:disabled { cursor: default; opacity: .5; }
+.fdw-ladder-rows button b, .fdw-ladder-rows button strong { font-family: var(--font-mono); font-weight: 500; }
+.fdw-ladder-rows button strong { color: var(--ink); font-size: var(--font-md); font-weight: 600; }
+.fdw-ladder-rows button.ask b:last-child, .fdw-ladder-rows button.ask strong { color: var(--market-up); }
+.fdw-ladder-rows button.bid b:nth-child(2), .fdw-ladder-rows button.bid strong { color: var(--market-down); }
+.fdw-ladder-rows button.last { min-height: 28px; margin: var(--space-0) 0; border-block: 1px solid var(--line); background: var(--fdw-surface-raised); }
+.fdw-ladder-rows button.last strong { color: var(--accent); font-size: var(--font-lg); }
+.fdw-order-holdings { border-top: 1px solid var(--line); }
+.fdw-order-holdings > h3 small { min-width: 18px; padding: 0 var(--space-1); border-radius: var(--radius-pill); background: var(--soft); color: var(--muted); text-align: center; }
+.fdw-order-empty { margin: 0; padding: var(--space-1) var(--space-3) var(--space-4); color: var(--fdw-faint); font-size: var(--font-md); }
+.fdw-order-holdings .fdw-dock-rows > li:last-child { border-bottom: 0; }
+@media (prefers-reduced-motion: reduce) { .fdw-order-depth > h3 > button svg, .fdw-ladder-rows button::before { transition: none; } }
+.fdw-order-topline { display: flex; gap: var(--space-1); padding: var(--space-2) var(--space-3); }
+.fdw-order-topline button { flex: 1; min-width: 0; padding: var(--space-2) var(--space-1); border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--soft); color: var(--ink); cursor: pointer; }
+.fdw-order-topline button span, .fdw-order-topline button strong { display: block; font-size: var(--font-md); }
+.fdw-order-topline button strong { font-family: var(--font-num); }
+.fdw-order-topline button small { font-size: var(--font-sm); }
+.fdw-order-topline .ask { background: var(--market-up-soft); color: var(--market-up); }
+.fdw-order-topline .bid { background: var(--market-down-soft); color: var(--market-down); }
+.fdw-order-topline button { line-height: 1.25; }
+.fdw-order-topline button strong { display: inline; }
+.fdw-order-topline button small { margin-left: var(--space-1); }
+.fdw-order-holdings .fdw-dock-rows strong > small { margin-left: var(--space-2); color: var(--muted); font-size: var(--font-sm); font-weight: 400; }

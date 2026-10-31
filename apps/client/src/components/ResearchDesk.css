@@ -1,0 +1,160 @@
+/* 调研 (第七批 2026-10-07): 今日判断 → 关键数据 → 多空对照 → 新闻面一行 → four folds. Theme tokens only;
+   涨跌 colours are the market pair (the user's 涨跌色 preference), 震荡 and 可能过时 the warning pair. */
+.research-desk { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; container-type: inline-size; }
+.research-desk p { margin: 0; }
+/* The panel scrolls; its blocks keep their own height. */
+.research-desk > * { flex-shrink: 0; }
+
+/* 今日判断 */
+.desk-judgment { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.desk-judgment > .section-card-head { background: var(--accent-soft); }
+:where(.desk-judgment) .section-card-actions button { display: inline-flex; gap: var(--space-1); align-items: center; padding: var(--space-1) var(--space-3); font-size: var(--font-md); }
+:where(.desk-judgment) .section-card-actions svg { width: 14px; height: 14px; }
+.desk-verdict { gap: var(--space-3); }
+.desk-verdict-top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
+.desk-stance { display: inline-flex; align-items: center; padding: var(--space-0) var(--space-3); border-radius: var(--radius-control); font-size: var(--font-xl); font-weight: 700; line-height: 1.5;
+  color: var(--ink); background: var(--soft); }
+.desk-stance[data-stance="偏多"] { color: var(--market-up); background: var(--market-up-soft); }
+.desk-stance[data-stance="偏空"] { color: var(--market-down); background: var(--market-down-soft); }
+.desk-stance[data-stance="震荡"] { color: var(--warning); background: var(--warning-soft); }
+.desk-confidence, .desk-change, .desk-when { color: var(--muted); font-size: var(--font-md); }
+.desk-when { margin-left: auto; }
+.desk-headline { font-size: var(--font-lg); font-weight: 600; line-height: 1.55; color: var(--ink); overflow-wrap: anywhere; text-wrap: pretty; }
+.desk-stale { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-control); background: var(--warning-soft); color: var(--warning); font-size: var(--font-md); line-height: 1.5; }
+.desk-stale > button { margin-left: auto; padding: var(--space-0) var(--space-3); border: 1px solid var(--warning); border-radius: var(--radius-control);
+  background: transparent; color: var(--warning); font-size: var(--font-md); cursor: pointer; }
+.desk-stale > button:disabled { opacity: .6; cursor: default; }
+.desk-rejudge { color: var(--muted); font-size: var(--font-md); }
+.desk-rejudge[data-status="limited"], .desk-rejudge[data-status="unavailable"], .desk-rejudge[data-status="error"] { color: var(--warning); }
+.desk-waiting { color: var(--muted); }
+.desk-moved { color: var(--warning); font-size: var(--font-md); }
+
+/* 关键数据: StatTiles with each value a button that opens its source. */
+.desk-tile { padding: 0; border: 0; background: none; color: var(--ink); font: 600 var(--font-lg)/1.4 var(--font-num); font-variant-numeric: tabular-nums;
+  cursor: pointer; text-align: left; }
+.desk-tile[data-color="up"] { color: var(--market-up); }
+.desk-tile[data-color="down"] { color: var(--market-down); }
+.desk-tile:hover { text-decoration: underline; text-underline-offset: 3px; }
+.research-desk .stat-tile { padding: var(--space-3) var(--space-3); }
+
+/* 多空对照: two tinted columns side by side (stacked when narrow), one small number per reason. */
+.desk-versus .section-card-body, .desk-phone-versus { gap: var(--space-3); }
+.research-desk .side-by-side { gap: var(--space-3); }
+.research-desk .side-by-side > * + * { border-left: 0; }
+.research-desk .side-by-side > .desk-side { padding: var(--space-3) var(--space-3); border-radius: var(--radius-control); background: var(--soft); }
+.desk-side[data-side="bull"] { background: var(--market-up-soft); }
+.desk-side[data-side="bear"] { background: var(--market-down-soft); }
+.desk-side h4 { margin: 0; font-size: var(--font-md); font-weight: 600; color: var(--muted); }
+.desk-side[data-side="bull"] h4 { color: var(--market-up); }
+.desk-side[data-side="bear"] h4 { color: var(--market-down); }
+.desk-side ul { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-1); }
+.desk-side li { color: var(--ink); font-size: var(--font-md); line-height: 1.5; overflow-wrap: anywhere; }
+.desk-none { color: var(--muted); font-size: var(--font-md); }
+.desk-ref { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 17px; margin-left: var(--space-1); padding: 0 var(--space-1);
+  border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: transparent; color: var(--muted);
+  font: var(--font-xs)/1 var(--font-num);
+  font-variant-numeric: tabular-nums; vertical-align: 1px; }
+:where(.research-desk) button.desk-ref { cursor: pointer; }
+.desk-ref[data-changed] { color: var(--warning); border-color: color-mix(in srgb, var(--warning) 50%, var(--line)); }
+.desk-ref[data-stale] { font-family: inherit; }
+.desk-neutral { color: var(--ink); font-size: var(--font-md); line-height: 1.5; }
+.desk-neutral b { color: var(--muted); font-weight: 600; }
+.desk-conclusion { padding-top: var(--space-2); border-top: 1px solid var(--line); color: var(--ink); font-size: var(--font-md); line-height: 1.6; }
+.desk-conclusion b { font-weight: 600; }
+.desk-watch { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-1); color: var(--ink); font-size: var(--font-md); line-height: 1.5; }
+.desk-watch li::before { content: "→ "; color: var(--muted); }
+
+/* 新闻面 one line (the direction chip is NewsEvents' .news-net). */
+.desk-newsline { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-3); padding: var(--space-3) var(--space-3);
+  border-radius: var(--radius-card); background: var(--soft); font-size: var(--font-md); line-height: 1.5; }
+.desk-take { min-width: 0; color: var(--ink); overflow-wrap: anywhere; }
+.desk-go { margin-left: auto; padding: 0; border: 0; background: none; color: var(--accent); font-size: var(--font-md); cursor: pointer; white-space: nowrap; }
+
+/* The four folds: a counted row that opens its rows. */
+.desk-fold { border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--panel); }
+.desk-fold-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-3); width: 100%; padding: var(--space-3) var(--space-3);
+  border: 0; border-radius: var(--radius-card); background: none; color: var(--ink); text-align: left; cursor: pointer; font-size: var(--font-md); }
+.desk-fold-head b { font-weight: 600; }
+.desk-fold-head span { min-width: 0; color: var(--muted); font-size: var(--font-md); overflow-wrap: anywhere; }
+.desk-fold-head i { margin-left: auto; color: var(--accent); font-style: normal; font-size: var(--font-md); white-space: nowrap; }
+.desk-fold-rows { border-top: 1px solid var(--line); }
+.desk-row { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.6fr) auto; gap: var(--space-3); padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--line); font-size: var(--font-md); line-height: 1.5; }
+.desk-row:first-child { border-top: 0; }
+.desk-row-k { color: var(--muted); overflow-wrap: anywhere; }
+.desk-row-v { color: var(--ink); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.desk-row[data-kind="report"] .desk-row-v { font-variant-numeric: normal; }
+.desk-row-d { color: var(--muted); white-space: nowrap; font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: var(--font-md); }
+.desk-row a { color: var(--accent); }
+/* A narrow panel (or the phone): four figures a row become two; a fold row puts its value under its label. */
+@container (max-width: 520px) {
+  .research-desk .stat-tiles[data-columns="4"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container (max-width: 420px) {
+  .desk-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .desk-row-v { grid-column: 1 / -1; grid-row: 2; }
+}
+
+/* 资料来源: every fact numbered — the numbers the reasons carry. */
+.desk-sources { margin: 0; padding: 0; list-style: none; }
+.desk-sources li { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: var(--space-2); padding: var(--space-2) var(--space-3); border-top: 1px solid var(--line); scroll-margin: 48px; }
+.desk-sources li:first-child { border-top: 0; }
+.desk-sources li[data-highlight] { background: var(--accent-soft); }
+.desk-number { font: var(--font-sm)/var(--font-xl) var(--font-num); font-variant-numeric: tabular-nums; color: var(--muted); text-align: right; }
+.desk-source-text { display: grid; gap: var(--space-0); min-width: 0; overflow-wrap: anywhere; }
+.desk-source-main { display: flex; flex-wrap: wrap; gap: var(--space-0) var(--space-2); align-items: baseline; }
+.desk-source-main > span { color: var(--muted); font-size: var(--font-sm); }
+.desk-source-main > strong { color: var(--ink); font-weight: 500; font-size: var(--font-md); }
+.desk-passage { color: var(--ink); font-size: var(--font-md); line-height: 1.6; }
+.desk-passage::before { content: "「"; }
+.desk-passage::after { content: "」"; }
+.desk-source-text > small { color: var(--muted); font-size: var(--font-sm); }
+.desk-quote[data-changed] { color: var(--warning); }
+.desk-source-text a { color: var(--accent); }
+.desk-provenance { display: grid; gap: var(--space-1); padding: var(--space-2) var(--space-3) var(--space-3); border-top: 1px solid var(--line);
+  color: var(--muted); font-size: var(--font-md); overflow-wrap: anywhere; }
+
+/* The phone's page: no block chrome around the verdict and the columns; the columns stack. */
+.research-desk[data-layout="phone"] { gap: var(--space-3); }
+.desk-phone-verdict, .desk-phone-versus { display: grid; gap: var(--space-3); }
+.research-desk[data-layout="phone"] .desk-headline { font-size: var(--font-lg); }
+.research-desk[data-layout="phone"] .stat-tiles { border: 1px solid var(--line); border-radius: var(--radius-control); overflow: hidden; }
+.research-desk[data-layout="phone"] .side-by-side { grid-template-columns: minmax(0, 1fr); }
+/* On the phone a fold is one row: its name and count (the summary is in the opened rows). */
+.research-desk[data-layout="phone"] .desk-fold-head span { display: none; }
+.desk-phone-debate { justify-self: start; }
+
+/* 今日判断自动更新 (2026-10-24): when and why it was written, when it updates next, and the day's runs. */
+.desk-auto { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-control); background: var(--soft); font-size: var(--font-sm); }
+.desk-auto p, .desk-updates p { display: flex; gap: var(--space-2); margin: 0; }
+.desk-auto-when, .desk-auto-next span:first-child, .desk-updates p span:first-child { flex: 0 0 auto; color: var(--muted); }
+.desk-auto-next { color: var(--muted); }
+.desk-updates { display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--font-sm); }
+.desk-change[data-turned] { color: var(--warning); background: var(--warning-soft); padding: 0 var(--space-2); border-radius: var(--radius-control); }
+/* The card's action buttons carry side padding; the icon-only refresh drops it so its 16px icon fits. */
+.section-card-actions .desk-refresh { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; }
+.section-card-actions .desk-refresh svg { flex: 0 0 auto; width: 16px; height: 16px; }
+.desk-refresh[data-busy] svg { animation: desk-spin 1s linear infinite; }
+@keyframes desk-spin { to { transform: rotate(360deg); } }
+
+/* 让 AI 们辩一轮: blue → violet with twinkling stars and a soft breathing glow (after Codex's Ultra, owner 2026-10-24). */
+:where(.research-desk) .ultra-button { position: relative; overflow: hidden; display: inline-flex; align-items: center; gap: var(--space-1);
+  height: 32px; padding: 0 var(--space-3); border: 0; border-radius: 999px; color: var(--on-ultra); font-weight: 600;
+  background: linear-gradient(90deg, var(--ultra-from), var(--ultra-mid) 45%, var(--ultra-to)); animation: ultra-glow 2.6s ease-in-out infinite; }
+:where(.research-desk) .ultra-button::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(100deg, transparent 30%, rgb(255 255 255 / 0.18) 50%, transparent 70%); background-size: 250% 100%;
+  background-position: -120% 0; animation: ultra-sweep 3.2s ease-in-out infinite; }
+:where(.research-desk) .ultra-button i { position: absolute; width: 2px; height: 2px; border-radius: 50%; background: var(--on-ultra);
+  pointer-events: none; animation: ultra-twinkle 1.8s ease-in-out infinite; }
+:where(.research-desk) .ultra-button :is(svg, span) { position: relative; z-index: 1; }
+:where(.research-desk) .ultra-button svg { width: 14px; height: 14px; }
+:where(.research-desk) .ultra-button:disabled { opacity: 0.55; animation: none; }
+:where(.research-desk) .ultra-button:focus-visible { outline: 2px solid var(--ultra-to); outline-offset: 2px; }
+@keyframes ultra-glow { 0%, 100% { box-shadow: 0 0 10px var(--ultra-glow); } 50% { box-shadow: 0 0 18px var(--ultra-glow); } }
+@keyframes ultra-twinkle { 0%, 100% { opacity: 0.15; transform: scale(0.6); } 50% { opacity: 1; transform: scale(1); } }
+@keyframes ultra-sweep { to { background-position: 120% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  :where(.research-desk) :is(.ultra-button, .ultra-button::after, .ultra-button i), .desk-refresh[data-busy] svg { animation: none; }
+}

@@ -1,0 +1,1680 @@
+/* The owner-only 后台管理 console (the standalone /trader/admin page), owner-approved
+   sketch 2026-10-04: a 232px sidebar (Sente mark, grouped navigation, the signed-in
+   account at the bottom) beside one fluid content column — the only vertical scroll on
+   the page. Blocks are bordered panels on the page background, figures are monospace.
+   Everything comes from the shared theme tokens so both themes and the density/font
+   settings keep working; under 900px the sidebar becomes a top bar whose sections
+   scroll sideways. */
+
+.fdw-admin-console {
+  container-type: inline-size;
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: var(--font-md);
+}
+
+.fdw-admin-layout {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+/* -- Sidebar --------------------------------------------------------------- */
+
+.fdw-admin-sidebar {
+  flex: 0 0 232px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-5) var(--space-3) var(--space-4);
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+  overflow-y: auto;
+}
+
+.fdw-admin-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-2);
+}
+
+.fdw-admin-brand > span { display: grid; gap: var(--space-0); }
+.fdw-admin-brand strong { font-size: var(--font-lg); font-weight: 600; letter-spacing: 0.2px; }
+.fdw-admin-brand small { color: var(--muted); font-size: var(--font-sm); }
+
+.fdw-admin-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.fdw-admin-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0);
+}
+
+.fdw-admin-nav-group-label {
+  padding: 0 var(--space-3) var(--space-1);
+  color: var(--fdw-faint, var(--muted));
+  font-size: var(--font-md);
+}
+
+:where(.fdw-admin-nav button) {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 38px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-control);
+  text-align: left;
+  color: var(--muted);
+  background: transparent;
+  font: inherit;
+  font-size: var(--font-lg);
+  cursor: pointer;
+}
+
+:where(.fdw-admin-nav button svg) {
+  flex: none;
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+:where(.fdw-admin-nav button:hover) { background: var(--surface-hover); color: var(--ink); }
+
+:where(.fdw-admin-nav button.active) {
+  color: var(--ink);
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+
+:where(.fdw-admin-nav button.active svg) { color: var(--accent); }
+
+.fdw-admin-nav-count {
+  margin-left: auto;
+  color: var(--muted);
+  font-family: var(--font-num);
+  font-size: var(--font-md);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.fdw-admin-sidebar-foot {
+  margin-top: auto;
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-3) 0;
+  border-top: 1px solid var(--line);
+  font-size: var(--font-md);
+}
+
+/* -- Content column -------------------------------------------------------- */
+
+/* The one scroll region: the content column. */
+.fdw-admin-content {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.fdw-admin-content-inner {
+  max-width: 1360px;
+  padding: var(--space-5) var(--space-6) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.fdw-admin-empty {
+  margin: var(--space-4) 0;
+  color: var(--muted);
+}
+
+/* An empty result with its way out (清空筛选) beside it. */
+.fdw-admin-empty-action {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.fdw-admin-load-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--font-md);
+}
+
+/* One section's opening: a large title with its help button, the gray hint on the
+   line below, and the section's actions at the right, bottom-aligned. */
+.fdw-admin-section-head {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+}
+
+.fdw-admin-section-head h2 {
+  grid-column: 1;
+  grid-row: 1;
+  margin: 0;
+  font-size: calc(var(--font-2xl) * 1.0833);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+/* The HelpButton is a bare button that trading surfaces style through their own
+   parents; the console gives it the same small bordered square here. */
+.fdw-admin-section-head > button[aria-label="查看说明"] {
+  grid-column: 2;
+  grid-row: 1;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  color: var(--muted);
+  background: var(--panel);
+  font-size: var(--font-md);
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.fdw-admin-section-head > button[aria-label="查看说明"]:hover {
+  color: var(--ink);
+  background: var(--surface-hover);
+}
+
+.fdw-admin-section-hint {
+  grid-column: 1 / 4;
+  grid-row: 2;
+  color: var(--muted);
+  font-size: var(--font-md);
+  overflow-wrap: anywhere;
+}
+
+.fdw-admin-section-action {
+  grid-column: 4;
+  grid-row: 1 / span 2;
+  align-self: end;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.fdw-admin-section-action .app-button { min-height: 38px; padding: 0 var(--space-4); font-size: var(--font-lg); }
+
+.fdw-admin-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.fdw-admin-section-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* The console's segmented controls are pills that size to their labels (可用/全部、
+   一次/不限次数、1 小时/24 小时/7 天), not the drawer's fill-the-row width. */
+.fdw-admin-console .app-segmented {
+  width: auto;
+  max-width: none;
+  justify-self: start;
+  padding: var(--space-0);
+  border-radius: var(--radius-pill);
+}
+
+.fdw-admin-console .app-segmented button {
+  min-height: 30px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-card);
+}
+
+.fdw-admin-console .app-segmented button[aria-checked="true"] { color: var(--ink); }
+
+/* -- Shared blocks --------------------------------------------------------- */
+
+/* One bordered block: the SectionCard and the console's own panels share a look. */
+.fdw-admin-panel,
+.fdw-admin-console .section-card,
+.fdw-admin-table-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--panel);
+}
+
+.fdw-admin-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-4);
+}
+
+.fdw-admin-console .section-card-head {
+  padding: var(--space-4) var(--space-4) 0;
+  border-bottom: 0;
+  background: transparent;
+  gap: var(--space-1) var(--space-2);
+}
+
+.fdw-admin-console .section-card-head h3,
+.fdw-admin-panel-head h3 { font-size: var(--font-lg); font-weight: 600; }
+
+.fdw-admin-console .section-card-body { padding: var(--space-3) var(--space-4) var(--space-4); }
+
+.fdw-admin-panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+}
+
+.fdw-admin-panel-head h3 { margin: 0; }
+
+.fdw-admin-panel-hint {
+  color: var(--fdw-faint, var(--muted));
+  font-size: var(--font-sm);
+}
+
+.fdw-admin-panel-head > :is(.fdw-admin-panel-actions, .fdw-admin-link, .fdw-admin-mono-note) { margin-left: auto; }
+
+.fdw-admin-panel-actions { display: flex; gap: var(--space-2); align-items: center; }
+
+/* Figures: monospace, tabular. */
+.fdw-admin-mono,
+.fdw-admin-mono-note { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+
+.fdw-admin-mono-note {
+  color: var(--fdw-faint, var(--muted));
+  font-size: var(--font-sm);
+  overflow-wrap: anywhere;
+}
+
+/* The big-number tiles opening a section. */
+.fdw-admin-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.fdw-admin-tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-4) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--panel);
+}
+
+.fdw-admin-tile dt { color: var(--muted); font-size: var(--font-md); }
+
+.fdw-admin-tile dd {
+  margin: 0;
+  font-family: var(--font-num);
+  font-size: calc(var(--font-2xl) * 1.0833);
+  font-weight: 500;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.fdw-admin-tile .fdw-admin-tile-unit {
+  color: var(--fdw-faint, var(--muted));
+  font-size: var(--font-lg);
+  letter-spacing: 0;
+}
+
+.fdw-admin-tile .fdw-admin-tile-note {
+  font-family: inherit;
+  color: var(--fdw-faint, var(--muted));
+  font-size: var(--font-sm);
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+/* Status dots and the meters: positive / warning / danger / muted. */
+.fdw-admin-dot {
+  flex: none;
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.fdw-admin-dot[data-tone="ok"] { background: var(--positive); }
+.fdw-admin-dot[data-tone="warn"] { background: var(--warning); }
+.fdw-admin-dot[data-tone="danger"] { background: var(--danger); }
+.fdw-admin-dot[data-tone="idle"] { background: var(--muted); }
+
+.fdw-admin-meter {
+  display: block;
+  height: 5px;
+  min-width: 40px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-hover);
+  overflow: hidden;
+}
+
+.fdw-admin-meter > span {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+}
+
+.fdw-admin-meter[data-level="warn"] > span { background: var(--warning); }
+.fdw-admin-meter[data-level="danger"] > span { background: var(--danger); }
+
+:where(.fdw-admin-link) {
+  border: 0;
+  padding: 0;
+  color: var(--accent);
+  background: transparent;
+  font: inherit;
+  font-size: var(--font-md);
+  cursor: pointer;
+}
+
+:where(.fdw-admin-link:hover) { text-decoration: underline; }
+
+.fdw-admin-inline-line {
+  margin: 0;
+  color: var(--ink);
+}
+
+.fdw-admin-inline-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--font-sm);
+}
+
+/* Status pills (邀请码状态、默认档、未登录访客). */
+.fdw-admin-tag {
+  display: inline-block;
+  padding: var(--space-0) var(--space-2);
+  border-radius: var(--radius-control);
+  background: var(--soft);
+  color: var(--muted);
+  font-size: var(--font-xs);
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.fdw-admin-tag.primary { background: var(--accent-soft); color: var(--accent); }
+
+.fdw-admin-tag.danger { background: var(--danger-soft); color: var(--danger); }
+
+/* A small outlined type label (常驻 / 接入池, 本站模拟 / 快期模拟). */
+.fdw-admin-kind {
+  display: inline-block;
+  padding: var(--space-0) var(--space-1);
+  border: 1px solid var(--line-strong, var(--line));
+  border-radius: var(--radius-control);
+  color: var(--muted);
+  font-size: var(--font-md);
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.fdw-admin-kind[data-kind="paper"] {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
+  color: var(--accent);
+}
+
+.fdw-admin-kind[data-kind="tqkq"] {
+  border-color: color-mix(in srgb, var(--warning) 35%, var(--line));
+  color: var(--warning);
+}
+
+/* -- Tables ---------------------------------------------------------------- */
+
+/* Tables sit in a bordered card: 12px cells, the header row in muted 12px, numeric
+   columns right-aligned with tabular digits, in-row controls small and secondary,
+   the header sticky inside the content scroll; a cell that must wrap wraps. */
+.fdw-admin-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+
+:where(.fdw-admin-table th),
+:where(.fdw-admin-table td) {
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+:where(.fdw-admin-table th:first-child),
+:where(.fdw-admin-table td:first-child) { padding-left: var(--space-4); }
+
+:where(.fdw-admin-table th:last-child),
+:where(.fdw-admin-table td:last-child) { padding-right: var(--space-4); }
+
+:where(.fdw-admin-table tbody tr:last-child > *) { border-bottom: 0; }
+
+:where(.fdw-admin-table thead th) {
+  position: sticky;
+  top: 0;
+  padding-top: var(--space-3);
+  padding-bottom: var(--space-3);
+  background: var(--panel);
+  color: var(--muted);
+  font-size: var(--font-md);
+  font-weight: 500;
+  z-index: 1;
+}
+
+:where(.fdw-admin-table thead th:first-child) { border-top-left-radius: var(--radius-card); }
+:where(.fdw-admin-table thead th:last-child) { border-top-right-radius: var(--radius-card); }
+
+:where(.fdw-admin-table tbody tr:hover) { background: var(--surface-hover); }
+
+:where(.fdw-admin-table .num) { text-align: right; }
+
+:where(.fdw-admin-table .fdw-admin-col-actions) { text-align: right; }
+
+:where(.fdw-admin-table .fdw-admin-wrap) { min-width: 120px; white-space: normal; overflow-wrap: anywhere; color: var(--muted); }
+
+:where(.fdw-admin-table td select),
+:where(.fdw-admin-table td input[type="text"]) { max-width: 150px; }
+
+/* In-row controls: 26px, secondary; selects are pills; no solid primaries inside a table. */
+.fdw-admin-table .app-button,
+.fdw-admin-table .app-select {
+  min-height: 26px;
+  padding: var(--space-0) var(--space-3);
+  font-size: var(--font-md);
+}
+
+.fdw-admin-table .app-select {
+  padding: var(--space-0) var(--space-2);
+  border-color: var(--line-strong, var(--line));
+  border-radius: var(--radius-card);
+  color: var(--ink);
+}
+
+.fdw-admin-sort {
+  border: 0;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.fdw-admin-sort:hover { color: var(--ink); }
+
+.fdw-admin-cell-status {
+  display: block;
+  margin-top: var(--space-0);
+  color: var(--muted);
+  font-size: var(--font-sm);
+  font-weight: 400;
+}
+
+.fdw-admin-cell-error {
+  color: var(--danger);
+}
+
+.fdw-admin-stacked { display: grid; gap: var(--space-0); }
+.fdw-admin-stacked strong { font-weight: 500; }
+
+.fdw-admin-state-text {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-md);
+}
+
+/* 用户: the initial avatar beside the name; 今日 token over its share of the tier quota. */
+.fdw-admin-user {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.fdw-admin-user strong { font-weight: 500; }
+
+.fdw-admin-avatar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--font-md);
+  font-weight: 600;
+}
+
+.fdw-admin-usage {
+  display: inline-grid;
+  justify-items: end;
+  gap: var(--space-1);
+  min-width: 100px;
+}
+
+.fdw-admin-usage .fdw-admin-meter { width: 100px; }
+
+.fdw-admin-usage small {
+  color: var(--fdw-faint, var(--muted));
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--font-sm);
+}
+
+/* The 用户 table's search + tier filter: the search box takes the row. */
+.fdw-admin-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.fdw-admin-toolbar .app-select,
+.fdw-admin-toolbar .app-text-input { min-height: 38px; font-size: var(--font-lg); }
+
+.fdw-admin-toolbar .app-text-input { flex: 1 1 260px; width: auto; max-width: none; padding: 0 var(--space-3); }
+
+.fdw-admin-toolbar .app-select { border-radius: var(--radius-pill); padding: 0 var(--space-4); }
+
+/* -- 概览 ------------------------------------------------------------------ */
+
+.fdw-admin-overview-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(300px, 2fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.fdw-admin-overview-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.fdw-admin-tier-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+:where(.fdw-admin-tier-row) {
+  display: grid;
+  grid-template-columns: minmax(96px, 160px) minmax(0, 1fr) 56px;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2) 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+:where(button.fdw-admin-tier-row:hover) .fdw-admin-tier-name { color: var(--accent); }
+
+.fdw-admin-tier-row-static { cursor: default; }
+
+.fdw-admin-tier-name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.fdw-admin-tier-count {
+  text-align: right;
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+}
+
+.fdw-admin-figures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.fdw-admin-figures > div { display: grid; gap: var(--space-1); align-content: start; }
+.fdw-admin-figures dt { color: var(--muted); font-size: var(--font-md); }
+.fdw-admin-figures dd { margin: 0; font-family: var(--font-num); font-size: var(--font-2xl); font-variant-numeric: tabular-nums; }
+.fdw-admin-figures > div[data-muted] dd { color: var(--muted); }
+.fdw-admin-figures .fdw-admin-figure-note { font-family: inherit; color: var(--fdw-faint, var(--muted)); font-size: var(--font-sm); }
+
+.fdw-admin-overview-system { gap: var(--space-4); }
+
+.fdw-admin-system-part {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.fdw-admin-system-market {
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+}
+
+.fdw-admin-system-hosts {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fdw-admin-system-hosts li {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) 72px 72px;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.fdw-admin-system-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fdw-admin-system-bar { display: grid; gap: var(--space-0); }
+.fdw-admin-system-bar small { color: var(--fdw-faint, var(--muted)); font-size: var(--font-sm); font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.fdw-admin-system-bar .fdw-admin-meter { height: 3px; min-width: 0; }
+
+/* The relay's load as one stacked bar: a segment per source, the rest as track. */
+.fdw-admin-stack {
+  display: flex;
+  gap: var(--space-1);
+  height: 8px;
+}
+
+.fdw-admin-stack i {
+  flex: 1 1 0;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+}
+
+.fdw-admin-stack i[data-rank="1"] { background: color-mix(in srgb, var(--accent) 72%, var(--panel)); }
+.fdw-admin-stack i[data-rank="2"] { background: color-mix(in srgb, var(--accent) 50%, var(--panel)); }
+.fdw-admin-stack i[data-rest] { background: var(--surface-hover); }
+
+/* -- 服务器 ---------------------------------------------------------------- */
+
+.fdw-admin-servers-summary {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  min-height: 38px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--panel);
+  font-size: var(--font-md);
+}
+
+.fdw-admin-servers-summary .fdw-admin-dot { width: 8px; height: 8px; }
+.fdw-admin-servers-summary strong { color: var(--warning); font-weight: 500; }
+.fdw-admin-servers-summary[data-stale] { border-color: color-mix(in srgb, var(--warning) 45%, var(--line)); }
+
+/* The request and release chain: nodes joined by labeled hairlines; the Runtime node
+   is the highlighted center; builders and the egress host sit on a dashed lower row. */
+.fdw-admin-chain { gap: var(--space-4); }
+
+.fdw-admin-chain .fdw-admin-panel-head h3 { color: var(--muted); font-size: var(--font-md); font-weight: 500; letter-spacing: 0.4px; }
+
+.fdw-admin-chain-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  row-gap: var(--space-3);
+}
+
+.fdw-admin-chain-node {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0);
+  min-width: 132px;
+  padding: var(--space-3) var(--space-3);
+  border: 1px solid var(--line-strong, var(--line));
+  border-radius: var(--radius-card);
+  background: var(--soft);
+}
+
+.fdw-admin-chain-node[data-main] {
+  min-width: 190px;
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  background: var(--accent-soft);
+}
+
+.fdw-admin-chain-node[data-tone="danger"] { border-color: color-mix(in srgb, var(--danger) 55%, var(--line)); }
+.fdw-admin-chain-node[data-tone="warn"] { border-color: color-mix(in srgb, var(--warning) 55%, var(--line)); }
+.fdw-admin-chain-node[data-tone="idle"] { opacity: 0.7; }
+
+.fdw-admin-chain-node strong { font-size: var(--font-lg); font-weight: 600; }
+
+.fdw-admin-chain-place {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--fdw-faint, var(--muted));
+  font-size: var(--font-md);
+}
+
+.fdw-admin-chain-node[data-main] .fdw-admin-chain-place { color: var(--accent); }
+
+.fdw-admin-chain-detail {
+  color: var(--muted);
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--font-md);
+}
+
+.fdw-admin-chain-link {
+  flex: 1 1 40px;
+  min-width: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.fdw-admin-chain-link span {
+  color: var(--fdw-faint, var(--muted));
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--font-md);
+  white-space: nowrap;
+}
+
+.fdw-admin-chain-link i {
+  display: block;
+  width: 100%;
+  height: 1px;
+  background: var(--line-strong, var(--line));
+}
+
+.fdw-admin-chain-builders {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px dashed var(--line-strong, var(--line));
+}
+
+.fdw-admin-chain-caption {
+  color: var(--fdw-faint, var(--muted));
+  font-size: var(--font-sm);
+}
+
+.fdw-admin-chain-builder {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--ink);
+  font-size: var(--font-md);
+}
+
+.fdw-admin-chain-egress { margin-left: auto; }
+
+.fdw-admin-hosts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 400px), 1fr));
+  gap: var(--space-4);
+}
+
+.fdw-admin-host {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+  padding: var(--space-4) var(--space-4) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--panel);
+}
+
+/* A host the probe did not answer this round: dimmed, its chip says 未采集. */
+.fdw-admin-host[data-state="idle"] { opacity: 0.55; }
+.fdw-admin-host[data-state="down"] { border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); }
+.fdw-admin-host[data-state="alert"] { border-color: color-mix(in srgb, var(--warning) 45%, var(--line)); }
+
+.fdw-admin-host-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.fdw-admin-host-title {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.fdw-admin-host-title strong { font-size: var(--font-lg); font-weight: 600; }
+.fdw-admin-host-title span { color: var(--muted); font-size: var(--font-md); overflow-wrap: anywhere; }
+
+.fdw-admin-state-chip {
+  flex: none;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: 24px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-card);
+  font-size: var(--font-md);
+  color: var(--muted);
+  background: var(--soft);
+}
+
+.fdw-admin-state-chip[data-tone="ok"] { color: var(--positive); background: var(--positive-soft); }
+.fdw-admin-state-chip[data-tone="alert"] { color: var(--warning); background: var(--warning-soft); }
+.fdw-admin-state-chip[data-tone="down"] { color: var(--danger); background: var(--danger-soft); }
+
+.fdw-admin-gauges {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.fdw-admin-gauge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-0);
+  min-width: 0;
+}
+
+.fdw-admin-gauge-dial {
+  position: relative;
+  width: 96px;
+  height: 96px;
+}
+
+.fdw-admin-gauge-dial svg { width: 96px; height: 96px; display: block; }
+
+.fdw-admin-gauge-dial circle { fill: none; }
+.fdw-admin-gauge-rim { stroke: var(--line); stroke-width: 1; }
+.fdw-admin-gauge-track { stroke: var(--surface-hover); stroke-width: 7; stroke-linecap: round; }
+.fdw-admin-gauge-fill { stroke: var(--accent); stroke-width: 7; stroke-linecap: round; }
+.fdw-admin-gauge[data-level="warn"] .fdw-admin-gauge-fill { stroke: var(--warning); }
+.fdw-admin-gauge[data-level="danger"] .fdw-admin-gauge-fill { stroke: var(--danger); }
+
+.fdw-admin-gauge-value {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: var(--space-1);
+  font-family: var(--font-num);
+  font-size: var(--font-2xl);
+  font-weight: 500;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.fdw-admin-gauge-value small { color: var(--muted); font-size: var(--font-sm); letter-spacing: 0; }
+.fdw-admin-gauge[data-level="danger"] .fdw-admin-gauge-value { color: var(--danger); }
+
+.fdw-admin-gauge-label { margin-top: calc(-1 * var(--space-2)); color: var(--ink); font-size: var(--font-md); }
+
+.fdw-admin-gauge-detail {
+  color: var(--fdw-faint, var(--muted));
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--font-md);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.fdw-admin-host-disks {
+  margin: calc(-1 * var(--space-2)) 0 0;
+  color: var(--fdw-faint, var(--muted));
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--font-md);
+  text-align: right;
+}
+
+.fdw-admin-host-curve { display: grid; gap: var(--space-1); }
+
+.fdw-admin-host-curve-head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  color: var(--fdw-faint, var(--muted));
+  font-size: var(--font-md);
+}
+
+.fdw-admin-curve { display: block; width: 100%; height: 44px; }
+.fdw-admin-curve path { fill: var(--accent); fill-opacity: 0.1; }
+.fdw-admin-curve polyline { fill: none; stroke: var(--accent); stroke-width: 1.4; }
+
+.fdw-admin-host-curve-empty {
+  display: grid;
+  place-items: center;
+  height: 44px;
+  margin: 0;
+  color: var(--fdw-faint, var(--muted));
+  font-size: var(--font-md);
+}
+
+.fdw-admin-capsules { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+
+.fdw-admin-capsule {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: 24px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  color: var(--ink);
+  font-size: var(--font-md);
+}
+
+.fdw-admin-capsule .fdw-admin-dot { width: 5px; height: 5px; }
+.fdw-admin-capsule[data-tone="ok"] .fdw-admin-dot { background: var(--positive); }
+.fdw-admin-capsule[data-tone="danger"] { border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); }
+.fdw-admin-capsule[data-tone="danger"] .fdw-admin-dot { background: var(--danger); }
+.fdw-admin-capsule[data-tone="idle"] { color: var(--muted); }
+.fdw-admin-capsule[data-tone="idle"] .fdw-admin-dot { background: var(--muted); }
+
+.fdw-admin-host-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+  color: var(--fdw-faint, var(--muted));
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--font-md);
+}
+
+.fdw-admin-host-up { margin-left: auto; }
+
+/* -- 行情源 ---------------------------------------------------------------- */
+
+.fdw-admin-sources {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fdw-admin-source {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--panel);
+}
+
+.fdw-admin-source[data-first] { border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
+
+.fdw-admin-source-id {
+  flex: 1 1 260px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.fdw-admin-source-rank {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-card);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--font-lg);
+  font-weight: 600;
+}
+
+.fdw-admin-source-name { display: grid; gap: var(--space-1); min-width: 0; }
+.fdw-admin-source-name > span:first-child { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.fdw-admin-source-name strong { font-size: var(--font-lg); font-weight: 600; }
+
+.fdw-admin-source-health {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-sm);
+}
+
+.fdw-admin-source-channels {
+  flex: 0 1 auto;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.fdw-admin-source-caption { color: var(--fdw-faint, var(--muted)); font-size: var(--font-sm); }
+
+/* The K-line channel matrix: one 10px cell per channel the source can carry. */
+.fdw-admin-cells {
+  display: grid;
+  grid-template-columns: repeat(16, 10px);
+  gap: var(--space-1);
+}
+
+.fdw-admin-cells i {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-hover);
+}
+
+.fdw-admin-cells i[data-on] { background: var(--accent); }
+
+.fdw-admin-source-quotes {
+  flex: 1 1 160px;
+  min-width: 140px;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.fdw-admin-source-quotes .fdw-admin-meter { height: 6px; }
+
+.fdw-admin-source-error {
+  color: var(--danger);
+  font-size: var(--font-sm);
+  overflow-wrap: anywhere;
+}
+
+.fdw-admin-source-actions { flex: none; display: flex; gap: var(--space-1); margin-left: auto; }
+
+:where(.fdw-admin-icon-button),
+:where(.fdw-admin-outline-button) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  border: 1px solid var(--line-strong, var(--line));
+  border-radius: var(--radius-control);
+  color: var(--ink);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+:where(.fdw-admin-icon-button) { width: 34px; padding: 0; }
+:where(.fdw-admin-outline-button) { padding: 0 var(--space-3); }
+
+:where(.fdw-admin-icon-button svg) {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+:where(.fdw-admin-icon-button:hover:not(:disabled)),
+:where(.fdw-admin-outline-button:hover:not(:disabled)) { background: var(--surface-hover); }
+
+:where(.fdw-admin-icon-button:disabled),
+:where(.fdw-admin-outline-button:disabled) { color: var(--muted); opacity: 0.5; cursor: default; }
+
+/* 添加快期行情账号: a titled box — the login row (账号 · 口令 · 验证并加入), its result
+   line, then the picker of TqKq accounts already in the database. */
+.fdw-admin-source-add {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-4);
+  border: 1px dashed var(--line-strong, var(--line));
+  border-radius: var(--radius-card);
+}
+
+.fdw-admin-source-add-head { display: flex; align-items: center; gap: var(--space-1); }
+.fdw-admin-source-add-head h3 { margin: 0; color: var(--ink); font-size: var(--font-lg); font-weight: 600; }
+
+.fdw-admin-source-add-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.fdw-admin-source-add .app-button { min-height: 38px; padding: 0 var(--space-4); }
+.fdw-admin-source-add .app-text-input { min-height: 38px; max-width: none; font-size: var(--font-lg); }
+
+:where(.fdw-admin-outline-button.danger) {
+  border-color: color-mix(in srgb, var(--danger) 50%, var(--line));
+  color: var(--danger);
+}
+
+:where(.fdw-admin-outline-button.danger:hover:not(:disabled)) { background: var(--danger-soft); }
+
+/* A field with its label above (行情源 picker, inline form rows). */
+.fdw-admin-field {
+  flex: 1 1 260px;
+  min-width: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.fdw-admin-field > span { color: var(--muted); font-size: var(--font-md); }
+.fdw-admin-field .app-select { min-height: 38px; width: 100%; font-size: var(--font-lg); }
+
+/* -- 档位 ------------------------------------------------------------------ */
+
+/* Tiers on the left, the editor on the right; under 760px they stack. */
+.fdw-admin-plans-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.fdw-admin-plan-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/* Dropdowns keep a text box's width instead of stretching across the row. */
+.fdw-admin-form-row > .app-select,
+.fdw-admin-form-field > .app-select { width: 200px; max-width: 100%; justify-self: start; }
+
+.fdw-admin-plan-create {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px dashed var(--line-strong, var(--line));
+  border-radius: var(--radius-card);
+  background: var(--panel);
+}
+
+.fdw-admin-plan-create .app-text-input { max-width: none; }
+
+.fdw-admin-plan-create-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+:where(.fdw-admin-plan-card) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--panel);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+:where(.fdw-admin-plan-card:hover) { background: var(--surface-hover); }
+
+:where(.fdw-admin-plan-card.selected) {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  background: var(--accent-soft);
+}
+
+.fdw-admin-plan-card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.fdw-admin-plan-card-head strong { font-size: var(--font-lg); font-weight: 600; }
+
+.fdw-admin-plan-card-count {
+  margin-left: auto;
+  color: var(--muted);
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--font-md);
+}
+
+.fdw-admin-plan-card-meta {
+  color: var(--muted);
+  font-size: var(--font-sm);
+  overflow-wrap: anywhere;
+}
+
+.fdw-admin-plan-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.fdw-admin-plan-status:empty { display: none; }
+
+.fdw-admin-plan-status {
+  color: var(--muted);
+  font-size: var(--font-sm);
+}
+
+.fdw-admin-plan-danger {
+  display: flex;
+  justify-content: flex-end;
+}
+
+:where(.fdw-admin-danger) {
+  min-height: 38px;
+  padding: 0 var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--danger) 50%, var(--line));
+  border-radius: var(--radius-control);
+  color: var(--danger);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+:where(.fdw-admin-danger:hover:not(:disabled)) { background: var(--danger-soft); }
+
+:where(.fdw-admin-danger:disabled) { border-color: var(--line); color: var(--muted); cursor: default; }
+
+/* 可用模型: each model a pill holding its name and switch. */
+.fdw-admin-form-rows.fdw-admin-model-pills {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.fdw-admin-model-pills .fdw-admin-form-row {
+  display: inline-flex;
+  gap: var(--space-2);
+  min-height: 36px;
+  padding: 0 var(--space-2) 0 var(--space-3);
+  border: 1px solid var(--line-strong, var(--line));
+  border-radius: var(--radius-pill);
+}
+
+/* -- 技能 ------------------------------------------------------------------ */
+
+/* The matrix: fixed 280px skill column, equal centered tier columns, group headers
+   as in-table rows, the header sticky inside the content scroll. */
+.fdw-admin-skills { table-layout: fixed; }
+
+.fdw-admin-skills thead th:not(:first-child) { text-align: center; }
+
+.fdw-admin-skills thead th:first-child { width: 280px; }
+
+:where(.fdw-admin-skills td) { text-align: center; }
+
+:where(.fdw-admin-skills td:first-child),
+:where(.fdw-admin-skills tbody th) { text-align: left; }
+
+.fdw-admin-skill-group th {
+  padding-top: var(--space-4);
+  color: var(--fdw-faint, var(--muted));
+  font-size: var(--font-md);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--panel);
+}
+
+.fdw-admin-skills tbody th strong {
+  display: block;
+  color: var(--ink);
+  font-size: var(--font-md);
+  font-weight: 500;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.fdw-admin-skill-desc {
+  display: block;
+  margin-top: var(--space-0);
+  color: var(--fdw-faint, var(--muted));
+  font-size: var(--font-md);
+  font-weight: 400;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.fdw-admin-skill-follow {
+  display: block;
+  margin-top: var(--space-0);
+  color: var(--muted);
+  font-size: var(--font-md);
+  font-weight: 400;
+}
+
+/* A child skill's row: indented under its parent, its name in regular weight. */
+.fdw-admin-skill-child th { padding-left: calc(var(--space-4) + var(--space-4)); }
+.fdw-admin-skill-child th strong { font-weight: 400; }
+
+:where(.fdw-admin-skill-expand) {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-0);
+  margin-top: var(--space-1);
+  padding: var(--space-0) var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  color: var(--muted);
+  background: transparent;
+  font: inherit;
+  font-size: var(--font-md);
+  cursor: pointer;
+}
+
+/* -- Forms (邀请码生成、档位编辑) ------------------------------------------- */
+
+/* The settings drawer's row shape — a fixed 160px label column, the controls
+   left-aligned beside it, 8px between rows. A model name stays on one line. */
+.fdw-admin-form-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.fdw-admin-form-row {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 32px;
+}
+
+.fdw-admin-form-label {
+  display: grid;
+  gap: var(--space-0);
+  color: var(--ink);
+}
+
+.fdw-admin-form-label-nowrap {
+  white-space: nowrap;
+  overflow: visible;
+}
+
+/* Inline forms (每日额度, 生成邀请码): the fields side by side, each label above its
+   control, wrapping to the next line when the column narrows. */
+.fdw-admin-form-inline {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-3);
+}
+
+.fdw-admin-form-inline .fdw-admin-form-row {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  align-content: start;
+  gap: var(--space-1);
+}
+
+.fdw-admin-form-inline .fdw-admin-form-label { color: var(--muted); font-size: var(--font-md); }
+
+.fdw-admin-form-inline :is(.app-select, .app-text-input) { width: 100%; max-width: none; min-height: 38px; }
+
+.fdw-admin-form-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.fdw-admin-form-note {
+  color: var(--muted);
+  font-size: var(--font-sm);
+}
+
+.fdw-admin-form-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--font-md);
+}
+
+.fdw-admin-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+/* -- 邀请码 ---------------------------------------------------------------- */
+
+/* The just-generated code: an accent strip with the code large and spaced. */
+.fdw-admin-invite-result {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-3) var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
+  border-radius: var(--radius-card);
+  background: var(--accent-soft);
+}
+
+.fdw-admin-invite-result > span { color: var(--accent); font-size: var(--font-md); }
+
+.fdw-admin-invite-result strong {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--font-xl);
+  font-weight: 500;
+  letter-spacing: 2px;
+}
+
+.fdw-admin-invite-result .app-button { margin-left: auto; }
+
+.fdw-admin-code {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 1px;
+}
+
+.fdw-admin-old-code {
+  color: var(--muted);
+}
+
+:where(.fdw-admin-copy) {
+  margin-left: var(--space-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  padding: var(--space-0) var(--space-1);
+  color: var(--muted);
+  background: var(--panel);
+  font: inherit;
+  cursor: pointer;
+}
+
+:where(.fdw-admin-copy:hover) { color: var(--ink); background: var(--surface-hover); }
+
+/* 「N 人」展开：与其他单元格同字号的文字按钮，无框，箭头在 CSS 里（可访问名保持「N 人」）。 */
+:where(.fdw-admin-uses-toggle) {
+  border: 0;
+  padding: 0;
+  color: var(--ink);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+:where(.fdw-admin-uses-toggle)::after { content: " ▾"; color: var(--muted); }
+:where(.fdw-admin-uses-toggle[aria-expanded="true"])::after { content: " ▴"; }
+:where(.fdw-admin-uses-toggle:hover) { color: var(--accent); }
+
+.fdw-admin-uses-detail td {
+  color: var(--muted);
+  font-size: var(--font-md);
+  white-space: normal;
+}
+
+.fdw-admin-use-item {
+  display: inline-block;
+  margin-right: var(--space-3);
+}
+
+/* The 2-second highlight on a just-generated row: a steady soft background
+   (the attribute leaves with the timer), not a fading dark flash. */
+.fdw-admin-invites tbody tr[data-highlight] { background: var(--accent-soft); }
+
+/* -- Narrowing ------------------------------------------------------------- */
+
+@container (max-width: 1100px) {
+  .fdw-admin-overview-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* A narrowing content column: tighter cells and narrower in-cell selects so the wide
+   用户/邀请码 tables fit without a sideways scrollbar. */
+@container (max-width: 1000px) {
+  :where(.fdw-admin-table th),
+  :where(.fdw-admin-table td) { padding-left: var(--space-1); padding-right: var(--space-1); }
+
+  :where(.fdw-admin-table td select),
+  :where(.fdw-admin-table td input[type="text"]) { max-width: 120px; }
+}
+
+/* Under 900px the sidebar becomes a top bar: the mark and the account on one row,
+   the sections in one sideways-scrolling row below (group labels drop out). */
+@container (max-width: 900px) {
+  .fdw-admin-layout { flex-direction: column; }
+
+  .fdw-admin-sidebar {
+    flex: none;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: var(--space-2) var(--space-3);
+    padding: var(--space-3) var(--space-4) var(--space-2);
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    overflow: visible;
+  }
+
+  .fdw-admin-nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    flex-direction: row;
+    gap: var(--space-0);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .fdw-admin-nav-group { display: contents; }
+  .fdw-admin-nav-group-label { display: none; }
+
+  :where(.fdw-admin-nav button) { flex: none; min-height: 34px; white-space: nowrap; }
+
+  .fdw-admin-sidebar-foot {
+    grid-column: 2;
+    grid-row: 1;
+    margin: 0;
+    padding: 0;
+    border-top: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-2) var(--space-3);
+  }
+
+  .fdw-admin-content-inner { padding: var(--space-4) var(--space-4) var(--space-6); }
+
+  .fdw-admin-hosts { grid-template-columns: minmax(0, 1fr); }
+}
+
+@container (max-width: 760px) {
+  .fdw-admin-section-action { grid-column: 1 / -1; grid-row: 3; justify-content: flex-start; }
+
+  .fdw-admin-plans-layout { grid-template-columns: 1fr; }
+
+  .fdw-admin-skills thead th:first-child { width: 200px; }
+
+  .fdw-admin-form-row { grid-template-columns: minmax(0, 1fr); align-items: start; }
+
+  .fdw-admin-chain-link { flex-basis: 24px; min-width: 24px; }
+
+  .fdw-admin-chain-egress { margin-left: 0; }
+}
+
+/* A narrowing invites table: the 创建 column folds away first; everything else
+   keeps its full text. */
+@container (max-width: 720px) {
+  .fdw-admin-col-created { display: none; }
+}
+
+/* -- 用户体验 (真实用户监测, 2026-10-13) ------------------------------------- */
+
+.fdw-admin-rum-chart {
+  height: 220px;
+  min-width: 0;
+}
+
+/* Figures keep their units (non-breaking spaces); a narrow table wraps at the "/". */
+.fdw-admin-rum-table :is(td, th) { white-space: normal; }
+
+.fdw-admin-rum-sub {
+  display: block;
+  color: var(--fdw-faint, var(--muted));
+  font-size: var(--font-md);
+  font-weight: 400;
+}
+
+.fdw-admin-rum-breakdown {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.fdw-admin-rum-breakdown > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--line);
+}
+
+.fdw-admin-rum-breakdown > div:last-child { border-bottom: 0; padding-bottom: 0; }
+
+.fdw-admin-rum-breakdown dt { color: var(--ink); }
+
+.fdw-admin-rum-breakdown dd { margin: 0; color: var(--ink); }

@@ -1,0 +1,27 @@
+/* 对象级 AI 菜单 (2026-09-25): "AI ▾" on strategies, running instances, positions and orders. */
+:where(.ai-menu) { position: relative; display: inline-flex; min-width: 0; }
+.ai-menu > .ai-menu-trigger {
+  display: inline-flex; align-items: center; gap: var(--space-1); min-height: 28px;
+  padding: var(--space-1) var(--space-2); border: 1px solid var(--accent); border-radius: var(--radius-control);
+  background: var(--panel); color: var(--accent); font: inherit; font-size: var(--font-md); cursor: pointer; white-space: nowrap;
+}
+.ai-menu > .ai-menu-trigger:disabled { opacity: .45; cursor: default; }
+.ai-menu.compact > .ai-menu-trigger { min-height: 24px; padding: var(--space-0) var(--space-1); font-size: var(--font-md); }
+.ai-menu-list {
+  position: absolute; right: 0; top: calc(100% + var(--space-1)); z-index: 30;
+  display: grid; gap: var(--space-1); min-width: 168px; max-width: min(260px, 80vw);
+  padding: var(--space-2); border: 1px solid var(--line); border-radius: var(--radius-card);
+  background: var(--panel); color: var(--ink); box-shadow: var(--shadow-2);
+}
+.ai-menu-list.start { right: auto; left: 0; }
+.ai-menu .ai-menu-list > button {
+  display: block; width: 100%; padding: var(--space-1) var(--space-2); border: 0; border-radius: var(--radius-control);
+  background: transparent; color: var(--ink); font: inherit; font-size: var(--font-md); text-align: left;
+  white-space: normal; overflow-wrap: anywhere; cursor: pointer;
+}
+.ai-menu .ai-menu-list > button:hover:not(:disabled), .ai-menu .ai-menu-list > button:focus-visible { background: var(--soft); outline: none; }
+.ai-menu .ai-menu-list > button:disabled { color: var(--muted); cursor: default; }
+.ai-menu-list > small { color: var(--muted); font-size: var(--font-sm); line-height: 1.5; padding: 0 var(--space-2); }
+/* In a 持仓面板 row: at the row end, after the row's own action when it has one. */
+.fdw-dock-rows > li > .ai-menu { margin-left: auto; }
+.fdw-dock-rows > li > button + .ai-menu, .fdw-dock-rows > li > .fdw-row-actions + .ai-menu { margin-left: 0; }

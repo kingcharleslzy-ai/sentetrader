@@ -1,0 +1,44 @@
+{
+  "id": "fairy_four_price",
+  "name": "菲阿里四价",
+  "category": "intraday_range",
+  "scenario": "昨日高低点突破：破昨高做多、破昨低做空，回到今开止损，收盘前平仓",
+  "plainSummary": "价格突破昨天的最高价就做多、跌破昨天的最低价就做空；如果又回到今天的开盘价就认错离场，收盘前全部平掉。",
+  "level": "新手", "holding": "日内",
+  "source": {"label": "TqSdk fairy_four_price.py（昨高 / 昨低突破，回破今开止损，14:50 平仓）", "url": "https://github.com/shinnytech/tqsdk-python/blob/master/tqsdk/demo/example/fairy_four_price.py"},
+  "recommendedTimeframe": 60,
+  "approximations": [
+    "按收盘确认：原版盘中最新价一过昨高 / 昨低就成交、一回破今开就止损，这里 1 分钟K线收盘后判断、下一根开盘成交。",
+    "14:50 平仓写成“当日收盘前 10 分钟平仓”（按合约交易时段，15:00 收盘即 14:50）。",
+    "“昨日 / 今开”按交易日算（夜盘归下一交易日），有夜盘的品种今开是夜盘开盘价。",
+    "另设保护止损（默认 100 跳，按品种调整），回到今开的止损按收盘价判断。"
+  ],
+  "params": [
+    {"key": "closeBefore", "label": "收盘前平仓", "default": 10, "min": 1, "max": 60, "step": 1, "unit": "分钟", "targets": ["closeBeforeEndMinutes"],
+     "help": {"what": "当天最后一个交易时段收盘前多少分钟把持仓全部平掉，不留隔夜仓", "up": "更早平仓，少担收盘前的波动，但也少拿一段行情", "down": "拿到更接近收盘，但留给平仓成交的时间更少"}},
+    {"key": "stopLossTicks", "label": "保护止损", "default": 100, "min": 5, "max": 2000, "step": 1, "unit": "跳", "targets": ["stopLossTicks"],
+     "help": {"what": "止损离开仓价多少跳（跳是这个合约价格最小的变动单位）", "up": "不容易被来回波动扫掉，但做错时亏得更多", "down": "亏得少，但更容易被正常波动打掉"}},
+    {"key": "maxPosition", "label": "每次手数", "default": 1, "min": 1, "max": 20, "step": 1, "unit": "手", "targets": ["maxPosition"],
+     "help": {"what": "每次开仓下多少手", "up": "盈亏都按手数放大，占用的保证金也更多", "down": "盈亏都跟着缩小，更稳妥"}},
+    {"key": "maxLoss", "label": "当日亏损上限", "default": null, "optional": true, "min": 100, "max": 1000000, "step": 100, "unit": "元", "targets": ["maxLoss"],
+     "help": {"what": "留空就不设。填了以后，账户当天的净亏损（已平仓、浮动盈亏和手续费合计）达到这个数，这条策略不再开新仓，止损和离场照常", "up": "允许当天亏得更多才停手", "down": "更早停止开新仓，也可能错过当天后面的机会"}}
+  ],
+  "keyParam": "stopLossTicks",
+  "plan": {
+    "name": "菲阿里四价",
+    "description": "收盘突破昨日最高价开多、跌破昨日最低价开空；多单收盘回到今开或以下止损，空单收盘回到今开或以上止损；收盘前 {closeBefore} 分钟平仓。保护止损 {stopLossTicks} 跳。来源：TqSdk fairy_four_price.py。",
+    "direction": "both", "timeframeSeconds": 60, "maxPosition": 1, "maxLoss": null,
+    "stopLossTicks": 100, "takeProfitTicks": null, "cooldownBars": 0, "maxOrdersPerDay": 20,
+    "closeBeforeEndMinutes": 10,
+    "rules": {
+      "entryLong": {"conditions": [{"label": "收盘突破昨高", "left": {"indicator": "close", "timeframe": 60},
+        "operator": "gt", "right": {"indicator": "prev_high", "timeframe": 60}}]},
+      "exitLong": {"conditions": [{"label": "收盘回到今开（止损）", "left": {"indicator": "close", "timeframe": 60},
+        "operator": "lte", "right": {"indicator": "today_open", "timeframe": 60}}]},
+      "entryShort": {"conditions": [{"label": "收盘跌破昨低", "left": {"indicator": "close", "timeframe": 60},
+        "operator": "lt", "right": {"indicator": "prev_low", "timeframe": 60}}]},
+      "exitShort": {"conditions": [{"label": "收盘回到今开（止损）", "left": {"indicator": "close", "timeframe": 60},
+        "operator": "gte", "right": {"indicator": "today_open", "timeframe": 60}}]}
+    }
+  }
+}

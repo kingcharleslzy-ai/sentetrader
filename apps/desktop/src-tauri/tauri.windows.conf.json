@@ -1,0 +1,27 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "targets": ["nsis"],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "embedBootstrapper"
+      },
+      "nsis": {
+        "compression": "zlib",
+        "installMode": "currentUser",
+        "languages": ["SimpChinese", "English"],
+        "displayLanguageSelector": false,
+        "installerIcon": "icons/icon.ico",
+        "installerHooks": "windows-installer-hooks.nsh",
+        "template": "windows-installer.nsi"
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}

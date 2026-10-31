@@ -1,0 +1,15 @@
+{
+  "about": "右侧栏各面板与页签（2026-10-25 侧栏重排后）：调研（含辩论页签）、提醒（三页签）、策略（打法页）。只读，不写数据。",
+  "steps": [
+    {"ui": {"view": "trade"}, "expect": {"view": "trade"}},
+    {"ui": {"panel": "news"}, "expect": {"panel": "news"}},
+    {"ui": {"panel": "debate"}, "expect": {"panel": "news", "news.tab": "debate"}},
+    {"ui": {"panel": "reminders"}, "expect": {"panel": "reminders", "reminders.tab": {"exists": true}}},
+    {"ui": {"reminders": {"tab": "general"}}, "expect": {"reminders.tab": "general"}},
+    {"ui": {"reminders": {"tab": "history"}}, "expect": {"reminders.tab": "history", "reminderCenter.open": true}},
+    {"ui": {"panel": "strategy"}, "expect": {"panel": "strategy"}},
+    {"ui": {"strategyTab": "playbooks"}, "expect": {"strategyTab": "playbooks"}},
+    {"screenshot": "panels-strategy-playbooks"},
+    {"ui": {"panel": null}, "expect": {"panel": null}}
+  ]
+}

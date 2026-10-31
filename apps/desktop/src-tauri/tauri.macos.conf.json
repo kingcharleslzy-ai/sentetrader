@@ -1,0 +1,7 @@
+{
+  "bundle": {
+    "resources": {
+      "macos/en.lproj/InfoPlist.strings": "en.lproj/InfoPlist.strings"
+    }
+  }
+}

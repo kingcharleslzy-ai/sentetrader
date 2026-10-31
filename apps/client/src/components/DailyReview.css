@@ -1,0 +1,85 @@
+/* 今日复盘 (2026-10-06): the day's review block and the 计划内 / 提醒后 / 临时 tags. Theme tokens only. */
+.review-tag {
+  display: inline-flex; align-items: center; padding: var(--space-0) var(--space-2); border-radius: var(--radius-pill);
+  font-size: var(--font-xs); font-weight: 600; line-height: 18px; white-space: nowrap;
+}
+.review-tag[data-tag="plan"] { background: var(--tag-plan-soft); color: var(--tag-plan); }
+.review-tag[data-tag="remind"] { background: var(--tag-remind-soft); color: var(--tag-remind); }
+.review-tag[data-tag="adhoc"] { background: var(--tag-adhoc-soft); color: var(--tag-adhoc); }
+
+.daily-review { animation: ui-panel-in var(--dur-2) var(--ease-out) backwards, ui-fill-arrival var(--dur-2) var(--ease-out); }
+.daily-review .daily-review-title { display: inline-flex; align-items: center; gap: var(--space-0); }
+.account-pnl .daily-review-step {
+  width: 24px; height: 24px; padding: 0; border: 0; border-radius: var(--radius-control);
+  background: transparent; color: var(--muted);
+}
+.account-pnl .daily-review-step:not(:disabled):hover { background: var(--surface-hover); color: var(--ink); }
+.account-pnl .daily-review-step:disabled { opacity: .35; cursor: default; }
+.account-pnl .daily-review-regenerate { padding: var(--space-1) var(--space-3); font-size: var(--font-md); background: var(--panel); }
+.daily-review-body { gap: var(--space-3); }
+/* Four figures in a 360 px side panel: one line each, the label may shorten, the value never breaks. */
+.account-pnl .daily-review .stat-tile { padding: var(--space-2) var(--space-3); }
+.account-pnl .daily-review .stat-tile dt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.account-pnl .daily-review .stat-tile dd { font-size: var(--font-lg); white-space: nowrap; overflow-wrap: normal; }
+.account-pnl .daily-review-summary {
+  margin: 0; padding: var(--space-3) var(--space-3); border-radius: var(--radius-card);
+  background: var(--ai-bubble); color: var(--ai-bubble-ink); font-size: var(--font-md); line-height: 1.6;
+}
+.account-pnl .daily-review-summary small { display: block; margin-top: var(--space-1); opacity: .8; font-size: var(--font-sm); }
+
+.daily-review-legs { margin: 0; padding: 0; list-style: none; display: grid; }
+.daily-review-leg {
+  display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: var(--space-0) var(--space-3);
+  padding: var(--space-2) 0; border-top: 1px solid var(--line); align-items: start;
+  animation: ui-panel-in var(--dur-2) var(--ease-out) backwards;
+}
+.daily-review-leg:first-child { border-top: 0; padding-top: var(--space-0); }
+.daily-review-leg time { color: var(--muted); font-size: var(--font-sm); font-family: var(--font-num); font-variant-numeric: tabular-nums; padding-top: var(--space-0); }
+.daily-review-leg > div { min-width: 0; display: grid; gap: var(--space-0); }
+.daily-review-leg b { color: var(--ink); font-size: var(--font-md); font-weight: 600; overflow-wrap: anywhere; }
+.daily-review-leg span { color: var(--muted); font-size: var(--font-md); overflow-wrap: anywhere; }
+.daily-review-leg .daily-review-leg-right { justify-items: end; gap: var(--space-0); }
+.daily-review-leg-right > span:not(.review-tag) { font-family: var(--font-num); font-size: var(--font-md); font-variant-numeric: tabular-nums; }
+/* 交易验尸: the 笔's checks and question under its row, aligned with the action column. */
+.daily-review-leg > .daily-review-autopsy { grid-column: 2 / -1; gap: var(--space-1); }
+.daily-review-autopsy ul { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-0); }
+.daily-review-autopsy li { color: var(--ink); font-size: var(--font-md); overflow-wrap: anywhere; }
+.daily-review-leg .daily-review-check {
+  display: inline-block; margin-right: var(--space-1); padding: 0 var(--space-1); border-radius: var(--radius-control);
+  background: var(--warning-soft); color: var(--warning); font-size: var(--font-sm); font-weight: 600;
+}
+.account-pnl .daily-review-fit { margin: 0; color: var(--muted); font-size: var(--font-md); }
+.daily-review-question label { display: grid; gap: var(--space-1); }
+.daily-review-leg .daily-review-question label > span { color: var(--ink); }
+.daily-review-question textarea {
+  width: 100%; box-sizing: border-box; min-width: 0; resize: vertical; font: inherit; font-size: var(--font-md); line-height: 1.6;
+  color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-control); padding: var(--space-2);
+}
+.daily-review-question .trade-journal-actions { margin-top: var(--space-1); }
+
+.daily-review-observation {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2) var(--space-3); align-items: center;
+  padding: var(--space-3) var(--space-3); border: 1px dashed var(--line-strong); border-radius: var(--radius-card);
+}
+.account-pnl .daily-review-observation p { margin: 0; color: var(--ink); font-size: var(--font-md); }
+.account-pnl .daily-review-observation p small { display: block; color: var(--muted); font-size: var(--font-sm); }
+.daily-review-observation[data-status="remembered"] { border-style: solid; border-color: color-mix(in srgb, var(--positive) 45%, var(--line)); }
+.account-pnl .daily-review-observation[data-status="remembered"] p { color: var(--positive); }
+.daily-review-observation:not([data-status="pending"]) { grid-template-columns: minmax(0, 1fr); }
+.daily-review-observation-actions { display: flex; gap: var(--space-1); }
+.account-pnl .daily-review-observation-actions button { min-height: 34px; padding: 0 var(--space-3); font-size: var(--font-md); white-space: nowrap; }
+.account-pnl .daily-review-muted { margin: 0; color: var(--muted); font-size: var(--font-sm); }
+
+.daily-review-how { border-top: 1px solid var(--line); padding-top: var(--space-2); color: var(--muted); font-size: var(--font-md); }
+.daily-review-how summary { cursor: pointer; }
+.daily-review-how ul { margin: var(--space-1) 0 0; padding-left: var(--space-4); display: grid; gap: var(--space-0); line-height: 1.55; }
+
+@container daily-review (max-width: 560px) {
+  .daily-review-observation { grid-template-columns: minmax(0, 1fr); }
+}
+.review-round-tags { display: inline-flex; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-0); }
+.daily-review-leg b .daily-review-nowrap { white-space: nowrap; color: inherit; font-size: inherit; }
+.daily-review {
+  container-type: inline-size;
+  container-name: daily-review;
+}

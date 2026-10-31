@@ -1,0 +1,141 @@
+/* 模拟交易 panel: the 开仓 / 平仓 / 目标持仓 switch, side, price and lots, confirm, then the
+   one-tap row; 五档 and 本合约持仓 sit around it (OrderPanelSections.css). Direction colours
+   follow the market tokens (涨跌颜色 included). */
+.fdw-order-panel { min-width: 0; display: flex; flex-direction: column; overflow: hidden; border-left: 1px solid var(--line); background: var(--panel); }
+
+.fdw-ticket { flex: 0 0 auto; background: var(--panel); }
+.fdw-order-panel .fdw-ticket { margin: 0; }
+.fdw-ticket > header { display: flex; align-items: center; padding: var(--space-3) var(--space-3); }
+.fdw-ticket > small { display: block; padding: 0 var(--space-3) var(--space-3); color: var(--muted); font-size: var(--font-sm); line-height: 1.5; }
+.fdw-ticket > small:empty { display: none; }
+
+/* 开仓 / 平仓 / 目标持仓: a sliding thumb under three equal segments. */
+.fdw-trade-mode { position: relative; isolation: isolate; flex: 1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: var(--space-0); border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--fdw-surface-raised); }
+.fdw-trade-mode::before { content: ""; position: absolute; z-index: -1; top: 3px; bottom: 3px; left: 3px; width: calc((100% - 6px) / 3); border-radius: var(--radius-control); background: var(--fdw-surface-hover); box-shadow: var(--shadow-2); transition: transform var(--dur-3) var(--ease-out); }
+.fdw-trade-mode[data-mode="close"]::before { transform: translateX(100%); }
+.fdw-trade-mode[data-mode="target"]::before { transform: translateX(200%); }
+.fdw-trade-mode button { height: 30px; border: 0; border-radius: var(--radius-control); background: transparent; color: var(--muted); font-size: var(--font-md); cursor: pointer; transition: color var(--dur-2) var(--ease-standard); }
+.fdw-trade-mode button:hover { color: var(--ink); }
+.fdw-trade-mode button[aria-pressed="true"] { color: var(--ink); font-weight: 600; background: transparent; }
+
+/* 买多 / 卖空. */
+.fdw-side-choice { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); padding: 0 var(--space-3) var(--space-3); }
+.fdw-side-choice button { min-height: 52px; border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--fdw-surface-raised); font-size: var(--font-lg); cursor: pointer; transition: border-color var(--dur-2), background-color var(--dur-2), box-shadow var(--dur-2); }
+.fdw-side-choice button strong, .fdw-side-choice button span { display: block; }
+.fdw-side-choice button strong { font-size: var(--font-lg); font-weight: 700; }
+.fdw-side-choice button span { margin-top: var(--space-0); font-size: var(--font-md); }
+.fdw-side-choice .buy { color: var(--market-up); }
+.fdw-side-choice .sell { color: var(--market-down); }
+.fdw-side-choice .buy:hover, .fdw-side-choice .buy.active { border-color: var(--market-up); background: linear-gradient(180deg, color-mix(in srgb, var(--market-up) 20%, transparent), color-mix(in srgb, var(--market-up) 6%, transparent)); }
+.fdw-side-choice .sell:hover, .fdw-side-choice .sell.active { border-color: var(--market-down); background: linear-gradient(180deg, color-mix(in srgb, var(--market-down) 20%, transparent), color-mix(in srgb, var(--market-down) 6%, transparent)); }
+.fdw-side-choice .buy.active { box-shadow: var(--shadow-2); }
+.fdw-side-choice .sell.active { box-shadow: var(--shadow-2); }
+
+/* Price and lots. */
+.fdw-ticket-fields { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); padding: 0 var(--space-3) var(--space-3); }
+.fdw-ticket-fields label { min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); color: var(--muted); font-size: var(--font-md); }
+.fdw-ticket-fields label > strong, .fdw-ticket-fields label > div { height: 38px; border: 1px solid var(--line-strong); border-radius: var(--radius-control); background: var(--fdw-surface-raised); transition: border-color var(--dur-1), box-shadow var(--dur-1); }
+.fdw-ticket-fields label:focus-within > div { border-color: var(--accent); outline: 3px solid color-mix(in srgb, var(--accent) 18%, transparent); outline-offset: 0; }
+/* A typed amount the ticket refuses (#789): the box stays red until it is fixed; the reason is on the estimate line. */
+.fdw-ticket-fields label > div:has(input[aria-invalid="true"]) { border-color: var(--danger); }
+.fdw-ticket-fields label > strong { display: flex; align-items: center; justify-content: center; overflow: hidden; color: var(--ink); font-size: var(--font-md); }
+.fdw-ticket-fields label > div { min-width: 0; display: grid; grid-template-columns: 30px minmax(0, 1fr) 30px; align-items: center; text-align: center; }
+.fdw-ticket-fields label > div button { height: 36px; display: grid; place-items: center; border: 0; border-radius: var(--radius-control); background: transparent; color: var(--muted); cursor: pointer; }
+.fdw-ticket-fields label > div button:hover { color: var(--ink); background: var(--fdw-surface-hover); }
+.fdw-ticket-fields label > div svg { width: 13px; height: 13px; }
+.fdw-ticket-fields label > div strong, .fdw-ticket-fields label > div input { color: var(--ink); font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: var(--font-lg); }
+.fdw-ticket-fields label > div input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; font-weight: 700; text-align: center; appearance: textfield; }
+.fdw-ticket-fields label > div input::-webkit-inner-spin-button, .fdw-ticket-fields label > div input::-webkit-outer-spin-button { margin: 0; appearance: none; }
+
+/* 限价 / 对手价 / 最新价 and the close plan: pill chips. */
+.fdw-price-modes { display: flex; gap: var(--space-1); margin: 0 var(--space-3) var(--space-3); }
+.fdw-price-modes button, .fdw-close-plan button { min-height: 28px; padding: 0 var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-pill); background: transparent; color: var(--muted); font-size: var(--font-md); cursor: pointer; }
+.fdw-price-modes button:hover, .fdw-close-plan button:hover { color: var(--ink); border-color: var(--line-strong); }
+.fdw-price-modes button.active, .fdw-close-plan button.active { color: var(--accent); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 40%, transparent); font-weight: 600; }
+.fdw-close-plan { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); padding: 0 var(--space-3) var(--space-3); color: var(--muted); font-size: var(--font-md); }
+.fdw-close-plan > div { display: flex; gap: var(--space-1); }
+
+/* 下单前的“钱”一行（保证金约 · 手续费约 · 可开手数 / 释放保证金约）：只是提示，不拦截下单。 */
+.fdw-ticket-estimate { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-0) var(--space-1); margin: calc(-1 * var(--space-1)) var(--space-3) var(--space-3); color: var(--muted); font-size: var(--font-md); line-height: 1.5; }
+.fdw-ticket-estimate[data-tone="warning"] { color: var(--warning); }
+.fdw-ticket-estimate strong { color: var(--warning); font-weight: 600; }
+
+.fdw-ticket-draft { display: grid; grid-template-columns: auto 1fr; gap: var(--space-0) var(--space-2); margin: 0 var(--space-3) var(--space-3); padding: var(--space-2) var(--space-3); border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); border-radius: var(--radius-control); background: var(--accent-soft); font-size: var(--font-md); }
+.fdw-ticket-draft span { color: var(--accent); }
+.fdw-ticket-draft small { grid-column: 1 / -1; color: var(--muted); }
+/* 下单顺带保护：草稿里的止损候选一键填入止损框。 */
+.fdw-ticket-draft small button { border: 0; padding: 0; background: transparent; color: var(--accent); font: inherit; font-weight: 600; text-decoration: underline; cursor: pointer; }
+
+.fdw-confirm-order { width: calc(100% - 28px); min-height: 44px; margin: 0 var(--space-3) var(--space-3); border: 0; border-radius: var(--radius-card); color: var(--on-primary); background: var(--primary-bg); font-size: var(--font-lg); font-weight: 700; cursor: pointer; box-shadow: var(--shadow-3); }
+.fdw-confirm-order:hover:not(:disabled) { filter: brightness(1.07); }
+.fdw-confirm-order:disabled { cursor: not-allowed; opacity: .42; box-shadow: none; }
+.fdw-close-action { padding: 0 var(--space-3) var(--space-3); }
+.fdw-close-action button { width: 100%; min-height: 44px; border: 1px solid var(--line-strong); border-radius: var(--radius-card); color: var(--ink); background: var(--fdw-surface-raised); cursor: pointer; }
+.fdw-close-action button strong, .fdw-close-action button span { display: block; }
+.fdw-close-action button span { margin-top: var(--space-0); font-size: var(--font-md); }
+.fdw-close-action button:disabled { opacity: .42; }
+
+/* The ticket responds to its actual panel width; a regular 320px ticket retains two fields. */
+
+@container trade-ticket (max-width: 300px) {
+  .fdw-side-choice button { min-height: 46px; }
+  .fdw-ticket-fields, .fdw-side-choice { padding-bottom: var(--space-2); }
+}
+/* The ticket responds to its actual panel width; a regular 320px ticket retains two fields. */
+@container trade-ticket (max-width: 240px) { .fdw-ticket > small { display: none; } }
+/* The ticket responds to its actual panel width; a regular 320px ticket retains two fields. */
+@container trade-ticket (max-width: 280px) { .fdw-ticket-fields { grid-template-columns: minmax(0, 1fr); } }
+@media (prefers-reduced-motion: reduce) { .fdw-trade-mode::before, .fdw-trade-mode button { transition: none; } }
+.fdw-target-plan { grid-column: 1 / -1; color: var(--muted); font-size: var(--font-md); line-height: 1.5; }
+.fdw-ticket { container-type: inline-size; container-name: trade-ticket; }
+
+/* Desktop ticket: compact controls, confirmation before positions; the phone keeps its own layout. */
+.fdw-ticket:not(.fdm-ticket) .fdw-side-choice button { min-height: 34px; border-radius: var(--radius-control); }
+.fdw-ticket:not(.fdm-ticket) .fdw-side-choice button strong { font-size: var(--font-md); }
+.fdw-ticket:not(.fdm-ticket) .fdw-price-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-1); }
+.fdw-price-heading .fdw-price-modes { margin: 0; gap: 0; }
+.fdw-price-heading .fdw-price-modes button { min-height: 24px; padding: 0 var(--space-1); border-radius: var(--radius-control); font-size: var(--font-sm); }
+.fdw-ticket:not(.fdm-ticket) .fdw-ticket-fields { align-items: end; }
+.fdw-ticket:not(.fdm-ticket) .fdw-confirm-order { font-size: var(--font-md); }
+.fdw-ticket:not(.fdm-ticket) .fdw-close-action button { color: var(--on-primary); background: var(--primary-bg); }
+.fdw-ticket:not(.fdm-ticket) .fdw-close-action button span { display: none; }
+.fdw-quick-actions { padding: var(--space-3); border-top: 1px solid var(--line); color: var(--ink); }
+.fdw-quick-actions header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-2); }
+.fdw-quick-actions header strong { font-size: var(--font-md); font-weight: 600; }
+.fdw-quick-actions header > div { display: flex; border: 1px solid var(--line); border-radius: var(--radius-control); overflow: hidden; }
+.fdw-quick-actions button { border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--panel); color: var(--ink); cursor: pointer; font: inherit; }
+.fdw-quick-actions header button { min-height: 28px; min-width: 28px; border: 0; border-radius: 0; }
+.fdw-quick-actions header button[aria-pressed=true] { background: var(--accent-soft); color: var(--accent); }
+.fdw-quick-buttons { display: flex; gap: var(--space-2); margin-bottom: var(--space-2); }
+.fdw-quick-buttons button { flex: 1; min-width: 0; min-height: 44px; padding: var(--space-2); display: flex; justify-content: space-between; align-items: center; gap: var(--space-1); }
+.fdw-quick-buttons .buy { color: var(--market-up); background: var(--market-up-soft); border-color: color-mix(in srgb, var(--market-up) 35%, var(--line)); }
+.fdw-quick-buttons .sell { color: var(--market-down); background: var(--market-down-soft); border-color: color-mix(in srgb, var(--market-down) 35%, var(--line)); }
+.fdw-quick-buttons kbd { align-self: start; font: inherit; font-size: var(--font-xs); color: var(--muted); }
+.fdw-quick-actions button:disabled { opacity: .45; cursor: not-allowed; }
+.fdw-quick-actions footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2); }
+.fdw-quick-actions footer button { border: 0; padding: 0; background: transparent; font-size: var(--font-sm); text-align: left; }
+.fdw-quick-actions footer button:last-child { color: var(--accent); }
+.fdw-quick-actions p { margin: var(--space-2) 0 0; font-size: var(--font-sm); }
+/* Both headings share a baseline; a wrapped mode segment occupies its own row, keeping inputs aligned. */
+.fdw-ticket:not(.fdm-ticket) .fdw-ticket-entry-fields { align-items: stretch; }
+.fdw-ticket:not(.fdm-ticket) .fdw-ticket-entry-fields > label { display: grid; grid-template-rows: minmax(24px, 1fr) 38px; }
+.fdw-ticket:not(.fdm-ticket) .fdw-ticket-entry-fields > label > span { min-height: 24px; line-height: 24px; align-self: start; }
+.fdw-ticket:not(.fdm-ticket) .fdw-price-heading { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: baseline; gap: var(--space-1); }
+.fdw-price-heading .fdw-price-modes { justify-self: end; flex-wrap: nowrap; }
+.fdw-price-heading .fdw-price-modes button { font-size: var(--font-xs); padding-inline: var(--space-0); white-space: nowrap; }
+@container trade-ticket (max-width: 28em) {
+  .fdw-ticket:not(.fdm-ticket) .fdw-price-heading { grid-template-columns: minmax(0, 1fr); }
+  .fdw-price-heading .fdw-price-modes { justify-self: start; }
+}
+.fdw-quick-button-copy { display: flex; flex-direction: column; align-items: start; gap: var(--space-1); }
+.fdw-quick-button-copy small { font: inherit; font-size: var(--font-sm); font-family: var(--font-num); }
+/* 打法本 (2026-10-25): the setup an open order is placed under, a full-width row under 止损 / 止盈. */
+.fdw-ticket-fields .fdw-ticket-playbook { grid-column: 1 / -1; }
+.fdw-ticket-playbook select { height: 38px; min-width: 0; padding: 0 var(--space-2); border: 1px solid var(--line-strong); border-radius: var(--radius-control); background: var(--fdw-surface-raised); color: var(--ink); font: inherit; }
+/* 止损怎么动 (2026-10-25 第 4 批): the ticket's and a position row's 固定 / 追踪 / 浮盈 1R 后移到成本. */
+.fdw-stop-motion { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-2); }
+.fdw-stop-motion label { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; color: var(--muted); font-size: var(--font-md); }
+.fdw-stop-motion select, .fdw-stop-motion input[type="number"] { height: 34px; min-width: 0; padding: 0 var(--space-2); border: 1px solid var(--line-strong); border-radius: var(--radius-control); background: var(--fdw-surface-raised); color: var(--ink); font: inherit; }
+.fdw-stop-motion input[type="number"] { width: 84px; font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.fdw-stop-motion-value { display: flex; align-items: center; gap: var(--space-1); }
+.fdw-stop-motion .fdw-stop-motion-check { flex-direction: row; align-items: center; min-height: 34px; color: var(--ink); }

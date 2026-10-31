@@ -1,0 +1,114 @@
+/* 设置 → AI 记得的关于你 (记忆层 3a): tokens only, wraps at narrow widths. */
+.app-memory-list,
+.app-memory-changes {
+  display: grid;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+/* A layer heading plus full-width entry rows (2026-09-30): not a SettingRow's value column. */
+.app-memory-layer {
+  width: 100%;
+  padding-block: var(--space-2);
+  border-top: 1px solid var(--line);
+}
+
+.app-memory-layer-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  color: var(--muted);
+  font-size: var(--font-md);
+  font-weight: 600;
+}
+
+.app-memory-layer-title small {
+  font-weight: 400;
+}
+
+.app-memory-item,
+.app-memory-change {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--panel);
+  color: var(--ink);
+}
+
+.app-memory-text {
+  flex: 1 1 100%;
+  overflow-wrap: anywhere;
+}
+
+.app-memory-evidence {
+  color: var(--muted);
+  font-size: var(--font-md);
+  flex: 1 1 auto;
+}
+
+.app-memory-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-left: auto;
+}
+
+.app-memory-add,
+.app-memory-edit,
+.app-memory-consolidate {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.app-memory-consolidate .app-memory-evidence {
+  flex: 0 1 auto;
+}
+
+.app-memory-input {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+.app-memory-empty {
+  color: var(--muted);
+}
+
+.app-memory-change-text {
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.app-memory-error {
+  color: var(--muted);
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  padding: var(--space-2);
+}
+
+/* A failed read: the reason and 重试 on one wrapping line. */
+.app-memory-read-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+@container settings-content (max-width: 420px) {
+  .app-memory-actions,
+  .app-memory-change > .app-button {
+    margin-left: 0;
+    width: 100%;
+  }
+}

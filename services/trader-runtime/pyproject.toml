@@ -1,0 +1,111 @@
+[project]
+name = "ai-trader-runtime"
+version = "1.8.1"
+description = "AI Trader Runtime with bounded TqKq simulation autonomy and voice conversation"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.116,<1",
+  "httpx[socks]>=0.28,<1",
+  # Sidecar pools (sidecar_http): httpx2 drops a connection cancelled mid-connect (pydantic/httpx2#983).
+  "httpx2>=2.12,<3",
+  # Hot-path JSON (fast_json): feed frames, SSE envelopes, sidecar and pool responses.
+  "orjson>=3.12,<4",
+  "pyjwt[crypto]>=2.13,<3",
+  "pydantic>=2.11,<3",
+  "tzdata>=2026.1",
+  "uvicorn[standard]>=0.35,<1",
+  "mcp>=2.2,<3",
+  "openai>=2.20,<3",
+  "cryptography>=50.0.1",
+  "pywebpush>=2.0,<3",
+]
+
+[project.optional-dependencies]
+tqkq = [
+  "tqsdk>=3.10.2,<4"
+]
+# Research data (position ranks, warehouse receipts, basis, inventory, term structure, fees) via AKShare's free scrapers.
+research = [
+  "akshare==1.18.94"
+]
+
+[dependency-groups]
+dev = [
+  "mypy>=1.19,<2",
+  "pytest>=8.4,<9",
+  "pytest-asyncio>=1.1,<2",
+  "pytest-timeout>=2.4,<3",
+  "pytest-xdist>=3.8,<4",
+  "ruff>=0.14,<1",
+]
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/trader_runtime"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+# pyflakes, pycodestyle, isort, pyupgrade. Line length and one-line compound
+# statements are formatting concerns and are not enforced here.
+select = ["E", "F", "I", "UP", "W"]
+ignore = ["E501", "E701", "E702"]
+
+[tool.ruff.lint.per-file-ignores]
+# pytest fixtures are imported into the module namespace and then requested by name.
+"tests/*" = ["F811"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+warn_unused_ignores = true
+disable_error_code = ["annotation-unchecked"]
+files = ["src/trader_runtime"]
+
+# Baseline whitelist from the first static-check PR: these modules still report
+# mypy errors and are skipped until they are typed. Only remove entries; never add.
+[[tool.mypy.overrides]]
+module = [
+  "trader_runtime.app_connection",
+  "trader_runtime.app_mcp",
+  "trader_runtime.auth",
+  "trader_runtime.autonomy",
+  "trader_runtime.backtests",
+  "trader_runtime.contracts",
+  "trader_runtime.data_providers",
+  "trader_runtime.fake_agent",
+  "trader_runtime.market_briefs",
+  "trader_runtime.preferences",
+  "trader_runtime.proposals",
+  "trader_runtime.replay",
+  "trader_runtime.sidecar_entry",
+  "trader_runtime.sidecar_http",
+  "trader_runtime.simulation_orders",
+  "trader_runtime.strategy_chart_period",
+  "trader_runtime.strategy_designer",
+  "trader_runtime.strategy_intents",
+  "trader_runtime.strategy_monitor",
+  "trader_runtime.strategy_protection",
+  "trader_runtime.strategy_rules",
+  "trader_runtime.strategy_validation",
+  "trader_runtime.trader_tools",
+  "trader_runtime.ui_control",
+
+]
+ignore_errors = true
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+# Hang guard only (30 s). "A unit test over 2 s moves to a fake clock or a short configurable
+# bound" stays a soft rule: test:runtime/test:sidecar list every test over 2 s (--durations-min=2).
+# A hard 2 s limit would turn load spikes on the shared runners into random reds. Setup not counted.
+timeout = 30
+timeout_func_only = true
+asyncio_mode = "auto"

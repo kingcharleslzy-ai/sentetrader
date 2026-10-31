@@ -1,0 +1,145 @@
+/* 到价提醒 (2026-10-02): the phone's 设提醒 button and its popover body (the computer's bell is the 提醒中心,
+   which reuses the form below). The popover chrome is
+   ChartPopover's (.fdw-ind-popover); only the alerts' own rows live here. Colours come from the
+   --price-alert pair, never a local palette. */
+
+.fdw-price-alerts { display: flex; align-items: center; gap: var(--space-0); }
+.fdw-price-alerts > button { position: relative; }
+
+/* The active-alert count: a violet drop on the bell, hidden while none are active. */
+.fdw-alert-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 14px;
+  padding: 0 var(--space-0);
+  border-radius: var(--radius-control);
+  color: var(--panel);
+  background: var(--price-alert);
+  font-size: var(--font-xs);
+  font-weight: 600;
+  line-height: 14px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.fdw-alerts-popover { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+
+/* The create form. */
+.fdw-alert-form { display: flex; flex-direction: column; gap: var(--space-2); }
+.fdw-alert-price-row,
+.fdw-alert-note-row { display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
+.fdw-alert-form input[type="number"] { width: 96px; }
+.fdw-alert-form input[type="text"] { flex: 1; min-width: 0; }
+.fdw-alert-form input {
+  height: 26px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  color: var(--ink);
+  background: var(--panel);
+  font-size: var(--font-md);
+  font-variant-numeric: tabular-nums;
+}
+.fdw-alert-form input:focus-visible { outline: 2px solid color-mix(in srgb, var(--price-alert) 55%, transparent); outline-offset: 1px; }
+.fdw-alert-price-row [role="group"] { display: flex; gap: var(--space-0); }
+.fdw-alert-price-row [role="group"] button {
+  min-width: 24px;
+  height: 26px;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  color: var(--muted);
+  background: var(--soft);
+  font-size: var(--font-md);
+  cursor: pointer;
+}
+.fdw-alert-price-row [role="group"] button:hover { color: var(--ink); background: var(--surface-hover); }
+
+/* What the Runtime will judge from the typed price against the live quote. */
+.fdw-alert-direction {
+  flex: 1;
+  overflow: hidden;
+  padding: var(--space-0) var(--space-2);
+  border-radius: var(--radius-control);
+  color: var(--price-alert);
+  background: var(--price-alert-soft);
+  font-size: var(--font-md);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.fdw-alert-direction[data-direction="equal"] { color: var(--warning); background: var(--warning-soft); }
+.fdw-alert-direction[data-direction="none"] { color: var(--muted); background: var(--soft); }
+
+.fdw-alert-add {
+  height: 26px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-control);
+  color: var(--on-primary);
+  background: var(--price-alert);
+  font-size: var(--font-md);
+  cursor: pointer;
+}
+.fdw-alert-add:disabled { opacity: .5; cursor: default; }
+.fdw-alert-error { color: var(--danger); font-size: var(--font-md); line-height: 1.4; }
+
+/* The lists. */
+.fdw-alert-section { display: flex; flex-direction: column; gap: var(--space-1); }
+.fdw-alert-section-title { color: var(--muted); font-size: var(--font-md); }
+.fdw-alert-list { display: flex; flex-direction: column; gap: var(--space-0); margin: 0; padding: 0; list-style: none; }
+.fdw-alert-list li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-1); min-width: 0; }
+.fdw-alert-line {
+  flex: 1;
+  overflow: hidden;
+  font-size: var(--font-md);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.fdw-alert-line b { font-weight: 600; }
+.fdw-alert-line b[data-direction="above"] { color: var(--market-up); }
+.fdw-alert-line b[data-direction="below"] { color: var(--market-down); }
+.fdw-alert-line i { margin-left: var(--space-1); color: var(--muted); font-style: normal; }
+.fdw-alert-empty { margin: 0; color: var(--muted); font-size: var(--font-md); }
+.fdw-alert-list li > button {
+  flex: none;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 var(--space-1);
+  border: 0;
+  border-radius: var(--radius-control);
+  color: var(--muted);
+  background: transparent;
+  font-size: var(--font-md);
+  line-height: 1;
+  cursor: pointer;
+}
+.fdw-alert-list li > button:hover { color: var(--danger); background: var(--danger-soft); }
+
+/* “其他合约 N 条”: a flat fold of one row per alert; each row names its contract and
+   switches the chart to it. */
+.fdw-alert-others { display: flex; flex-direction: column; gap: var(--space-0); }
+.fdw-alert-others-toggle {
+  align-self: flex-start;
+  padding: var(--space-0) 0;
+  border: 0;
+  color: var(--price-alert);
+  background: transparent;
+  font-size: var(--font-md);
+  cursor: pointer;
+}
+.fdw-alert-others-toggle:hover { text-decoration: underline; }
+.fdw-alert-switch {
+  overflow: hidden;
+  padding: var(--space-0) var(--space-1);
+  border: 0;
+  border-radius: var(--radius-control);
+  color: var(--ink);
+  background: transparent;
+  font-size: var(--font-md);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.fdw-alert-switch:hover { background: var(--price-alert-soft); }
+

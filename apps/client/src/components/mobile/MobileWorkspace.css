@@ -1,0 +1,962 @@
+/* 手机版 (2026-10-04): the phone layout. Everything is scoped under .fdm-shell so the desktop
+   layout's CSS and pixels stay as they are; colours come only from theme.css's semantic pairs. */
+.fdm-shell {
+  --fdm-tabs: calc(60px + env(safe-area-inset-bottom));
+  /* The type tokens the shared panels and cards read (.fdw-shell defines them on the desktop),
+     one step larger for reading at arm's length. */
+  --fdw-panel-pad: var(--space-3);
+  --fdw-control-gap: var(--space-2);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  color: var(--ink);
+  background: var(--bg);
+  font-size: var(--font-md);
+  line-height: 1.45;
+  /* From the home screen (or under viewport-fit=cover) the notch takes the top; 0 in a browser tab. */
+  padding-top: env(safe-area-inset-top);
+}
+/* The desktop shell's low-specificity resets, so the shared panels it reuses (合约列表, 下单票, 持仓)
+   look the same here; every explicit rule still wins. */
+:where(.fdm-shell) :where(button, input) { font: inherit; }
+:where(.fdm-shell) button { border: 0; background: transparent; color: inherit; cursor: pointer; }
+:where(.fdm-shell) svg { width: 18px; height: 18px; stroke-width: 1.8; }
+.fdm-shell .positive { color: var(--market-up); }
+.fdm-shell .negative { color: var(--market-down); }
+
+.fdm-body { position: relative; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+/* The shown tab page (keyed by tab, so a switch mounts a new one and plays its entry). */
+.fdm-view { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+
+/* Page head: the title, and on AI 动态 the current contract's price chip (tap = 看盘) and the 对话 icon. */
+.fdm-head {
+  flex: none; display: flex; align-items: center; gap: var(--space-3); min-height: 56px;
+  padding: var(--space-2) var(--space-4); border-bottom: 1px solid var(--line); background: var(--panel);
+}
+.fdm-head > strong { margin-right: auto; font-size: var(--font-xl); font-weight: 700; white-space: nowrap; }
+.fdm-quote {
+  min-width: 0; min-height: 44px; display: inline-flex; align-items: center; gap: var(--space-2);
+  padding: 0 var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-pill);
+  color: var(--ink); background: var(--soft); font-size: var(--font-md); white-space: nowrap; overflow: hidden;
+}
+/* A long contract name gives way first: the price and change always stay whole. */
+.fdm-quote-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.fdm-quote-price { flex: none; font-family: var(--font-num); font-variant-numeric: tabular-nums; color: var(--muted); }
+.fdm-quote-price[data-direction="up"] { color: var(--market-up); }
+.fdm-quote-price[data-direction="down"] { color: var(--market-down); }
+.fdm-head-chat {
+  flex: none; width: 44px; height: 44px; margin-right: calc(-1 * var(--space-2)); display: grid; place-items: center;
+  border-radius: var(--radius-pill); color: var(--ink);
+}
+.fdm-head-chat svg { width: 22px; height: 22px; }
+.fdm-view > .fdw-runtime-notice { flex: none; margin: var(--space-2) var(--space-4) 0; }
+
+.fdm-content { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: var(--space-3) var(--space-4); }
+
+/* AI 首页's timeline rows (and the pinned cards) arrive and reveal as feed items. */
+.fdm-feed-item { min-width: 0; }
+.fdm-feed-item > .card, .fdm-feed-item > .sc-brief { margin: 0; }
+.fdm-feed-notice, .fdm-talk-notice { margin: 0; color: var(--warning); font-size: var(--font-md); line-height: 1.5; text-align: center; overflow-wrap: anywhere; }
+.fdm-empty, .fdm-placeholder {
+  min-height: 220px; display: grid; place-items: center; align-content: center; gap: var(--space-2);
+  padding: var(--space-4); color: var(--muted); text-align: center;
+}
+.fdm-empty > svg, .fdm-placeholder > svg { width: 28px; height: 28px; color: var(--accent); }
+.fdm-empty > strong, .fdm-placeholder > strong { color: var(--ink); font-size: var(--font-lg); }
+.fdm-empty > span, .fdm-placeholder > span { max-width: 260px; font-size: var(--font-md); line-height: 1.5; }
+/* 登录后使用 (a visitor's AI / 通知 / 我的): one line, the primary 登录 button, the invite-code note. */
+.fdm-signin { flex: 1 1 auto; }
+.fdm-signin-button {
+  width: min(100%, 260px); min-height: 48px; margin-top: var(--space-2); border-radius: var(--radius-card);
+  color: var(--on-primary); background: var(--primary-bg); font-size: var(--font-md); font-weight: 600;
+}
+.fdm-signin > span { max-width: 300px; text-wrap: balance; }
+.fdm-signin > small { color: var(--muted); font-size: var(--font-sm); }
+
+/* AI 动态's bottom row, shaped like the chat's composer: the 打字问 AI field (a tap opens the chat
+   with its input focused) and the round hold-to-talk button; a hold's notice above both. */
+.fdm-talk {
+  flex: none; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4); border-top: 1px solid var(--line); background: var(--bg);
+}
+.fdm-talk-notice { grid-column: 1 / -1; cursor: pointer; }
+.fdm-ask {
+  min-width: 0; height: 44px; padding: 0 var(--space-4); border: 1px solid var(--line-strong); border-radius: var(--radius-pill);
+  color: var(--muted); background: var(--panel); font-size: var(--font-lg); text-align: left; cursor: text;
+}
+/* 按住说话: the round button on AI 动态 and in the chat's composer. Long-press must never select
+   text, open the callout menu or scroll the page. */
+.fdm-hold {
+  flex: none; width: 64px; height: 64px; margin: var(--space-2) var(--space-2) var(--space-2) 0; display: flex; align-items: center; justify-content: center;
+  border: 0; border-radius: var(--radius-pill); cursor: pointer; color: var(--on-primary); background: var(--primary-bg); outline: 8px solid var(--accent-soft); outline-offset: 0;
+  touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
+}
+.fdm-hold svg { flex: none; width: 22px; height: 22px; }
+.fdm-hold.active { color: var(--on-primary); background: var(--primary-bg); }
+.fdm-hold.active svg { color: var(--on-primary); }
+.fdm-hold.cancel, .fdm-hold.cancel svg { color: var(--danger); }
+.fdm-hold.cancel { background: var(--danger-soft); outline: 8px solid var(--danger-soft); outline-offset: 0; }
+.fdm-hold[aria-disabled="true"] { opacity: .55; }
+
+/* While holding: the wave and what releasing does, above the bottom row (the same height on AI 动态 and the chat). */
+.fdm-live {
+  position: absolute; left: 0; right: 0; z-index: 6; bottom: calc(var(--fdm-tabs) + 106px);
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-2);
+  padding: var(--space-4) var(--space-4) var(--space-3); pointer-events: none;
+  background: linear-gradient(transparent, var(--bg) 30%);
+}
+.fdm-wave { display: inline-flex; align-items: center; gap: var(--space-1); height: 36px; }
+.fdm-wave > i { width: 6px; height: 100%; border-radius: var(--radius-sm); background: var(--accent); transform-origin: center; transition: transform var(--dur-1) linear; }
+.fdm-live[data-state="transcribing"] .fdm-wave > i { background: var(--muted); }
+.fdm-live > strong { color: var(--ai-bubble-ink); font-size: var(--font-lg); font-weight: 600; }
+.fdm-live-text { max-width: 100%; color: var(--ink); font-size: var(--font-md); line-height: 1.5; text-align: center; overflow-wrap: anywhere; }
+.fdm-live.cancel .fdm-wave > i { background: var(--danger); }
+.fdm-live.cancel > strong { color: var(--danger); }
+
+/* Bottom tabs: five equal 48 px targets above the home-indicator safe area. */
+.fdm-tabs {
+  position: relative; flex: none; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+  padding: var(--space-1) 0 max(var(--space-1), env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--panel);
+}
+/* `hidden` under a full-screen page: the grid display above would otherwise keep the bar on screen. */
+.fdm-tabs[hidden] { display: none; }
+/* The 提醒 page keeps the tabs (2026-10-15): they sit over the page layer, whose content leaves room for them. */
+.fdm-tabs[data-over-page] { position: absolute; left: 0; right: 0; bottom: 0; z-index: 9; }
+.fdm-tabs > button {
+  position: relative; z-index: 1; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-0);
+  border: 0; color: var(--muted); background: transparent; font-size: var(--font-md); -webkit-tap-highlight-color: transparent;
+  /* The global button transition would fade the colour for 120 ms, leaving the old tab lit after a
+     tap; the current tab switches at once and only the press scale animates. */
+  transition-property: transform;
+}
+.fdm-tabs > button svg { width: 22px; height: 22px; }
+.fdm-tabs > button[aria-current="page"] { color: var(--accent); font-weight: 600; }
+
+/* AI 对话: the 对话面板 as a full page. */
+.fdm-chat { flex: 1 1 auto; min-height: 0; border-left: 0; background: var(--bg); }
+/* The desktop drawer's z-index still applies to a flex item and lifted the whole conversation over
+   the hold's live strip: from the second hold on (on this page) no wave, no words (10-05). */
+.fdm-view > .fdm-chat { z-index: auto; }
+.fdm-chat > header { min-height: 56px; gap: var(--space-1); padding: 0 var(--space-2) 0 var(--space-1); }
+.fdm-chat > header > .fdm-back { width: 44px; height: 44px; display: grid; place-items: center; border: 0; color: var(--muted); background: transparent; }
+.fdm-chat > header > .fdm-back svg { width: 22px; height: 22px; }
+.fdm-chat-title { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: var(--space-2); }
+.fdm-chat > header .fdm-chat-title strong { font-size: var(--font-xl); }
+.fdm-chat > header .fdm-chat-title small { font-size: var(--font-sm); color: var(--muted); }
+.fdm-chat .fdw-ai-head-actions > button { min-width: 44px; height: 44px; }
+.fdm-chat .fdw-ai-head-actions svg { width: 20px; height: 20px; }
+.fdm-chat .fdw-chat-history > button { min-height: 44px; }
+.fdm-chat .fdw-ai-scroll { margin-inline: 0; padding: var(--space-3) var(--space-4); background: transparent; }
+
+/* The AI's text and its cards take the full width, yours sits at the right (as on the desktop). */
+.fdm-chat .fdw-ai-scroll .message { margin-bottom: var(--space-4); }
+.fdm-chat .fdw-ai-scroll .bubble { padding: var(--space-3) var(--space-3); border-radius: var(--radius-card) var(--radius-card) var(--radius-card) var(--radius-sm); font-size: var(--font-md); }
+.fdm-chat .fdw-ai-scroll .message.user .bubble { border-radius: var(--radius-card) var(--radius-card) var(--radius-sm) var(--radius-card); }
+.fdm-chat .fdw-ai-scroll .reply-status button { min-height: 44px; }
+
+/* Cards on a narrow screen (chat and AI 动态): full width, heads and figures wrap, every button
+   at least 44 px and laid out two or three across. Business behaviour is unchanged. */
+.fdm-shell .card { width: 100%; max-width: 100%; }
+.fdm-shell .card-head { flex-wrap: wrap; gap: var(--space-2); }
+.fdm-shell .card-title { flex: 1 1 200px; }
+.fdm-shell .card-title strong { font-size: var(--font-lg); overflow-wrap: anywhere; }
+.fdm-shell .card-facts > div, .fdm-shell .sc-card .card-facts > div { font-size: var(--font-md); }
+.fdm-shell .proposal-grid, .fdm-shell .metric-grid, .fdm-shell .comparison-grid,
+.fdm-chat .fdw-ai-scroll .proposal-grid, .fdm-chat .fdw-ai-scroll .metric-grid, .fdm-chat .fdw-ai-scroll .comparison-grid {
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+}
+.fdm-shell .card-actions, .fdm-shell .trade-proposal-card .card-actions {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: var(--space-2);
+}
+.fdm-shell .card-actions > *, .fdm-shell .card-outcome { min-width: 0; min-height: 44px; }
+.fdm-shell .card-actions > .card-outcome { grid-column: 1 / -1; }
+.fdm-shell .card-actions > button, .fdm-chat .fdw-ai-scroll .primary-button, .fdm-chat .fdw-ai-scroll .ghost-button {
+  font-size: var(--font-md); white-space: normal; overflow-wrap: anywhere;
+}
+.fdm-shell .sc-option, .fdm-shell .sc-brief-foot button, .fdm-shell .card-details summary { min-height: 44px; }
+.fdm-shell .card-details summary { display: flex; align-items: center; }
+.fdm-shell .sc-brief-foot button { padding: 0 var(--space-4); font-size: var(--font-md); }
+
+/* Composer: the text field and, until something is typed, the big hold-to-talk button. 16 px
+   keeps iOS from zooming the page when the field is focused. */
+.fdm-chat .fdw-ai-chips { flex-wrap: nowrap; overflow-x: auto; margin: var(--space-2) var(--space-4) 0; padding-bottom: var(--space-0); }
+.fdm-chat .fdw-ai-chips button { flex: none; min-height: 36px; }
+.fdm-chat .fdw-ai-chips > .fdw-quick-skills { display: flex; flex-wrap: nowrap; gap: var(--space-2); }
+.fdm-chat .fdw-ai-composer {
+  grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-3);
+  min-height: 0; margin: 0; padding: var(--space-3) var(--space-4) var(--space-3) var(--space-4);
+  border: 0; border-top: 1px solid var(--line); border-radius: 0; background: var(--bg);
+}
+.fdm-chat .fdw-ai-composer input {
+  height: 44px; padding: 0 var(--space-4); border: 1px solid var(--line-strong); border-radius: var(--radius-pill);
+  color: var(--ink); background: var(--panel); font-size: var(--font-lg);
+}
+.fdm-chat .fdw-ai-composer button[type="submit"] { width: 64px; height: 44px; border-radius: var(--radius-pill); }
+.fdm-chat .fdw-ai-composer button[type="submit"] svg { width: 20px; height: 20px; }
+.fdm-chat .fdw-ai-composer .fdm-hold { display: flex; margin: var(--space-2) var(--space-2) var(--space-2) 0; border-radius: var(--radius-pill); color: var(--on-primary); }
+.fdm-chat .fdw-ai-composer .fdm-hold.cancel { color: var(--danger); }
+
+/* ── 手机版第二期 (2026-10-04): 调研 · 看盘 · 通知 · 我的 and the full-screen pages. ── */
+.fdm-tab-icon { position: relative; display: grid; place-items: center; }
+
+/* A tab page: its own head, then one scroll region. */
+.fdm-page { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; background: var(--bg); }
+.fdm-head-stack { flex-direction: column; align-items: stretch; gap: var(--space-2); padding-block: var(--space-3) var(--space-2); }
+.fdm-head-row { display: flex; align-items: center; gap: var(--space-3); min-height: 36px; }
+.fdm-head-row > strong { font-size: var(--font-xl); font-weight: 700; }
+.fdm-head-action {
+  margin-left: auto; min-height: 36px; padding: 0 var(--space-4); border: 1px solid var(--line-strong); border-radius: var(--radius-pill);
+  color: var(--ink); background: transparent; font-size: var(--font-md);
+}
+.fdm-head-action:disabled { color: var(--muted); opacity: .6; }
+.fdm-page > .fdm-content { display: flex; flex-direction: column; gap: var(--space-3); }
+.fdm-page > .fdm-content > * { flex-shrink: 0; }
+.fdm-note { margin: 0; color: var(--muted); font-size: var(--font-sm); line-height: 1.5; overflow-wrap: anywhere; }
+.fdm-note[role="alert"] { color: var(--warning); }
+
+/* Pill chips: research products, periods, notification filters. One row that scrolls sideways. */
+.fdm-chips { display: flex; gap: var(--space-1); overflow-x: auto; scrollbar-width: none; }
+.fdm-chips::-webkit-scrollbar { display: none; }
+.fdm-chips > button {
+  flex: none; display: inline-flex; align-items: center; gap: var(--space-0); min-height: 36px; padding: 0 var(--space-3);
+  border: 1px solid var(--line); border-radius: var(--radius-pill); color: var(--muted); background: transparent; font-size: var(--font-md); white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+.fdm-chips > button[aria-pressed="true"] { border-color: transparent; color: var(--on-primary); background: var(--primary-bg); font-weight: 600; }
+.fdm-chips > button svg { width: 14px; height: 14px; }
+/* 通知 · AI 简报's product row: one level below the filters, so a quieter selected state. */
+.fdm-chips-sub > button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+.fdm-section { display: grid; gap: var(--space-2); min-width: 0; }
+.fdm-section > h3 { margin: 0; color: var(--muted); font-size: var(--font-md); font-weight: 600; }
+
+/* 调研: the judgment card's fact lines wrap with their source; the flash list below. */
+.fdm-research .sc-lines li { flex-wrap: wrap; overflow-wrap: anywhere; }
+.fdm-research .sc-lines small { white-space: normal; }
+.fdm-flash { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.fdm-flash > li {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-2); padding: var(--space-3) var(--space-3);
+  border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--panel); font-size: var(--font-md); line-height: 1.5;
+}
+.fdm-flash time { color: var(--muted); font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: var(--font-sm); line-height: 1.9; }
+.fdm-flash > li > span { min-width: 0; overflow-wrap: anywhere; }
+.fdm-flash small { display: block; margin-top: var(--space-0); color: var(--muted); font-size: var(--font-sm); }
+/* 新闻 AI 筛选: the reading line spans the row under the text. */
+.fdm-flash-ai { grid-column: 1 / -1; min-width: 0; }
+.fdm-flash-ai .news-ai { margin-top: 0; }
+.fdm-section .news-dropped { background: var(--panel); }
+.fdm-wide-button {
+  min-height: 48px; border: 1px solid var(--line-strong); border-radius: var(--radius-card);
+  color: var(--ink); background: var(--panel); font-size: var(--font-md); font-weight: 600;
+}
+
+/* 看盘: contract title + price, periods, the chart, three actions, the 自选 · 持仓 list. */
+.fdm-market-head { gap: var(--space-3); }
+/* 新浪备用: the warning status pair beside the price, as on the desktop bar. */
+.fdm-market-price .fdm-backup-badge { align-self: center; padding: var(--space-0) var(--space-2); border-radius: var(--radius-pill); color: var(--warning); background: var(--warning-soft); font-family: system-ui, sans-serif; font-size: var(--font-xs); font-style: normal; font-weight: 600; line-height: 1; white-space: nowrap; }
+.fdm-market-title { min-width: 0; min-height: 44px; display: inline-flex; align-items: center; gap: var(--space-1); padding: 0; border: 0; color: var(--ink); background: transparent; }
+.fdm-market-title strong { font-size: var(--font-xl); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fdm-market-title svg { flex: none; width: 18px; height: 18px; color: var(--muted); }
+.fdm-market-price { margin-left: auto; display: inline-flex; align-items: baseline; gap: var(--space-2); white-space: nowrap; font-family: var(--font-num); font-variant-numeric: tabular-nums; color: var(--ink); }
+.fdm-market-price b { font-size: var(--font-2xl); font-weight: 700; }
+.fdm-market-price small { font-size: var(--font-md); }
+.fdm-market-price[data-direction="up"], .fdm-watch-price[data-direction="up"] { color: var(--market-up); }
+.fdm-market-price[data-direction="down"], .fdm-watch-price[data-direction="down"] { color: var(--market-down); }
+.fdm-periods > button { min-width: 52px; justify-content: center; }
+.fdm-chart { position: relative; flex: none; height: clamp(220px, 38dvh, 340px); min-width: 0; margin-inline: calc(-1 * var(--space-4)); overflow: hidden; }
+.fdm-chart > .fdm-note { padding: var(--space-4); }
+.fdm-chart > .fdw-trading-charts, .fdm-chart > .fdw-timeshare { min-height: 0; height: 100%; }
+/* The read-only chart on a phone: the chart's own pan / pinch only, no desktop chrome over it. */
+.fdm-chart .fdw-ind-label button, .fdm-chart .chart-help { pointer-events: none; }
+.fdm-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
+.fdm-actions > button, .fdm-actions .fdw-price-alerts > button {
+  position: relative; width: 100%; min-height: 48px; padding: 0 var(--space-2); border: 1px solid var(--line-strong); border-radius: var(--radius-card);
+  color: var(--ink); background: var(--panel); font-size: var(--font-md); font-weight: 600; white-space: nowrap;
+}
+.fdm-actions .fdw-price-alerts { display: block; min-width: 0; }
+.fdm-actions .fdw-alert-badge { top: 4px; right: 6px; }
+.fdm-actions > .fdm-order-button { border-color: var(--line-strong); background: transparent; }
+.fdm-actions > button:disabled { opacity: .5; }
+.fdm-watch { margin: 0; padding: 0; list-style: none; }
+.fdm-watch > li + li { border-top: 1px solid var(--line); }
+.fdm-watch button {
+  width: 100%; min-height: 52px; display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  padding: var(--space-2) var(--space-1); border: 0; color: var(--ink); background: transparent; text-align: left;
+}
+.fdm-watch button[aria-current="true"] { background: var(--accent-soft); border-radius: var(--radius-control); }
+.fdm-watch-name { min-width: 0; display: flex; align-items: center; gap: var(--space-2); }
+.fdm-watch-name strong { font-size: var(--font-md); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fdm-watch-name svg { flex: none; width: 13px; height: 13px; color: var(--warning); }
+.fdm-watch-name em { flex: none; padding: var(--space-0) var(--space-1); border-radius: var(--radius-control); color: var(--ink); background: var(--soft); font-size: var(--font-md); font-style: normal; }
+.fdm-watch-price { flex: none; display: inline-flex; align-items: baseline; gap: var(--space-3); font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.fdm-watch-price b { font-size: var(--font-md); }
+.fdm-watch-price small { min-width: 62px; font-size: var(--font-md); text-align: right; }
+
+/* ── 手机版新结构 (2026-10-06, the approved mockup): AI 首页, 策略 and 回测结果. ── */
+/* The head's bell: the 提醒中心's unread count sits on the icon like the tab's (.rc-badge). */
+.fdm-bell { position: relative; }
+
+.fdm-home { display: grid; gap: var(--space-3); min-width: 0; }
+/* 今天概况: three tiles in one bordered strip; each goes somewhere. */
+.fdm-today { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--panel); overflow: hidden; }
+.fdm-today > button { min-width: 0; min-height: 64px; display: grid; align-content: center; gap: var(--space-0); padding: var(--space-2) var(--space-3); color: var(--ink); text-align: left; }
+.fdm-today > button + button { border-left: 1px solid var(--line); }
+.fdm-today > button:disabled { cursor: default; }
+.fdm-today span { color: var(--muted); font-size: var(--font-md); }
+.fdm-today b { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: var(--font-lg); }
+.fdm-today small { font-size: var(--font-sm); color: var(--muted); font-family: var(--font-num); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fdm-today small.positive, .fdm-today small.negative { color: inherit; }
+.fdm-today small.positive { color: var(--market-up); }
+.fdm-today small.negative { color: var(--market-down); }
+/* A card waiting for 确认, pinned until it is handled or expires. */
+.fdm-pin > .card, .fdm-pin > * { margin: 0; border-color: var(--accent); outline: 3px solid var(--accent-soft); outline-offset: 0; }
+/* The other waiting cards fold into one line under the newest; opened, they show whole (confirmed only there). */
+.fdm-pin-more { min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: 0 var(--space-3);
+  border: 1px solid var(--accent); border-radius: var(--radius-card); color: var(--accent); background: var(--accent-soft); font-size: var(--font-md); font-weight: 600; }
+.fdm-pin-more > svg { width: 16px; height: 16px; transition: transform var(--dur-1) var(--ease-standard); }
+.fdm-pin-more[aria-expanded="true"] > svg { transform: rotate(180deg); }
+/* 它正在盯着: a dashed block with a breathing dot. */
+.fdm-watching { display: grid; gap: var(--space-2); padding: var(--space-3); border: 1px dashed var(--line-strong); border-radius: var(--radius-card); }
+.fdm-watching > h3 { margin: 0; display: flex; align-items: center; gap: var(--space-2); font-size: var(--font-md); }
+.fdm-watching > h3::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: var(--radius-sm); background: var(--positive); outline: 4px solid var(--positive-soft); outline-offset: 0; animation: none; }
+.fdm-watching > ul { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-1); font-size: var(--font-md); }
+.fdm-watching li { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: baseline; gap: var(--space-0) var(--space-3); }
+.fdm-watching li > span { min-width: 0; color: var(--muted); text-align: right; overflow-wrap: anywhere; text-wrap: balance; }
+.fdm-watching > p { margin: 0; color: var(--muted); font-size: var(--font-md); }
+.fdm-watch-next { display: grid; gap: var(--space-0); padding-top: var(--space-2); border-top: 1px solid var(--line); color: var(--muted); font-size: var(--font-md); }
+/* A section line: its title, then a quiet hint or count on the right. */
+.fdm-sec { display: flex; align-items: baseline; gap: var(--space-2); color: var(--muted); font-size: var(--font-md); }
+.fdm-sec > strong { margin-right: auto; color: var(--ink); font-size: var(--font-md); }
+/* 今日判断: one row of product chips with their stance (market colours, as the 判断卡). */
+.fdm-judges { display: flex; gap: var(--space-1); overflow-x: auto; scrollbar-width: none; padding-bottom: var(--space-0); }
+.fdm-judges::-webkit-scrollbar { display: none; }
+.fdm-judges > button { flex: none; min-height: 36px; display: inline-flex; align-items: center; gap: var(--space-1); padding: 0 var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-pill); color: var(--ink); background: var(--panel); font-size: var(--font-md); }
+.fdm-judges em { padding: var(--space-0) var(--space-2); border-radius: var(--radius-pill); color: var(--muted); background: var(--soft); font-size: var(--font-md); font-style: normal; }
+.fdm-judges em[data-stance="long"] { color: var(--market-up); background: var(--market-up-soft); }
+.fdm-judges em[data-stance="short"] { color: var(--market-down); background: var(--market-down-soft); }
+.fdm-judges em[data-stance="range"] { color: var(--warning); background: var(--warning-soft); }
+/* 读取中: lighter than 暂无's filled pill (the read has not returned yet) — an outlined pill with a soft
+   sweep that stops under reduced motion; the text keeps 暂无's contrast. */
+.fdm-judges em[data-stance="loading"] {
+  color: var(--muted); outline: 1px solid var(--line); outline-offset: -1px;
+  background: linear-gradient(90deg, var(--panel) 0%, var(--soft) 40%, var(--panel) 80%); background-size: 300% 100%;
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) { .fdm-judges em[data-stance="loading"] { animation: none; background: var(--panel); } }
+/* The timeline (原通知): filters, then rows (unread lives in the 提醒中心 since 2026-10-15). */
+.fdm-timeline { display: grid; gap: var(--space-2); scroll-margin-top: var(--space-2); }
+.fdm-filters { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.fdm-filters > .fdm-chips { flex: 1 1 auto; min-width: 0; }
+/* A row list: time, then the title (unread dot first) and one line. Shared by 策略 → 最近的回测. */
+.fdm-rows { margin: 0; padding: 0 var(--space-3); list-style: none; border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--panel); }
+.fdm-rows > li + li { border-top: 1px solid var(--line); }
+.fdm-rows button { width: 100%; min-height: 52px; display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: start; gap: var(--space-0) var(--space-2); padding: var(--space-3) 0; color: var(--ink); text-align: left; }
+.fdm-rows time { padding-top: var(--space-0); color: var(--muted); font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: var(--font-sm); line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fdm-rows button > span { min-width: 0; display: grid; gap: var(--space-0); }
+.fdm-rows b { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); font-size: var(--font-md); font-weight: 600; overflow-wrap: anywhere; }
+.fdm-rows b > i { flex: none; width: 6px; height: 6px; border-radius: var(--radius-sm); background: var(--danger); }
+.fdm-rows button:not([data-unread]) b { font-weight: 500; }
+.fdm-rows small { color: var(--muted); font-size: var(--font-sm); line-height: 1.5; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.fdm-rows button > svg { align-self: center; width: 16px; height: 16px; color: var(--muted); }
+/* 策略: one card per instance; 暂停 / 继续运行 and 看图表 side by side. */
+.fdm-strat { display: grid; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--panel); }
+.fdm-strat-head { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.fdm-strat-head > strong { flex: 1 1 auto; min-width: 0; font-size: var(--font-md); overflow-wrap: anywhere; }
+.fdm-strat-meta { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); color: var(--muted); font-size: var(--font-sm); font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.fdm-strat-meta .positive { color: var(--market-up); }
+.fdm-strat-meta .negative { color: var(--market-down); }
+.fdm-strat-signal { margin: 0; padding: var(--space-1) var(--space-2); border-radius: var(--radius-control); background: var(--soft); font-size: var(--font-md); overflow-wrap: anywhere; }
+.fdm-strat-signal time { font-family: var(--font-num); font-variant-numeric: tabular-nums; color: var(--muted); }
+.fdm-strat > p:not([class]) { margin: 0; font-size: var(--font-md); line-height: 1.5; }
+.fdm-strat-error { margin: 0; color: var(--warning); font-size: var(--font-md); line-height: 1.5; overflow-wrap: anywhere; }
+.fdm-strat-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+.fdm-strat-actions > button { min-height: 44px; border: 1px solid var(--line-strong); border-radius: var(--radius-control); color: var(--ink); background: var(--panel); font-size: var(--font-md); }
+.fdm-strat-actions > button.primary { border-color: transparent; color: var(--on-primary); background: var(--primary-bg); font-weight: 600; }
+.fdm-strat-actions > button:disabled { opacity: .55; cursor: default; }
+.fdm-strat .risk-resume > button { min-height: 40px; padding: 0 var(--space-4); border: 0; border-radius: var(--radius-control); color: var(--on-primary); background: var(--primary-bg); font-size: var(--font-md); font-weight: 600; }
+.fdm-strat .risk-resume > button:disabled { opacity: .55; cursor: default; }
+/* 回测结果: meta, the curve with its split, the variants table and the picked variant. */
+.fdm-lab-meta { margin: 0; display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); color: var(--muted); font-size: var(--font-sm); }
+.fdm-curve { position: relative; height: 96px; border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--panel); overflow: hidden; }
+.fdm-curve > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.fdm-curve-line { fill: none; stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.fdm-curve-split { stroke: var(--line-strong); stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
+.fdm-curve-label { fill: var(--muted); font-size: var(--font-md); }
+.fdm-lab-table { width: 100%; border-collapse: collapse; font-size: var(--font-md); }
+.fdm-lab-table th, .fdm-lab-table td { padding: var(--space-2) var(--space-1); border-top: 1px solid var(--line); text-align: right; font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.fdm-lab-table thead th { border-top: 0; color: var(--muted); font-family: inherit; font-size: var(--font-md); font-weight: 500; }
+.fdm-lab-table th:first-child { text-align: left; font-family: inherit; font-weight: 500; }
+.fdm-lab-table tbody th > button { min-height: 32px; padding: 0; color: var(--ink); text-align: left; overflow-wrap: anywhere; }
+.fdm-lab-table tbody th > small { display: block; color: var(--muted); font-size: var(--font-sm); }
+.fdm-lab-table tbody th > small.fdm-lab-warn { color: var(--warning); }
+.fdm-lab-table tr[data-picked] > * { background: var(--accent-soft); }
+.fdm-lab-table .positive { color: var(--market-up); }
+.fdm-lab-table .negative { color: var(--market-down); }
+.fdm-lab-hint { color: var(--muted); font-size: var(--font-sm); line-height: 1.5; }
+.fdm-tag { flex: none; padding: var(--space-0) var(--space-2); border-radius: var(--radius-control); color: var(--muted); background: var(--soft); font-size: var(--font-md); font-style: normal; font-weight: 600; line-height: 1.6; }
+.fdm-tag[data-tone="warning"] { color: var(--warning); background: var(--warning-soft); }
+.fdm-tag[data-tone="danger"] { color: var(--danger); background: var(--danger-soft); }
+.fdm-tag[data-tone="positive"] { color: var(--positive); background: var(--positive-soft); }
+.fdm-tag[data-tone="accent"] { color: var(--accent); background: var(--accent-soft); }
+
+/* 我的: profile, grouped rows, the desktop-only line. */
+.fdm-me-profile { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) 0; }
+.fdm-me-profile > span:last-child { min-width: 0; display: grid; gap: var(--space-0); }
+.fdm-me-profile strong { font-size: var(--font-xl); overflow-wrap: anywhere; }
+.fdm-me-profile small { color: var(--muted); font-size: var(--font-sm); font-family: var(--font-num); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.fdm-avatar { flex: none; width: 48px; height: 48px; display: grid; place-items: center; border-radius: var(--radius-pill); color: var(--accent); background: var(--accent-soft); font-size: var(--font-xl); font-weight: 700; }
+.fdm-me-group { display: grid; padding: var(--space-1) var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--panel); }
+.fdm-me-group > h3 { margin: var(--space-2) 0 0; color: var(--muted); font-size: var(--font-md); font-weight: 600; }
+.fdm-me-row {
+  min-height: 52px; display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  padding: 0; border: 0; color: var(--ink); background: transparent; font-size: var(--font-md); text-align: left;
+}
+.fdm-me-group > .fdm-me-row + .fdm-me-row { border-top: 1px solid var(--line); }
+/* 通知哪些事 rows (each kind may carry a sub-row: 保本提醒's 什么时候问, 2026-10-06). */
+.fdm-me-kind { display: grid; }
+.fdm-me-group > .fdm-me-kind + .fdm-me-kind, .fdm-me-kind > .fdm-me-row + .fdm-me-row { border-top: 1px solid var(--line); }
+.fdm-me-sub { width: 100%; padding-left: var(--space-3); }
+.fdm-me-threshold { justify-content: flex-end; padding-bottom: var(--space-2); }
+.fdm-me-row > span:first-child { min-width: 0; display: grid; }
+.fdm-me-row > span:first-child small { color: var(--muted); font-size: var(--font-sm); }
+.fdm-me-value { flex: none; display: inline-flex; align-items: center; gap: var(--space-0); color: var(--muted); font-size: var(--font-md); }
+.fdm-me-value svg { width: 16px; height: 16px; }
+.fdm-me-foot { margin: 0; color: var(--muted); font-size: var(--font-md); line-height: 1.5; }
+.fdm-me-version { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); color: var(--muted); font-size: var(--font-md); }
+.fdm-me-version > button { min-height: 44px; padding: 0 var(--space-2); color: var(--accent); font-weight: 600; }
+.fdm-me-version > button:disabled { color: var(--muted); cursor: default; }
+
+/* Full-screen pages over the tabs (持仓与委托, 复盘摘要) and the 下单 sheet. */
+.fdm-overlay { position: absolute; inset: 0; z-index: 8; display: flex; flex-direction: column; background: var(--bg); }
+.fdm-overlay > .fdw-positions-dock { flex: 1 1 auto; min-height: 0; width: 100%; border-left: 0; }
+.fdm-overlay .fdw-positions-dock > header { min-height: 56px; }
+.fdm-overlay .fdw-positions-dock button { min-height: 40px; }
+.fdm-overlay .fdw-positions-kpi { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.fdm-back { width: 44px; height: 44px; margin-left: calc(-1 * var(--space-2)); display: grid; place-items: center; border: 0; color: var(--muted); background: transparent; }
+.fdm-back svg { width: 22px; height: 22px; }
+.fdm-overlay .account-pnl, .fdm-overlay .fdw-pnl { min-width: 0; }
+/* AI 简报推送: the settings blocks in the 我的 groups' look. */
+.fdm-briefs .fdm-content { display: grid; align-content: start; gap: var(--space-3); }
+.fdm-briefs .app-settings-section { background: var(--panel); }
+/* A product row keeps its buttons beside the name (the phone's settings rows otherwise stack). */
+.fdm-shell .fdm-briefs .app-setting-row:not(:has(.app-text-input)) { grid-template-columns: minmax(0, 1fr) auto; }
+.fdm-shell .fdm-briefs .app-setting-value { justify-content: flex-end; flex-wrap: nowrap; }
+.fdm-shell .fdm-briefs .app-setting-row:has(.app-text-input) .app-setting-value { justify-content: stretch; }
+
+.fdm-sheet-backdrop { position: absolute; inset: 0; z-index: 8; display: flex; align-items: flex-end; background: var(--overlay); }
+.fdm-sheet {
+  width: 100%; max-height: calc(100% - 48px); display: flex; flex-direction: column;
+  border-top: 1px solid var(--line); border-radius: var(--radius-card) var(--radius-card) 0 0; background: var(--panel); box-shadow: var(--shadow-3);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.fdm-sheet-grip { align-self: center; width: 36px; height: 4px; margin-top: var(--space-2); border-radius: var(--radius-sm); background: var(--line-strong); }
+.fdm-sheet-head { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-4) var(--space-3); }
+.fdm-sheet-head > span { flex: 1 1 auto; min-width: 0; display: grid; gap: var(--space-0); }
+.fdm-sheet-head strong { font-size: var(--font-xl); overflow-wrap: anywhere; }
+.fdm-sheet-head small { color: var(--muted); font-size: var(--font-sm); font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.fdm-sheet-head > button { flex: none; width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: var(--radius-pill); color: var(--muted); background: var(--soft); }
+.fdm-sheet-head svg { width: 20px; height: 20px; }
+.fdm-sheet-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-bottom: var(--space-3); }
+.fdm-order-result { margin: 0 var(--space-4); color: var(--muted); font-size: var(--font-md); line-height: 1.5; overflow-wrap: anywhere; }
+.fdm-order-result strong { color: var(--ink); }
+.fdm-order-result[data-status="已成交"] strong, .fdm-order-result[data-status="部分成交"] strong, .fdm-order-result[data-status="部分成交后已结束"] strong, .fdm-order-result[data-status="已受理"] strong { color: var(--positive); }
+.fdm-order-result[data-status="结果未知"] strong, .fdm-order-result[data-status="unsent"] strong, .fdm-order-result[data-status="已拒绝"] strong { color: var(--warning); }
+/* A 今+昨 close placed two orders: one line per order (and per skipped bucket) under the total (#932). */
+.fdm-order-result .fdm-order-leg { display: block; }
+
+/* The 下单票 in its phone order: sides with the opponent price, price + mode, volume, folded
+   protection, the money line and one large confirm button in the side's market colour. */
+.fdm-ticket { padding: 0 var(--space-4); background: transparent; }
+.fdm-ticket > header { padding: 0 0 var(--space-3); }
+.fdm-ticket .fdw-trade-mode button { min-height: 40px; font-size: var(--font-md); }
+.fdm-ticket .fdw-side-choice, .fdm-ticket .fdw-ticket-fields { padding: 0 0 var(--space-3); }
+.fdm-ticket .fdw-side-choice button { min-height: 60px; }
+.fdm-ticket .fdw-side-choice button strong { font-size: var(--font-xl); }
+.fdm-ticket .fdw-side-choice button small { display: block; margin-top: var(--space-0); font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: var(--font-md); }
+.fdm-ticket .fdw-ticket-fields { grid-template-columns: minmax(0, 1fr); }
+.fdm-ticket .fdw-ticket-fields label { gap: var(--space-2); font-size: var(--font-md); }
+.fdm-ticket .fdw-ticket-fields label > div, .fdm-ticket .fdw-ticket-fields label > strong { height: 52px; border-radius: var(--radius-card); }
+.fdm-ticket .fdw-ticket-fields label > div { grid-template-columns: 52px minmax(0, 1fr) 52px; }
+.fdm-ticket .fdw-ticket-fields label > div button { height: 50px; }
+.fdm-ticket .fdw-ticket-fields label > div svg { width: 18px; height: 18px; }
+.fdm-ticket .fdw-ticket-fields label > div input, .fdm-ticket .fdw-ticket-fields label > strong { font-size: var(--font-xl); font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.fdm-ticket .fdw-price-modes { margin: 0; flex-wrap: wrap; }
+.fdm-ticket .fdw-price-modes button { min-height: 36px; padding: 0 var(--space-4); font-size: var(--font-md); }
+.fdm-ticket .fdw-price-modes button.active { color: var(--on-primary); background: var(--primary-bg); border-color: transparent; }
+.fdm-ticket-price { gap: var(--space-2); }
+.fdm-ticket-protection { margin: 0 0 var(--space-3); border: 1px dashed var(--line-strong); border-radius: var(--radius-card); }
+.fdm-ticket-protection > summary {
+  min-height: 48px; display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  padding: 0 var(--space-3); color: var(--muted); font-size: var(--font-md); list-style: none; cursor: pointer;
+}
+.fdm-ticket-protection > summary::-webkit-details-marker { display: none; }
+.fdm-ticket-protection > summary strong { color: var(--ink); font-weight: 500; font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.fdm-ticket-protection > summary strong::after { content: " ›"; color: var(--muted); }
+.fdm-ticket-protection[open] > summary strong::after { content: " ⌄"; }
+.fdm-ticket-protection > .fdw-ticket-fields { padding: 0 var(--space-3) var(--space-3); }
+.fdm-ticket .fdw-ticket-estimate, .fdm-ticket .fdw-ticket-delivery, .fdm-ticket .fdw-ticket-draft, .fdm-ticket .fdw-close-plan { margin: 0 0 var(--space-3); padding-inline: 0; font-size: var(--font-md); }
+.fdm-ticket .fdw-ticket-draft { padding: var(--space-2) var(--space-3); }
+.fdm-ticket-confirm { display: grid; gap: var(--space-2); padding-top: var(--space-2); }
+.fdm-ticket-confirm > small { color: var(--warning); font-size: var(--font-sm); }
+.fdm-ticket-confirm > small:empty { display: none; }
+.fdm-ticket .fdw-confirm-order, .fdm-ticket .fdw-close-action { width: 100%; margin: 0; padding: 0; }
+.fdm-ticket .fdw-confirm-order { min-height: 56px; border-radius: var(--radius-pill); font-size: var(--font-xl); }
+/* The side's market colour; the page background is the text, which reads on it in both themes. */
+.fdm-ticket .fdw-confirm-order[data-side="buy_open"] { color: var(--bg); background: var(--market-up); box-shadow: var(--shadow-3); }
+.fdm-ticket .fdw-confirm-order[data-side="sell_open"] { color: var(--bg); background: var(--market-down); box-shadow: var(--shadow-3); }
+.fdm-ticket .fdw-close-action button { min-height: 56px; border-radius: var(--radius-pill); }
+
+/* Existing surfaces in their phone form: settings, the help card and the contract list fill the screen. */
+.fdm-shell .app-settings-dialog { width: 100vw; border-left: 0; }
+.fdm-shell .app-settings-header button { width: 44px; height: 44px; }
+.fdm-shell .app-setting-row { grid-template-columns: minmax(0, 1fr); gap: var(--space-2); }
+.fdm-shell .app-setting-value { justify-content: flex-start; flex-wrap: wrap; }
+.fdm-shell .app-help-card { width: 100vw; height: 100dvh; max-width: 100vw; max-height: 100dvh; margin: 0; border: 0; border-radius: 0; }
+.fdm-shell .app-help-card > header button { min-width: 44px; min-height: 44px; }
+.fdm-shell .fdw-drawer.contracts { width: 100vw; padding: var(--space-3) var(--space-4); }
+.fdm-shell .fdw-drawer > header button { width: 44px; height: 44px; }
+.fdm-shell .fdw-contract-list button { min-height: 48px; }
+/* 通知 → the conversation: the card that was opened is marked for a moment. */
+.fdm-chat [data-located] { outline: 2px solid var(--accent); outline-offset: 2px; transition: outline-color var(--dur-3); }
+/* Settings sections that only shape the desktop layout stay on the computer. */
+.fdm-shell .app-settings-section:is([aria-label="报价总表"], [aria-label="布局"]) { display: none; }
+
+/* ── 手机版动效 (2026-10-06): the approved batch-one motion. Durations come from theme.css, whose
+   reduced-motion setting zeroes them; the loops and travel below are switched off there too. ── */
+
+/* 切换底部标签: the new page slides 16 px in from the side of the tab it came from and fades in;
+   the chat pushes in from the right. The old page simply unmounts. */
+.fdm-view[data-motion="next"] { animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; --fdm-dx: 1; }
+.fdm-view[data-motion="prev"] { animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; --fdm-dx: -1; }
+.fdm-view[data-motion="push"] { animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; }
+/* The light-blue pill under the current tab slides to it; the icon gives one small bounce. The
+   colour itself still switches at once (see .fdm-tabs > button). */
+.fdm-tab-pill {
+  position: absolute; top: 6px; left: 0; z-index: 0; width: 20%; height: 32px; pointer-events: none;
+  transform: translateX(calc(var(--fdm-tab, 0) * 100%)); transition: transform var(--dur-3) var(--ease-out);
+}
+.fdm-tab-pill::before { content: ""; display: block; width: 56px; height: 30px; margin: 0 auto; border-radius: var(--radius-card); background: var(--accent-soft); }
+.fdm-tabs[data-moved] > button[aria-current="page"] .fdm-tab-icon > svg { animation: ui-fill-arrival var(--dur-2) var(--ease-out); }
+/* 通知红点: a new unread pops in. */
+.fdm-tab-icon > .rc-badge[data-pop] { animation: ui-fill-arrival var(--dur-2) var(--ease-out); }
+
+/* 新动态到达: the slot opens at the top, the card settles in and its brand glow fades. */
+.fdm-feed-item[data-arrive] { display: grid; grid-template-rows: 1fr; animation: none; }
+.fdm-feed-item[data-arrive] > * { min-height: 0; animation: ui-panel-in var(--dur-2) var(--ease-out) backwards, ui-fill-arrival var(--dur-2) var(--ease-out); }
+.fdm-new-pill {
+  position: absolute; top: 64px; left: 50%; z-index: 5; transform: translateX(-50%); min-height: 36px; padding: 0 var(--space-4);
+  border-radius: var(--radius-pill); color: var(--on-primary); background: var(--primary-bg); box-shadow: var(--shadow-2);
+  font-size: var(--font-md); font-weight: 600; white-space: nowrap; animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; --enter-transform: translate(-50%, -8px); --rest-transform: translateX(-50%);
+}
+.fdm-shell .fdm-new-pill:active { transform: translateX(-50%) scale(.97) !important; }
+
+/* 下拉刷新: the content follows the finger (--fdm-pull, set by usePullToRefresh) and springs back;
+   the Sente stone above it turns with the distance and spins while reading. */
+.fdm-content[data-pull] > * { transform: translateY(calc(var(--fdm-pull, 0) * 1px)); }
+.fdm-content[data-pull-settling] > * { transition: transform var(--dur-3) var(--ease-out); }
+.fdm-content[data-pulling] { overflow-y: hidden; }
+.fdm-ptr { position: relative; height: 0; pointer-events: none; }
+.fdm-page > .fdm-content > .fdm-ptr { margin-bottom: calc(-1 * var(--space-3)); }
+.fdm-ptr-stone { position: absolute; left: 50%; bottom: 22px; width: 30px; height: 30px; margin-left: calc(-1 * var(--space-4)); opacity: calc(var(--fdm-pull, 0) / 40); }
+.fdm-ptr-stone svg { display: block; width: 30px; height: 30px; transform: rotate(calc(var(--fdm-pull, 0) * 4deg)); }
+.fdm-ptr-big { fill: var(--ink); opacity: .9; }
+.fdm-ptr-small { fill: var(--brand-a); }
+.fdm-ptr[data-phase="refreshing"] .fdm-ptr-stone svg { animation: none; }
+.fdm-ptr > small { position: absolute; left: 0; right: 0; bottom: 4px; display: none; color: var(--muted); font-size: var(--font-sm); text-align: center; }
+.fdm-ptr[data-phase="armed"] > small { display: block; }
+.fdm-ptr[data-phase="offline"] > small { display: block; }
+.fdm-ptr[data-phase="offline"] .fdm-ptr-stone { opacity: 0; }
+
+/* 全屏页: slides up over a dimmed backdrop, slides away on close; a drag from its head follows the finger. */
+.fdm-layer { position: absolute; inset: 0; z-index: 8; }
+.fdm-layer::before {
+  content: ""; position: absolute; inset: 0; background: var(--overlay);
+  opacity: calc(1 - var(--fdm-drag, 0)); animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; --enter-transform: none;
+}
+.fdm-layer > .fdm-sheet-backdrop { background: transparent; }
+.fdm-layer > .fdm-overlay, .fdm-layer > .fdm-sheet-backdrop > .fdm-sheet { animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; --enter-transform: translateY(12px); }
+.fdm-layer[data-closing] { pointer-events: none; }
+.fdm-layer[data-closing]::before { animation: ui-panel-in var(--dur-2) var(--ease-out) reverse forwards; --enter-transform: none; }
+.fdm-layer[data-closing] > .fdm-overlay, .fdm-layer[data-closing] > .fdm-sheet-backdrop > .fdm-sheet { animation: ui-panel-in var(--dur-2) var(--ease-out) reverse forwards; --enter-transform: translateY(12px); }
+.fdm-layer[data-closing] > .fdm-install-mask { animation: ui-panel-in var(--dur-2) var(--ease-out) reverse forwards; --enter-transform: none; }
+.fdm-layer > .fdm-install-mask { animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; --enter-transform: none; }
+.fdm-layer :is(.fdm-head, .fdm-sheet-head, .fdm-sheet-grip, .fdw-positions-dock > header) { -webkit-user-select: none; user-select: none; }
+/* 设置 and the 使用说明卡 (their own dialogs, full screen on the phone) slide up as they open. */
+.fdm-shell .app-settings-dialog, .fdm-shell .app-help-card { animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; --enter-transform: translateY(12px); }
+
+/* 价格跳动: each tick flashes its direction's soft market colour behind the figure. */
+.fdm-quote-price, .fdm-market-price { border-radius: var(--radius-control); padding-inline: var(--space-1); }
+.fdm-market-price { margin-right: calc(-1 * var(--space-1)); }
+:is(.fdm-quote-price, .fdm-market-price)[data-flash="up-a"] { animation: ui-price-change 150ms var(--ease-out); --price-flash-bg: var(--market-up-soft); }
+:is(.fdm-quote-price, .fdm-market-price)[data-flash="up-b"] { animation: ui-price-change-repeat 150ms var(--ease-out); --price-flash-bg: var(--market-up-soft); }
+:is(.fdm-quote-price, .fdm-market-price)[data-flash="down-a"] { animation: ui-price-change 150ms var(--ease-out); --price-flash-bg: var(--market-down-soft); }
+:is(.fdm-quote-price, .fdm-market-price)[data-flash="down-b"] { animation: ui-price-change-repeat 150ms var(--ease-out); --price-flash-bg: var(--market-down-soft); }
+
+/* 按住说话: the button grows a little while recording and two ripples spread from it, 0.6 s apart. */
+.fdm-hold { position: relative; transition: transform var(--dur-1) var(--ease-out); }
+.fdm-hold::before, .fdm-hold::after {
+  content: ""; position: absolute; inset: -8px; border-radius: 50%; border: 2px solid var(--accent); opacity: 0; pointer-events: none;
+}
+.fdm-shell .fdm-hold[aria-pressed="true"] { transform: scale(1.06) !important; }
+.fdm-hold[aria-pressed="true"]::before { animation: none; opacity: 0; }
+.fdm-hold[aria-pressed="true"]::after { animation: none; opacity: 0; }
+.fdm-hold.cancel::before, .fdm-hold.cancel::after { border-color: var(--danger); }
+
+/* 加载: card-shaped skeletons with a sweep; the cards that replace them fade in one by one. */
+.fdm-skeleton { display: grid; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--panel); }
+.fdm-skeleton > i {
+  display: block; height: 12px; border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--soft) 0%, var(--surface-hover) 40%, var(--soft) 80%); background-size: 300% 100%;
+  animation: none;
+}
+.fdm-skeleton > i:nth-child(1) { width: 40%; height: 14px; }
+.fdm-skeleton > i:nth-child(3) { width: 80%; }
+.fdm-feed-item[data-reveal] { animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; --enter-transform: none; }
+
+/* 按压反馈: buttons press in; list rows darken instead of shrinking. */
+/* The hold button grows while recording and the new-items pill keeps its centring: both own their transform. */
+.fdm-shell button:not(.fdm-hold, .fdm-new-pill):active:not(:disabled) { transform: scale(.97) !important; }
+.fdm-shell :is(.fdm-me-row, .fdm-rows button, .fdm-watch button, .fdm-today > button, .fdm-judges > button):active:not(:disabled) { transform: none !important; background: var(--surface-hover); }
+:where(.fdm-me-row, .fdm-rows button, .fdm-watch button, .fdm-today > button, .fdm-judges > button) { transition: background-color var(--dur-1) var(--ease-standard); }
+
+/* ── 安装到桌面引导 (2026-10-06, mobilePage: install) ── */
+.fdm-install { padding: 0 var(--space-4) var(--space-4); }
+.fdm-install-head { padding-inline: 0; }
+.fdm-install-head .brand-mark { flex: none; width: 40px; height: 40px; border-radius: var(--radius-card); }
+.fdm-install-head strong { font-size: var(--font-xl); }
+.fdm-install-head small { font-family: inherit; }
+.fdm-install-steps { margin: 0 0 var(--space-3); padding: 0; list-style: none; display: grid; gap: var(--space-2); counter-reset: fdm-step; }
+.fdm-install-steps > li {
+  counter-increment: fdm-step; display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: var(--space-2); align-items: start;
+  font-size: var(--font-md); line-height: 1.5; overflow-wrap: anywhere;
+}
+.fdm-install-steps > li::before {
+  content: counter(fdm-step); width: 24px; height: 24px; display: grid; place-items: center; border-radius: var(--radius-card);
+  color: var(--accent); background: var(--accent-soft); font-size: var(--font-md); font-weight: 700;
+}
+.fdm-install-glyph {
+  display: inline-grid; place-items: center; width: 22px; height: 22px; margin: 0 var(--space-0); vertical-align: -5px;
+  border: 1px solid var(--line); border-radius: var(--radius-control); color: var(--ink); background: var(--soft);
+}
+.fdm-install-glyph svg { width: 14px; height: 14px; }
+.fdm-install-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.fdm-install-later { min-height: 44px; padding: 0 var(--space-1); color: var(--muted); font-size: var(--font-md); }
+.fdm-install-go { min-height: 44px; padding: 0 var(--space-4); border-radius: var(--radius-control); color: var(--on-primary); background: var(--primary-bg); font-weight: 600; }
+.fdm-install-go:only-child { margin-left: auto; }
+.fdm-install-copy { min-height: 44px; padding: 0 var(--space-4); border: 1px solid var(--line-strong); border-radius: var(--radius-control); color: var(--ink); background: transparent; }
+.fdm-install-copied, .fdm-install-manual small { flex-basis: 100%; margin: 0; color: var(--muted); font-size: var(--font-md); }
+.fdm-install-manual { flex-basis: 100%; display: grid; gap: var(--space-1); }
+.fdm-install-manual input {
+  min-width: 0; height: 40px; padding: 0 var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-control);
+  color: var(--ink); background: var(--panel); font-size: var(--font-lg); font-family: var(--font-num); font-variant-numeric: tabular-nums;
+}
+/* The arrow at the browser's own button, just outside the page (bottom toolbar or address bar). */
+.fdm-install-pointer {
+  position: absolute; z-index: 1; width: 36px; height: 36px; color: var(--accent); pointer-events: none;
+  animation: none;
+}
+.fdm-install-pointer svg { width: 36px; height: 36px; stroke-width: 2.4; }
+.fdm-install-pointer[data-pointer="bottom-right"] { right: 10px; bottom: calc(4px + env(safe-area-inset-bottom)); --fdm-ny: 6px; }
+.fdm-install-pointer[data-pointer="bottom-center"] { left: calc(50% - 18px); bottom: calc(4px + env(safe-area-inset-bottom)); --fdm-ny: 6px; }
+.fdm-install-pointer[data-pointer="top-right"] { right: 40px; top: 6px; --fdm-ny: -6px; }
+.fdm-install-pointer[data-pointer="top-corner"] { right: 4px; top: 6px; --fdm-ny: -6px; }
+.fdm-layer > .fdm-sheet-backdrop:has(.fdm-install-pointer[data-pointer^="bottom"]) > .fdm-sheet { /* Reserve the install guide pointer and native browser chrome. */ margin-bottom: calc(44px + env(safe-area-inset-bottom)); border-radius: var(--radius-card); width: calc(100% - 12px); margin-inline: auto; padding-bottom: var(--space-3); }
+/* Inside 微信 / QQ / 钉钉 / 支付宝: a full-screen mask, the curved arrow at the app's ··· menu. */
+.fdm-install-mask {
+  position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3);
+  /* Reserve the install guide pointer and native browser chrome. */
+  padding: 104px var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom)); color: var(--on-mask); background: var(--mask);
+}
+.fdm-install-mask > strong { display: grid; font-size: var(--font-xl); line-height: 1.45; }
+.fdm-install-mask > p { margin: 0; max-width: 320px; font-size: var(--font-md); opacity: .88; }
+.fdm-install-curve { position: absolute; right: 16px; top: 18px; width: 80px; height: 70px; color: var(--on-mask); }
+.fdm-install-mask-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.fdm-install-mask-copy { min-height: 44px; padding: 0 var(--space-4); border: 1px solid color-mix(in srgb, var(--on-mask) 55%, transparent); border-radius: var(--radius-control); color: var(--on-mask); background: transparent; }
+.fdm-install-mask .fdm-install-copied, .fdm-install-mask .fdm-install-manual small { color: var(--on-mask); opacity: .88; }
+.fdm-install-mask > .fdm-install-later { margin-top: auto; align-self: center; color: var(--on-mask); opacity: .8; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fdm-hold[aria-pressed="true"]::before, .fdm-hold[aria-pressed="true"]::after,
+  .fdm-ptr[data-phase="refreshing"] .fdm-ptr-stone svg, .fdm-install-pointer, .fdm-skeleton > i { animation: none; }
+  .fdm-shell .fdm-hold[aria-pressed="true"] { transform: none !important; }
+  .fdm-watching > h3::before, .fdm-view[data-motion], .fdm-feed-item[data-arrive], .fdm-feed-item[data-arrive] > *, .fdm-feed-item[data-reveal], .fdm-new-pill { animation: none; }
+}
+
+/* 锁屏提醒 (2026-10-06, mobilePage: push): the 我的 groups' look; the card that replaces 这台设备 where
+   this browser cannot take push (先放到主屏幕 / 安卓与 Chrome 收不到). */
+.fdm-push .fdm-content { display: grid; align-content: start; gap: var(--space-3); }
+.fdm-push-card { display: grid; gap: var(--space-2); padding: var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--panel); }
+.fdm-push-card > strong { font-size: var(--font-md); }
+.fdm-push-card > p { margin: 0; color: var(--muted); font-size: var(--font-md); line-height: 1.5; }
+.fdm-push-line { display: flex; align-items: center; gap: var(--space-2); font-size: var(--font-md); }
+.fdm-push-line svg { flex: none; width: 16px; height: 16px; color: var(--positive); }
+.fdm-push-go { min-height: 44px; border: 0; border-radius: var(--radius-control); color: var(--on-primary); background: var(--primary-bg); font-weight: 600; }
+.fdm-push-later { justify-self: start; min-height: 44px; padding: 0 var(--space-1); border: 0; color: var(--muted); background: transparent; font-size: var(--font-md); }
+.fdm-push-act {
+  flex: none; min-height: 40px; padding: 0 var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-control);
+  color: var(--ink); background: var(--panel); font-size: var(--font-md); white-space: nowrap;
+}
+.fdm-push-act[data-tone="danger"] { color: var(--danger); }
+.fdm-push-act:disabled { color: var(--muted); }
+.fdm-push-status { flex: none; display: inline-flex; align-items: center; gap: var(--space-1); color: var(--positive); font-size: var(--font-sm); }
+.fdm-push-status::before { content: ""; width: 7px; height: 7px; border-radius: var(--radius-sm); background: currentColor; }
+.fdm-push-status[data-tone="warning"] { color: var(--warning); }
+.fdm-push-notice { margin: 0; color: var(--muted); font-size: var(--font-md); }
+.fdm-me-value[data-tone="ok"] { color: var(--positive); }
+
+/* 策略 (第八批, 2026-10-08): 正在运行 / 我的策略 tabs, the 今日判断 clash, 停止并平仓 and 跟 AI 说……. */
+.fdm-strat-tabs { padding-bottom: var(--space-1); }
+.fdm-strat[data-selected] { border-color: var(--accent); }
+.fdm-strat-pick { width: 100%; padding: 0; border: 0; background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.fdm-strat-meta b { font-weight: 600; color: var(--ink); }
+.fdm-strat-meta b.positive { color: var(--market-up); }
+.fdm-strat-meta b.negative { color: var(--market-down); }
+.fdm-strat-clash { display: flex; gap: var(--space-2); align-items: baseline; margin: 0; padding: var(--space-1) var(--space-2); border-radius: var(--radius-control); background: var(--warning-soft); color: var(--warning); font-size: var(--font-md); line-height: 1.5; }
+.fdm-strat-notice { margin: 0; color: var(--muted); font-size: var(--font-md); line-height: 1.5; }
+.fdm-strat-actions { grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); }
+.fdm-strat-actions > button.danger { border-color: var(--market-up); color: var(--market-up); }
+.fdm-strat-confirm { display: grid; gap: var(--space-2); padding: var(--space-2); border: 1px solid var(--market-up); border-radius: var(--radius-control); }
+.fdm-strat-confirm > p { margin: 0; font-size: var(--font-md); line-height: 1.5; }
+.fdm-tag[data-tone="up"] { color: var(--market-up); background: var(--market-up-soft); }
+.fdm-strat-talk .fdm-strat-context { grid-column: 1 / -1; color: var(--muted); font-size: var(--font-md); }
+.fdm-strat-talk .fdm-ask { color: var(--ink); font-size: var(--font-lg); cursor: auto; }
+.fdm-strat-send { width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: var(--radius-pill); color: var(--on-primary); background: var(--primary-bg); }
+.fdm-strat-send:disabled { opacity: .5; }
+.fdm-strat-send svg { width: 18px; height: 18px; }
+
+/* 手机编辑卡 (2026-10-08, the approved mockup): 我的策略's 新建策略 row and each card's 编辑 / 回测 / 上线….
+   新建策略 is the list's one primary button (按钮层级 2026-10-09); every card's buttons are secondary. */
+.fdm-strat-new-row { display: grid; gap: var(--space-2); }
+.fdm-shell .fdm-strat-new {
+  min-height: 44px; display: flex; align-items: center; justify-content: center; gap: var(--space-1);
+  border: 1px solid transparent; border-radius: var(--radius-control);
+  color: var(--on-primary); background: var(--primary-bg); font-weight: 600;
+}
+.fdm-strat-new svg { width: 18px; height: 18px; }
+.fdm-shell .fdm-strat-resume { min-height: 44px; padding: 0 var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-control); color: var(--ink); background: var(--panel); text-align: left; overflow-wrap: anywhere; }
+.fdm-strat-actions.fdm-strat-actions3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.fdm-strat-confirm.fdm-strat-launch { border-color: var(--accent); }
+
+/* The editor page: head (返回 / 名称 / 放弃), the scrolling body, the fixed result bar. Controls are the desktop
+   card's (.se-card) at touch size; inputs keep 16 px so iOS does not zoom on focus. */
+.fdm-se { font-size: var(--font-md); }
+.fdm-se-head { gap: var(--space-2); padding-right: var(--space-3); }
+.fdm-se-name {
+  flex: 1 1 auto; min-width: 0; height: 40px; padding: 0 var(--space-2); border: 1px solid transparent; border-radius: var(--radius-control);
+  color: var(--ink); background: transparent; font: inherit; font-size: var(--font-lg); font-weight: 600; text-overflow: ellipsis;
+}
+.fdm-se-name:focus { border-color: var(--line-strong); outline: none; background: var(--soft); }
+.fdm-se-name[data-changed] { background: var(--warning-soft); }
+.fdm-se .fdm-se-head .se-btn { min-height: 36px; padding: 0 var(--space-3); font-size: var(--font-md); }
+.fdm-se-body { display: flex; flex-direction: column; gap: var(--space-3); }
+.fdm-se-body > * { flex-shrink: 0; }
+.fdm-se-start { display: grid; gap: var(--space-1); }
+.fdm-se .fdm-se-start .se-seg { display: flex; width: 100%; }
+.fdm-se .fdm-se-start .se-seg > * { flex: 1 1 0; min-width: 0; max-width: none; text-align: center; text-align-last: center; }
+.fdm-se .se-seg > button, .fdm-se .se-seg > select { min-height: 38px; padding: var(--space-1) var(--space-3); font-size: var(--font-md); }
+.fdm-se .se-ctl { min-height: 38px; padding: var(--space-0) var(--space-2); font-size: var(--font-md); white-space: normal; flex-wrap: wrap; }
+.fdm-se .se-ctl input, .fdm-se .se-ctl select, .fdm-se .se-select, .fdm-se .se-op { font-size: var(--font-lg); min-height: 32px; }
+.fdm-se .se-symbol { width: 100%; }
+.fdm-se .se-symbol input { flex: 1 1 auto; width: auto; }
+.fdm-se .se-switch { width: 44px; height: 26px; border-radius: var(--radius-card); }
+.fdm-se .se-switch::after { top: 4px; left: 4px; width: 18px; height: 18px; }
+.fdm-se .se-switch[aria-checked="true"]::after { left: 22px; }
+.fdm-se .se-link { min-height: 36px; font-size: var(--font-md); }
+.fdm-se .se-x { width: 36px; height: 36px; }
+.fdm-se .se-row > .se-lbl { flex: 0 0 100%; min-width: 0; }
+.fdm-se .se-pane { margin-left: 0; }
+.fdm-se .se-lbl, .fdm-se .se-hint, .fdm-se .se-status, .fdm-se .se-error, .fdm-se .se-blank { font-size: var(--font-md); }
+
+.fdm-se .fdm-se-ainote { align-items: center; flex-wrap: nowrap; }
+.fdm-se .fdm-se-ainote > span:first-child { flex: 1 1 auto; }
+.fdm-se .fdm-se-basis { flex: none; min-height: 36px; display: inline-flex; align-items: center; gap: var(--space-0); color: var(--accent); font-size: var(--font-sm); white-space: nowrap; }
+.fdm-se-basis svg { width: 14px; height: 14px; transition: transform var(--dur-1) var(--ease-out); }
+.fdm-se-basis[aria-expanded="true"] svg { transform: rotate(90deg); }
+.fdm-se-trades { display: grid; gap: var(--space-2); padding: var(--space-2) var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--panel); }
+.fdm-se-trades ul { margin: 0; padding: 0; list-style: none; display: grid; }
+.fdm-se-trades li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--space-2); padding: var(--space-1) 0; border-top: 1px solid var(--line); font-size: var(--font-md); font-variant-numeric: tabular-nums; }
+.fdm-se-trades li:first-child { border-top: 0; }
+.fdm-se-trades time { color: var(--muted); font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.fdm-se-trades b { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+
+.fdm-se .fdm-se-ask { min-height: 48px; padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3); border-radius: var(--radius-pill); }
+.fdm-se .fdm-se-ask input { font-size: var(--font-lg); }
+.fdm-se .fdm-se-ask .fdm-hold { width: 40px; height: 40px; margin: 0; border-radius: var(--radius-pill); box-shadow: none; }
+.fdm-se .fdm-se-ask .fdm-hold svg { width: 18px; height: 18px; }
+.fdm-se .fdm-se-send { min-height: 40px; padding: 0 var(--space-4); border-radius: var(--radius-pill); }
+.fdm-se > .fdm-live { bottom: 150px; z-index: 7; }
+
+.fdm-se-sec { border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--panel); overflow: hidden; }
+.fdm-se .fdm-se-sec-h { width: 100%; min-height: 48px; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); color: var(--ink); text-align: left; }
+.fdm-se-sec-h > b { flex: none; font-size: var(--font-md); }
+.fdm-se-sum { flex: 1 1 auto; min-width: 0; color: var(--muted); font-size: var(--font-md); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fdm-se-sec-h > svg { flex: none; width: 18px; height: 18px; color: var(--muted); transform: rotate(-90deg); transition: transform var(--dur-1) var(--ease-out); }
+.fdm-se-sec-top { display: flex; align-items: center; gap: var(--space-1); padding-right: var(--space-3); }
+.fdm-se .fdm-se-sec-top > .fdm-se-sec-h { flex: 1 1 auto; min-width: 0; }
+.fdm-se .fdm-se-sec[data-open] > .fdm-se-sec-top { border-bottom: 1px solid var(--line); background: var(--soft); }
+.fdm-se-sec[data-open] .fdm-se-sec-h > svg { transform: none; }
+.fdm-se .fdm-se-sec-top .help-tip-button { width: 22px; height: 22px; font-size: var(--font-md); }
+.fdm-se-sec-b { display: grid; gap: var(--space-3); padding: var(--space-3); min-width: 0; }
+.fdm-se .se-group { padding: var(--space-2); }
+.fdm-se .se-tap { flex-wrap: nowrap; padding: var(--space-0) 0; border-bottom: 1px solid var(--line); }
+.fdm-se .se-tap-main { flex: 1 1 auto; min-width: 0; min-height: 44px; display: flex; align-items: center; gap: var(--space-2); padding: 0; color: var(--ink); text-align: left; }
+.fdm-se .se-tap-text { min-width: 0; font-size: var(--font-md); overflow-wrap: anywhere; }
+.fdm-se .se-tap-text b { color: var(--accent); }
+.fdm-se .se-tap[data-empty] .se-tap-text { color: var(--muted); }
+.fdm-se .se-tap .se-tail { margin-left: 0; }
+
+.fdm-se-foot { flex: none; display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-4) max(var(--space-3), env(safe-area-inset-bottom)); border-top: 1px solid var(--line-strong); background: var(--soft); }
+.fdm-se-figs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-1); margin: 0; }
+.fdm-se-figs > div { display: flex; flex-direction: column-reverse; align-items: center; min-width: 0; }
+.fdm-se-figs dt { color: var(--muted); font-size: var(--font-md); }
+.fdm-se-figs dd { margin: 0; font: 600 var(--font-md) var(--font-num); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fdm-se-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+.fdm-se .fdm-se-actions .se-btn { justify-content: center; min-height: 44px; font-size: var(--font-md); }
+.fdm-se .se-btn:disabled { opacity: .55; }
+
+/* 改条件: a sheet from the bottom inside the page (its own grip: the page's drag-to-close must not take it). */
+.fdm-se-backdrop { position: absolute; inset: 0; z-index: 9; display: flex; align-items: flex-end; background: var(--overlay); }
+.fdm-se-sheet {
+  width: 100%; max-height: 72%; display: flex; flex-direction: column; gap: var(--space-2);
+  padding: var(--space-2) var(--space-4) max(var(--space-4), env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line-strong); border-radius: var(--radius-card) var(--radius-card) 0 0; background: var(--panel); box-shadow: var(--shadow-3);
+  animation: ui-panel-in var(--dur-2) var(--ease-out) backwards;
+  --enter-transform: translateY(12px);
+}
+.fdm-se-sheet > :not(.fdm-se-list) { flex: none; }
+.fdm-se-grip { align-self: center; width: 36px; height: 4px; border-radius: var(--radius-sm); background: var(--line-strong); }
+.fdm-se-sheet h4 { margin: 0; font-size: var(--font-lg); }
+.fdm-se .fdm-se-steps { display: flex; width: 100%; }
+.fdm-se .fdm-se-steps > button { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fdm-se-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: grid; align-content: start; }
+.fdm-se-opt { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding-right: var(--space-2); border-bottom: 1px solid var(--line); }
+.fdm-se .fdm-se-opt > button { flex: 1 1 auto; min-height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 var(--space-1); color: var(--ink); text-align: left; font-size: var(--font-md); }
+.fdm-se .fdm-se-opt[data-on] > button { color: var(--accent); font-weight: 600; }
+.fdm-se-opt > button svg { width: 18px; height: 18px; }
+.fdm-se-opt > button small { margin-left: auto; padding: 0 var(--space-2); color: var(--muted); font-size: var(--font-md); font-weight: 400; }
+.fdm-se .fdm-se-opt > button:disabled { color: var(--muted); }
+/* 指标选择器 inside the sheet: the list scrolls, the chips and the parameters stay. */
+.fdm-se-sheet .ip { min-height: 0; }
+.fdm-se-sheet:has(.ip) { max-height: 88%; }
+.fdm-se-sheet .se-mods { padding-left: 0; }
+.fdm-se-n { display: inline-flex; align-items: center; gap: var(--space-1); padding: 0 var(--space-1) var(--space-2); color: var(--muted); font-size: var(--font-md); }
+.fdm-se-n input { width: 4.5em; min-height: 36px; padding: 0 var(--space-2); border: 1px solid var(--line-strong); border-radius: var(--radius-control); color: var(--ink); background: var(--soft); font: var(--font-lg) var(--font-num); font-variant-numeric: tabular-nums; }
+.fdm-se-sheet-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+.fdm-se .fdm-se-sheet-actions .se-btn { justify-content: center; min-height: 44px; font-size: var(--font-md); }
+/* The four figures open 回测明细 (a sheet like 改条件). */
+.fdm-se .fdm-se-figs-btn { width: 100%; min-height: 44px; display: flex; align-items: center; gap: var(--space-2); padding: 0; color: var(--ink); text-align: left; }
+.fdm-se-figs-btn > .fdm-se-figs, .fdm-se-figs-btn > .se-blank { flex: 1 1 auto; min-width: 0; }
+.fdm-se-figs-btn > svg { flex: none; width: 18px; height: 18px; color: var(--muted); }
+.fdm-se-sheet-actions.fdm-se-one { grid-template-columns: minmax(0, 1fr); }
+.fdm-se-detail .stat-tiles[data-columns] { grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); border: 1px solid var(--line); border-radius: var(--radius-control); overflow: hidden; }
+.fdm-se-detail .se-trades { width: 100%; table-layout: auto; }
+.fdm-se .fdm-se-detail .se-trades :is(th, td) { padding: var(--space-1) var(--space-0); font-size: var(--font-md); white-space: nowrap; }
+.fdm-se-detail .section-card-body { display: grid; gap: var(--space-3); padding: 0; min-width: 0; }
+
+/* ── 手机看盘第二批 (2026-10-09, the approved mockup ④): 报价 / 多图 / 单图, 副图设置. ── */
+/* The head's 报价 / 多图 / 单图 switch (one bordered segmented control, the mockup's .seg). */
+.fdm-seg { flex: none; margin-left: auto; display: inline-flex; border: 1px solid var(--line-strong); border-radius: var(--radius-control); overflow: hidden; }
+.fdm-seg > button {
+  min-width: 44px; min-height: 40px; padding: 0 var(--space-3); border: 0; border-right: 1px solid var(--line-strong);
+  color: var(--muted); background: transparent; font-size: var(--font-md); white-space: nowrap; -webkit-tap-highlight-color: transparent;
+}
+.fdm-seg > button:last-child { border-right: 0; }
+.fdm-seg > button[aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+/* 单图: the contract and its price stack on the left so the switch keeps its room at 375 px and large type. */
+.fdm-market-id { min-width: 0; flex: 1 1 auto; display: grid; gap: 0; }
+.fdm-market-id .fdm-market-title { min-height: 30px; justify-self: start; max-width: 100%; }
+.fdm-market-id .fdm-market-price { margin-left: 0; }
+.fdm-market-id .fdm-market-price b { font-size: var(--font-xl); }
+.fdm-icon-button {
+  flex: none; width: 44px; min-height: 36px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: var(--radius-pill);
+  color: var(--muted); background: transparent;
+}
+.fdm-icon-button[aria-expanded="true"] { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.fdm-periods-row { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.fdm-periods-row > .fdm-periods { flex: 1 1 auto; min-width: 0; }
+/* Five periods and ⚙ on one 375 px row. */
+.fdm-periods-row > .fdm-periods > button { min-width: 0; padding: 0 var(--space-3); }
+/* With a sub pane the single chart grows so the price pane keeps its height. */
+.fdm-chart[data-sub-pane] { height: clamp(300px, 52dvh, 480px); }
+.fdm-subpane-tabs > button { min-height: 32px; }
+
+/* 报价: 板块 tabs and the 列 button, the column head, one scroll region of rows. */
+.fdm-quotes { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.fdm-quotes-bar { flex: none; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-4); border-bottom: 1px solid var(--line); }
+.fdm-quotes-bar > .fdm-quote-boards { flex: 1 1 auto; min-width: 0; }
+.fdm-quote-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.fdm-quote-list > .fdm-note { padding: var(--space-3) var(--space-4); }
+.fdm-quote-row {
+  width: 100%; display: grid; grid-template-columns: minmax(0, 1.45fr) repeat(var(--fdm-quote-columns, 3), minmax(0, 1fr));
+  align-items: center; gap: var(--space-2); min-height: 52px; padding: var(--space-2) var(--space-4);
+  border: 0; border-bottom: 1px solid var(--line); color: var(--ink); background: transparent; text-align: right;
+  font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: var(--font-md); -webkit-tap-highlight-color: transparent;
+}
+.fdm-quote-row[aria-current="true"] { background: var(--accent-soft); }
+.fdm-quote-row[data-stale] .fdm-quote-value { color: var(--muted); }
+.fdm-quote-head { flex: none; min-height: 32px; color: var(--muted); background: var(--panel); font-family: inherit; font-size: var(--font-md); }
+.fdm-quote-head > span:first-child, .fdm-quote-name { text-align: left; }
+.fdm-quote-name { min-width: 0; display: grid; gap: var(--space-0); font-family: system-ui, sans-serif; }
+.fdm-quote-name strong { display: flex; align-items: center; gap: var(--space-0); min-width: 0; font-size: var(--font-md); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fdm-quote-name strong svg { flex: none; width: 12px; height: 12px; color: var(--warning); }
+.fdm-quote-name small { display: flex; align-items: center; gap: var(--space-1); min-width: 0; color: var(--muted); font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: var(--font-sm); white-space: nowrap; overflow: hidden; }
+.fdm-quote-name em { padding: 0 var(--space-1); border-radius: var(--radius-control); color: var(--ink); background: var(--soft); font-style: normal; font-family: system-ui, sans-serif; }
+.fdm-quote-value { min-width: 0; overflow-wrap: anywhere; }
+.fdm-quote-value[data-direction="up"], .fdm-multi-price[data-direction="up"] { color: var(--market-up); }
+.fdm-quote-value[data-direction="down"], .fdm-multi-price[data-direction="down"] { color: var(--market-down); }
+.fdm-quotes > .fdm-note, .fdm-multi > .fdm-note { margin: var(--space-2) var(--space-4) 0; }
+
+/* 多图: the layout chips, then a 2-column grid of cards that fills the page (3 rows for 6 图). */
+.fdm-multi { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.fdm-multi > .fdm-multi-layouts { flex: none; padding: var(--space-2) var(--space-4); border-bottom: 1px solid var(--line); }
+.fdm-multi-grid {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: minmax(150px, 1fr); gap: var(--space-2); padding: var(--space-2) var(--space-4) var(--space-3);
+}
+.fdm-multi-cell { min-width: 0; min-height: 0; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--panel); overflow: hidden; }
+.fdm-multi-title {
+  flex: none; min-height: 40px; display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-1);
+  padding: var(--space-2) var(--space-2) 0; border: 0; color: var(--ink); background: transparent; text-align: left;
+}
+.fdm-multi-title strong { min-width: 0; font-size: var(--font-md); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fdm-multi-title small { flex: none; color: var(--muted); font-size: var(--font-sm); }
+.fdm-multi-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: var(--space-0); padding: 0 var(--space-2) var(--space-2); border: 0; color: var(--ink); background: transparent; text-align: left; }
+.fdm-multi-body:disabled { opacity: .6; }
+.fdm-multi-price { display: flex; align-items: baseline; gap: var(--space-1); font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: var(--font-md); font-weight: 700; }
+.fdm-multi-price small { font-size: var(--font-sm); font-weight: 500; }
+.fdm-multi-body > .fdm-note { font-size: var(--font-sm); }
+.fdm-mini-kline { flex: 1 1 auto; width: 100%; min-height: 60px; }
+.fdm-mini-kline [data-direction="up"] { fill: var(--market-up); stroke: var(--market-up); }
+.fdm-mini-kline [data-direction="down"] { fill: var(--market-down); stroke: var(--market-down); }
+.fdm-mini-kline line { stroke-width: 1px; }
+
+/* The market sheets (副图设置, 报价列, a 多图 cell): toggle tiles in a grid, 完成 in the head. */
+.fdm-mm-sheet { max-height: 82%; }
+.fdm-sheet-head > button.fdm-sheet-done { width: auto; height: 40px; padding: 0 var(--space-4); border-radius: var(--radius-control); color: var(--on-primary); background: var(--primary-bg); font-size: var(--font-md); font-weight: 600; }
+.fdm-mm-sheet .fdm-sheet-body { padding: 0 var(--space-4) var(--space-4); display: grid; gap: var(--space-2); }
+.fdm-mm-sheet .fdm-sheet-head strong { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--font-lg); }
+.fdm-mm-label { margin: var(--space-2) 0 0; color: var(--muted); font-size: var(--font-md); font-weight: 600; }
+.fdm-mm-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2); }
+.fdm-mm-grid > button {
+  position: relative; min-width: 0; min-height: 44px; padding: 0 var(--space-1); border: 1px solid var(--line); border-radius: var(--radius-control);
+  color: var(--ink); background: transparent; font-size: var(--font-md); overflow-wrap: anywhere; -webkit-tap-highlight-color: transparent;
+}
+.fdm-mm-grid > button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+.fdm-mm-grid > button:disabled { opacity: .45; }
+.fdm-mm-grid > button small { position: absolute; top: 2px; right: 4px; font-size: var(--font-md); font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.fdm-mm-params { display: grid; gap: var(--space-2); }
+.fdm-mm-param-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); padding: var(--space-2) 0; border-bottom: 1px solid var(--line); }
+.fdm-mm-param-row > b { width: 100%; font-size: var(--font-md); }
+.fdm-mm-param { display: grid; gap: var(--space-0); color: var(--muted); font-size: var(--font-md); }
+.fdm-mm-fold {
+  min-height: 44px; padding: 0 var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-control);
+  color: var(--ink); background: transparent; text-align: left; font-size: var(--font-md);
+}
+.fdm-mm-fold::after { content: "▾"; float: right; color: var(--muted); }
+.fdm-mm-fold[aria-expanded="true"]::after { content: "▴"; }
+.fdm-mm-sheet .fdw-ind-editor { display: grid; gap: var(--space-2); }
+.fdm-mm-sheet .fdw-ind-row { flex-wrap: wrap; }

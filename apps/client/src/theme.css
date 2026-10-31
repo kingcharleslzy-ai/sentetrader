@@ -1,0 +1,350 @@
+/* One palette for the document, cards, dialogs and workspace. Component CSS
+   consumes semantic pairs; it never selects its own light/dark palette. */
+:root {
+  /* Site palette (2026-10-04, from qilinshuzhi.com/trader/download): warm paper + one electric
+     blue, hairline borders; the brand gradient stays reserved for the AI and active indicators. */
+  --fdw-app-bg: #f4f4f1;
+  --fdw-surface: #ffffff;
+  --fdw-surface-raised: #f1f1ed;
+  --fdw-surface-hover: #e9e9e4;
+  --fdw-line: #e3e3dd;
+  --fdw-text: #111310;
+  --fdw-muted: #5c615b;
+  --fdw-faint: #656a64;
+  --fdw-accent: #2f5bff;
+  --line-strong: #c9c9c2;
+  --accent-soft: #edf1ff;
+  --primary-bg: #2f5bff;
+  --on-primary: #ffffff;
+  --positive: #0a7a49;
+  --positive-soft: #e6f5ec;
+  --warning: #8f5300;
+  --warning-soft: #fff1dc;
+  --danger: #b42318;
+  --danger-soft: #fee9e7;
+  /* 到价提醒 (2026-10-02): the alert price lines on the chart and the popover's accents.
+     Violet — kept away from the accent/candidate blue (#345cff) and the up/down greens and reds. */
+  --price-alert: #5b21b6;
+  --price-alert-soft: #ede9fe;
+  /* 下单顺带保护 (2026-10-02): the chart's thin stop / take lines. Orange for 亏到哪, cyan for
+     赚到哪 — neither the up/down red-green nor the alert violet nor the candidate blue. */
+  --protection-stop: #b85000;
+  --protection-take: #0e7490;
+  /* 让 AI 们辩一轮 (owner 2026-10-24, after Codex's Ultra): blue → violet with white stars; same in both themes. */
+  --ultra-from: #4f6bf0;
+  --ultra-mid: #6352f0;
+  --ultra-to: #8b3fe8;
+  --on-ultra: #ffffff;
+  --ultra-glow: rgba(124, 77, 255, 0.45);
+  /* 分时图 (2026-10-02): the 当日均价 line, next to the accent-blue price line. The amber
+     yellow the form is known by, apart from the red/green direction colours. */
+  --chart-average: #a16207;
+  /* 用户画线 (2026-10-02): the user's own chart lines and the drawing popover's accents.
+     Fuchsia — apart from the alert violet, the protection orange/cyan and the AI layer. */
+  --user-drawing: #a21caf;
+  --user-drawing-soft: #fae8ff;
+  /* 画线第二版 (2026-10-09): the drawing colour presets (the style bar's swatches). A drawing stores the
+     preset name, so one line reads in both themes; each tone keeps ≥3:1 against the chart surface. */
+  --draw-amber: #b45309;
+  --draw-red: #d92d20;
+  --draw-green: #15803d;
+  --draw-blue: #2563eb;
+  /* 今日复盘 (2026-10-06): the three tags 计划内 / 提醒后 / 临时 (ink on a pale fill). 提醒后 is rose —
+     the violet the mock-up used is the 到价提醒 colour, teal sits too close to 计划内 green, blue is the AI. */
+  --tag-plan: #0a7a49;
+  --tag-plan-soft: #e6f5ec;
+  --tag-remind: #b4235f;
+  --tag-remind-soft: #fce7f0;
+  --tag-adhoc: #8f5300;
+  --tag-adhoc-soft: #fff1dc;
+  /* Chinese futures convention: rising/long is red, falling/short is green. */
+  --market-up: #cf291e;
+  --market-up-soft: #fdf0ee;
+  --market-down: #0a7a49;
+  --market-down-soft: #e6f5ec;
+  /* 对话面板 call bar: the messenger green to start, red to end. Both themes keep the bright
+     green fill and put dark green ink on it (≈6.5:1) — white on #07C160 is only 2.4:1, and
+     darkening the fill enough for white text would lose the colour the button is named after. */
+  --call-start-bg: #07c160;
+  --on-call-start: #052a14;
+  --call-end-bg: #c62828;
+  --on-call-end: #ffffff;
+  --overlay: rgba(8, 15, 24, .38);
+  /* A full-screen teaching mask (the 安装到桌面 guide inside 微信 / QQ): always a dark veil with white words. */
+  --mask: rgba(8, 12, 18, .78);
+  --on-mask: #ffffff;
+  --shadow-color: #0f1b2d;
+  --shadow: var(--shadow-2);
+  --brand-mark-bg: #0b0d10;
+  --brand-mark-line: #23272e;
+  --brand-mark-ink: #eceee8;
+  --brand-mark-dot: #3d6bff;
+  /* The brand: the AI orb, the logo and active indicators; never behind body text. */
+  --brand-a: #2f5bff;
+  --brand-b: #6f8cff;
+  --brand-gradient: linear-gradient(135deg, var(--brand-a), var(--brand-b));
+  --glow: 0 0 0 1px color-mix(in srgb, var(--brand-a) 28%, transparent), 0 8px 24px color-mix(in srgb, var(--brand-a) 18%, transparent);
+  /* 对话气泡 and the call waveform: yours neutral on the right, the AI's tinted on the left. */
+  --me-bubble: #ececE7;
+  --ai-bubble: #eef2ff;
+  --ai-bubble-ink: #1b2a66;
+  --wave-me: #3a3e39;
+  --wave-ai: #2f5bff;
+  /* Figures use the body system stack with tabular numerals. JetBrains Mono remains
+     for column-aligned order books, quote boards and order/fill detail tables. */
+  --font-num: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", "Roboto Mono", ui-monospace, Menlo, Consolas, monospace;
+  /* Motion: short, decelerating; everything collapses to none under reduced motion. */
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+  --ease-standard: cubic-bezier(.2, 0, 0, 1);
+  --dur-1: 120ms;
+  --dur-2: 200ms;
+  --dur-3: 320ms;
+  /* Gap between rows that enter one after another (a card's field rows). */
+  --stagger: 40ms;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --radius-control: 6px;
+  --radius-card: 10px;
+  --font-xs: 11px;
+  --font-sm: 12px;
+  --font-md: 13px;
+  --font-lg: 15px;
+  --font-xl: 18px;
+  --font-2xl: 24px;
+  --fdw-font-micro: var(--font-xs);
+  --fdw-font-secondary: var(--font-sm);
+  --fdw-font-body: var(--font-md);
+  --fdw-font-nav: var(--font-lg);
+  --fdw-font-title: var(--font-xl);
+  --fdw-font-price: var(--font-2xl);
+  --fdw-font-drawer-title: var(--font-lg);
+  --ui-font-label: var(--font-sm);
+  --ui-font-value: var(--font-lg);
+
+  /* Existing workspace and conversation names remain compatible aliases. */
+  --bg: var(--fdw-app-bg);
+  --panel: var(--fdw-surface);
+  --card: var(--panel);
+  --ink: var(--fdw-text);
+  --muted: var(--fdw-muted);
+  --line: var(--fdw-line);
+  --soft: var(--fdw-surface-raised);
+  --surface-soft: var(--soft);
+  --surface-subtle: var(--soft);
+  --surface-hover: var(--fdw-surface-hover);
+  --accent: var(--fdw-accent);
+  /* UI scale: density changes only these spacing values; component aliases inherit them. */
+  --space-0: 2px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --radius-sm: 4px;
+  --radius-pill: 999px;
+  --shadow-1: 0 1px 3px color-mix(in srgb, var(--shadow-color) 9%, transparent);
+  --shadow-2: 0 1px 2px color-mix(in srgb, var(--shadow-color) 6%, transparent), 0 12px 32px color-mix(in srgb, var(--shadow-color) 12%, transparent);
+  --shadow-3: 0 24px 64px color-mix(in srgb, var(--shadow-color) 24%, transparent);
+  /* AI illustration palette and art glows: paired in both themes; the mark retains its own colors. */
+  --avatar-green: #3ddc97;
+  --avatar-blue: #5b8def;
+  --avatar-cyan: #22d3ee;
+  --avatar-ink: #fff;
+  --avatar-listening: #2fbf83;
+  --avatar-error: #e0525e;
+  --avatar-error-deep: #b3262e;
+  --avatar-offline-bg: #1b2230;
+  --avatar-offline-line: #2a3342;
+  --avatar-offline-ink: #6b7686;
+  --avatar-eyes-bg: #1b2644;
+  --avatar-eyes-deep: #0b1020;
+  --avatar-eyes-ink: #eaf3ff;
+  --avatar-eyes-blue: #7ea6ff;
+  --avatar-error-ink: #ff8a95;
+  --avatar-eyes-busy-bg: #16304a;
+  --avatar-eyes-listening-bg: #123326;
+  --avatar-eyes-listening-ink: #eafff4;
+  --avatar-eyes-error-bg: #3a1a20;
+  --avatar-eyes-error-deep: #120a0d;
+  --avatar-pixel-offline-bg: #151a22;
+  --avatar-horn: #f5c451;
+  --avatar-muzzle: #bcd4ff;
+  --avatar-nose: #3a5bd9;
+  --avatar-pixel-ink: #07090d;
+  --avatar-alert: #ff6b78;
+  --avatar-busy-face: #22b8d8;
+  --avatar-busy-muzzle: #bff4ff;
+  --avatar-busy-nose: #0e7490;
+  --avatar-listening-muzzle: #c4ffe0;
+  --avatar-listening-nose: #11875a;
+  --avatar-error-muzzle: #ffd0d0;
+  --avatar-error-nose: #8f1d27;
+  --avatar-offline-face: #3a4452;
+  --avatar-offline-light: #8391a3;
+  --avatar-eye-glow: #7ec8ff;
+  --avatar-pixel-shadow: #2850c8;
+  --avatar-glow-kline-idle: 0 0 0 1px color-mix(in srgb, var(--avatar-eyes-blue) 35%, transparent), 0 8px 22px color-mix(in srgb, var(--avatar-blue) 35%, transparent);
+  --avatar-glow-kline-busy: 0 0 0 1px color-mix(in srgb, var(--avatar-cyan) 60%, transparent), 0 0 26px color-mix(in srgb, var(--avatar-cyan) 55%, transparent);
+  --avatar-glow-kline-listening: 0 0 0 1px color-mix(in srgb, var(--avatar-green) 60%, transparent), 0 0 22px color-mix(in srgb, var(--avatar-green) 45%, transparent);
+  --avatar-glow-kline-error: 0 0 0 1px color-mix(in srgb, var(--avatar-alert) 60%, transparent), 0 0 18px color-mix(in srgb, var(--avatar-alert) 35%, transparent);
+  --avatar-glow-kline-offline: 0 0 0 1px var(--avatar-offline-line);
+  --avatar-glow-eyes-idle: 0 0 0 1px color-mix(in srgb, var(--avatar-eyes-blue) 40%, transparent), 0 0 16px color-mix(in srgb, var(--avatar-blue) 30%, transparent);
+  --avatar-glow-eyes-lamp: 0 0 10px color-mix(in srgb, var(--avatar-eye-glow) 90%, transparent);
+  --avatar-glow-eyes-busy: 0 0 0 1px color-mix(in srgb, var(--avatar-cyan) 55%, transparent), 0 0 22px color-mix(in srgb, var(--avatar-cyan) 40%, transparent);
+  --avatar-glow-eyes-busy-lamp: 0 0 10px color-mix(in srgb, var(--avatar-cyan) 90%, transparent);
+  --avatar-glow-eyes-listening: 0 0 0 1px color-mix(in srgb, var(--avatar-green) 60%, transparent);
+  --avatar-glow-eyes-listening-lamp: 0 0 10px color-mix(in srgb, var(--avatar-green) 90%, transparent);
+  --avatar-glow-eyes-error: 0 0 0 1px color-mix(in srgb, var(--avatar-alert) 65%, transparent), 0 0 16px color-mix(in srgb, var(--avatar-alert) 35%, transparent);
+  --avatar-glow-eyes-offline: 0 0 0 1px var(--avatar-offline-line);
+}
+html[data-app-theme="dark"] {
+  color-scheme: dark;
+  --fdw-app-bg: #060708;
+  --fdw-surface: #0b0d10;
+  --fdw-surface-raised: #11141a;
+  --fdw-surface-hover: #181c23;
+  --fdw-line: #1a1d22;
+  --fdw-text: #eceee8;
+  --fdw-muted: #9a9f98;
+  --fdw-faint: #838882;
+  --fdw-accent: #8ea8ff;
+  --line-strong: #2a2f37;
+  --accent-soft: #141c33;
+  --primary-bg: #3866f8;
+  --on-primary: #ffffff;
+  --positive: #22c47a;
+  --positive-soft: #0e241a;
+  --warning: #f2b84b;
+  --warning-soft: #2e2413;
+  --danger: #ff8a8a;
+  --danger-soft: #331b1d;
+  --price-alert: #a78bfa;
+  --price-alert-soft: #251b3f;
+  --protection-stop: #fb923c;
+  --protection-take: #67e8f9;
+  --chart-average: #f2c94c;
+  --user-drawing: #e879f9;
+  --user-drawing-soft: #33143a;
+  --draw-amber: #f2b84b;
+  --draw-red: #ff6b5e;
+  --draw-green: #34d399;
+  --draw-blue: #8ea8ff;
+  --tag-plan: #22c47a;
+  --tag-plan-soft: #0e241a;
+  --tag-remind: #f47fb0;
+  --tag-remind-soft: #33141f;
+  --tag-adhoc: #f2b84b;
+  --tag-adhoc-soft: #2e2413;
+  --market-up: #ff4a3d;
+  --market-up-soft: #2a1412;
+  --market-down: #22c47a;
+  --market-down-soft: #0e241a;
+  --call-start-bg: #2ed573;
+  --on-call-start: #052a14;
+  --call-end-bg: #ff7a7a;
+  --on-call-end: #3a0e0e;
+  --overlay: rgba(2, 4, 8, .6);
+  --mask: rgba(0, 0, 0, .82);
+  --on-mask: #ffffff;
+  --shadow-color: #000000;
+  --shadow: var(--shadow-2);
+  --brand-mark-bg: #0b0d10;
+  --brand-mark-line: #23272e;
+  --brand-mark-ink: #eceee8;
+  --brand-mark-dot: #3d6bff;
+  --brand-a: #3d6bff;
+  --brand-b: #8ea8ff;
+  --me-bubble: #1a1d22;
+  --ai-bubble: #121a33;
+  --ai-bubble-ink: #dbe3ff;
+  --wave-me: #eceee8;
+  --wave-ai: #8ea8ff;
+  --glow: 0 0 0 1px color-mix(in srgb, var(--brand-a) 45%, transparent), 0 0 24px color-mix(in srgb, var(--brand-a) 30%, transparent);
+  --shadow-1: 0 1px 3px color-mix(in srgb, var(--shadow-color) 30%, transparent);
+  --shadow-2: 0 1px 0 color-mix(in srgb, var(--on-primary) 4%, transparent) inset, 0 16px 40px color-mix(in srgb, var(--shadow-color) 55%, transparent);
+  --shadow-3: 0 24px 64px color-mix(in srgb, var(--shadow-color) 65%, transparent);
+  --avatar-green: #3ddc97;
+  --avatar-blue: #5b8def;
+  --avatar-cyan: #22d3ee;
+  --avatar-ink: #fff;
+  --avatar-listening: #2fbf83;
+  --avatar-error: #e0525e;
+  --avatar-error-deep: #b3262e;
+  --avatar-offline-bg: #1b2230;
+  --avatar-offline-line: #2a3342;
+  --avatar-offline-ink: #6b7686;
+  --avatar-eyes-bg: #1b2644;
+  --avatar-eyes-deep: #0b1020;
+  --avatar-eyes-ink: #eaf3ff;
+  --avatar-eyes-blue: #7ea6ff;
+  --avatar-error-ink: #ff8a95;
+  --avatar-eyes-busy-bg: #16304a;
+  --avatar-eyes-listening-bg: #123326;
+  --avatar-eyes-listening-ink: #eafff4;
+  --avatar-eyes-error-bg: #3a1a20;
+  --avatar-eyes-error-deep: #120a0d;
+  --avatar-pixel-offline-bg: #151a22;
+  --avatar-horn: #f5c451;
+  --avatar-muzzle: #bcd4ff;
+  --avatar-nose: #3a5bd9;
+  --avatar-pixel-ink: #07090d;
+  --avatar-alert: #ff6b78;
+  --avatar-busy-face: #22b8d8;
+  --avatar-busy-muzzle: #bff4ff;
+  --avatar-busy-nose: #0e7490;
+  --avatar-listening-muzzle: #c4ffe0;
+  --avatar-listening-nose: #11875a;
+  --avatar-error-muzzle: #ffd0d0;
+  --avatar-error-nose: #8f1d27;
+  --avatar-offline-face: #3a4452;
+  --avatar-offline-light: #8391a3;
+  --avatar-eye-glow: #7ec8ff;
+  --avatar-pixel-shadow: #2850c8;
+  --avatar-glow-kline-idle: 0 0 0 1px color-mix(in srgb, var(--avatar-eyes-blue) 35%, transparent), 0 8px 22px color-mix(in srgb, var(--avatar-blue) 35%, transparent);
+  --avatar-glow-kline-busy: 0 0 0 1px color-mix(in srgb, var(--avatar-cyan) 60%, transparent), 0 0 26px color-mix(in srgb, var(--avatar-cyan) 55%, transparent);
+  --avatar-glow-kline-listening: 0 0 0 1px color-mix(in srgb, var(--avatar-green) 60%, transparent), 0 0 22px color-mix(in srgb, var(--avatar-green) 45%, transparent);
+  --avatar-glow-kline-error: 0 0 0 1px color-mix(in srgb, var(--avatar-alert) 60%, transparent), 0 0 18px color-mix(in srgb, var(--avatar-alert) 35%, transparent);
+  --avatar-glow-kline-offline: 0 0 0 1px var(--avatar-offline-line);
+  --avatar-glow-eyes-idle: 0 0 0 1px color-mix(in srgb, var(--avatar-eyes-blue) 40%, transparent), 0 0 16px color-mix(in srgb, var(--avatar-blue) 30%, transparent);
+  --avatar-glow-eyes-lamp: 0 0 10px color-mix(in srgb, var(--avatar-eye-glow) 90%, transparent);
+  --avatar-glow-eyes-busy: 0 0 0 1px color-mix(in srgb, var(--avatar-cyan) 55%, transparent), 0 0 22px color-mix(in srgb, var(--avatar-cyan) 40%, transparent);
+  --avatar-glow-eyes-busy-lamp: 0 0 10px color-mix(in srgb, var(--avatar-cyan) 90%, transparent);
+  --avatar-glow-eyes-listening: 0 0 0 1px color-mix(in srgb, var(--avatar-green) 60%, transparent);
+  --avatar-glow-eyes-listening-lamp: 0 0 10px color-mix(in srgb, var(--avatar-green) 90%, transparent);
+  --avatar-glow-eyes-error: 0 0 0 1px color-mix(in srgb, var(--avatar-alert) 65%, transparent), 0 0 16px color-mix(in srgb, var(--avatar-alert) 35%, transparent);
+  --avatar-glow-eyes-offline: 0 0 0 1px var(--avatar-offline-line);
+}
+html[data-app-theme="light"] { color-scheme: light; }
+/* 设置 → 图表 → 涨跌颜色 intl: rising is green, falling is red (swaps the pairs in both themes). */
+html[data-updown="intl"] { --market-up: #0a7a49; --market-up-soft: #e6f5ec; --market-down: #cf291e; --market-down-soft: #fdf0ee; }
+html[data-updown="intl"][data-app-theme="dark"] { --market-up: #22c47a; --market-up-soft: #0e241a; --market-down: #ff4a3d; --market-down-soft: #2a1412; }
+html[data-app-theme] body { color: var(--ink); background: var(--bg); }
+html[data-interface-density="compact"] {
+  --space-0: 2px;
+  --space-1: 4px;
+  --space-2: 6px;
+  --space-3: 10px;
+  --space-4: 12px;
+  --space-5: 20px;
+  --space-6: 28px; }
+html[data-interface-density="comfortable"] {
+  --space-0: 2px;
+  --space-1: 4px;
+  --space-2: 10px;
+  --space-3: 14px;
+  --space-4: 20px;
+  --space-5: 28px;
+  --space-6: 36px; }
+html[data-font-scale="large"] { --font-xs: 12px; --font-sm: 13px; --font-md: 14px; --font-lg: 16px; --font-xl: 19px; --font-2xl: 25px; }
+html[data-font-scale="extra-large"] { --font-xs: 13px; --font-sm: 14px; --font-md: 15px; --font-lg: 17px; --font-xl: 20px; --font-2xl: 27px; }
+@media (prefers-reduced-motion: reduce) { :root { --dur-1: 0ms; --dur-2: 0ms; --dur-3: 0ms; --stagger: 0ms; } }
+/* Motion vocabulary: price changes, one-shot fills, panel entry/exit and AI thinking.
+   The second price name intentionally restarts consecutive ticks without changing DOM or handlers. */
+@keyframes ui-price-change { from { background-color: var(--price-flash-bg); } to { background-color: transparent; } }
+@keyframes ui-price-change-repeat { from { background-color: var(--price-flash-bg); } to { background-color: transparent; } }
+@keyframes ui-panel-in { from { opacity: 0; transform: var(--enter-transform, translateY(8px)); } to { opacity: 1; transform: var(--rest-transform, none); } }
+@keyframes ui-fill-arrival { from { background-color: var(--accent-soft); opacity: .65; } to { background-color: transparent; opacity: 1; } }
+@keyframes ui-ai-thinking { 50% { opacity: .4; } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

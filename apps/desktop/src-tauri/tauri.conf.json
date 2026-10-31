@@ -1,0 +1,72 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "AI Trader",
+  "version": "1.8.1",
+  "identifier": "com.kingcharles.ai-trader",
+  "build": {
+    "beforeDevCommand": "npm --workspace @ai-trader/client run dev -- --host 127.0.0.1",
+    "devUrl": "http://127.0.0.1:5173",
+    "beforeBuildCommand": "npm --workspace @ai-trader/client run build",
+    "frontendDist": "../../client/dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Sente",
+        "width": 1440,
+        "height": 960,
+        "minWidth": 360,
+        "minHeight": 640,
+        "resizable": true,
+        "fullscreen": false,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "backgroundThrottling": "disabled"
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost http://127.0.0.1:* ws://127.0.0.1:* https: wss:; script-src 'self' 'wasm-unsafe-eval' https://qilinshuzhi.com; worker-src 'self'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "createUpdaterArtifacts": false,
+    "targets": ["app", "dmg"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "externalBin": [
+      "binaries/ai-trader-runtime"
+    ],
+    "resources": {
+      "../../../workspace/pytest.ini": "workspace/pytest.ini",
+      "../../../workspace/strategies/__init__.py": "workspace/strategies/__init__.py",
+      "../../../workspace/strategies/README.md": "workspace/strategies/README.md",
+      "../../../workspace/strategies/rb_trend.py": "workspace/strategies/rb_trend.py",
+      "../../../workspace/tests/README.md": "workspace/tests/README.md",
+      "../../../workspace/tests/test_rb_trend.py": "workspace/tests/test_rb_trend.py",
+      "../../../workspace/backtests/README.md": "workspace/backtests/README.md",
+      "../../../workspace/backtests/fixtures/rb_monthly_v1.csv": "workspace/backtests/fixtures/rb_monthly_v1.csv",
+      "../../../skills/ai-trader/SKILL.md": "agent-skills/ai-trader/SKILL.md"
+    },
+    "category": "Finance",
+    "shortDescription": "Sente · AI 私人交易助理",
+    "longDescription": "本地 TqKq 模拟期货行情、研究、回测、手动交易与有边界的 AI 自动模拟交易客户端。实盘交易始终关闭；AI 模拟操作由 Runtime 重新校验行情、账户、持仓和风险规则。",
+    "macOS": {
+      "entitlements": "Entitlements.plist",
+      "signingIdentity": "-"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDM5RjczODgxQjcyQjVDMUYKUldRZlhDdTNnVGozT1IzWitudUNZdkxtczdVOSs3WENiUTBPd29IdVVTeUNqU0tNeElyb3EveloK",
+      "endpoints": [
+        "https://qilinshuzhi.com/ai-trader-updates/latest.json"
+      ]
+    }
+  }
+}

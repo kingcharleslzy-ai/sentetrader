@@ -1,0 +1,48 @@
+/* 我的流程 (2026-10-06): the 流程卡 (numbered steps with their type chips) and the 进度卡 (one tick per
+   step). Colors only from theme.css's paired tokens; rt-* class names so nothing reaches shared controls. */
+
+.rt-steps, .rt-progress { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.rt-steps > li, .rt-progress > li {
+  display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: var(--space-2); align-items: start;
+  padding: var(--space-1) 0; font-size: var(--font-md); line-height: 1.5; color: var(--ink);
+}
+.rt-steps > li + li, .rt-progress > li + li { border-top: 1px solid var(--line); }
+.rt-text { min-width: 0; overflow-wrap: anywhere; }
+.rt-text > small { display: block; color: var(--muted); font-size: var(--font-sm); line-height: 1.45; }
+
+/* Step number (流程卡) and state tick (进度卡): a 18px disc, the step's state in its color. */
+.rt-n, .rt-tick {
+  display: grid; place-items: center; width: 18px; height: 18px; margin-top: var(--space-0); border-radius: 50%;
+  font-size: var(--font-md); font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums;
+}
+.rt-n { color: var(--on-primary); background: var(--primary-bg); }
+.rt-tick { color: var(--muted); background: var(--soft); border: 1px solid var(--line); }
+.rt-progress > li[data-status="done"] .rt-tick { color: var(--on-primary); background: var(--positive); border-color: transparent; }
+.rt-progress > li[data-status="confirm"] .rt-tick { color: var(--on-primary); background: var(--primary-bg); border-color: transparent; }
+.rt-progress > li[data-status="failed"] .rt-tick { color: var(--on-primary); background: var(--danger); border-color: transparent; }
+.rt-progress > li[data-status="active"] .rt-tick { border-color: var(--accent); border-top-color: transparent; animation: none; }
+.rt-progress > li[data-status="skipped"], .rt-progress > li[data-status="waiting"] { color: var(--muted); }
+.rt-progress small.rt-confirm { color: var(--accent); font-weight: 600; }
+.rt-progress small.rt-fail { color: var(--danger); font-weight: 600; }
+@media (prefers-reduced-motion: reduce) { .rt-progress > li[data-status="active"] .rt-tick { animation: none; border-top-color: var(--accent); } }
+
+/* Step type chip; 出卡 is the accent one (it only makes a card the user confirms). */
+.rt-kind {
+  display: inline-flex; margin-left: var(--space-1); padding: 0 var(--space-1); border-radius: var(--radius-sm); vertical-align: 1px;
+  color: var(--muted); background: var(--soft); font-size: var(--font-md); line-height: 1.6; white-space: nowrap;
+}
+.rt-kind[data-kind="card"] { color: var(--accent); background: var(--accent-soft); }
+/* 只给建议 / 需要时执行: an outlined note beside the type chip (the step's words decide whether it writes). */
+.rt-manner {
+  display: inline-flex; margin-left: var(--space-1); padding: 0 var(--space-1); border-radius: var(--radius-sm); vertical-align: 1px; outline: 1px solid var(--line); outline-offset: -1px;
+  color: var(--muted); font-size: var(--font-md); line-height: 1.6; white-space: nowrap;
+}
+.rt-manner[data-manner="conditional"] { color: var(--accent); }
+
+.rt-refusal {
+  margin: 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-control);
+  color: var(--danger); background: var(--danger-soft); font-size: var(--font-md); line-height: 1.55; overflow-wrap: anywhere;
+}
+.rt-error { margin: 0; color: var(--danger); font-size: var(--font-md); }
+.rt-card .card-actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.rt-card .card-actions > .card-outcome { grid-column: 1 / -1; }

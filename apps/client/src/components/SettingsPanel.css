@@ -1,0 +1,169 @@
+/* Settings drawer (设置重做 step 1): one scroll region, section cards, fixed row layout and five controls.
+   Colors come from theme.css semantic pairs only; spacing from the 4/8/12/16 tokens. */
+.app-settings-dialog {
+  position: fixed;
+  inset: 0 0 0 auto;
+  width: min(760px, 100vw);
+  max-width: 100vw;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--line);
+  color: var(--ink);
+  background: var(--panel);
+  box-shadow: var(--shadow-3);
+  font-size: var(--font-md);
+}
+.app-settings-dialog[open] { animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; --enter-transform: translateX(12px); }
+.app-settings-dialog[open]::backdrop { animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; --enter-transform: none; }
+.app-settings-dialog::backdrop { background: var(--overlay); }
+.app-settings-frame { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.app-settings-header { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--line); }
+.app-settings-header h2 { flex: 1; margin: 0; font-size: var(--font-lg); }
+.app-settings-dialog button { cursor: pointer; font: inherit; }
+.app-settings-dialog button:disabled { cursor: not-allowed; opacity: .55; }
+.app-settings-dialog :where(button, select, input):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.app-settings-header button { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 1px solid var(--line); border-radius: var(--radius-control); color: var(--muted); background: var(--panel); }
+.app-settings-header svg { width: 16px; height: 16px; }
+
+/* Secondary nav: grouped categories on the left, the page on the right; narrow panels put it on top. */
+.app-settings-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 184px minmax(0, 1fr); }
+.app-settings-nav { display: flex; flex-direction: column; gap: var(--space-3); min-height: 0; overflow-y: auto; padding: var(--space-3) var(--space-2); border-right: 1px solid var(--line); background: color-mix(in srgb, var(--bg) 60%, var(--panel)); }
+.app-settings-nav-group { display: flex; flex-direction: column; gap: var(--space-0); }
+.app-settings-nav-group > span { padding: 0 var(--space-2) var(--space-1); color: var(--fdw-faint, var(--muted)); font-size: var(--font-md); }
+.app-settings-nav button { position: relative; display: flex; align-items: center; gap: var(--space-2); min-height: 34px; padding: 0 var(--space-3); border: 0; border-radius: var(--radius-control); color: var(--muted); background: transparent; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.app-settings-nav button svg { width: 15px; height: 15px; flex: 0 0 auto; }
+.app-settings-nav button:hover:not([aria-pressed="true"]) { color: var(--ink); background: var(--surface-hover); }
+.app-settings-nav button[aria-pressed="true"] { color: var(--ink); background: var(--accent-soft); font-weight: 600; }
+.app-settings-nav button[aria-pressed="true"] svg { color: var(--accent); }
+.app-settings-nav button[aria-pressed="true"]::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 2px; border-radius: var(--radius-sm); background: var(--brand-gradient); }
+.app-settings-nav button[data-blocked] { opacity: .5; }
+.app-settings-content { min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; display: grid; align-content: start; gap: var(--space-3); padding: var(--space-4) var(--space-4) var(--space-4) calc(var(--space-4) + var(--space-1)); animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; }
+.app-settings-page-title { margin: 0; font-size: var(--font-xl); font-weight: 600; }
+/* A second-level page's back link sits above the title and points at its parent. */
+.app-settings-back { justify-self: start; margin: calc(-1 * var(--space-1)) 0 calc(-1 * var(--space-2)); padding: var(--space-0) var(--space-1); border: 0; color: var(--muted); background: transparent; }
+.app-settings-back:hover { color: var(--ink); }
+
+/* Section card. */
+.app-settings-section { padding: var(--space-3) var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--soft); }
+.app-segmented button, .app-settings-nav button { transition: background-color var(--dur-1) var(--ease-standard), color var(--dur-1) var(--ease-standard); }
+@media (prefers-reduced-motion: reduce) { .app-settings-dialog[open], .app-settings-dialog[open]::backdrop, .app-settings-content { animation: none; } }
+.app-settings-section-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); margin: 0 0 var(--space-2); color: var(--muted); font-size: var(--font-md); }
+.app-settings-section h3 { margin: 0; color: var(--muted); font-size: var(--font-md); font-weight: 600; }
+.app-settings-section-head small { margin-left: var(--space-1); font-weight: 400; }
+.app-settings-rows { display: grid; }
+
+/* Row: label (+ hint) left, one control right. */
+.app-setting-row { display: grid; grid-template-columns: minmax(96px, 40%) minmax(0, 1fr); align-items: center; gap: var(--space-3); min-height: 44px; padding-block: var(--space-2); border-top: 1px solid var(--line); }
+.app-setting-row:first-child { border-top: 0; }
+.app-setting-label { display: grid; gap: var(--space-0); min-width: 0; color: var(--ink); }
+.app-setting-name { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); min-width: 0; }
+.app-setting-label small { color: var(--muted); font-size: var(--font-sm); line-height: 1.4; overflow-wrap: anywhere; }
+.app-setting-value { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: var(--space-2); min-width: 0; text-align: right; }
+.app-setting-value strong { min-width: 0; overflow-wrap: anywhere; font-weight: 500; }
+.app-setting-status { color: var(--muted); font-size: var(--font-sm); overflow-wrap: anywhere; }
+.app-setting-value > .desktop-update-progress { flex-basis: 100%; }
+
+/* SettingsLink: a SettingRow-shaped jump into a second-level detail page. */
+.app-setting-link { position: relative; display: grid; grid-template-columns: minmax(96px, 40%) minmax(0, 1fr); align-items: center; gap: var(--space-3); min-height: 44px; padding: var(--space-2) var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--soft); color: var(--ink); text-align: left; }
+.app-setting-link:hover { background: var(--surface-hover); }
+/* The open button stretches over the whole row; the "?" stays above it. */
+.app-setting-link-open { display: flex; justify-content: flex-end; padding: 0; border: 0; color: var(--muted); background: transparent; }
+.app-setting-link-open::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
+.app-setting-link-open svg { width: 16px; height: 16px; }
+.app-setting-link-open:focus-visible { outline: none; }
+.app-setting-link-open:focus-visible::after { outline: 2px solid var(--accent); outline-offset: 2px; }
+.app-setting-link .help-tip { z-index: 1; }
+@container settings (max-width: 480px) { .app-setting-link { grid-template-columns: minmax(0, 1fr); gap: var(--space-1); } }
+
+/* Button (action) — status text sits beside it. */
+/* Buttons size to their text: no ellipsis, ever; a long label wraps the row instead. */
+.app-button { min-height: 32px; padding: var(--space-1) var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--panel); color: var(--ink); white-space: nowrap; flex-shrink: 0; }
+/* A primary button keeps its fill on hover (the pointer resting on 运行 after a tap used to grey it out). */
+.app-button:not(.primary):hover:not(:disabled) { background: var(--surface-hover); }
+.app-button.primary { border-color: transparent; background: var(--primary-bg); color: var(--on-primary); }
+/* A destructive app-button (删除 / 急停 / 清空 / 放弃): the shared danger pair. */
+.app-button.danger { border-color: color-mix(in srgb, var(--danger) 45%, transparent); color: var(--danger); background: var(--danger-soft); font-weight: 600; }
+.app-button.danger:hover:not(:disabled) { border-color: var(--danger); background: var(--danger-soft); }
+/* A button that folds rows open under it (设置 → 账户 → 档位): its text, then a chevron that turns. */
+.app-disclosure-button { display: inline-flex; align-items: center; gap: var(--space-1); }
+.app-disclosure-button svg { width: 14px; height: 14px; color: var(--muted); transition: transform var(--dur-1); }
+.app-disclosure-button[aria-expanded="true"] svg { transform: rotate(180deg); }
+
+/* Switch. */
+.app-switch-wrap { display: inline-flex; align-items: center; gap: var(--space-2); }
+.app-switch { position: relative; width: 40px; height: 24px; padding: 0; border: 1px solid var(--line-strong, var(--line)); border-radius: var(--radius-pill); background: var(--panel); transition: background var(--dur-1), border-color var(--dur-1); }
+.app-switch i { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: var(--muted); transition: transform var(--dur-1), background var(--dur-1); }
+.app-switch[aria-checked="true"] { border-color: transparent; background: var(--primary-bg); }
+.app-switch[aria-checked="true"] i { transform: translateX(16px); background: var(--on-primary); }
+.app-switch-state { color: var(--muted); font-size: var(--font-md); }
+
+/* Segmented (≤4 exclusive options). */
+.app-segmented { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--space-1); width: 100%; max-width: 320px; padding: var(--space-0); border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--panel); }
+.app-segmented button { min-height: 28px; padding: var(--space-1) var(--space-1); border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.app-segmented button[aria-checked="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+
+/* Select (>4 options). */
+.app-select { min-height: 32px; max-width: 100%; padding: var(--space-1) var(--space-2); border: 1px solid var(--line-strong, var(--line)); border-radius: var(--radius-control); color: var(--ink); background: var(--panel); }
+
+/* Text input (single-line value, e.g. a tier display name). */
+.app-text-input { min-height: 32px; width: 100%; max-width: 220px; padding: var(--space-1) var(--space-2); border: 1px solid var(--line-strong, var(--line)); border-radius: var(--radius-control); color: var(--ink); background: var(--panel); font: inherit; }
+
+/* Stepper (number with unit and range). */
+.app-stepper { display: inline-flex; align-items: center; gap: var(--space-1); }
+.app-stepper button { width: 32px; min-height: 32px; padding: 0; border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--panel); color: var(--ink); font-size: var(--font-lg); line-height: 1; }
+.app-stepper input { width: 88px; min-height: 32px; padding: var(--space-1) var(--space-2); border: 1px solid var(--line-strong, var(--line)); border-radius: var(--radius-control); color: var(--ink); background: var(--panel); text-align: right; font: inherit; font-variant-numeric: tabular-nums; -moz-appearance: textfield; appearance: textfield; }
+.app-stepper input::-webkit-outer-spin-button, .app-stepper input::-webkit-inner-spin-button { appearance: none; margin: 0; }
+.app-stepper-unit { color: var(--muted); font-size: var(--font-sm); white-space: nowrap; }
+
+.app-settings-dialog kbd { padding: var(--space-0) var(--space-1); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: var(--radius-sm); color: var(--ink); background: var(--panel); font: inherit; font-size: var(--font-md); }
+
+/* The fee editor (交易 → 费率) keeps its own form; give it the card's rhythm. */
+.app-settings-section .strategy-fees { margin: 0; }
+
+@container settings (max-width: 640px) {
+  .app-settings-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .app-settings-nav { flex-direction: row; gap: var(--space-1); overflow-x: auto; overflow-y: hidden; padding: var(--space-2) var(--space-3); border-right: 0; border-bottom: 1px solid var(--line); }
+  .app-settings-nav-group { flex-direction: row; }
+  .app-settings-nav-group > span { display: none; }
+  .app-settings-nav button[aria-pressed="true"]::before { left: 10px; right: 10px; top: auto; bottom: 0; width: auto; height: 2px; }
+}
+@container settings (max-width: 480px) {
+  .app-settings-header { padding-inline: var(--space-3); }
+  .app-settings-content { padding-inline: var(--space-3); }
+  .app-settings-section { padding-inline: var(--space-3); }
+  .app-setting-row { grid-template-columns: minmax(0, 1fr); gap: var(--space-1); }
+  .app-setting-value { justify-content: flex-start; text-align: left; }
+  .app-segmented { max-width: none; }
+}
+
+/* 设置 → 界面 → AI 形象: three figure cards; the chosen one animates, the others rest. */
+.ai-avatar-picker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); padding-block: var(--space-2); }
+.ai-avatar-picker button { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-2); border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--panel); color: var(--muted); }
+.ai-avatar-picker button:hover { border-color: var(--line-strong); color: var(--ink); }
+.ai-avatar-picker button[aria-checked="false"] .ai-avatar * { animation-play-state: paused !important; }
+.ai-avatar-picker button[aria-checked="true"] { border-color: color-mix(in srgb, var(--accent) 60%, transparent); background: var(--accent-soft); color: var(--ink); font-weight: 600; box-shadow: var(--shadow-2); }
+
+/* 设置 → 账户 交易账户切换器: the select plus its inline switch error, wrapping together. */
+.fdw-account-select { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; min-width: 0; max-width: 100%; }
+.fdw-account-select select { max-width: 240px; }
+
+/* 保本提醒的阈值 (2026-10-06): 倍数 / 金额 and its number on one line, wrapping at narrow widths. */
+/* 设置 → 提醒 (2026-10-15): AI 简讯's 订阅品种 link beside its switch, and 急停's locked line. */
+.app-setting-link-inline { display: inline-flex; align-items: center; gap: var(--space-0); min-width: 0; min-height: 32px; padding: 0 var(--space-1); border: 0; border-radius: var(--radius-control);
+  color: var(--muted); background: transparent; overflow-wrap: anywhere; text-align: right; cursor: pointer; }
+.app-setting-link-inline:hover { color: var(--ink); background: var(--surface-hover); }
+.app-setting-link-inline svg { flex: none; width: 14px; height: 14px; }
+.app-setting-locked { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--ink); }
+.app-setting-locked svg { width: 14px; height: 14px; color: var(--muted); }
+.app-setting-name > .rc-tag-icon { flex: none; }
+.app-settings-dialog {
+  container-type: inline-size;
+  container-name: settings;
+}
+.app-settings-content {
+  container-type: inline-size;
+  container-name: settings-content;
+}

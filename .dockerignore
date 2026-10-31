@@ -1,0 +1,11 @@
+.git
+.runtime
+.pytest_cache
+**/.venv
+**/__pycache__
+**/target
+**/dist
+**/test-results
+apps/desktop/src-tauri/binaries
+node_modules
+playwright-report

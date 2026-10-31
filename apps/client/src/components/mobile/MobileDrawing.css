@@ -1,0 +1,83 @@
+/* 手机画线 (2026-10-09, 样稿 ④ 第 1 屏): the ✎ tool sheet, the bar under the chart and the loupe. Paired theme tokens
+   only; 44 px touch targets; everything wraps at 375 px and large type. */
+.fdm-periods-row > .fdm-icon-button[data-active="true"] { color: var(--accent); border-color: var(--accent); }
+/* ✎ joins ⚙ on the period row: both icons and the five periods still fit 375–390 px at large type. */
+.fdm-periods-row:has(> .fdm-icon-button + .fdm-icon-button) { gap: var(--space-1); }
+.fdm-periods-row:has(> .fdm-icon-button + .fdm-icon-button) > .fdm-icon-button { width: 38px; }
+.fdm-periods-row:has(> .fdm-icon-button + .fdm-icon-button) > .fdm-periods { gap: var(--space-1); }
+.fdm-periods-row:has(> .fdm-icon-button + .fdm-icon-button) > .fdm-periods > button { padding: 0 var(--space-2); }
+
+.fdm-draw-sheet .fdm-sheet-body { display: grid; gap: var(--space-3); padding: 0 var(--space-4) var(--space-4); }
+.fdm-draw-group { display: grid; gap: var(--space-2); scroll-margin-top: var(--space-2); }
+.fdm-draw-group h4 { margin: 0; color: var(--muted); font-size: var(--font-md); font-weight: 600; }
+.fdm-draw-tools { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2); }
+.fdm-draw-tools > button,
+.fdm-draw-switches > button {
+  min-width: 0; min-height: 52px; display: grid; justify-items: center; align-content: center; gap: var(--space-0); padding: var(--space-1);
+  border: 1px solid var(--line); border-radius: var(--radius-control); color: var(--ink); background: transparent;
+  font-size: var(--font-md); overflow-wrap: anywhere; -webkit-tap-highlight-color: transparent;
+}
+.fdm-draw-tools > button svg, .fdm-draw-switches > button svg { width: 18px; height: 18px; }
+.fdm-draw-tools > button[aria-pressed="true"],
+.fdm-draw-switches > button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+.fdm-draw-switches { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
+.fdm-draw-stop, .fdm-draw-clear { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1); }
+.fdm-draw-clear svg { width: 16px; height: 16px; }
+.fdm-draw-confirm { display: grid; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--danger); border-radius: var(--radius-card); background: var(--danger-soft); }
+.fdm-draw-confirm p { margin: 0; color: var(--ink); }
+.fdm-draw-confirm > div { display: flex; justify-content: flex-end; gap: var(--space-2); }
+.fdm-draw-confirm .app-button { min-height: 44px; }
+
+/* The bar right under the chart; it stays on screen while the page scrolls. */
+.fdm-draw-bar {
+  position: sticky; bottom: 0; z-index: 4; display: grid; gap: var(--space-2); padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line-strong); border-radius: var(--radius-card); background: var(--panel); box-shadow: var(--shadow-2);
+}
+.fdm-draw-bar-head { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); min-width: 0; }
+.fdm-draw-bar-title { flex: 1 1 140px; min-width: 0; display: grid; gap: var(--space-0); }
+.fdm-draw-bar-title b { color: var(--ink); font-size: var(--font-md); }
+.fdm-draw-bar-title small { color: var(--muted); font-size: var(--font-sm); overflow-wrap: anywhere; }
+.fdm-draw-bar .app-button { min-height: 44px; padding: 0 var(--space-3); display: inline-grid; place-items: center; font-size: var(--font-md); }
+.fdm-draw-bar .app-button:disabled { opacity: .45; }
+.fdm-draw-bar .app-button.fdm-draw-icon { min-width: 44px; padding: 0; }
+.fdm-draw-bar .app-button svg { width: 18px; height: 18px; }
+.fdm-draw-bar .app-button[aria-pressed="true"], .fdm-draw-bar .app-button[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.fdm-draw-bar-tools { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.fdm-draw-bar-tools > .app-button { flex: 1 0 44px; }
+.fdm-draw-swatch { width: 20px; height: 20px; border: 1px solid var(--line-strong); border-radius: var(--radius-control); }
+.fdm-draw-reason { color: var(--muted); font-size: var(--font-md); }
+.fdm-draw-style-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.fdm-draw-style-row .fdw-swatches { flex-wrap: wrap; gap: var(--space-2); }
+.fdm-draw-style-row .fdw-swatch {
+  position: relative; display: grid; place-items: center; width: 36px; height: 36px; padding: 0;
+  border: 2px solid transparent; border-radius: var(--radius-control); color: var(--muted); background: var(--soft);
+}
+.fdm-draw-style-row .fdw-swatch-custom { border: 1px dashed var(--line-strong); }
+.fdm-draw-style-row .fdw-style-seg button { min-width: 44px; height: 40px; }
+
+.fdm-draw-notice { color: var(--danger); font-size: var(--font-md); }
+
+/* The loupe: a circle above the finger, the chart at 2× with a crosshair on the exact spot and its price. */
+.fdm-draw-loupe {
+  position: fixed; z-index: 30; width: 112px; height: 112px; overflow: hidden; pointer-events: none;
+  border: 2px solid var(--accent); border-radius: 50%; background: var(--panel); box-shadow: var(--shadow-2);
+}
+.fdm-draw-loupe canvas { width: 100%; height: 100%; display: block; }
+.fdm-draw-loupe-cross { position: absolute; inset: 0; }
+.fdm-draw-loupe-cross::before, .fdm-draw-loupe-cross::after { content: ""; position: absolute; background: var(--accent); }
+.fdm-draw-loupe-cross::before { left: 50%; top: 20%; bottom: 20%; width: 1px; }
+.fdm-draw-loupe-cross::after { top: 50%; left: 20%; right: 20%; height: 1px; }
+.fdm-draw-loupe b {
+  position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); padding: var(--space-0) var(--space-1); border-radius: var(--radius-sm);
+  color: var(--on-primary); background: var(--primary-bg); font: 600 var(--font-sm) var(--font-num); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+
+/* 精确设置 as a sheet over the page. */
+.fdm-draw-settings-layer { align-items: flex-end; }
+.fdm-draw-settings-layer > .fdw-draw-settings {
+  position: relative; top: auto; left: auto; width: 100%; max-height: calc(100% - 48px); transform: none;
+  border-radius: var(--radius-card) var(--radius-card) 0 0; padding-bottom: env(safe-area-inset-bottom);
+}
+.fdm-draw-settings-layer .fdw-draw-field { grid-template-columns: 6.5em minmax(0, 1fr); }
+.fdm-draw-settings-layer .fdw-draw-inputs { flex-wrap: wrap; }
+.fdm-draw-settings-layer footer .app-button { min-height: 44px; }

@@ -1,0 +1,135 @@
+/* Market bar above the chart: contract · last price (flashes on each tick) · OHLC · periods · session · tools. */
+.fdw-market-command {
+  height: var(--fdw-command);
+  min-height: var(--fdw-command);
+  flex: 0 0 var(--fdw-command);
+  display: grid;
+  /* The head never shrinks below its min-content (contract button + last price; OHLC is a
+     0-min column), and the tools column gives way instead — its period group scrolls. */
+  grid-template-columns: minmax(min-content, 1fr) minmax(0, auto);
+  overflow: hidden;
+  border-bottom: 1px solid var(--fdw-line);
+  background: var(--fdw-surface);
+  container: market-command / inline-size;
+}
+/* The contract column keeps room for a short product part plus the month (and the badge and ⓘ
+   beside it) at every width; the chart tools give way instead (see the container rules). */
+.fdw-market-head { width: 100%; height: var(--fdw-command); min-width: 0; display: grid; grid-template-columns: minmax(13em, max-content) max-content minmax(0, 1fr); align-items: center; gap: var(--space-3); padding: 0 var(--space-3); overflow: hidden; }
+
+/* 合约信息卡 (2026-10-02): the first column is the contract button plus its ⓘ / delivery badge
+   (.fdw-contract-marks, ContractInfoControl.css). When the head runs tight the button yields
+   first (its name ellipsizes) — the badge and the ⓘ must never be pushed under the price. */
+.fdw-contract-head { min-width: 0; }
+.fdw-contract-head > .fdw-instrument-button { flex: 0 1 auto; min-width: 0; max-width: 100%; overflow: hidden; height: 30px; display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-control); color: var(--fdw-text); background: var(--fdw-surface-raised); text-align: left; cursor: pointer; }
+/* 自选星标 (2026-10-02): beside the contract name, sized with the head's controls. */
+.fdw-contract-head .fdw-watch-star { width: 26px; height: 26px; }
+.fdw-contract-head > .fdw-instrument-button:hover:not(:disabled) { border-color: var(--line-strong); }
+.fdw-market-head .fdw-contract-marks { flex: none; }
+.fdw-instrument-button > span { min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; align-content: flex-start; column-gap: var(--space-2); row-gap: var(--space-2); height: 1lh; overflow: hidden; }
+.fdw-instrument-button strong { flex: 0 0 auto; max-width: 100%; overflow: hidden; font-size: var(--font-md); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+/* A name split into product + month: only the product part ellipsizes, the month stays. */
+.fdw-instrument-button strong:has(> span) { display: flex; min-width: 0; }
+.fdw-instrument-button strong > span:first-child { min-width: 1.5em; overflow: hidden; text-overflow: ellipsis; }
+.fdw-instrument-button strong > span:last-child { flex: none; }
+.fdw-instrument-button small { flex: none; min-width: 0; overflow: hidden; color: var(--fdw-faint); font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: var(--font-md); text-overflow: ellipsis; white-space: nowrap; }
+.fdw-instrument-button svg { width: 14px; height: 14px; flex: none; color: var(--fdw-muted); }
+
+/* Last price: mono, and a short flash in the tick's direction (keyed remount restarts it).
+   A 0.00% change is neutral (no class), so the layout lives on the bare div. */
+.fdw-market-head > div { display: flex; align-items: center; gap: var(--space-2); white-space: nowrap; }
+.fdw-market-head > div.positive { color: var(--market-up); }
+.fdw-market-head > div.negative { color: var(--market-down); }
+.fdw-market-head > div > strong { padding: var(--space-0) var(--space-1); border-radius: var(--radius-control); font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: var(--font-2xl); font-weight: 600; line-height: 28px; letter-spacing: -.02em; }
+.fdw-market-head > div > strong[data-tick="up"] { animation: ui-price-change 150ms var(--ease-out); --price-flash-bg: var(--market-up-soft); }
+.fdw-market-head > div > strong[data-tick="down"] { animation: ui-price-change 150ms var(--ease-out); --price-flash-bg: var(--market-down-soft); }
+.fdw-market-head > div:not(.fdw-pre-open) > span { padding: var(--space-0) var(--space-2); border-radius: var(--radius-control); font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: var(--font-md); font-weight: 600; }
+.fdw-market-head > div.positive > span { background: var(--market-up-soft); }
+.fdw-market-head > div.negative > span { background: var(--market-down-soft); }
+/* 新浪备用: the warning status pair, sized like the delivery badge beside the contract. */
+.fdw-market-head .fdw-backup-badge { flex: none; padding: var(--space-0) var(--space-2); border-radius: var(--radius-pill); color: var(--warning); background: var(--warning-soft); font-size: var(--font-xs); font-weight: 600; line-height: 1; white-space: nowrap; }
+.fdw-market-head > .fdw-pre-open { display: flex; align-items: baseline; gap: var(--space-2); color: var(--muted); }
+.fdw-market-head > .fdw-pre-open strong { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: var(--font-xl); line-height: 1; }
+.fdw-market-head > .fdw-pre-open span { font-size: var(--font-md); white-space: nowrap; }
+
+/* OHLC shows whole items or none: one 18px line, the rest wrap below it out of view. The
+   zero-width ::before holds the first line, so even the first item wraps away (instead of
+   showing half a "开") when the column is narrower than it; its margin cancels the gap. */
+.fdw-market-head dl { display: flex; flex-wrap: wrap; align-content: flex-start; gap: var(--space-4) var(--space-3); min-width: 0; height: 18px; margin: 0; overflow: hidden; }
+.fdw-market-head dl::before { content: ""; width: 0; height: 18px; margin-right: calc(-1 * var(--space-3)); }
+.fdw-market-head dl > div { display: flex; align-items: baseline; gap: var(--space-1); white-space: nowrap; }
+.fdw-market-head dt, .fdw-market-head dd { margin: 0; font-size: var(--font-md); }
+.fdw-market-head dt { color: var(--fdw-faint); }
+.fdw-market-head dd { color: var(--fdw-text); font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: var(--font-md); }
+/* 回放不显示 (#932 X3): fields the replay quote does not carry — a plain muted label, not a
+   value chip (same tone as the pre-open note). */
+.fdw-market-head > div > span.fdw-replay-omitted, .fdw-market-head dd.fdw-replay-omitted { padding: 0; color: var(--fdw-muted); font-family: inherit; font-size: var(--font-md); font-weight: 400; }
+
+/* Right side: periods (segmented), session, tools. */
+.fdw-chart-tools { height: var(--fdw-command); min-width: 0; display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-3) 0 var(--space-1); overflow: hidden; }
+.fdw-chart-tools > div { display: flex; align-items: center; gap: var(--space-0); }
+/* The period group is the part that yields when the bar is short: it may shrink below its
+   content (PeriodSwitch then folds periods into 更多; scrolling is the last resort below that),
+   so it never overlaps the price or pushes the refresh button out. */
+.fdw-chart-tools > [role="group"] { min-width: 0; overflow-x: auto; scrollbar-width: none; padding: var(--space-0); border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--fdw-surface-raised); }
+.fdw-chart-tools button { position: relative; min-width: 28px; height: 26px; display: flex; align-items: center; justify-content: center; gap: var(--space-1); padding: 0 var(--space-2); border: 0; border-radius: var(--radius-control); color: var(--fdw-muted); background: transparent; font-size: var(--font-md); white-space: nowrap; cursor: pointer; }
+.fdw-chart-tools button:hover:not(:disabled) { color: var(--fdw-text); background: var(--fdw-surface-hover); }
+.fdw-chart-tools button:disabled { opacity: .45; }
+.fdw-chart-tools > [role="group"] button.active { color: var(--accent); background: var(--accent-soft); font-weight: 600; outline: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); outline-offset: -1px; }
+/* A period keeps its label width: shrinking a button below its text ate the padding and ran the
+   labels together ("15分30分1小时"). When the whole row does not fit, PeriodSwitch folds the
+   uncommon periods into 更多 (fdw-periods-collapsed) instead; 更多 shows the folded choice. */
+.fdw-chart-tools > [role="group"] button { flex: none; }
+.fdw-chart-tools > [role="group"] > .fdw-period-more { display: none; gap: var(--space-0); }
+.fdw-chart-tools > .fdw-periods-collapsed > .fdw-period-extra { display: none; }
+.fdw-chart-tools > .fdw-periods-collapsed > .fdw-period-more { display: flex; }
+.fdw-chart-tools .fdw-period-more svg { width: 12px; height: 12px; }
+.fdw-period-more-list { display: flex; gap: var(--space-1); }
+.fdw-period-more-list button { flex: 1; height: 28px; border: 1px solid var(--line-strong); border-radius: var(--radius-control); color: var(--ink); background: var(--soft); font-size: var(--font-md); cursor: pointer; }
+.fdw-period-more-list button:hover { border-color: var(--accent); }
+.fdw-period-more-list button.active { border-color: color-mix(in srgb, var(--accent) 45%, transparent); color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+.fdw-chart-tools button svg { width: 15px; height: 15px; }
+.fdw-chart-health { flex: none; margin: 0; white-space: nowrap; }
+.fdw-chart-health .market-session-trigger { height: 26px; padding: 0 var(--space-3) 0 var(--space-2); gap: var(--space-1); border: 1px solid var(--line); border-radius: var(--radius-pill); font-size: var(--font-md); }
+.fdw-chart-health .market-session-trigger::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.fdw-chart-health .live { color: var(--positive); }
+.fdw-chart-health .live::before { box-shadow: var(--shadow-2); animation: none; }
+.fdw-chart-health .closed, .fdw-chart-health .backup { color: var(--warning); }
+.fdw-chart-health .stale { color: var(--danger); }
+
+/* The bar follows its own width (a wide side panel narrows it as much as a small window):
+   the periods tighten first, then the session pill, then OHLC, the percent
+   chip and the contract code. The contract name itself never goes (its column minimum above). */
+@container market-command (max-width: 1040px) {
+  .fdw-chart-tools { gap: var(--space-1); }
+  .fdw-chart-tools > [role="group"] button { min-width: 24px; padding: 0 var(--space-1); }
+}
+@container market-command (max-width: 940px) { .fdw-chart-tools > .fdw-chart-health { display: none; } }
+@container market-command (max-width: 860px) {
+  .fdw-market-head { grid-template-columns: minmax(13em, max-content) max-content; }
+  .fdw-market-head dl { display: none; }
+  .fdw-market-head > div:not(.fdw-pre-open) > span { display: none; }
+  .fdw-instrument-button small { display: none; }
+}
+@container market-command (max-width: 540px) {
+  .fdw-market-head > div:not(.fdw-pre-open) > span { display: none; }
+  /* Hide a duplicate name only when the settled header actually shows this contract.
+     A non-pinned contract or one folded into “…” still needs the chart's name. */
+  .fdw-market-head { grid-template-columns: max-content max-content; }
+  .fdw-current-contract-in-header .fdw-contract-head > .fdw-instrument-button { min-width: 36px; width: 36px; justify-content: center; padding: 0; }
+  .fdw-current-contract-in-header .fdw-instrument-button > span { display: none; }
+  .fdw-market-command:not(.fdw-current-contract-in-header) .fdw-market-head { grid-template-columns: minmax(13em, max-content) max-content; }
+  .fdw-delivery-badge { display: none; }
+  .fdw-contract-head .fdw-watch-star { display: none; }
+}
+@media (max-width: 760px) {
+  .fdw-market-command { height: auto; min-height: 0; flex-basis: auto; grid-template-columns: minmax(0, 1fr); }
+  .fdw-market-head { height: 44px; gap: var(--space-2); padding: 0 var(--space-2); }
+  .fdw-chart-tools { height: 40px; border-top: 1px solid var(--fdw-line); }
+  .fdw-instrument-button small { display: none; }
+  .fdw-market-head > div > strong { font-size: var(--font-xl); }
+  .fdw-chart-tools { padding: 0 var(--space-1); }
+  .fdw-chart-tools [role="group"] { overflow-x: auto; min-width: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fdw-market-head > div > strong[data-tick], .fdw-chart-health .live::before { animation: none; }
+}

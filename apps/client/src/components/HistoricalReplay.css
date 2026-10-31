@@ -1,0 +1,19 @@
+.fdw-shell[data-replay-controls="true"] { grid-template-rows: var(--fdw-header) auto minmax(0, 1fr); }
+.historical-replay {
+  min-width: 0; max-height: 34vh; overflow: auto; padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--line);
+  background: var(--fdw-app-bg, var(--panel)); color: var(--fdw-text, var(--ink));
+  font-size: var(--font-md);
+}
+.historical-replay-controls { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2) var(--space-3); min-width: 0; }
+.historical-replay-controls > * { min-width: 0; max-width: 100%; }
+.historical-replay label { display: inline-flex; align-items: center; flex-wrap: wrap; gap: var(--space-1); }
+.historical-replay input, .historical-replay select, .historical-replay button {
+  min-height: 30px; max-width: 100%; border: 1px solid currentColor; border-radius: var(--radius-sm);
+  padding: var(--space-0) var(--space-2); background: transparent; color: inherit; font: inherit;
+}
+.historical-replay input { width: 140px; }
+.historical-replay button { cursor: pointer; }
+.historical-replay button:disabled { opacity: .45; cursor: default; }
+.historical-replay p { margin: var(--space-1) 0 0; opacity: .8; line-height: 1.5; overflow-wrap: anywhere; }
+.historical-replay [role="alert"] { color: var(--warning); opacity: 1; }

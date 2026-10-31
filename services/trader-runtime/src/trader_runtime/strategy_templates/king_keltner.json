@@ -1,0 +1,46 @@
+{
+  "id": "king_keltner",
+  "name": "肯特纳通道",
+  "category": "trend_breakout",
+  "scenario": "短周期通道突破：收盘突破肯特纳上轨做多、跌破下轨做空，0.8% 追踪止损离场",
+  "plainSummary": "收盘价冲出均线上下按平均波动算出的通道就顺势追进去；之后从持仓后的最高点（空单是最低点）回撤一定百分比就离场。",
+  "level": "新手", "holding": "会隔夜",
+  "source": {"label": "vn.py KingKeltnerStrategy（肯特纳 11 / 1.6，0.8% 追踪止损，5 分钟）", "url": "https://github.com/vnpy/vnpy_ctastrategy/blob/main/vnpy_ctastrategy/strategies/king_keltner_strategy.py"},
+  "recommendedTimeframe": 300,
+  "approximations": [
+    "按收盘确认：原版在上 / 下轨同时挂停止单（一边成交撤另一边），盘中一过轨就成交；这里 5 分钟K线收盘突破后下一根开盘成交。",
+    "肯特纳与原版口径相同：中轨是收盘价 11 根简单均线，上下轨 = 中轨 ± 1.6×ATR11（Wilder）。",
+    "追踪止损从持仓后的最高 / 最低价回撤 0.8%；原版从开仓前那根K线的高 / 低点起算，差别只在第一根。",
+    "原版只有 0.8% 追踪止损；另设保护止损 3×ATR14，两者取更近的一个，追踪只收紧不放松。"
+  ],
+  "params": [
+    {"key": "length", "label": "通道参考根数（通道周期）", "default": 11, "min": 2, "max": 100, "step": 1, "unit": "根",
+     "targets": ["rules.entryLong.conditions.0.right.period", "rules.entryShort.conditions.0.right.period"],
+     "help": {"what": "中间那条均线和上下沿的宽度，用最近多少根K线来算", "up": "通道更平滑、信号更少，反应也更慢", "down": "通道更贴近价格、信号更多，假突破也更多"}},
+    {"key": "dev", "label": "通道宽度（通道倍数）", "default": 1.6, "min": 0.5, "max": 5, "step": 0.1, "unit": "×ATR",
+     "targets": ["rules.entryLong.conditions.0.right.k", "rules.entryShort.conditions.0.right.k"],
+     "help": {"what": "上下沿离中间均线多少倍平均波动（ATR）", "up": "要冲得更远才进场，信号更少", "down": "轻轻一冲就进场，信号更多，假突破也更多"}},
+    {"key": "trailingPercent", "label": "回撤离场（追踪止损）", "default": 0.8, "min": 0.1, "max": 5, "step": 0.1, "unit": "%", "targets": ["trailingStop.value"],
+     "help": {"what": "持仓后价格从最高点（空单是最低点）回撤这个百分比就离场，离场线只往有利方向移动", "up": "给行情更多回撤空间，拿得更久，但回吐的利润更多", "down": "回撤一点就走，保住利润，但容易被正常回调洗出去"}},
+    {"key": "stopAtr", "label": "保护止损（ATR 倍数）", "default": 3, "min": 0.5, "max": 10, "step": 0.5, "unit": "×ATR14", "targets": ["atrStop.multiple"],
+     "help": {"what": "止损放得离开仓价多远，按最近波动大小自动换算", "up": "不容易被正常波动扫出场，但万一做错单笔亏得更多", "down": "亏损控制得紧，但容易被来回波动打掉"}},
+    {"key": "maxPosition", "label": "每次手数", "default": 1, "min": 1, "max": 20, "step": 1, "unit": "手", "targets": ["maxPosition"],
+     "help": {"what": "每次开仓下多少手", "up": "盈亏都按手数放大，占用的保证金也更多", "down": "盈亏都跟着缩小，更稳妥"}},
+    {"key": "maxLoss", "label": "当日亏损上限", "default": null, "optional": true, "min": 100, "max": 1000000, "step": 100, "unit": "元", "targets": ["maxLoss"],
+     "help": {"what": "留空就不设。填了以后，账户当天的净亏损（已平仓、浮动盈亏和手续费合计）达到这个数，这条策略不再开新仓，止损和离场照常", "up": "允许当天亏得更多才停手", "down": "更早停止开新仓，也可能错过当天后面的机会"}}
+  ],
+  "plan": {
+    "name": "肯特纳通道",
+    "description": "肯特纳通道({length},{dev}，均线中轨)：5 分钟收盘突破上轨开多、跌破下轨开空；出场用 {trailingPercent}% 追踪止损（从持仓后的最高 / 最低价回撤），另有 {stopAtr}×ATR14 保护止损。来源：vn.py KingKeltnerStrategy。",
+    "direction": "both", "timeframeSeconds": 300, "maxPosition": 1, "maxLoss": null,
+    "stopLossTicks": 20, "takeProfitTicks": null, "cooldownBars": 0, "maxOrdersPerDay": 20,
+    "atrStop": {"multiple": 3, "period": 14},
+    "trailingStop": {"mode": "percent", "value": 0.8, "activateAfter": 0},
+    "rules": {
+      "entryLong": {"conditions": [{"label": "收盘突破肯特纳上轨({length},{dev})", "left": {"indicator": "close", "timeframe": 300},
+        "operator": "gt", "right": {"indicator": "keltner_up", "period": 11, "k": 1.6, "basis": "ma", "timeframe": 300}}]},
+      "entryShort": {"conditions": [{"label": "收盘跌破肯特纳下轨({length},{dev})", "left": {"indicator": "close", "timeframe": 300},
+        "operator": "lt", "right": {"indicator": "keltner_down", "period": 11, "k": 1.6, "basis": "ma", "timeframe": 300}}]}
+    }
+  }
+}

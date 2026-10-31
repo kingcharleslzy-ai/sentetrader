@@ -1,0 +1,58 @@
+{
+  "id": "atr_rsi",
+  "name": "ATR-RSI",
+  "category": "ma_trend",
+  "scenario": "只在波动放大时做：ATR 高于自身均值，RSI 走强做多、走弱做空",
+  "plainSummary": "只在最近的波动比平时大的时候出手：价格明显走强就做多、明显走弱就做空；之后从持仓后的最高点（空单是最低点）回撤一定百分比就离场。",
+  "level": "进阶", "holding": "会隔夜",
+  "source": {"label": "vn.py AtrRsiStrategy（ATR22 / 均值 10，RSI5 ±16，0.8% 追踪止损）", "url": "https://github.com/vnpy/vnpy_ctastrategy/blob/main/vnpy_ctastrategy/strategies/atr_rsi_strategy.py"},
+  "recommendedTimeframe": 60,
+  "approximations": [
+    "原版以限价（收盘价 ± 5）挂单，这里下一根K线开盘价成交。",
+    "原版只有 0.8% 追踪止损；本产品另设保护止损 3×ATR14。1 分钟线上 3×ATR 常比 0.8% 更近，开仓初期往往由保护止损先出场，想贴近原版可把 ATR 倍数调大；追踪止损只收紧不放松。"
+  ],
+  "params": [
+    {"key": "atrLength", "label": "波动参考根数（ATR 周期）", "default": 22, "min": 2, "max": 100, "step": 1, "unit": "根",
+     "targets": ["rules.entryLong.conditions.0.left.period", "rules.entryLong.conditions.0.right.period",
+                 "rules.entryShort.conditions.0.left.period", "rules.entryShort.conditions.0.right.period"],
+     "help": {"what": "用最近多少根K线衡量现在的波动大小（ATR，平均每根K线的波动幅度）", "up": "波动判断更平滑，反应更慢", "down": "更快反映波动变化，也更敏感"}},
+    {"key": "atrMaLength", "label": "波动比较根数（ATR 均值）", "default": 10, "min": 2, "max": 100, "step": 1, "unit": "根",
+     "targets": ["rules.entryLong.conditions.0.right.average", "rules.entryShort.conditions.0.right.average"],
+     "help": {"what": "现在的波动要和它自己最近多少根的平均值比，高于平均才允许开仓", "up": "比较基准更稳，“波动放大”的判断变化更慢", "down": "基准跟得更紧，“波动放大”的判断切换更频繁"}},
+    {"key": "rsiLength", "label": "强弱参考根数（RSI 周期）", "default": 5, "min": 2, "max": 60, "step": 1, "unit": "根",
+     "targets": ["rules.entryLong.conditions.1.left.period", "rules.entryShort.conditions.1.left.period"],
+     "help": {"what": "用最近多少根K线算涨跌强弱（RSI，0–100，50 是中性）", "up": "强弱读数更平稳，信号更少、更慢", "down": "读数更灵敏，信号更多也更杂"}},
+    {"key": "rsiEntry", "label": "强弱门槛（RSI 偏离 50）", "default": 16, "min": 2, "max": 45, "step": 1, "unit": "点",
+     "targets": [{"path": "rules.entryLong.conditions.1.right.value", "add": 50},
+                 {"path": "rules.entryShort.conditions.1.right.value", "scale": -1, "add": 50}],
+     "help": {"what": "强弱读数高于 50 加这个数才做多、低于 50 减这个数才做空", "up": "要更强的走势才进场，信号更少", "down": "稍有走强走弱就进场，信号更多"}},
+    {"key": "trailingPercent", "label": "回撤离场（追踪止损）", "default": 0.8, "min": 0.1, "max": 5, "step": 0.1, "unit": "%", "targets": ["trailingStop.value"],
+     "help": {"what": "持仓后价格从最高点（空单是最低点）回撤这个百分比就离场，离场线只往有利方向移动", "up": "给行情更多回撤空间，拿得更久，但回吐的利润更多", "down": "回撤一点就走，保住利润，但容易被正常回调洗出去"}},
+    {"key": "stopAtr", "label": "保护止损（ATR 倍数）", "default": 3, "min": 0.5, "max": 10, "step": 0.5, "unit": "×ATR14", "targets": ["atrStop.multiple"],
+     "help": {"what": "止损放得离开仓价多远，按最近波动大小自动换算", "up": "不容易被正常波动扫出场，但万一做错单笔亏得更多", "down": "亏损控制得紧，但容易被来回波动打掉"}},
+    {"key": "maxPosition", "label": "每次手数", "default": 1, "min": 1, "max": 20, "step": 1, "unit": "手", "targets": ["maxPosition"],
+     "help": {"what": "每次开仓下多少手", "up": "盈亏都按手数放大，占用的保证金也更多", "down": "盈亏都跟着缩小，更稳妥"}},
+    {"key": "maxLoss", "label": "当日亏损上限", "default": null, "optional": true, "min": 100, "max": 1000000, "step": 100, "unit": "元", "targets": ["maxLoss"],
+     "help": {"what": "留空就不设。填了以后，账户当天的净亏损（已平仓、浮动盈亏和手续费合计）达到这个数，这条策略不再开新仓，止损和离场照常", "up": "允许当天亏得更多才停手", "down": "更早停止开新仓，也可能错过当天后面的机会"}}
+  ],
+  "plan": {
+    "name": "ATR-RSI",
+    "description": "ATR{atrLength} 高于它最近 {atrMaLength} 根的均值时：RSI{rsiLength} 高于 50+{rsiEntry} 开多，低于 50−{rsiEntry} 开空。出场用 {trailingPercent}% 追踪止损（从持仓后的最高 / 最低价回撤），另有 {stopAtr}×ATR14 保护止损。来源：vn.py AtrRsiStrategy。",
+    "direction": "both", "timeframeSeconds": 60, "maxPosition": 1, "maxLoss": null,
+    "stopLossTicks": 20, "takeProfitTicks": null, "cooldownBars": 0, "maxOrdersPerDay": 20,
+    "atrStop": {"multiple": 3, "period": 14},
+    "trailingStop": {"mode": "percent", "value": 0.8, "activateAfter": 0},
+    "rules": {
+      "entryLong": {"conditions": [
+        {"label": "ATR{atrLength} 高于其 {atrMaLength} 根均值", "left": {"indicator": "atr", "period": 22, "timeframe": 60},
+         "operator": "gt", "right": {"indicator": "atr", "period": 22, "average": 10, "timeframe": 60}},
+        {"label": "RSI{rsiLength} 走强", "left": {"indicator": "rsi", "period": 5, "timeframe": 60},
+         "operator": "gt", "right": {"indicator": "constant", "value": 66, "timeframe": 60}}]},
+      "entryShort": {"conditions": [
+        {"label": "ATR{atrLength} 高于其 {atrMaLength} 根均值", "left": {"indicator": "atr", "period": 22, "timeframe": 60},
+         "operator": "gt", "right": {"indicator": "atr", "period": 22, "average": 10, "timeframe": 60}},
+        {"label": "RSI{rsiLength} 走弱", "left": {"indicator": "rsi", "period": 5, "timeframe": 60},
+         "operator": "lt", "right": {"indicator": "constant", "value": 34, "timeframe": 60}}]}
+    }
+  }
+}

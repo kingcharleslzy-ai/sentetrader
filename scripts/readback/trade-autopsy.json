@@ -1,0 +1,10 @@
+{
+  "about": "第 3 批（交易验尸）：测试账号最近一份今日复盘按新规则重新生成，每笔带 checks / question / roundId，界面切到那天，看每一笔下的问题与提问、本周一件事。重新生成只覆盖测试账号这一天的复盘，不推送、不下单。",
+  "steps": [
+    {"api": "GET /api/account/daily-review", "expect": {"body.days.0": {"exists": true}}, "save": {"day": "body.days.0"}},
+    {"api": "POST /api/account/daily-review/regenerate", "body": {"tradingDay": "{{day}}"},
+     "expect": {"body.review.tradingDay": "{{day}}", "body.review.legs.0.checks": {"exists": true}, "body.review.legs.0.roundId": {"exists": true}}},
+    {"ui": {"reviewDay": "{{day}}"}, "expect": {"view": "review", "review.dailyReview.tradingDay": "{{day}}", "review.dailyReview.checks": {"exists": true}}},
+    {"screenshot": "daily-review-legs", "scrollTo": "今天的每一笔"}
+  ]
+}

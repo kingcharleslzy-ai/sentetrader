@@ -1,0 +1,14 @@
+.brief-subs { display: grid; gap: var(--space-3); min-width: 0; }
+.brief-subs-note { margin: 0; padding-block: var(--space-2); color: var(--muted); font-size: var(--font-sm); line-height: 1.5; overflow-wrap: anywhere; }
+.brief-subs-note[role="status"] { color: var(--warning); }
+.app-button.brief-subs-move { display: inline-grid; place-items: center; width: 32px; padding: 0; }
+.brief-subs-move svg { width: 16px; height: 16px; }
+/* A product row keeps its buttons beside the name on a narrow screen (settings rows stack below 480 px). */
+@container brief-subscriptions (max-width: 480px) {
+  .brief-subs .app-setting-row:not(:has(.app-text-input)) { grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2); }
+  .brief-subs .app-setting-value { justify-content: flex-end; }
+  .brief-subs .app-setting-value .app-text-input { max-width: none; }
+  .brief-subs .app-button { min-height: 40px; }
+  .app-button.brief-subs-move { width: 40px; }
+}
+.brief-subs { container-type: inline-size; container-name: brief-subscriptions; }

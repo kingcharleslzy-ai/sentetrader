@@ -1,0 +1,43 @@
+# The NAS→tencent-ai-trader SSH tunnel (2026-10-09), one connection serving both directions:
+#
+#   -R 127.0.0.1:11200:127.0.0.1:1200  the RSSHub reverse forward: the production host's loopback
+#                                      11200 (reached by the rsshub-tunnel relay container) dials
+#                                      this VM's loopback RSSHub.
+#   -L 127.0.0.1:15000:127.0.0.1:5000  the registry push forward: `docker push
+#                                      127.0.0.1:15000/...` from this VM lands in the production
+#                                      host's loopback registry (deploy/vps/docker-compose.registry.yml).
+#
+# The key (root-only, generated on this VM and never copied) is pinned on the tencent side to the
+# ai-trader-tunnel user whose only permissions are those two forwards. Install as root:
+#
+#   install -d -m 700 /etc/ai-trader-tunnel
+#   ssh-keygen -t ed25519 -N '' -f /etc/ai-trader-tunnel/tunnel_id_ed25519 -C nas-ai-trader-tunnel
+#   ssh-keyscan -t ed25519 123.206.121.38 > /etc/ai-trader-tunnel/known_hosts   # verify the fingerprint
+#   install -m 644 deploy/nas/ai-trader-tunnel.service /etc/systemd/system/
+#   systemctl daemon-reload && systemctl enable --now ai-trader-tunnel
+#
+# The public key goes to the tencent host once, restricted to exactly these forwards (2026-10-09;
+# permitopen is added on top of the mandated permitlisten line to pin the push forward too):
+#   restrict,port-forwarding,permitlisten="127.0.0.1:11200",permitopen="127.0.0.1:5000",command="/bin/false"
+[Unit]
+Description=AI Trader NAS tunnel (RSSHub reverse forward + registry push forward)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/ssh -N -T \
+  -R 127.0.0.1:11200:127.0.0.1:1200 \
+  -L 127.0.0.1:15000:127.0.0.1:5000 \
+  -o ExitOnForwardFailure=yes \
+  -o ServerAliveInterval=30 \
+  -o ServerAliveCountMax=3 \
+  -o StrictHostKeyChecking=yes \
+  -o UserKnownHostsFile=/etc/ai-trader-tunnel/known_hosts \
+  -i /etc/ai-trader-tunnel/tunnel_id_ed25519 \
+  -p 22 ai-trader-tunnel@123.206.121.38
+Restart=always
+RestartSec=15
+
+[Install]
+WantedBy=multi-user.target

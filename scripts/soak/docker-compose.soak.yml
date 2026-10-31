@@ -1,0 +1,28 @@
+# 浸泡测试的资源上限与日志轮转（override）：
+#   docker compose -p ai-trader-soak -f docker-compose.cloud.yml -f scripts/soak/docker-compose.soak.yml up --build -d --wait
+# 上限按 4 CPU / 4 GiB 的浸泡 VM 定：runtime 空闲约 220 MiB、25 用户短跑实测见 soak 结果；
+# 超限会被 OOM 杀掉并在报告里体现为断线与 5xx，而不是悄悄吃掉整台 VM。
+services:
+  trader-runtime:
+    mem_limit: 1g
+    memswap_limit: 1g
+    cpus: 1.5
+    pids_limit: 512
+    environment:
+      # healthz 回读被测提交（docker-compose.cloud.yml 只把它传给 client 构建）。
+      AI_TRADER_BUILD_SHA: ${AI_TRADER_BUILD_SHA:-}
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: "5"
+  client:
+    mem_limit: 128m
+    memswap_limit: 128m
+    cpus: 0.5
+    pids_limit: 128
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"

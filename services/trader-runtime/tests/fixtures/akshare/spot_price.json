@@ -1,0 +1,62 @@
+[
+{
+"date": "20260911",
+"symbol": "C",
+"spot_price": 2231.43,
+"near_contract": "c2609",
+"near_contract_price": 2265.0,
+"dominant_contract": "c2611",
+"dominant_contract_price": 2255.0,
+"near_month": "2609",
+"dominant_month": "2611",
+"near_basis": 33.57,
+"dom_basis": 23.57,
+"near_basis_rate": 0.0150441645,
+"dom_basis_rate": 0.0105627333
+},
+{
+"date": "20260911",
+"symbol": "CU",
+"spot_price": 109380.0,
+"near_contract": "cu2609",
+"near_contract_price": 109790.0,
+"dominant_contract": "cu2610",
+"dominant_contract_price": 108990.0,
+"near_month": "2609",
+"dominant_month": "2610",
+"near_basis": 410.0,
+"dom_basis": -390.0,
+"near_basis_rate": 0.0037484001,
+"dom_basis_rate": -0.0035655513
+},
+{
+"date": "20260911",
+"symbol": "AU",
+"spot_price": 936.44,
+"near_contract": "au2609",
+"near_contract_price": 947.34,
+"dominant_contract": "au2612",
+"dominant_contract_price": 944.94,
+"near_month": "2609",
+"dominant_month": "2612",
+"near_basis": 10.9,
+"dom_basis": 8.5,
+"near_basis_rate": 0.0116398274,
+"dom_basis_rate": 0.0090769296
+},
+{
+"date": "20260911",
+"symbol": "RB",
+"spot_price": 3138.0,
+"near_contract": "rb2609",
+"near_contract_price": 3000.0,
+"dominant_contract": "rb2701",
+"dominant_contract_price": 3108.0,
+"near_month": "2609",
+"dominant_month": "2701",
+"near_basis": -138.0,
+"dom_basis": -30.0,
+"near_basis_rate": -0.0439770554,
+"dom_basis_rate": -0.0095602294
+}
+]

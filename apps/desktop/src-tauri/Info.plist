@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- The bundle stays "AI Trader.app" (productName drives the file name, install paths and the
+       updater baseline); en.lproj/InfoPlist.strings localizes the shown name to Sente in Finder,
+       Dock, Cmd-Tab, Launchpad, notifications and the menu bar. -->
+  <key>LSHasLocalizedDisplayName</key>
+  <true/>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>Sente 使用麦克风进行实时语音对话；语音下单需要你口头确认，不会自动下单。</string>
+  <key>NSBluetoothAlwaysUsageDescription</key>
+  <string>Sente 通过蓝牙接收米家遥控器的按键与按住说话音频。</string>
+</dict>
+</plist>

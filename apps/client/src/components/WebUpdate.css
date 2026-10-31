@@ -1,0 +1,28 @@
+/* 新版本已就绪 · 刷新: one thin line in the layout's flow, never over data. Phone: a rounded strip
+   atop the shell's column; desktop: a full-width row under the header (the shell grid gains a row
+   while it shows, above the replay bar when there is one). */
+.web-update-bar {
+  display: flex; align-items: center; justify-content: center; gap: var(--space-2);
+  min-height: 36px; padding: 0 var(--space-2) 0 var(--space-3);
+  border: 1px solid var(--accent); border-radius: var(--radius-control);
+  color: var(--ink); background: var(--accent-soft); font-size: var(--font-md); line-height: 1.4;
+}
+.web-update-bar > span[aria-hidden] { color: var(--muted); }
+.web-update-bar > .web-update-reload {
+  min-height: 28px; padding: 0 var(--space-3); border: 0; border-radius: var(--radius-control);
+  color: var(--on-primary); background: var(--primary-bg); font: inherit; font-weight: 600; cursor: pointer;
+}
+.web-update-bar > .web-update-close {
+  display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--radius-control);
+  color: var(--muted); background: transparent; cursor: pointer;
+}
+.web-update-bar > .web-update-close:hover { color: var(--ink); background: var(--surface-hover); }
+.web-update-bar > .web-update-close svg { width: 16px; height: 16px; }
+
+.fdm-shell > .web-update-bar { flex: none; margin: var(--space-2) var(--space-4) 0; }
+.fdm-shell > .web-update-bar > .web-update-reload, .fdm-shell > .web-update-bar > .web-update-close { min-height: 36px; }
+.fdm-shell > .web-update-bar > .web-update-close { width: 36px; height: 36px; }
+
+.fdw-shell:has(> .web-update-bar) { grid-template-rows: var(--fdw-header) auto minmax(0, 1fr); }
+.fdw-shell[data-replay-controls="true"]:has(> .web-update-bar) { grid-template-rows: var(--fdw-header) auto auto minmax(0, 1fr); }
+.fdw-shell > .web-update-bar { border-width: 0 0 1px; border-radius: 0; }

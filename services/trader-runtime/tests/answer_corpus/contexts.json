@@ -1,0 +1,63 @@
+{
+  "_doc": "命名的读数组合：每项是本轮按顺序的工具读回（tool / args / data，data 即工具结果的 data 原样）。数字取自原测试与 10-14 线上读数。",
+  "iron_coke_1014": [
+    {"tool": "get_market_analysis", "args": {"symbol": "DCE.i2701", "durationSeconds": 86400}, "data": {
+      "symbol": "DCE.i2701", "durationSeconds": 86400, "barCount": 60, "lastClose": 674.5, "periodReturnPercent": -2.1,
+      "rangePercent": 5.2, "sma5": 676.2, "sma20": 690.4, "volumeRatio": 1.09, "openInterestChange": 1200, "trend": "down",
+      "indicators": {"rsi": {"value": 41.3, "reading": "中性区间"}}}},
+    {"tool": "get_market_analysis", "args": {"symbol": "DCE.j2701", "durationSeconds": 86400}, "data": {
+      "symbol": "DCE.j2701", "durationSeconds": 86400, "barCount": 60, "lastClose": 2000, "periodReturnPercent": -4.0,
+      "rangePercent": 7.9, "sma5": 2010, "sma20": 2080, "volumeRatio": 0.8, "openInterestChange": -3000, "trend": "down",
+      "indicators": {"rsi": {"value": 33.0, "reading": "中性区间"}}}},
+    {"tool": "get_market_snapshot", "args": {"symbol": "DCE.i2701"}, "data": {
+      "symbol": "DCE.i2701", "instrumentName": "铁矿石2701", "price": 674.5, "changePercent": -0.81, "openInterestChange": 2100}},
+    {"tool": "get_market_snapshot", "args": {"symbol": "DCE.j2701"}, "data": {
+      "symbol": "DCE.j2701", "instrumentName": "焦炭2701", "price": 2000, "changePercent": -1.6, "openInterestChange": -800}}
+  ],
+  "analysis_only_i": [
+    {"tool": "get_market_analysis", "args": {"symbol": "DCE.i2701", "durationSeconds": 86400}, "data": {
+      "symbol": "DCE.i2701", "durationSeconds": 86400, "barCount": 60, "lastClose": 674.5, "periodReturnPercent": 0.01,
+      "rangePercent": 3.1, "sma5": 675, "sma20": 675, "volumeRatio": 1.0, "openInterestChange": 0, "trend": "range"}}
+  ],
+  "near_flat_i": [
+    {"tool": "get_market_snapshot", "args": {"symbol": "DCE.i2701"}, "data": {
+      "symbol": "DCE.i2701", "instrumentName": "铁矿石2701", "price": 780.5, "changePercent": -0.15}}
+  ],
+  "preopen_placeholder": [
+    {"tool": "get_market_snapshot", "args": {"symbol": "DCE.j2701"}, "data": {
+      "symbol": "DCE.j2701", "instrumentName": "焦炭2701", "price": 2000.0, "changePercent": 0, "dataStatus": "stale",
+      "open": null, "highest": null, "lowest": null, "volume": null}}
+  ],
+  "preopen_pair": [
+    {"tool": "get_market_snapshot", "args": {"symbol": "DCE.i2701"}, "data": {
+      "symbol": "DCE.i2701", "instrumentName": "铁矿石2701", "price": 674.5, "changePercent": -0.81}},
+    {"tool": "get_market_snapshot", "args": {"symbol": "DCE.j2701"}, "data": {
+      "symbol": "DCE.j2701", "instrumentName": "焦炭2701", "price": 2000.0, "changePercent": 0, "dataStatus": "stale",
+      "open": null, "highest": null, "lowest": null, "volume": null}}
+  ],
+  "two_frames_rb": [
+    {"tool": "get_market_analysis", "args": {"symbol": "SHFE.rb2701", "durationSeconds": 300}, "data": {
+      "symbol": "SHFE.rb2701", "durationSeconds": 300, "barCount": 60, "lastClose": 3072, "periodReturnPercent": 0.4,
+      "rangePercent": 0.9, "sma5": 3070, "sma20": 3066, "volumeRatio": 1.4, "openInterestChange": 900, "trend": "up"}},
+    {"tool": "get_market_analysis", "args": {"symbol": "SHFE.rb2701", "durationSeconds": 86400}, "data": {
+      "symbol": "SHFE.rb2701", "durationSeconds": 86400, "barCount": 60, "lastClose": 3072, "periodReturnPercent": -3.2,
+      "rangePercent": 6.5, "sma5": 3080, "sma20": 3120, "volumeRatio": 0.7, "openInterestChange": -15000, "trend": "down"}}
+  ],
+  "boll_below_hc": [
+    {"tool": "get_market_analysis", "args": {"symbol": "SHFE.hc2701", "durationSeconds": 86400}, "data": {
+      "symbol": "SHFE.hc2701", "instrumentName": "热轧卷板2701", "durationSeconds": 86400, "barCount": 60, "lastClose": 3040,
+      "periodReturnPercent": -5.0, "rangePercent": 8.0, "sma5": 3060, "sma20": 3150, "volumeRatio": 1.2,
+      "openInterestChange": 4000, "trend": "down",
+      "indicators": {"boll": {"top": 3250, "mid": 3150, "bottom": 3050, "reading": "价格在布林下轨之下"},
+                     "rsi": {"value": 24.5, "reading": "超卖区"}}}}
+  ],
+  "gold_tiny": [
+    {"tool": "get_market_snapshot", "args": {"symbol": "SHFE.au2612"}, "data": {
+      "symbol": "SHFE.au2612", "instrumentName": "沪金2612", "price": 823.5, "changePercent": -0.004}}
+  ],
+  "board_only": [
+    {"tool": "get_market_board", "args": {}, "data": {"sort": "changePercent", "rows": [
+      {"symbol": "DCE.i2701", "instrumentName": "铁矿石2701", "instrumentId": "i2701", "last": 780.5, "changePercent": 0.42,
+       "openInterestChange": -1500, "volume": 182000}]}}
+  ]
+}

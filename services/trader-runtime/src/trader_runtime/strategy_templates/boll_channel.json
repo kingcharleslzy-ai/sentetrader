@@ -1,0 +1,56 @@
+{
+  "id": "boll_channel",
+  "name": "布林通道突破",
+  "category": "trend_breakout",
+  "scenario": "15 分钟波段突破：收盘突破宽布林带，顺 1 小时均线方向",
+  "plainSummary": "收盘价冲出一条很宽的波动带、而且 1 小时图的价格也在均线同一侧时顺势进场；之后从持仓后的最高点（空单是最低点）回撤一定幅度就离场，离场线只收紧不放松。",
+  "level": "进阶", "holding": "会隔夜",
+  "source": {"label": "vn.py BollChannelStrategy（布林 18 / 3.4，CCI 10，ATR30×5.2 吊灯止损，15 分钟K线）", "url": "https://github.com/vnpy/vnpy_ctastrategy/blob/main/vnpy_ctastrategy/strategies/boll_channel_strategy.py"},
+  "recommendedTimeframe": 900,
+  "approximations": [
+    "过滤：原版用 CCI(10) 的正负定方向；第一期还没有 CCI 积木，改用 1 小时收盘价相对 MA20 定方向（第二期换回 CCI）。",
+    "按收盘确认：原版在布林上 / 下轨挂停止单，这里K线收盘突破后下一根开盘成交。",
+    "吊灯止损取入场信号K线的 ATR30（原版每根K线用最新 ATR）；入场时的初始止损同为 5.2×ATR30。"
+  ],
+  "params": [
+    {"key": "bollN", "label": "通道参考根数（布林周期）", "default": 18, "min": 5, "max": 100, "step": 1, "unit": "根",
+     "targets": ["rules.entryLong.conditions.0.right.period", "rules.entryShort.conditions.0.right.period"],
+     "help": {"what": "中间那条均线和上下沿的宽度，用最近多少根K线来算", "up": "通道更平滑、信号更少，反应也更慢", "down": "通道更贴近价格、信号更多，假突破也更多"}},
+    {"key": "bollK", "label": "通道宽度（布林倍数）", "default": 3.4, "min": 1, "max": 6, "step": 0.1, "unit": "倍标准差",
+     "targets": ["rules.entryLong.conditions.0.right.k", "rules.entryShort.conditions.0.right.k"],
+     "help": {"what": "上下沿离中间均线多远，按价格平时波动幅度（标准差）的倍数算", "up": "要冲得更远才算突破，信号更少", "down": "轻轻一冲就算突破，信号更多，假信号也更多"}},
+    {"key": "filterMa", "label": "大方向均线（1 小时均线）", "default": 20, "min": 5, "max": 120, "step": 1, "unit": "根",
+     "targets": ["rules.entryLong.conditions.1.right.period", "rules.entryShort.conditions.1.right.period"],
+     "help": {"what": "1 小时图上用多少根K线的均线判断大方向：价格在均线上方才做多、下方才做空", "up": "大方向更稳，但转向确认得更慢", "down": "大方向转得更快，也更容易来回变"}},
+    {"key": "atrPeriod", "label": "波动参考根数（ATR 周期）", "default": 30, "min": 5, "max": 100, "step": 1, "unit": "根",
+     "targets": ["atrStop.period", "trailingStop.atrPeriod"],
+     "help": {"what": "离场距离按最近多少根K线的平均波动（ATR）来算", "up": "离场距离更平稳", "down": "离场距离更快跟着最近的波动变化"}},
+    {"key": "slMultiplier", "label": "离场距离（吊灯止损）", "default": 5.2, "min": 1, "max": 10, "step": 0.1, "unit": "×ATR",
+     "targets": ["atrStop.multiple", "trailingStop.value"],
+     "help": {"what": "开仓时的止损和之后的跟踪离场线，都放在离价格多少倍平均波动（ATR）的地方", "up": "拿得更久，但回吐的利润和做错时的亏损都更多", "down": "离场更快，但容易被正常回调洗出去"}},
+    {"key": "maxPosition", "label": "每次手数", "default": 1, "min": 1, "max": 20, "step": 1, "unit": "手", "targets": ["maxPosition"],
+     "help": {"what": "每次开仓下多少手", "up": "盈亏都按手数放大，占用的保证金也更多", "down": "盈亏都跟着缩小，更稳妥"}},
+    {"key": "maxLoss", "label": "当日亏损上限", "default": null, "optional": true, "min": 100, "max": 1000000, "step": 100, "unit": "元", "targets": ["maxLoss"],
+     "help": {"what": "留空就不设。填了以后，账户当天的净亏损（已平仓、浮动盈亏和手续费合计）达到这个数，这条策略不再开新仓，止损和离场照常", "up": "允许当天亏得更多才停手", "down": "更早停止开新仓，也可能错过当天后面的机会"}}
+  ],
+  "plan": {
+    "name": "布林通道突破",
+    "description": "15 分钟收盘突破布林上轨({bollN},{bollK}) 且 1 小时收盘价在 MA{filterMa} 上方开多；跌破下轨且在 MA{filterMa} 下方开空。出场用 ATR 吊灯：持仓后的最高价 − {slMultiplier}×ATR{atrPeriod}（空单对称），只收紧不放松。来源：vn.py BollChannelStrategy。",
+    "direction": "both", "timeframeSeconds": 900, "maxPosition": 1, "maxLoss": null,
+    "stopLossTicks": 20, "takeProfitTicks": null, "cooldownBars": 0, "maxOrdersPerDay": 20,
+    "atrStop": {"multiple": 5.2, "period": 30},
+    "trailingStop": {"mode": "atr_chandelier", "value": 5.2, "activateAfter": 0, "atrPeriod": 30},
+    "rules": {
+      "entryLong": {"conditions": [
+        {"label": "收盘突破布林上轨({bollN},{bollK})", "left": {"indicator": "close", "timeframe": 900},
+         "operator": "gt", "right": {"indicator": "boll_up", "period": 18, "k": 3.4, "timeframe": 900}},
+        {"label": "1 小时收盘在 MA{filterMa} 上方", "left": {"indicator": "close", "timeframe": 3600},
+         "operator": "gt", "right": {"indicator": "ma", "period": 20, "timeframe": 3600}}]},
+      "entryShort": {"conditions": [
+        {"label": "收盘跌破布林下轨({bollN},{bollK})", "left": {"indicator": "close", "timeframe": 900},
+         "operator": "lt", "right": {"indicator": "boll_down", "period": 18, "k": 3.4, "timeframe": 900}},
+        {"label": "1 小时收盘在 MA{filterMa} 下方", "left": {"indicator": "close", "timeframe": 3600},
+         "operator": "lt", "right": {"indicator": "ma", "period": 20, "timeframe": 3600}}]}
+    }
+  }
+}

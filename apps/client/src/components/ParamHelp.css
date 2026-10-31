@@ -1,0 +1,14 @@
+/* 说人话: a parameter's “?” and its floating note (kept inside the panel by ParamHelp). */
+.param-help { position: relative; display: inline-flex; flex: none; vertical-align: middle; }
+.strategy-workbench .param-help-button,
+.param-help-button { display: inline-grid; place-items: center; width: 20px; min-width: 20px; height: 20px; min-height: 20px; padding: 0;
+  border: 1px solid var(--line-strong); border-radius: var(--radius-pill); background: var(--panel); color: var(--muted);
+  font: inherit; font-size: var(--font-md); font-weight: 700; line-height: 1; cursor: pointer; }
+.strategy-workbench .param-help-button[aria-expanded="true"],
+.param-help-button[aria-expanded="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.param-help-pop { position: absolute; top: calc(100% + var(--space-1)); left: 0; z-index: 30; box-sizing: border-box; width: min(300px, calc(100vw - 32px));
+  display: grid; gap: var(--space-1); padding: var(--space-2) var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-card);
+  background: var(--panel); color: var(--ink); box-shadow: var(--shadow-2); font-size: var(--font-md); font-weight: 400; line-height: 1.6;
+  white-space: normal; text-align: left; overflow-wrap: anywhere; }
+.param-help-pop p { margin: 0; color: var(--ink); }
+.param-help-pop b { display: inline-block; margin-right: var(--space-2); color: var(--muted); font-weight: 600; }

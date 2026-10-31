@@ -1,0 +1,54 @@
+{
+  "id": "donchian_turtle",
+  "name": "唐奇安突破（海龟简化版）",
+  "category": "trend_breakout",
+  "scenario": "日线或小时线，吃中长趋势：突破前 20 根高低点入场",
+  "plainSummary": "收盘价创出最近一段时间的新高就做多、创出新低就做空；反向跌破较短一段时间的低点（空单是升破高点）就离场，手数按最近的波动自动算，波动越大下得越少。",
+  "level": "新手", "holding": "会隔夜",
+  "source": {"label": "TqSdk turtle.py（20 突破 / 10 离场 / 2N 止损 / 1% 权益定手数）", "url": "https://github.com/shinnytech/tqsdk-python/blob/master/tqsdk/demo/example/turtle.py"},
+  "recommendedTimeframe": 86400,
+  "approximations": [
+    "不加仓：原版每涨 0.5N 加一个单位，本产品一个策略一笔持仓，不做金字塔。",
+    "按收盘确认：原版盘中价格一碰通道就成交，这里K线收盘后判断、下一根开盘成交。",
+    "N 用 Wilder 平滑的 ATR20（原版 TqSdk ATR 为简单平均）；手数 = 权益×1% ÷ (合约乘数×1×ATR)，封顶“最多手数”。",
+    "2N 止损取信号K线的 ATR，成交后按成交价换算成固定止损价。"
+  ],
+  "params": [
+    {"key": "entryN", "label": "入场参考根数（突破通道）", "default": 20, "min": 5, "max": 120, "step": 1, "unit": "根",
+     "targets": ["rules.entryLong.conditions.0.right.period", "rules.entryShort.conditions.0.right.period"],
+     "help": {"what": "看最近多少根K线的最高价 / 最低价，收盘突破它才开仓", "up": "只抓更大级别的突破，信号更少，但入场更晚", "down": "信号更多、入场更早，假突破也更多"}},
+    {"key": "exitN", "label": "离场参考根数（离场通道）", "default": 10, "min": 2, "max": 120, "step": 1, "unit": "根",
+     "targets": ["rules.exitLong.conditions.0.right.period", "rules.exitShort.conditions.0.right.period"],
+     "help": {"what": "持仓后看最近多少根K线的最低价（空单看最高价），收盘跌破（升破）就离场", "up": "给行情更多回撤空间，拿得更久，但回吐的利润更多", "down": "离场更快、保住利润，但容易被正常回调洗出去"}},
+    {"key": "atrPeriod", "label": "波动参考根数（ATR 周期 N）", "default": 20, "min": 5, "max": 100, "step": 1, "unit": "根",
+     "targets": ["atrStop.period", "sizing.atrPeriod"],
+     "help": {"what": "止损距离和手数都按最近多少根K线的平均波动（ATR）来算", "up": "波动估计更平滑、变化更慢", "down": "更快反映最近的波动，也更容易被个别大K线带偏"}},
+    {"key": "stopAtr", "label": "止损距离（ATR 倍数）", "default": 2, "min": 0.5, "max": 6, "step": 0.5, "unit": "×ATR", "targets": ["atrStop.multiple"],
+     "help": {"what": "止损放得离开仓价多远，按最近波动大小自动换算", "up": "不容易被正常波动扫出场，但万一做错单笔亏得更多", "down": "亏损控制得紧，但容易被来回波动打掉"}},
+    {"key": "riskPercent", "label": "每笔风险占权益（单位风险）", "default": 1, "min": 0.1, "max": 5, "step": 0.1, "unit": "% 权益", "targets": ["sizing.riskPercent"],
+     "help": {"what": "每次开仓的手数 = 账户权益 × 这个百分比 ÷ 一倍平均波动（ATR）对应的金额，向下取整，不足 1 手就不开", "up": "每次下的手数更多，盈亏都放大", "down": "手数更少，盈亏都缩小；太小时可能算出来不足 1 手而不开仓"}},
+    {"key": "maxPosition", "label": "最多手数", "default": 10, "min": 1, "max": 20, "step": 1, "unit": "手", "targets": ["maxPosition"],
+     "help": {"what": "按波动算出来的手数最多不超过这么多", "up": "波动小的时候允许下更多手", "down": "仓位上限更低，更保守"}},
+    {"key": "maxLoss", "label": "当日亏损上限", "default": null, "optional": true, "min": 100, "max": 1000000, "step": 100, "unit": "元", "targets": ["maxLoss"],
+     "help": {"what": "留空就不设。填了以后，账户当天的净亏损（已平仓、浮动盈亏和手续费合计）达到这个数，这条策略不再开新仓，止损和离场照常", "up": "允许当天亏得更多才停手", "down": "更早停止开新仓，也可能错过当天后面的机会"}}
+  ],
+  "constraints": [{"less": ["exitN", "entryN"], "message": "离场通道须短于突破通道"}],
+  "plan": {
+    "name": "唐奇安突破",
+    "description": "收盘价突破前 {entryN} 根最高价开多、跌破前 {entryN} 根最低价开空；多单跌破前 {exitN} 根最低价离场，空单升破前 {exitN} 根最高价离场；止损入场价 ∓ {stopAtr}×ATR{atrPeriod}；手数按 ATR 风险（权益 {riskPercent}%）计算，不加仓。来源：TqSdk turtle.py。",
+    "direction": "both", "timeframeSeconds": 86400, "maxPosition": 10, "maxLoss": null,
+    "stopLossTicks": 20, "takeProfitTicks": null, "cooldownBars": 0, "maxOrdersPerDay": 20,
+    "atrStop": {"multiple": 2, "period": 20},
+    "sizing": {"mode": "atr_risk", "riskPercent": 1, "atrMultiple": 1, "atrPeriod": 20},
+    "rules": {
+      "entryLong": {"conditions": [{"label": "收盘突破前 {entryN} 根最高", "left": {"indicator": "close", "timeframe": 86400},
+        "operator": "gt", "right": {"indicator": "donchian_high", "period": 20, "timeframe": 86400}}]},
+      "exitLong": {"conditions": [{"label": "收盘跌破前 {exitN} 根最低", "left": {"indicator": "close", "timeframe": 86400},
+        "operator": "lt", "right": {"indicator": "donchian_low", "period": 10, "timeframe": 86400}}]},
+      "entryShort": {"conditions": [{"label": "收盘跌破前 {entryN} 根最低", "left": {"indicator": "close", "timeframe": 86400},
+        "operator": "lt", "right": {"indicator": "donchian_low", "period": 20, "timeframe": 86400}}]},
+      "exitShort": {"conditions": [{"label": "收盘升破前 {exitN} 根最高", "left": {"indicator": "close", "timeframe": 86400},
+        "operator": "gt", "right": {"indicator": "donchian_high", "period": 10, "timeframe": 86400}}]}
+    }
+  }
+}

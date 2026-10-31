@@ -1,0 +1,17 @@
+/* 习惯对照 (2026-10-25): theme tokens only; figures and tags reuse the review's styles. */
+/* The wrapper only names the block for the agent (data-agent-target); it takes no part in the panel's layout. */
+.habit-compare-wrap { display: contents; }
+.habit-compare-side small { color: var(--muted); font-size: var(--font-sm); }
+.habit-compare-side b { font-size: var(--font-xl); font-weight: 600; }
+.habit-compare-body { gap: var(--space-2); }
+.habit-compare-label { margin: var(--space-1) 0 0; color: var(--muted); font-size: var(--font-sm); }
+.habit-compare-empty { margin: 0; color: var(--muted); font-size: var(--font-md); }
+.habit-compare-picks { margin: 0; padding: 0; list-style: none; display: grid; }
+.habit-compare-picks li + li { border-top: 1px solid var(--line); }
+.habit-compare-picks button {
+  width: 100%; display: flex; align-items: center; justify-content: flex-start; gap: var(--space-2); flex-wrap: wrap;
+  padding: var(--space-2) 0; border: 0; background: transparent; color: var(--ink); text-align: left; font-size: var(--font-md);
+}
+.habit-compare-picks button:hover { background: var(--surface-hover); }
+.habit-compare-pick-right { margin-left: auto; display: grid; justify-items: end; text-align: right; min-width: 0; }
+.habit-compare-pick-right small { color: var(--muted); font-size: var(--font-sm); overflow-wrap: anywhere; }

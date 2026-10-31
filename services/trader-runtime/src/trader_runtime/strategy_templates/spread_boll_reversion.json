@@ -1,0 +1,57 @@
+{
+  "id": "spread_boll_reversion",
+  "name": "跨期价差回归（布林）",
+  "category": "channel_reversion",
+  "scenario": "同一品种近远月合约的价差向均值回归：1 小时价差布林带判断超跌超涨",
+  "plainSummary": "同一个品种挑两个不同月份的合约，把两边价格的差画成一条波动带；这条线跌出带子下沿时买入近月、卖出远月，涨出上沿时反过来，等它回到带子中间就平掉。",
+  "level": "进阶", "holding": "会隔夜",
+  "source": {"label": "布林带的均值回归读法（John Bollinger 的回归规则）应用于两腿价差序列；Sente 自有模板（价差第一期，2026-09-29）", "url": "https://www.bollingerbands.com/bollinger-band-rules"},
+  "recommendedTimeframe": 3600,
+  "approximations": [
+    "价差序列由两腿同一根 1 小时K线的价格相减合成：一腿缺失的那根不判定；合成K线只有开收盘价，因此只用布林这类不看最高最低价的指标。",
+    "回测按收盘确认、下一根开盘成交：开仓与出场各腿按自己下一根K线开盘价成交，手续费与滑点按各腿合约分别计算。",
+    "价差止损回测按收盘价差判断（较开仓价差浮亏达到点数即平仓）；实盘按两腿最新行情每秒判断，更快触发。",
+    "实盘下单（第二期）：三种执行方式都可用；开平仓两腿同时以对手价发送，15 秒内没成交齐的腿自动撤单、按最新对手价补单一次，仍不成回退已成交部分并暂停策略（平仓则撤销剩余、提醒手动处理）。"
+  ],
+  "params": [
+    {"key": "near", "type": "contract", "label": "近月合约", "default": "SHFE.rb2701", "unit": "",
+     "targets": ["spread.legs.0.symbol"],
+     "help": {"what": "价差里月份较近的一条腿；做多价差 = 买入这个合约、卖出远月合约", "up": "换月份更近的合约，价差更贴近交割、波动通常更大", "down": "换月份稍远的合约，价差更平缓、信号更少"}},
+    {"key": "far", "type": "contract", "label": "远月合约", "default": "SHFE.rb2705", "unit": "",
+     "targets": ["spread.legs.1.symbol"],
+     "help": {"what": "价差里月份较远的一条腿；做多价差 = 卖出这个合约、买入近月合约", "up": "换月份更远的合约，流动性可能更差、买卖差价更大", "down": "换月份更近的合约，与近月太接近时价差变化太小"}},
+    {"key": "bollN", "label": "布林周期", "default": 20, "min": 5, "max": 100, "step": 1, "unit": "根",
+     "targets": ["rules.entryLong.conditions.0.right.period", "rules.entryShort.conditions.0.right.period",
+                 "rules.exitLong.conditions.0.right.period", "rules.exitShort.conditions.0.right.period"],
+     "help": {"what": "用最近多少根价差K线算布林带的中线和上下沿", "up": "带子更平滑、信号更少，反应也更慢", "down": "带子更贴近价差、信号更多，假信号也更多"}},
+    {"key": "bollK", "label": "布林倍数", "default": 2, "min": 1, "max": 4, "step": 0.1, "unit": "倍标准差",
+     "targets": ["rules.entryLong.conditions.0.right.k", "rules.entryShort.conditions.0.right.k"],
+     "help": {"what": "上下沿离中线多远，按价差平时波动幅度（标准差）的倍数算", "up": "价差要偏离得更远才算超跌超涨，信号更少", "down": "轻轻一偏就算超跌超涨，信号更多，假信号也更多"}},
+    {"key": "spreadStop", "label": "价差止损点数", "default": 60, "min": 10, "max": 1000, "step": 10, "unit": "点",
+     "targets": ["spread.stopLoss"],
+     "help": {"what": "收盘价差比开仓价差浮亏多少点时，止损同时平掉两条腿", "up": "容忍更大的价差逆行，单次亏损更大", "down": "止损更快，也更容易被价差的正常波动洗出去"}}
+  ],
+  "plan": {
+    "name": "跨期价差回归（布林）",
+    "description": "1 小时价差（{near}−{far}）收盘跌破布林下轨({bollN},{bollK})时做多价差：买{near} 1 手、卖{far} 1 手，收盘回到布林中轨平仓；收盘上穿上轨时做空价差：卖{near}、买{far}，回到中轨平仓。价差较开仓价差浮亏达 {spreadStop} 点时止损平仓（实盘按两腿最新行情每秒判断）。",
+    "direction": "both", "timeframeSeconds": 3600, "maxPosition": 1,
+    "stopLossTicks": 20, "takeProfitTicks": null, "cooldownBars": 2, "maxOrdersPerDay": 6,
+    "spread": {"kind": "difference",
+               "legs": [{"symbol": "{near}", "weight": 1, "lots": 1}, {"symbol": "{far}", "weight": 1, "lots": 1}],
+               "stopLoss": 60},
+    "rules": {
+      "entryLong": {"conditions": [
+        {"label": "价差收盘跌破布林下轨({bollN},{bollK})", "left": {"indicator": "close", "timeframe": 3600},
+         "operator": "cross_down", "right": {"indicator": "boll_down", "period": 20, "k": 2, "timeframe": 3600}}]},
+      "entryShort": {"conditions": [
+        {"label": "价差收盘上穿布林上轨({bollN},{bollK})", "left": {"indicator": "close", "timeframe": 3600},
+         "operator": "cross_up", "right": {"indicator": "boll_up", "period": 20, "k": 2, "timeframe": 3600}}]},
+      "exitLong": {"conditions": [
+        {"label": "价差收盘回到布林中轨({bollN})", "left": {"indicator": "close", "timeframe": 3600},
+         "operator": "cross_up", "right": {"indicator": "boll_mid", "period": 20, "timeframe": 3600}}]},
+      "exitShort": {"conditions": [
+        {"label": "价差收盘回到布林中轨({bollN})", "left": {"indicator": "close", "timeframe": 3600},
+         "operator": "cross_down", "right": {"indicator": "boll_mid", "period": 20, "timeframe": 3600}}]}
+    }
+  }
+}

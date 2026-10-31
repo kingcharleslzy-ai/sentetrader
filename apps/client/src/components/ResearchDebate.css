@@ -1,0 +1,217 @@
+/* 多 AI 辩论 (approved samples 2026-10-11, 2026-10-24): the computer's 辩论 page and the phone's page. Theme tokens
+   only: 多 / 空 use the market pair (红涨绿跌 follows the user's 涨跌色), the judge the accent pair, 未核对 the warning
+   pair, 震荡 the warning pair, 看不清 the muted one. */
+.debate-panel { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.debate-tab-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: 32px; padding: 0 var(--space-3); }
+.debate-tab-head small { color: var(--muted); overflow-wrap: anywhere; }
+.debate { display: flex; flex-direction: column; min-width: 0; min-height: 0; flex: 1; color: var(--ink); background: var(--panel); container-type: inline-size; }
+.debate-head { display: flex; align-items: center; gap: var(--space-2); min-height: 44px; padding: 0 var(--space-3); border-bottom: 1px solid var(--line); min-width: 0; }
+.debate-head > strong { font-size: var(--font-lg); font-weight: 600; overflow-wrap: anywhere; }
+.debate-head-note { margin-left: auto; color: var(--muted); font-size: var(--font-sm); white-space: nowrap; }
+.debate-body { flex: 1; min-height: 0; overflow: auto; padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); }
+.debate-body > * { flex-shrink: 0; }
+.debate[data-layout="phone"] .debate-body { padding: var(--space-3); }
+.debate p { margin: 0; }
+
+/* Buttons: the shared primary for 写进今日判断 / 辩今日议题, the shared app-button for 再辩一轮 and 停止 (danger); a ghost
+   for 在对话里接着问. .debate-secondary stays for the 研讨 buttons on 快讯 rows and 今日判断. */
+:where(.debate, .news-ev, .research-desk) :is(.debate-secondary, .debate-ghost) {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1); min-height: 32px; padding: 0 var(--space-3);
+  border: 1px solid var(--line-strong); border-radius: var(--radius-control); background: var(--panel); color: var(--ink);
+  font: inherit; font-size: var(--font-md); white-space: nowrap; cursor: pointer;
+}
+:where(.debate, .news-ev, .research-desk) .debate-ghost { border-color: transparent; background: transparent; color: var(--muted); }
+:where(.debate, .news-ev, .research-desk) .debate-ghost:hover:not(:disabled) { background: var(--soft); color: var(--ink); }
+:where(.debate, .news-ev, .research-desk) .debate-secondary:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+:where(.debate) .debate-again { display: inline-flex; align-items: center; gap: var(--space-1); }
+:where(.debate) :is(.debate-again, .debate-ghost) svg { width: 14px; height: 14px; }
+.debate-head .debate-back { display: grid; place-items: center; min-height: 32px; padding: 0; border: 0; background: transparent; color: var(--ink); cursor: pointer; }
+.debate-head .debate-back svg { width: 20px; height: 20px; }
+:where(.debate) .debate-primary { min-height: 32px; padding: 0 var(--space-4); border-radius: var(--radius-control); font-size: var(--font-md); }
+:where(.debate) :is(button, .debate-secondary):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.debate-note { color: var(--muted); font-size: var(--font-sm); }
+.debate-alert { padding: var(--space-2) var(--space-3); border-radius: var(--radius-control); background: var(--warning-soft); color: var(--warning); font-size: var(--font-md); line-height: 1.5; }
+
+/* Who speaks for whom, and where the debate is. */
+.debate-roles { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--line); font-size: var(--font-sm); }
+.debate-role { display: inline-flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-2); border-radius: var(--radius-pill); }
+.debate-role > i { width: 8px; height: 8px; border-radius: 50%; }
+.debate-role[data-role="bull"] { background: var(--market-up-soft); color: var(--market-up); }
+.debate-role[data-role="bull"] > i { background: var(--market-up); }
+.debate-role[data-role="bear"] { background: var(--market-down-soft); color: var(--market-down); }
+.debate-role[data-role="bear"] > i { background: var(--market-down); }
+.debate-role[data-role="judge"] { background: var(--accent-soft); color: var(--accent); }
+.debate-role[data-role="judge"] > i { background: var(--accent); }
+.debate-where { margin-left: auto; color: var(--muted); }
+.debate[data-layout="phone"] .debate-roles { padding: var(--space-2) var(--space-3); }
+
+/* The exchange: 多方 left, 空方 right, one turn after another; the running one has a caret. */
+.debate-transcript { display: flex; flex-direction: column; gap: var(--space-3); }
+.debate-round { display: flex; align-items: center; gap: var(--space-2); color: var(--muted); font-size: var(--font-sm); }
+.debate-round::before, .debate-round::after { content: ""; flex: 1 1 0; height: 1px; background: var(--line); }
+.debate-turn { display: flex; flex-direction: column; gap: var(--space-1); max-width: 86%; }
+.debate-turn[data-side="bear"] { align-self: flex-end; align-items: flex-end; }
+.debate-who { color: var(--muted); font-size: var(--font-sm); }
+.debate-turn[data-side="bull"] .debate-who { color: var(--market-up); }
+.debate-turn[data-side="bear"] .debate-who { color: var(--market-down); }
+.debate-bubble-text { padding: var(--space-2) var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-card); font-size: var(--font-md); line-height: 1.6; overflow-wrap: anywhere; text-align: left; }
+.debate-turn[data-side="bull"] .debate-bubble-text { border-color: color-mix(in srgb, var(--market-up) 22%, var(--line)); background: var(--market-up-soft); }
+.debate-turn[data-side="bear"] .debate-bubble-text { border-color: color-mix(in srgb, var(--market-down) 22%, var(--line)); background: var(--market-down-soft); }
+.debate-turn[data-live][data-side="bull"] .debate-bubble-text { border-color: var(--market-up); }
+.debate-turn[data-live][data-side="bear"] .debate-bubble-text { border-color: var(--market-down); }
+.debate-caret { display: inline-block; width: 7px; height: 1.1em; margin-left: 2px; vertical-align: -0.2em; background: currentColor; animation: ui-ai-thinking 1.2s var(--ease-standard) infinite; }
+@media (prefers-reduced-motion: reduce) { .debate-caret { animation: none; } }
+.debate-checks { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-2); color: var(--positive); font-size: var(--font-xs); }
+.debate-checks[data-unchecked] { color: var(--warning); }
+.debate-unchecked { padding: 0 var(--space-0); border-radius: var(--radius-sm); background: var(--warning-soft); color: var(--warning); }
+:where(.debate) .debate-chip { display: inline-flex; align-items: center; max-width: 14em; margin: 0 var(--space-1); padding: 0 var(--space-1); vertical-align: 1px;
+  border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--panel); color: var(--muted);
+  font-family: inherit; font-size: var(--font-xs); line-height: 1.6; white-space: nowrap; cursor: pointer; }
+:where(.debate) .debate-chip > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+:where(.debate) .debate-chip[data-news] { border-color: var(--accent); color: var(--accent); }
+:where(.debate) .debate-chip:hover { border-color: var(--accent); color: var(--ink); }
+.debate-judge-note { display: flex; align-items: center; gap: var(--space-2); padding-top: var(--space-2); border-top: 1px solid var(--line); color: var(--muted); font-size: var(--font-sm); }
+
+/* The verdict: the judge's block (accent), winner and tier, the 多:空 meter, the why, where it stops holding. */
+.debate-verdict { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.debate-verdict > .section-card-head { background: var(--accent-soft); }
+.debate-verdict > .section-card-head h3 { color: var(--accent); }
+.debate-verdict-body { display: grid; gap: var(--space-3); padding: var(--space-4); }
+.debate-verdict-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-3); }
+.debate-winner { font-size: var(--font-2xl); font-weight: 700; line-height: 1.3; }
+.debate-winner[data-side="bull"] { color: var(--market-up); }
+.debate-winner[data-side="bear"] { color: var(--market-down); }
+.debate-stance { display: inline-flex; padding: var(--space-0) var(--space-2); border-radius: var(--radius-control); background: var(--soft); font-size: var(--font-md); }
+.debate-stance:is([data-stance="偏多"], [data-stance="略偏多"]) { background: var(--market-up-soft); color: var(--market-up); }
+.debate-stance:is([data-stance="偏空"], [data-stance="略偏空"]) { background: var(--market-down-soft); color: var(--market-down); }
+.debate-stance[data-stance="震荡"] { background: var(--warning-soft); color: var(--warning); }
+.debate-stance[data-stance="看不清"] { color: var(--muted); }
+.debate-meter { display: grid; gap: var(--space-1); }
+.debate-bar { position: relative; height: 8px; overflow: hidden; border-radius: var(--radius-sm); background: var(--market-down); }
+.debate-bar > i { position: absolute; inset: 0 auto 0 0; background: var(--market-up); }
+.debate-meter-legend { display: flex; justify-content: space-between; font: var(--font-sm) var(--font-num); font-variant-numeric: tabular-nums; }
+.debate-up { color: var(--market-up); }
+.debate-down { color: var(--market-down); }
+.debate-reason-text { font-size: var(--font-md); line-height: 1.7; overflow-wrap: anywhere; text-wrap: pretty; }
+.debate-invalid { color: var(--muted); font-size: var(--font-sm); line-height: 1.6; overflow-wrap: anywhere; }
+.debate-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-top: 1px solid var(--line); }
+.debate-actions[data-bare] { padding: var(--space-2) 0 0; border-top: 0; }
+.debate-reason { color: var(--muted); font-size: var(--font-md); }
+.debate-reason[data-error] { color: var(--danger); }
+.debate[data-layout="phone"] .debate-actions:not([data-bare]) { display: grid; }
+
+/* 交锋回看: one row per turn. */
+.debate-replay-list { margin: 0; padding: var(--space-2) var(--space-4) var(--space-3); list-style: none; display: grid; gap: var(--space-2); }
+.debate-replay-list > li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-2); align-items: start; padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-control); background: var(--soft); }
+.debate-replay-who { font-size: var(--font-sm); line-height: 1.7; }
+.debate-replay-list > li[data-side="bull"] .debate-replay-who { color: var(--market-up); }
+.debate-replay-list > li[data-side="bear"] .debate-replay-who { color: var(--market-down); }
+.debate-replay-text { font-size: var(--font-md); line-height: 1.6; overflow-wrap: anywhere; }
+.debate-replay-text small { color: var(--muted); font-size: var(--font-sm); }
+.debate-replay-text .debate-replay-flag { color: var(--warning); }
+
+/* 以前的辩论 */
+.debate-recent-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); padding: var(--space-3) var(--space-4); }
+:where(.debate) .debate-recent-item { display: grid; gap: var(--space-1); padding: var(--space-2) var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-control);
+  background: var(--panel); color: var(--ink); font: inherit; font-size: var(--font-sm); text-align: left; cursor: pointer; }
+:where(.debate) .debate-recent-item:hover { border-color: var(--accent); }
+.debate-recent-day, .debate-recent-outcome { color: var(--muted); }
+.debate-recent-outcome[data-outcome="right"] { color: var(--positive); }
+.debate-recent-outcome[data-outcome="wrong"] { color: var(--danger); }
+
+/* 裁判怎么取舍 */
+.debate-picks { display: grid; gap: var(--space-2); }
+.debate-picks .rule-row-text strong:empty { display: none; }
+.debate-picks .rule-row[data-kind="filter"] .rule-row-period { background: var(--soft); color: var(--muted); }
+.debate-pick-text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.debate-pick-text[data-open] { display: block; -webkit-line-clamp: unset; }
+:where(.debate) .debate-pick-more { padding: 0; border: 0; background: none; color: var(--accent); font: inherit; font-size: var(--font-md); cursor: pointer; }
+
+/* Folds at the bottom */
+.debate-fold { border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--panel); }
+.debate-fold-row { display: flex; align-items: center; gap: var(--space-2); padding-right: var(--space-3); }
+:where(.debate) .debate-fold-head { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; justify-content: flex-start; align-items: baseline; gap: var(--space-1) var(--space-3); padding: var(--space-3) var(--space-4);
+  border: 0; border-radius: var(--radius-card); background: none; color: var(--ink); font: inherit; font-size: var(--font-md); text-align: left; white-space: normal; cursor: pointer; }
+.debate-fold-head b { font-weight: 600; }
+.debate-fold-head span { min-width: 0; max-width: 100%; color: var(--muted); font-size: var(--font-md); overflow-wrap: anywhere; }
+.debate-fold-head i { margin-left: auto; color: var(--accent); font-size: var(--font-md); font-style: normal; white-space: nowrap; }
+.debate-fold-body { display: grid; gap: var(--space-2); padding: var(--space-2) var(--space-4) var(--space-3); border-top: 1px solid var(--line); font-size: var(--font-md); }
+.debate-fold-line { color: var(--muted); font-size: var(--font-md); line-height: 1.6; overflow-wrap: anywhere; }
+.debate-sheet-list { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-1); }
+.debate-sheet-list li { display: grid; grid-template-columns: 6em auto minmax(0, 1fr); gap: var(--space-2); align-items: baseline; }
+.debate-sheet-list li[data-status="complete"] span { color: var(--positive); }
+.debate-sheet-list li:is([data-status="partial"], [data-status="stale"]) span { color: var(--warning); }
+.debate-sheet-list li[data-status="missing"] span { color: var(--danger); }
+.debate-sheet-list small { color: var(--muted); font-family: var(--font-num); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.debate-sources { margin: 0; padding: 0; list-style: none; display: grid; }
+.debate-sources li { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: var(--space-2); padding: var(--space-2) 0; border-top: 1px solid var(--line); scroll-margin: 48px; }
+.debate-sources li:first-child { border-top: 0; }
+.debate-sources li[data-highlight] { background: var(--accent-soft); }
+.debate-number { color: var(--muted); font: var(--font-sm)/var(--font-xl) var(--font-num); font-variant-numeric: tabular-nums; text-align: right; }
+.debate-source-text { display: grid; gap: var(--space-1); min-width: 0; overflow-wrap: anywhere; }
+.debate-source-label { color: var(--muted); }
+.debate-source-text b { font-weight: 500; }
+.debate-source-text small { color: var(--muted); font-size: var(--font-sm); }
+.debate-source-text a, .debate-fold-body a { color: var(--accent); }
+.debate-log { display: grid; gap: var(--space-2); }
+.debate-log ol { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-2); }
+.debate-log-head { color: var(--ink); }
+.debate-log pre { max-height: 220px; margin: var(--space-1) 0 0; padding: var(--space-2); overflow: auto; border-radius: var(--radius-control); background: var(--soft);
+  color: var(--ink); font: var(--font-xs)/1.5 var(--font-num); font-variant-numeric: tabular-nums; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* 分析师 (sample ④, 2026-10-24): the stage bar, one card per analyst (dashed while waiting, accent while writing),
+   the 全网补充 chip and its found pages, 上次复盘, and the judge's 关键分歧 / 如果……那么…… lists. */
+.debate-follow { display: flex; flex-direction: column; gap: var(--space-3); }
+.debate-stages { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); font-size: var(--font-sm); }
+.debate-stages ol { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-2); margin: 0; padding: 0; list-style: none; }
+.debate-stages li { padding: var(--space-1) var(--space-2); border-radius: var(--radius-pill); color: var(--muted); }
+.debate-stages li[data-state="now"] { background: var(--accent-soft); color: var(--accent); }
+.debate-stages li[data-state="done"] { color: var(--ink); }
+.debate-eta { margin-left: auto; color: var(--muted); }
+.debate-analyst-list { display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-4); }
+.debate-analyst { min-width: 0; border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--panel); }
+.debate-analyst[data-status="wait"] { border-style: dashed; }
+.debate-analyst[data-status="run"] { border-color: var(--accent); background: var(--accent-soft); }
+:where(.debate) .debate-analyst-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); width: 100%; padding: var(--space-3) var(--space-4);
+  border: 0; border-radius: var(--radius-card); background: none; color: var(--ink); font: inherit; font-size: var(--font-md); text-align: left; }
+:where(.debate) button.debate-analyst-head { cursor: pointer; }
+.debate-analyst-head b { font-weight: 600; }
+.debate-analyst-head small { color: var(--muted); font-size: var(--font-sm); }
+.debate-analyst-head svg { width: 14px; height: 14px; color: var(--muted); transition: transform 120ms var(--ease-standard); }
+.debate-analyst[data-open] .debate-analyst-head svg { transform: rotate(180deg); }
+.debate-analyst-state { margin-left: auto; color: var(--muted); font-size: var(--font-sm); white-space: nowrap; }
+.debate-analyst-state[data-status="done"] { color: var(--positive); }
+.debate-analyst-state[data-status="run"] { color: var(--accent); }
+.debate-analyst-state[data-status="failed"] { color: var(--warning); }
+.debate-found-chip { padding: 0 var(--space-2); border-radius: var(--radius-pill); background: var(--accent-soft); color: var(--accent); font-size: var(--font-xs); line-height: 1.8; white-space: nowrap; }
+.debate-analyst-conclusion { padding: 0 var(--space-4) var(--space-3); color: var(--muted); font-size: var(--font-md); line-height: 1.6; overflow-wrap: anywhere; }
+.debate-analyst-conclusion strong { color: var(--ink); font-weight: 600; }
+.debate-analyst-body { display: grid; gap: var(--space-2); padding: 0 var(--space-4) var(--space-3); min-width: 0; }
+.debate-analyst-text { font-size: var(--font-md); line-height: 1.7; overflow-wrap: anywhere; }
+.debate-analyst-text[data-live] { white-space: pre-line; }
+.debate-analyst-note { color: var(--muted); font-size: var(--font-sm); }
+.debate-analyst .stat-tiles { border: 1px solid var(--line); border-radius: var(--radius-control); overflow: hidden; }
+:where(.debate) .debate-analyst .stat-tile .debate-chip { max-width: 100%; margin: var(--space-1) 0 0; }
+.debate-found { display: grid; gap: var(--space-1); }
+.debate-found ul { display: grid; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
+.debate-found li { display: flex; gap: var(--space-2); padding: var(--space-1) var(--space-2); border-radius: var(--radius-control); background: var(--soft); font-size: var(--font-sm); line-height: 1.5; overflow-wrap: anywhere; }
+.debate-found li small { flex: none; color: var(--muted); font-size: var(--font-sm); }
+.debate-lesson { display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-radius: var(--radius-control); background: var(--soft);
+  font-size: var(--font-sm); line-height: 1.6; overflow-wrap: anywhere; }
+.debate-lesson > span { flex: 1; min-width: 0; }
+.debate-verdict-list { display: grid; gap: var(--space-1); }
+.debate-verdict-list b { color: var(--muted); font-size: var(--font-sm); font-weight: 500; }
+.debate-verdict-list ul { display: grid; gap: var(--space-1); margin: 0; padding-left: 1.2em; font-size: var(--font-md); line-height: 1.6; overflow-wrap: anywhere; }
+
+/* A narrow page: bubbles take the width, the earlier debates stack. */
+@container (max-width: 480px) {
+  .debate-turn { max-width: 100%; }
+  .debate-recent-grid { grid-template-columns: minmax(0, 1fr); }
+  .debate-where { margin-left: 0; width: 100%; }
+  .debate-analyst-list { padding: var(--space-2); }
+  :where(.debate) .debate-analyst-head, .debate-analyst-conclusion, .debate-analyst-body { padding-left: var(--space-3); padding-right: var(--space-3); }
+  .debate-analyst .stat-tiles[data-columns] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .debate-found li { flex-direction: column; gap: 0; }
+}

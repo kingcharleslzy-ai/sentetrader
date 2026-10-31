@@ -1,0 +1,71 @@
+{
+  "id": "rsi_reversal",
+  "name": "RSI 迟滞反转",
+  "category": "reversal",
+  "scenario": "高抛低吸：RSI 超卖做多、超买做空，回到 50 离场；RSI 先回到复位线才允许同方向再开",
+  "plainSummary": "跌得太狠就做多、涨得太猛就做空，等涨跌强弱回到中间就离场；同一方向做过一次后，要等强弱先回到正常区间才会再开。",
+  "level": "进阶", "holding": "会隔夜",
+  "source": {"label": "QuantConnect LEAN RsiAlphaModel（RSI14 日线，30 / 70，复位 35 / 65）", "url": "https://github.com/QuantConnect/Lean/blob/master/Algorithm.Framework/Alphas/RsiAlphaModel.py"},
+  "recommendedTimeframe": 86400,
+  "approximations": [
+    "原版是给方向信号的 Alpha 模型：RSI 从中间状态跌破 30 发“看涨”、升破 70 发“看跌”，跌破 30 后要回到 35 以上（升破 70 后回到 65 以下）才算回到中间、才会再发同向信号——这就是复位条件。",
+    "原版没有离场规则，信号持续 14 根K线（周期 × K线长度）后到期，怎么平仓由组合模型决定；这里改为 RSI 回到 50 离场（多单 RSI ≥ 50、空单 RSI ≤ 50）。",
+    "按收盘确认：日线收盘判断，下一根开盘成交；RSI 用 Wilder 平滑，与原版相同。",
+    "原版没有止损；另设保护止损 3×ATR14（日线），只防极端行情。"
+  ],
+  "params": [
+    {"key": "rsiPeriod", "label": "强弱参考根数（RSI 周期）", "default": 14, "min": 2, "max": 60, "step": 1, "unit": "根",
+     "targets": ["rules.entryLong.conditions.0.left.period", "rules.entryShort.conditions.0.left.period",
+                 "rules.entryLong.rearm.0.left.period", "rules.entryShort.rearm.0.left.period",
+                 "rules.exitLong.conditions.0.left.period", "rules.exitShort.conditions.0.left.period"],
+     "help": {"what": "用最近多少根K线算涨跌强弱（RSI，0–100，50 是中性）", "up": "强弱读数更平稳，信号更少、更慢", "down": "读数更灵敏，信号更多也更杂"}},
+    {"key": "oversold", "label": "做多门槛（超卖线）", "default": 30, "min": 5, "max": 45, "step": 1, "unit": "",
+     "targets": ["rules.entryLong.conditions.0.right.value"],
+     "help": {"what": "强弱读数（0–100）跌到这个数以下就做多", "up": "稍微跌一点就做多，信号更多，但可能买在下跌半途", "down": "要跌得更狠才做多，信号更少"}},
+    {"key": "overbought", "label": "做空门槛（超买线）", "default": 70, "min": 55, "max": 95, "step": 1, "unit": "",
+     "targets": ["rules.entryShort.conditions.0.right.value"],
+     "help": {"what": "强弱读数（0–100）涨到这个数以上就做空", "up": "要涨得更猛才做空，信号更少", "down": "稍微涨一点就做空，信号更多，但可能过早逆势"}},
+    {"key": "rearmLow", "label": "再做多的解锁线（多头复位线）", "default": 35, "min": 6, "max": 60, "step": 1, "unit": "",
+     "targets": ["rules.entryLong.rearm.0.right.value"],
+     "help": {"what": "做过一次多之后，强弱读数要先回到这个数以上，才允许再做多", "up": "要反弹得更充分才解锁，重复做多更少", "down": "稍一反弹就解锁，连续做多的次数更多"}},
+    {"key": "rearmHigh", "label": "再做空的解锁线（空头复位线）", "default": 65, "min": 40, "max": 94, "step": 1, "unit": "",
+     "targets": ["rules.entryShort.rearm.0.right.value"],
+     "help": {"what": "做过一次空之后，强弱读数要先回到这个数以下，才允许再做空", "up": "稍一回落就解锁，连续做空的次数更多", "down": "要回落得更充分才解锁，重复做空更少"}},
+    {"key": "exitLevel", "label": "离场位置（离场线）", "default": 50, "min": 20, "max": 80, "step": 1, "unit": "",
+     "targets": ["rules.exitLong.conditions.0.right.value", "rules.exitShort.conditions.0.right.value"],
+     "help": {"what": "多单等强弱读数回到这个数及以上离场，空单回到这个数及以下离场", "up": "多单拿得更久、空单走得更早", "down": "多单走得更早、空单拿得更久"}},
+    {"key": "stopAtr", "label": "保护止损（ATR 倍数）", "default": 3, "min": 0.5, "max": 10, "step": 0.5, "unit": "×ATR14", "targets": ["atrStop.multiple"],
+     "help": {"what": "止损放得离开仓价多远，按最近波动大小自动换算", "up": "不容易被正常波动扫出场，但万一做错单笔亏得更多", "down": "亏损控制得紧，但容易被来回波动打掉"}},
+    {"key": "maxPosition", "label": "每次手数", "default": 1, "min": 1, "max": 20, "step": 1, "unit": "手", "targets": ["maxPosition"],
+     "help": {"what": "每次开仓下多少手", "up": "盈亏都按手数放大，占用的保证金也更多", "down": "盈亏都跟着缩小，更稳妥"}},
+    {"key": "maxLoss", "label": "当日亏损上限", "default": null, "optional": true, "min": 100, "max": 1000000, "step": 100, "unit": "元", "targets": ["maxLoss"],
+     "help": {"what": "留空就不设。填了以后，账户当天的净亏损（已平仓、浮动盈亏和手续费合计）达到这个数，这条策略不再开新仓，止损和离场照常", "up": "允许当天亏得更多才停手", "down": "更早停止开新仓，也可能错过当天后面的机会"}}
+  ],
+  "constraints": [
+    {"less": ["oversold", "rearmLow"], "message": "多头复位线须高于超卖线"},
+    {"less": ["rearmHigh", "overbought"], "message": "空头复位线须低于超买线"},
+    {"less": ["oversold", "exitLevel"], "message": "离场线须高于超卖线"},
+    {"less": ["exitLevel", "overbought"], "message": "离场线须低于超买线"}
+  ],
+  "plan": {
+    "name": "RSI 迟滞反转",
+    "description": "RSI{rsiPeriod} 低于 {oversold} 开多、高于 {overbought} 开空；多单 RSI 回到 {exitLevel} 及以上离场，空单回到 {exitLevel} 及以下离场。复位：开多后 RSI 须先回到 {rearmLow} 以上才允许再开多，开空后须先回到 {rearmHigh} 以下才允许再开空。保护止损 {stopAtr}×ATR14。来源：LEAN RsiAlphaModel。",
+    "direction": "both", "timeframeSeconds": 86400, "maxPosition": 1, "maxLoss": null,
+    "stopLossTicks": 20, "takeProfitTicks": null, "cooldownBars": 0, "maxOrdersPerDay": 20,
+    "atrStop": {"multiple": 3, "period": 14},
+    "rules": {
+      "entryLong": {"conditions": [{"label": "RSI{rsiPeriod} 低于 {oversold}（超卖）", "left": {"indicator": "rsi", "period": 14, "timeframe": 86400},
+        "operator": "lt", "right": {"indicator": "constant", "value": 30, "timeframe": 86400}}],
+        "rearm": [{"label": "RSI{rsiPeriod} 回到 {rearmLow} 以上（复位）", "left": {"indicator": "rsi", "period": 14, "timeframe": 86400},
+          "operator": "gt", "right": {"indicator": "constant", "value": 35, "timeframe": 86400}}]},
+      "exitLong": {"conditions": [{"label": "RSI{rsiPeriod} 回到 {exitLevel}", "left": {"indicator": "rsi", "period": 14, "timeframe": 86400},
+        "operator": "gte", "right": {"indicator": "constant", "value": 50, "timeframe": 86400}}]},
+      "entryShort": {"conditions": [{"label": "RSI{rsiPeriod} 高于 {overbought}（超买）", "left": {"indicator": "rsi", "period": 14, "timeframe": 86400},
+        "operator": "gt", "right": {"indicator": "constant", "value": 70, "timeframe": 86400}}],
+        "rearm": [{"label": "RSI{rsiPeriod} 回到 {rearmHigh} 以下（复位）", "left": {"indicator": "rsi", "period": 14, "timeframe": 86400},
+          "operator": "lt", "right": {"indicator": "constant", "value": 65, "timeframe": 86400}}]},
+      "exitShort": {"conditions": [{"label": "RSI{rsiPeriod} 回到 {exitLevel}", "left": {"indicator": "rsi", "period": 14, "timeframe": 86400},
+        "operator": "lte", "right": {"indicator": "constant", "value": 50, "timeframe": 86400}}]}
+    }
+  }
+}

@@ -1,0 +1,18 @@
+.market-session-card {
+  width: min(400px, calc(100vw - 32px)); max-height: calc(100dvh - 32px);
+  box-sizing: border-box; overflow: auto; padding: var(--space-4);
+  color: var(--ink); background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius-card); box-shadow: var(--shadow-3); font-size: var(--font-md); white-space: normal;
+}
+.market-session-card::backdrop { background: var(--overlay); }
+.market-session-card header { display: flex; align-items: start; justify-content: space-between; gap: var(--space-2); }
+.market-session-card header strong { font-size: var(--font-lg); overflow-wrap: anywhere; }
+.market-session-card small { display: block; margin-top: var(--space-1); color: var(--muted); }
+.market-session-card header button { color: var(--ink); background: var(--soft); border: 1px solid var(--line); border-radius: var(--radius-control); padding: var(--space-2); display: flex; }
+.market-session-current { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3); margin-top: var(--space-4); color: var(--accent); background: var(--accent-soft); border-radius: var(--radius-control); }
+.market-session-current svg { flex-shrink: 0; }
+.market-session-card h3 { font-size: inherit; margin: var(--space-4) 0 var(--space-2); }
+.market-session-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-2); padding: var(--space-2); border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.market-session-row.break { color: var(--muted); background: var(--soft); }
+.market-session-row.current { color: var(--warning); background: var(--warning-soft); font-weight: 600; }
+.market-session-card button:focus-visible, .market-session-trigger:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

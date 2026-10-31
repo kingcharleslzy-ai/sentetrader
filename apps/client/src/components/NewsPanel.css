@@ -1,0 +1,25 @@
+:is(.news-panel, .reminders-panel) { min-width: 0; color: var(--ink); background: var(--panel); display: flex; flex-direction: column; overflow: hidden; }
+/* :where keeps this reset below shared controls (SectionCard / ResearchCard actions keep their own look). */
+:where(.news-panel) button { min-width: 0; max-width: 100%; display: inline-flex; align-items: center; justify-content: center; color: var(--ink); background: var(--soft); border: 1px solid var(--fdw-line); border-radius: var(--radius-control); padding: var(--space-2) var(--space-3); font: inherit; cursor: pointer; }
+:where(.news-panel) button:focus-visible { outline: 2px solid var(--primary-bg); outline-offset: 2px; }
+:where(.news-panel) button:disabled { cursor: default; opacity: .6; }
+.news-panel-toolbar { display: flex; gap: var(--space-2); align-items: center; padding: var(--space-3) var(--space-3); flex-wrap: wrap; }
+.news-panel-toolbar > strong { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: var(--font-md); }
+.news-panel-toolbar > button { padding: var(--space-1) var(--space-3); border-radius: var(--radius-pill); font-size: var(--font-md); }
+.news-panel-toolbar strong { overflow-wrap: anywhere; flex: 1; }
+:is(.news-panel, .reminders-panel) [role="tablist"] { display: flex; gap: var(--space-4); padding: 0 var(--space-3); border-bottom: 1px solid var(--line); }
+:is(.news-panel, .reminders-panel) [role="tablist"] > button { position: relative; min-height: 40px; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--muted); font-size: var(--font-md); }
+:is(.news-panel, .reminders-panel) [role="tablist"] > button:hover { color: var(--ink); }
+:is(.news-panel, .reminders-panel) [role="tab"][aria-selected="true"] { color: var(--ink); font-weight: 600; }
+:is(.news-panel, .reminders-panel) [role="tab"][aria-selected="true"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; border-radius: var(--radius-sm); background: var(--brand-gradient); }
+.news-panel-content { overflow: auto; min-height: 0; padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-3); }
+.news-panel-content > * { flex-shrink: 0; }
+.news-panel-tab { display: flex; flex-direction: column; gap: var(--space-3); }
+.news-panel-tab[hidden] { display: none; }
+.news-panel-content p { margin: var(--space-2) 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.news-panel-content a { color: var(--ink); text-decoration: underline; }
+.news-panel .section-card-hint { overflow-wrap: anywhere; }
+/* The card body's grid gap is the spacing; a summary keeps no outer margin. */
+.news-panel .section-card-body p { margin: 0; }
+/* 多 AI 研讨: the sub-view replaces the toolbar, tabs and content (which stay mounted, hidden). */
+.news-panel > [hidden] { display: none; }

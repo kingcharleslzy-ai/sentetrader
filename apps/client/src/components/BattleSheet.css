@@ -1,0 +1,22 @@
+/* 今日作战表 (第 5 批 2026-10-25): one bordered row per 自选品种. Priority uses the warning / accent / soft pairs —
+   never the market 涨跌 colours, which mean direction. */
+.sheet-note { margin: 0; color: var(--muted); }
+.sheet-rows { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.sheet-row { display: grid; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-control); min-width: 0; }
+.sheet-row[data-priority="高"] { border-color: color-mix(in srgb, var(--warning) 50%, var(--line)); }
+.sheet-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-2); }
+.sheet-head strong { color: var(--ink); font-size: var(--font-lg); }
+.sheet-head small { color: var(--muted); font-size: var(--font-md); }
+.sheet-price { margin-left: auto; color: var(--ink); font: 600 var(--font-lg)/1.4 var(--font-num); font-variant-numeric: tabular-nums; }
+.sheet-priority, .sheet-strength { display: inline-flex; align-items: center; padding: 0 var(--space-2); border-radius: var(--radius-sm); font-size: var(--font-md); font-weight: 700;
+  color: var(--muted); background: var(--soft); }
+.sheet-priority[data-priority="高"], .sheet-strength[data-strength="强"] { color: var(--warning); background: var(--warning-soft); }
+.sheet-priority[data-priority="中"], .sheet-strength[data-strength="中"] { color: var(--accent); background: var(--accent-soft); }
+.sheet-open { padding: var(--space-0) var(--space-2); font-size: var(--font-md); }
+.sheet-fields { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--space-1) var(--space-3); margin: 0; font-size: var(--font-md); line-height: 1.5; }
+.sheet-fields dt { color: var(--muted); }
+.sheet-fields dd { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); margin: 0; color: var(--ink); overflow-wrap: anywhere; }
+.sheet-fields dd small { margin-left: var(--space-1); color: var(--muted); font-variant-numeric: tabular-nums; }
+.sheet-none { color: var(--muted); }
+.sheet-rows[data-layout="phone"] .sheet-fields { grid-template-columns: 1fr; }
+.sheet-rows[data-layout="phone"] .sheet-fields dt { font-size: var(--font-sm); }

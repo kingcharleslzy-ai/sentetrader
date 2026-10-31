@@ -1,0 +1,15 @@
+/* Guided tour step indicator: bottom centre, above the positions bar, theme tokens only. */
+.ai-tour-indicator {
+  position: fixed; left: 50%; bottom: 56px; transform: translateX(-50%); z-index: 95;
+  display: flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-2);
+  max-width: min(560px, calc(100vw - 32px)); border: 1px solid var(--line); border-radius: var(--radius-card);
+  background: var(--panel); color: var(--ink); box-shadow: var(--shadow-2);
+}
+.ai-tour-indicator .ai-tour-step { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-0); min-width: 0; padding: var(--space-1) var(--space-2); border: 0; border-radius: var(--radius-control); background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.ai-tour-indicator .ai-tour-step:hover { background: var(--soft); }
+.ai-tour-indicator .ai-tour-step strong { font-size: var(--font-md); color: var(--accent); white-space: nowrap; }
+.ai-tour-indicator .ai-tour-step span { font-size: var(--font-md); line-height: 1.4; overflow-wrap: anywhere; }
+.ai-tour-indicator > button:not(.ai-tour-step) { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; padding: 0 var(--space-2); border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--soft); color: var(--ink); cursor: pointer; }
+.ai-tour-indicator > button:not(.ai-tour-step):disabled { opacity: .4; cursor: default; }
+.ai-tour-indicator > button:not(.ai-tour-step) svg { width: 16px; height: 16px; }
+@media (max-width: 760px) { .ai-tour-indicator { bottom: 96px; } }

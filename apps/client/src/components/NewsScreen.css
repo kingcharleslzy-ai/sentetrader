@@ -1,0 +1,42 @@
+/* 新闻 AI 筛选 (2026-10-07): the reading line, the folded dropped row, the notes and the sources line.
+ * Theme tokens only; direction colours follow the market's (红涨绿跌 flips with html[data-updown]),
+ * 中性 uses the warning (yellow) pair. */
+.news-ai {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2);
+  margin-top: var(--space-1); padding: var(--space-1) var(--space-2); border-radius: var(--radius-control);
+  background: var(--soft); font-size: var(--font-md); line-height: 18px; min-width: 0;
+}
+.news-ai-who { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: var(--font-md); font-weight: 600; letter-spacing: .06em; color: var(--accent); }
+.news-ai-pill { flex: none; padding: 0 var(--space-1); border-radius: var(--radius-sm); font-size: var(--font-md); line-height: 18px; }
+.news-ai-pill[data-kind="event"] { color: var(--ink); border: 1px solid var(--line); }
+.news-ai-pill[data-tone="up"] { color: var(--market-up); background: var(--market-up-soft); }
+.news-ai-pill[data-tone="down"] { color: var(--market-down); background: var(--market-down-soft); }
+.news-ai-pill[data-tone="flat"] { color: var(--warning); background: var(--warning-soft); }
+.news-ai-strength { flex: none; display: inline-flex; align-items: center; gap: var(--space-0); color: var(--muted); font-size: var(--font-md); }
+.news-ai-strength > i { display: inline-block; width: 4px; height: 10px; border-radius: var(--radius-sm); background: var(--line-strong); }
+.news-ai-strength > i[data-on] { background: var(--ink); }
+.news-ai-strength > span { margin-left: var(--space-0); }
+.news-ai-reason { flex: 1 1 14em; min-width: 0; color: var(--muted); overflow-wrap: anywhere; }
+.news-ai[data-compact] .news-ai-reason { flex-basis: 8em; }
+
+.news-screen-note { margin: 0; color: var(--muted); font-size: var(--font-sm); line-height: 1.5; }
+.news-screen-note:is([data-mode="keyword"], [data-mode="unscreened"]) { color: var(--warning); }
+
+.news-dropped { display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-3); border: 1px dashed var(--line-strong); border-radius: var(--radius-control); color: var(--muted); font-size: var(--font-md); line-height: 1.5; }
+.news-dropped-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); }
+.news-dropped-row > span { flex: 1 1 16em; min-width: 0; overflow-wrap: anywhere; }
+.news-dropped-row b { color: var(--ink); font-weight: 600; }
+:where(.news-dropped) .news-dropped-toggle { margin-left: auto; padding: var(--space-0) var(--space-2); border: 0; border-radius: var(--radius-control); background: transparent; color: var(--accent); font: inherit; font-size: var(--font-md); cursor: pointer; }
+.news-dropped-toggle:hover { text-decoration: underline; }
+.news-dropped-list { display: grid; gap: var(--space-2); }
+.news-dropped-list h4 { margin: 0 0 var(--space-0); color: var(--ink); font-size: var(--font-md); font-weight: 600; }
+.news-dropped-list h4 small { color: var(--muted); font-weight: 400; }
+.news-dropped-list ul { margin: 0; padding: 0; list-style: none; display: grid; }
+.news-dropped-list li { display: flex; gap: var(--space-2); padding: var(--space-0) 0; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+.news-dropped-list li:first-child { border-top: 0; }
+.news-dropped-list time { flex: none; font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+/* A dropped item is only there to be recognised: two lines at most. */
+.news-dropped-list li > span { min-width: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+
+.news-sources { margin: 0; color: var(--muted); font-size: var(--font-sm); line-height: 1.6; overflow-wrap: anywhere; }
+.news-sources > span { color: var(--accent); }

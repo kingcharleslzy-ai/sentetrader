@@ -1,0 +1,51 @@
+{
+  "id": "nr7_breakout",
+  "name": "NR7 窄幅突破",
+  "category": "intraday_range",
+  "scenario": "昨天是近 7 天振幅最窄的一天，今天在昨高、昨低挂突破单，盘中碰到就进，收盘前平仓",
+  "plainSummary": "如果昨天是最近几天里波动最小的一天，说明行情憋着劲；今天盘中一旦冲过昨天最高价就做多、跌穿昨天最低价就做空，打回昨天另一头就离场，收盘前全部平掉。",
+  "level": "进阶", "holding": "日内",
+  "source": {"label": "Toby Crabel《Day Trading with Short Term Price Patterns and Opening Range Breakout》NR7（StockCharts ChartSchool 整理）", "url": "https://chartschool.stockcharts.com/table-of-contents/trading-strategies-and-models/trading-strategies/narrow-range-day-nr7"},
+  "recommendedTimeframe": 900,
+  "approximations": [
+    "和原版一样盘中挂突破单：昨天窄幅时，每根 15 分钟K线收盘后在昨高（空单昨低）挂触价单，下一根里价格碰到就按对手价开仓，没碰到就作废再挂；开盘就已越过时回测按开盘价成交。",
+    "“最近 7 天最窄”按日线振幅（最高−最低）判断，夜盘归下一交易日；昨天振幅与前 6 天中的最小值相同也算。",
+    "原版止损常放在窄幅日的另一端；这里收盘跌回昨低（空单升回昨高）就离场，另设 3×ATR14 保护止损，并在收盘前 5 分钟平仓。",
+    "每个方向每天最多开一次，止损后当天不再追同一方向。"
+  ],
+  "params": [
+    {"key": "nrDays", "label": "比较天数", "default": 7, "min": 4, "max": 20, "step": 1, "unit": "天",
+     "targets": ["rules.entryLong.conditions.0.right.lowest", "rules.entryShort.conditions.0.right.lowest"],
+     "help": {"what": "昨天的波动要比最近多少天都小才算“憋着劲”（原版常用 4 天或 7 天）", "up": "要求更苛刻，机会更少但更典型", "down": "更容易满足，机会更多，也更容易是普通的小波动"}},
+    {"key": "stopAtr", "label": "保护止损（ATR 倍数）", "default": 3, "min": 0.5, "max": 10, "step": 0.5, "unit": "×ATR14", "targets": ["atrStop.multiple"],
+     "help": {"what": "止损放得离开仓价多远，按最近 14 根的平均波动自动换算", "up": "不容易被正常波动扫出场，但万一做错单笔亏得更多", "down": "亏损控制得紧，但容易被来回波动打掉"}},
+    {"key": "maxPosition", "label": "每次手数", "default": 1, "min": 1, "max": 20, "step": 1, "unit": "手", "targets": ["maxPosition"],
+     "help": {"what": "每次开仓下多少手", "up": "盈亏都按手数放大，占用的保证金也更多", "down": "盈亏都跟着缩小，更稳妥"}},
+    {"key": "maxLoss", "label": "当日亏损上限", "default": null, "optional": true, "min": 100, "max": 1000000, "step": 100, "unit": "元", "targets": ["maxLoss"],
+     "help": {"what": "留空就不设。填了以后，账户当天的净亏损（已平仓、浮动盈亏和手续费合计）达到这个数，这条策略不再开新仓，止损和离场照常", "up": "允许当天亏得更多才停手", "down": "更早停止开新仓，也可能错过当天后面的机会"}}
+  ],
+  "plan": {
+    "name": "NR7 窄幅突破",
+    "description": "昨日振幅（最高−最低）不大于最近 {nrDays} 个交易日的最小振幅时，盘中价格涨到昨高开多、跌到昨低开空（触价单，每根 15 分钟K线收盘后重挂）；多单收盘跌回昨低、空单升回昨高离场，收盘前 5 分钟平仓，每方向每天最多一次。保护止损 {stopAtr}×ATR14。来源：Toby Crabel NR7。",
+    "direction": "both", "timeframeSeconds": 900, "maxPosition": 1, "maxLoss": null,
+    "stopLossTicks": 20, "takeProfitTicks": null, "cooldownBars": 0, "maxOrdersPerDay": 20,
+    "atrStop": {"multiple": 3, "period": 14},
+    "closeBeforeEndMinutes": 5, "closeBeforeEndScope": "day", "maxEntriesPerDirection": 1,
+    "rules": {
+      "entryLong": {"conditions": [
+        {"label": "昨天是近 {nrDays} 天最窄", "left": {"indicator": "bar_range", "timeframe": 86400},
+         "operator": "lte", "right": {"indicator": "bar_range", "lowest": 7, "timeframe": 86400}}],
+        "trigger": {"kind": "stop", "price": {"indicator": "prev_high", "timeframe": 900}}},
+      "exitLong": {"conditions": [
+        {"label": "跌回昨低", "left": {"indicator": "close", "timeframe": 900},
+         "operator": "lt", "right": {"indicator": "prev_low", "timeframe": 900}}]},
+      "entryShort": {"conditions": [
+        {"label": "昨天是近 {nrDays} 天最窄", "left": {"indicator": "bar_range", "timeframe": 86400},
+         "operator": "lte", "right": {"indicator": "bar_range", "lowest": 7, "timeframe": 86400}}],
+        "trigger": {"kind": "stop", "price": {"indicator": "prev_low", "timeframe": 900}}},
+      "exitShort": {"conditions": [
+        {"label": "升回昨高", "left": {"indicator": "close", "timeframe": 900},
+         "operator": "gt", "right": {"indicator": "prev_high", "timeframe": 900}}]}
+    }
+  }
+}

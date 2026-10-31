@@ -1,0 +1,56 @@
+{
+  "id": "dual_thrust",
+  "name": "Dual Thrust",
+  "category": "intraday_range",
+  "scenario": "日内突破：今开 ± K×前 N 日振幅，每个方向每天最多一次，收盘前平仓",
+  "plainSummary": "每天开盘后，价格从开盘价往上或往下冲出前几天的正常波动范围就顺势追进去；反向冲出就先平仓，收盘前一定全部平掉。",
+  "level": "进阶", "holding": "日内",
+  "source": {"label": "TqSdk dualthrust.py（N=5，K1=K2=0.2；vn.py 版 K1 0.4 / K2 0.6）", "url": "https://github.com/shinnytech/tqsdk-python/blob/master/tqsdk/demo/example/dualthrust.py"},
+  "recommendedTimeframe": 60,
+  "approximations": [
+    "按收盘确认：原版盘中最新价一过上 / 下轨就成交，这里 1 分钟K线收盘后判断、下一根开盘成交。",
+    "原版持仓过夜、反向突破即反手；本模板按设计每个方向每天最多开 1 次、收盘前 5 分钟平仓；反向突破先平仓，下一根K线再开反向。",
+    "“今天”按交易日算（夜盘归下一交易日），今开是该交易日第一笔开盘价（有夜盘的品种是夜盘开盘）。",
+    "原版没有止损；另设日内保护止损 2×ATR14（按品种波动自动缩放）。"
+  ],
+  "params": [
+    {"key": "n", "label": "参考天数（N 日振幅）", "default": 5, "min": 1, "max": 30, "step": 1, "unit": "日",
+     "targets": ["rules.entryLong.conditions.0.right.offset.period", "rules.entryShort.conditions.0.right.offset.period",
+                 "rules.exitLong.conditions.0.right.offset.period", "rules.exitShort.conditions.0.right.offset.period"],
+     "help": {"what": "用前几天的价格波动范围（振幅）来定今天要冲多远才算突破", "up": "突破距离更稳定，受个别日子的大波动影响小", "down": "更贴近最近几天的波动，变化更快"}},
+    {"key": "k1", "label": "向上突破幅度（K1）", "default": 0.2, "min": 0.05, "max": 2, "step": 0.05, "unit": "×振幅",
+     "targets": ["rules.entryLong.conditions.0.right.offset.factor", "rules.exitShort.conditions.0.right.offset.factor"],
+     "help": {"what": "价格要比今天开盘价高出“振幅 × 这个数”才做多；空单反向冲过这条线也会平仓", "up": "要冲得更远才做多，信号更少、进场更晚", "down": "稍微上冲就做多，信号更多，假突破也更多"}},
+    {"key": "k2", "label": "向下突破幅度（K2）", "default": 0.2, "min": 0.05, "max": 2, "step": 0.05, "unit": "×振幅",
+     "targets": [{"path": "rules.entryShort.conditions.0.right.offset.factor", "scale": -1},
+                 {"path": "rules.exitLong.conditions.0.right.offset.factor", "scale": -1}],
+     "help": {"what": "价格要比今天开盘价低出“振幅 × 这个数”才做空；多单反向跌过这条线也会平仓", "up": "要跌得更深才做空，信号更少、进场更晚", "down": "稍微下跌就做空，信号更多，假突破也更多"}},
+    {"key": "closeBefore", "label": "收盘前平仓", "default": 5, "min": 1, "max": 60, "step": 1, "unit": "分钟", "targets": ["closeBeforeEndMinutes"],
+     "help": {"what": "当天最后一个交易时段收盘前多少分钟把持仓全部平掉，不留隔夜仓", "up": "更早平仓，少担收盘前的波动，但也少拿一段行情", "down": "拿到更接近收盘，但留给平仓成交的时间更少"}},
+    {"key": "stopAtr", "label": "保护止损（ATR 倍数）", "default": 2, "min": 0.5, "max": 10, "step": 0.5, "unit": "×ATR14", "targets": ["atrStop.multiple"],
+     "help": {"what": "止损放得离开仓价多远，按最近波动大小自动换算", "up": "不容易被正常波动扫出场，但万一做错单笔亏得更多", "down": "亏损控制得紧，但容易被来回波动打掉"}},
+    {"key": "maxPosition", "label": "每次手数", "default": 1, "min": 1, "max": 20, "step": 1, "unit": "手", "targets": ["maxPosition"],
+     "help": {"what": "每次开仓下多少手", "up": "盈亏都按手数放大，占用的保证金也更多", "down": "盈亏都跟着缩小，更稳妥"}},
+    {"key": "maxLoss", "label": "当日亏损上限", "default": null, "optional": true, "min": 100, "max": 1000000, "step": 100, "unit": "元", "targets": ["maxLoss"],
+     "help": {"what": "留空就不设。填了以后，账户当天的净亏损（已平仓、浮动盈亏和手续费合计）达到这个数，这条策略不再开新仓，止损和离场照常", "up": "允许当天亏得更多才停手", "down": "更早停止开新仓，也可能错过当天后面的机会"}}
+  ],
+  "keyParam": "k1",
+  "plan": {
+    "name": "Dual Thrust",
+    "description": "Range = max(前 {n} 日最高 − 前 {n} 日最低收，前 {n} 日最高收 − 前 {n} 日最低)。收盘 > 今开 + {k1}×Range 开多，收盘 < 今开 − {k2}×Range 开空；反向突破平仓，下一根K线再开反向；每个方向每个交易日最多开 1 次，收盘前 {closeBefore} 分钟平仓。保护止损 {stopAtr}×ATR14。来源：TqSdk dualthrust.py。",
+    "direction": "both", "timeframeSeconds": 60, "maxPosition": 1, "maxLoss": null,
+    "stopLossTicks": 20, "takeProfitTicks": null, "cooldownBars": 0, "maxOrdersPerDay": 20,
+    "atrStop": {"multiple": 2, "period": 14},
+    "closeBeforeEndMinutes": 5, "maxEntriesPerDirection": 1,
+    "rules": {
+      "entryLong": {"conditions": [{"label": "收盘突破今开 + {k1}×{n}日振幅", "left": {"indicator": "close", "timeframe": 60},
+        "operator": "gt", "right": {"indicator": "today_open", "timeframe": 60, "offset": {"factor": 0.2, "indicator": "range_nday", "period": 5}}}]},
+      "exitLong": {"conditions": [{"label": "反向跌破今开 − {k2}×{n}日振幅", "left": {"indicator": "close", "timeframe": 60},
+        "operator": "lt", "right": {"indicator": "today_open", "timeframe": 60, "offset": {"factor": -0.2, "indicator": "range_nday", "period": 5}}}]},
+      "entryShort": {"conditions": [{"label": "收盘跌破今开 − {k2}×{n}日振幅", "left": {"indicator": "close", "timeframe": 60},
+        "operator": "lt", "right": {"indicator": "today_open", "timeframe": 60, "offset": {"factor": -0.2, "indicator": "range_nday", "period": 5}}}]},
+      "exitShort": {"conditions": [{"label": "反向突破今开 + {k1}×{n}日振幅", "left": {"indicator": "close", "timeframe": 60},
+        "operator": "gt", "right": {"indicator": "today_open", "timeframe": 60, "offset": {"factor": 0.2, "indicator": "range_nday", "period": 5}}}]}
+    }
+  }
+}

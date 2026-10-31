@@ -1,0 +1,96 @@
+{
+  "id": "thermostat",
+  "name": "恒温器（趋势/震荡切换）",
+  "category": "trend_breakout",
+  "scenario": "先用震荡指数判断行情：有趋势时按布林带突破追，震荡时按当天冲出开盘价的幅度做短线",
+  "plainSummary": "先看最近一段是一路走还是来回晃：一路走时价格冲出上下通道就跟进，回到中间就离场；来回晃时当天从开盘价起涨够一段就做多、跌够一段就做空，反向冲起来就离场。",
+  "level": "进阶", "holding": "会隔夜",
+  "source": {"label": "George Pruitt、John Hill《Building Winning Trading Systems with TradeStation》第 6 章 Thermostat（作者博客勘误页）", "url": "https://georgepruitt.com/correction-thermostat-bandit-description-book/"},
+  "recommendedTimeframe": 86400,
+  "approximations": [
+    "原版次日盘中按突破价挂单；这里按日线收盘确认、下一根开盘成交：震荡模式看“当天收盘比开盘高出 0.5×ATR10”，趋势模式看“收盘上穿布林上轨”。",
+    "原版按前一天收盘相对 (高+低+收)÷3 分“易买日 / 易卖日”，两边幅度 0.5 与 0.75 不对称，并用 3 日均低 / 均高兜底；这里两边都用同一个幅度，省去这部分。",
+    "原版震荡模式始终在场、反向信号直接反手；本产品不在同一根内反手：先按反向冲击平仓，下一根仍满足再按新方向开。",
+    "原版离场按开仓时的模式区分（趋势单回到 50 日均线离场、震荡单用 3×ATR10 保护止损）；这里按当前模式判断：趋势模式下回到中轨离场、震荡模式下反向冲击离场，3×ATR10 保护止损对所有持仓生效。"
+  ],
+  "params": [
+    {"key": "switchLevel", "label": "趋势 / 震荡分界", "default": 20, "min": 5, "max": 60, "step": 1, "unit": "",
+     "targets": ["rules.entryLong.branches.0.conditions.0.right.value", "rules.entryLong.branches.1.conditions.0.right.value",
+                 "rules.entryShort.branches.0.conditions.0.right.value", "rules.entryShort.branches.1.conditions.0.right.value",
+                 "rules.exitLong.branches.0.conditions.0.right.value", "rules.exitLong.branches.1.conditions.0.right.value",
+                 "rules.exitShort.branches.0.conditions.0.right.value", "rules.exitShort.branches.1.conditions.0.right.value"],
+     "help": {"what": "最近 30 根一路走的程度（0 到 100）达到多少算有趋势，低于它算来回晃", "up": "更少的时候算作趋势，多数时间按短线做", "down": "更多的时候算作趋势，多数时间按通道突破做"}},
+    {"key": "bandPeriod", "label": "通道长度", "default": 50, "min": 10, "max": 120, "step": 1, "unit": "根",
+     "targets": ["rules.entryLong.branches.0.conditions.1.right.period", "rules.entryShort.branches.0.conditions.1.right.period",
+                 "rules.exitLong.branches.0.conditions.1.right.period", "rules.exitShort.branches.0.conditions.1.right.period"],
+     "help": {"what": "趋势模式下画上下通道和中线用最近多少根K线", "up": "通道更稳，突破更少、拿得更久", "down": "通道更灵敏，突破更多，假突破也更多"}},
+    {"key": "bandWidth", "label": "通道宽度", "default": 2, "min": 1, "max": 3, "step": 0.25, "unit": "倍标准差",
+     "targets": ["rules.entryLong.branches.0.conditions.1.right.k", "rules.entryShort.branches.0.conditions.1.right.k"],
+     "help": {"what": "上下通道离中线多远，按价格平常的波动幅度算倍数", "up": "要冲得更远才算突破，信号更少", "down": "稍微冲出就算突破，信号更多"}},
+    {"key": "swingAtr", "label": "短线冲击幅度", "default": 0.5, "min": 0.1, "max": 2, "step": 0.05, "unit": "×ATR10",
+     "targets": ["rules.entryLong.branches.1.conditions.1.right.offset.factor",
+                 {"path": "rules.entryShort.branches.1.conditions.1.right.offset.factor", "scale": -1},
+                 {"path": "rules.exitLong.branches.1.conditions.1.right.offset.factor", "scale": -1},
+                 "rules.exitShort.branches.1.conditions.1.right.offset.factor"],
+     "help": {"what": "震荡模式下，当天收盘离开盘价多远才算一次冲击，按最近 10 天平均波动算倍数", "up": "要冲得更猛才进场，信号更少", "down": "小幅冲击就进场，信号更多，来回被打的次数也更多"}},
+    {"key": "stopAtr", "label": "保护止损（ATR 倍数）", "default": 3, "min": 0.5, "max": 10, "step": 0.5, "unit": "×ATR10", "targets": ["atrStop.multiple"],
+     "help": {"what": "止损放得离开仓价多远，按最近 10 根的平均波动自动换算", "up": "不容易被正常波动扫出场，但万一做错单笔亏得更多", "down": "亏损控制得紧，但容易被来回波动打掉"}},
+    {"key": "maxPosition", "label": "每次手数", "default": 1, "min": 1, "max": 20, "step": 1, "unit": "手", "targets": ["maxPosition"],
+     "help": {"what": "每次开仓下多少手", "up": "盈亏都按手数放大，占用的保证金也更多", "down": "盈亏都跟着缩小，更稳妥"}},
+    {"key": "maxLoss", "label": "当日亏损上限", "default": null, "optional": true, "min": 100, "max": 1000000, "step": 100, "unit": "元", "targets": ["maxLoss"],
+     "help": {"what": "留空就不设。填了以后，账户当天的净亏损（已平仓、浮动盈亏和手续费合计）达到这个数，这条策略不再开新仓，止损和离场照常", "up": "允许当天亏得更多才停手", "down": "更早停止开新仓，也可能错过当天后面的机会"}}
+  ],
+  "plan": {
+    "name": "恒温器",
+    "description": "震荡指数 CMI30 ≥ {switchLevel} 为趋势模式：收盘上穿布林上轨({bandPeriod},{bandWidth}) 开多、下穿下轨开空，收盘回到中轨另一侧平仓；CMI30 < {switchLevel} 为震荡模式：收盘高于开盘 + {swingAtr}×ATR10 开多、低于开盘 − {swingAtr}×ATR10 开空，反向冲击平仓。保护止损 {stopAtr}×ATR10。来源：Pruitt & Hill Thermostat。",
+    "direction": "both", "timeframeSeconds": 86400, "maxPosition": 1, "maxLoss": null,
+    "stopLossTicks": 20, "takeProfitTicks": null, "cooldownBars": 0, "maxOrdersPerDay": 20,
+    "atrStop": {"multiple": 3, "period": 10},
+    "rules": {
+      "entryLong": {"join": "any", "branches": [
+        {"join": "all", "conditions": [
+          {"label": "趋势模式（CMI ≥ {switchLevel}）", "left": {"indicator": "cmi", "period": 30, "timeframe": 86400},
+           "operator": "gte", "right": {"indicator": "constant", "value": 20, "timeframe": 86400}},
+          {"label": "收盘上穿布林上轨", "left": {"indicator": "close", "timeframe": 86400},
+           "operator": "cross_up", "right": {"indicator": "boll_up", "period": 50, "k": 2, "timeframe": 86400}}]},
+        {"join": "all", "conditions": [
+          {"label": "震荡模式（CMI < {switchLevel}）", "left": {"indicator": "cmi", "period": 30, "timeframe": 86400},
+           "operator": "lt", "right": {"indicator": "constant", "value": 20, "timeframe": 86400}},
+          {"label": "收盘高于开盘 + {swingAtr}×ATR10", "left": {"indicator": "close", "timeframe": 86400},
+           "operator": "gte", "right": {"indicator": "open", "timeframe": 86400, "offset": {"factor": 0.5, "indicator": "atr", "period": 10}}}]}]},
+      "exitLong": {"join": "any", "branches": [
+        {"join": "all", "conditions": [
+          {"label": "趋势模式（CMI ≥ {switchLevel}）", "left": {"indicator": "cmi", "period": 30, "timeframe": 86400},
+           "operator": "gte", "right": {"indicator": "constant", "value": 20, "timeframe": 86400}},
+          {"label": "收盘跌破中轨", "left": {"indicator": "close", "timeframe": 86400},
+           "operator": "lt", "right": {"indicator": "boll_mid", "period": 50, "timeframe": 86400}}]},
+        {"join": "all", "conditions": [
+          {"label": "震荡模式（CMI < {switchLevel}）", "left": {"indicator": "cmi", "period": 30, "timeframe": 86400},
+           "operator": "lt", "right": {"indicator": "constant", "value": 20, "timeframe": 86400}},
+          {"label": "收盘低于开盘 − {swingAtr}×ATR10", "left": {"indicator": "close", "timeframe": 86400},
+           "operator": "lte", "right": {"indicator": "open", "timeframe": 86400, "offset": {"factor": -0.5, "indicator": "atr", "period": 10}}}]}]},
+      "entryShort": {"join": "any", "branches": [
+        {"join": "all", "conditions": [
+          {"label": "趋势模式（CMI ≥ {switchLevel}）", "left": {"indicator": "cmi", "period": 30, "timeframe": 86400},
+           "operator": "gte", "right": {"indicator": "constant", "value": 20, "timeframe": 86400}},
+          {"label": "收盘下穿布林下轨", "left": {"indicator": "close", "timeframe": 86400},
+           "operator": "cross_down", "right": {"indicator": "boll_down", "period": 50, "k": 2, "timeframe": 86400}}]},
+        {"join": "all", "conditions": [
+          {"label": "震荡模式（CMI < {switchLevel}）", "left": {"indicator": "cmi", "period": 30, "timeframe": 86400},
+           "operator": "lt", "right": {"indicator": "constant", "value": 20, "timeframe": 86400}},
+          {"label": "收盘低于开盘 − {swingAtr}×ATR10", "left": {"indicator": "close", "timeframe": 86400},
+           "operator": "lte", "right": {"indicator": "open", "timeframe": 86400, "offset": {"factor": -0.5, "indicator": "atr", "period": 10}}}]}]},
+      "exitShort": {"join": "any", "branches": [
+        {"join": "all", "conditions": [
+          {"label": "趋势模式（CMI ≥ {switchLevel}）", "left": {"indicator": "cmi", "period": 30, "timeframe": 86400},
+           "operator": "gte", "right": {"indicator": "constant", "value": 20, "timeframe": 86400}},
+          {"label": "收盘升破中轨", "left": {"indicator": "close", "timeframe": 86400},
+           "operator": "gt", "right": {"indicator": "boll_mid", "period": 50, "timeframe": 86400}}]},
+        {"join": "all", "conditions": [
+          {"label": "震荡模式（CMI < {switchLevel}）", "left": {"indicator": "cmi", "period": 30, "timeframe": 86400},
+           "operator": "lt", "right": {"indicator": "constant", "value": 20, "timeframe": 86400}},
+          {"label": "收盘高于开盘 + {swingAtr}×ATR10", "left": {"indicator": "close", "timeframe": 86400},
+           "operator": "gte", "right": {"indicator": "open", "timeframe": 86400, "offset": {"factor": 0.5, "indicator": "atr", "period": 10}}}]}]}
+    }
+  }
+}

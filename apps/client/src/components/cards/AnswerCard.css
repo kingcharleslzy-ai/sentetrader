@@ -1,0 +1,98 @@
+/* 回答卡 / 数据卡 (回答卡片化, 2026-10-14) and the quote card's peer rows. Built on CardShell + StructuredCards.css.
+   Colors come only from theme.css's paired tokens; market direction from --market-up / --market-down so the
+   涨跌色 preference applies. ac-* / dc-* / mc-* class names only, so nothing reaches the shared controls. */
+
+/* Title + its "?" on one line; the title still wraps at the spaces in a narrow column. */
+.ac-heading { display: inline; }
+.ac-heading > .help-tip { margin-left: var(--space-1); }
+
+.ac-conclusion {
+  color: var(--ink); font-size: var(--font-md); font-weight: 600; line-height: 1.5; overflow-wrap: anywhere;
+}
+
+/* Number cells (shared StatTiles): as many per row as the column holds; a value wraps instead of clipping. */
+.ac-figures > .stat-tiles {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 84px), 1fr));
+  gap: var(--space-1); background: transparent;
+}
+/* Separate soft tiles: an odd count leaves no hairline-coloured hole at the row's end. */
+.ac-figures .stat-tile { padding: var(--space-1) var(--space-2); border-radius: var(--radius-control); background: var(--soft); }
+.ac-figures .ac-value { font-variant-numeric: tabular-nums; }
+.ac-figures .ac-value small { display: inline; margin-left: var(--space-1); color: var(--muted); font-size: var(--font-sm); font-weight: 400; }
+.ac-figures .ac-value[data-dir="up"] { color: var(--market-up); }
+.ac-figures .ac-value[data-dir="down"] { color: var(--market-down); }
+
+/* 左右对比: two columns side by side, stacked in a narrow column. */
+.ac-compare { border: 1px solid var(--line); border-radius: var(--radius-control); overflow: hidden; }
+/* The shared SideBySide stacks below 240px a column; a compare keeps its two sides next to each other in the dock. */
+.ac-compare > .side-by-side { grid-template-columns: repeat(auto-fit, minmax(min(100%, 120px), 1fr)); }
+.ac-compare > .side-by-side > section { gap: var(--space-1); padding: var(--space-2) var(--space-3); }
+.ac-compare h4 { margin: 0; color: var(--ink); font-size: var(--font-md); font-weight: 600; }
+.ac-compare ul { display: grid; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
+.ac-compare li { color: var(--ink); font-size: var(--font-md); line-height: 1.5; overflow-wrap: anywhere; }
+
+/* 风险 / 前提: one warning line. */
+.ac-risk {
+  display: flex; align-items: flex-start; gap: var(--space-1);
+  padding: var(--space-1) var(--space-2); border-radius: var(--radius-control);
+  color: var(--warning); background: var(--warning-soft);
+  font-size: var(--font-md); line-height: 1.5; overflow-wrap: anywhere;
+}
+.ac-risk > svg { flex: 0 0 auto; width: 14px; height: 14px; margin-top: 0.2em; }
+.ac-risk > span { min-width: 0; }
+
+/* 依据: one source per line. */
+.ac-sources { display: grid; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
+
+/* 原卡 (去重, 2026-10-14 跟进): the turn's read cards the answer card folded, inside its 依据 — flat (no shadow,
+   the hairline border) so they read as the answer's sources, not as more answers. */
+.ac-folded { display: grid; gap: var(--space-2); margin-top: var(--space-2); }
+.ac-folded-card > .card { margin-top: 0; box-shadow: none; border-color: var(--line); }
+
+/* 数据卡 rows: main text (with its tag) and the secondary line on the left, the value on the right;
+   in a narrow column the value drops under the text instead of squeezing it. */
+.dc-rows { display: grid; margin: 0; padding: 0; list-style: none; border: 1px solid var(--line); border-radius: var(--radius-control); overflow: hidden; }
+.dc-rows > li {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-2);
+  padding: var(--space-2) var(--space-3); border-top: 1px solid var(--line);
+}
+.dc-rows > li:first-child { border-top: 0; }
+.dc-row-main { flex: 1 1 96px; min-width: 0; display: grid; gap: var(--space-1); }
+.dc-primary { color: var(--ink); font-size: var(--font-md); font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
+.dc-row-main small { color: var(--muted); font-size: var(--font-sm); line-height: 1.45; overflow-wrap: anywhere; }
+.dc-value {
+  flex: 0 1 auto; margin-left: auto; color: var(--ink); font-size: var(--font-md); font-weight: 600;
+  font-variant-numeric: tabular-nums; text-align: right; overflow-wrap: anywhere;
+}
+.dc-tag {
+  display: inline-block; margin-left: var(--space-1); padding: 0 var(--space-2); border-radius: var(--radius-pill); vertical-align: middle;
+  color: var(--muted); background: var(--soft); font-size: var(--font-xs); font-weight: 600; line-height: 1.6;
+}
+:is(.dc-value, .dc-tag)[data-dir="up"] { color: var(--market-up); }
+:is(.dc-value, .dc-tag)[data-dir="down"] { color: var(--market-down); }
+.dc-tag[data-dir="up"] { background: var(--market-up-soft); }
+.dc-tag[data-dir="down"] { background: var(--market-down-soft); }
+.dc-empty, .dc-note { color: var(--muted); font-size: var(--font-md); line-height: 1.5; overflow-wrap: anywhere; }
+
+/* Larger type (设置 → 字体): the cells widen so a value keeps its line. */
+html[data-font-scale="large"] .ac-figures > .stat-tiles { grid-template-columns: repeat(auto-fit, minmax(min(100%, 96px), 1fr)); }
+html[data-font-scale="extra-large"] .ac-figures > .stat-tiles { grid-template-columns: repeat(auto-fit, minmax(min(100%, 112px), 1fr)); }
+
+/* 行情卡 peers: other contracts read in the same turn, one line each — name contract · price · change%. */
+.mc-peers { display: grid; margin: var(--space-2) 0 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+.mc-peers > li {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-2);
+  padding: var(--space-1) 0; border-bottom: 1px solid var(--line);
+  font-size: var(--font-md); line-height: 1.45;
+}
+.mc-peers > li:last-child { border-bottom: 0; }
+.mc-peers .mc-peer-name { flex: 1 1 120px; min-width: 0; color: var(--ink); overflow-wrap: anywhere; }
+.mc-peers .mc-peer-name small { margin-left: var(--space-1); color: var(--muted); font-size: var(--font-sm); }
+.mc-peers .mc-peer-warning {
+  margin-left: var(--space-1); padding: 0 var(--space-2); border-radius: var(--radius-pill);
+  color: var(--warning); background: var(--warning-soft); font-size: var(--font-md);
+}
+.mc-peers .mc-peer-price { color: var(--ink); font-variant-numeric: tabular-nums; }
+.mc-peers .mc-peer-change { min-width: 4.5em; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+.mc-change[data-dir="up"], .mc-peers .mc-peer-change[data-dir="up"] { color: var(--market-up); }
+.mc-change[data-dir="down"], .mc-peers .mc-peer-change[data-dir="down"] { color: var(--market-down); }

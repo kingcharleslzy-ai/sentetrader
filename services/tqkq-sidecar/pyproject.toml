@@ -1,0 +1,53 @@
+[project]
+name = "ai-trader-tqkq-sidecar"
+version = "1.8.1"
+description = "Isolated read-only TqKq snapshot sidecar for AI Trader"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.optional-dependencies]
+tqkq = [
+  "tqsdk==3.10.2",
+  "python-socks[asyncio]==2.8.2"
+]
+
+[dependency-groups]
+dev = [
+  "pandas>=3,<4",
+  "pytest>=8.4,<9",
+  "pytest-timeout>=2.4,<3",
+  "pytest-xdist>=3.8,<4",
+]
+
+[project.scripts]
+ai-trader-tqkq-sidecar = "tqkq_readonly_sidecar.main:main"
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tqkq_readonly_sidecar"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+# Hang guard only (30 s). "A unit test over 2 s moves to a fake clock or a short configurable
+# bound" stays a soft rule: test:runtime/test:sidecar list every test over 2 s (--durations-min=2).
+# A hard 2 s limit would turn load spikes on the shared runners into random reds. Setup not counted.
+timeout = 30
+timeout_func_only = true
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+src = ["src", "tests"]
+# The vendored official TqSdk skill package under skills/ is kept verbatim
+# (2026-09-22): reference material, not project source, so our lint rules do
+# not apply. force-exclude keeps that true when the tree is passed explicitly.
+exclude = ["skills"]
+force-exclude = true
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "W"]
+ignore = ["E501", "E701", "E702", "E731"]

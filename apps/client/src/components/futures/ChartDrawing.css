@@ -1,0 +1,384 @@
+/* 画线第二版 (2026-10-09): the drawing toolbar (floating over the chart's left edge only while drawing, owner
+   2026-10-14), the selected drawing's style bar, the 精确设置 dialog and the chart-only right-click menu's
+   submenus. Paired theme tokens only. */
+
+.fdw-chart-body {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+.fdw-chart-body[data-drawing-tool] .fdw-chart-canvas { cursor: crosshair; }
+
+/* While the toolbar shows, the AI orb and the armed tool's hint keep clear of it. */
+.fdw-chart-area:has(.fdw-draw-toolbar) .ai-floating-area { left: 64px; }
+.fdw-chart-body:has(.fdw-draw-toolbar) .fdw-draw-hint { left: 64px; }
+
+/* ── Toolbar: floats over the chart, so showing it never resizes the chart ── */
+.fdw-draw-toolbar {
+  position: absolute;
+  top: 30px;
+  left: var(--space-2);
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  width: 44px;
+  padding: var(--space-1) 0;
+  overflow: visible;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-card);
+  background: var(--panel);
+  box-shadow: var(--shadow-2);
+}
+
+.fdw-draw-toolbar hr {
+  width: 24px;
+  margin: var(--space-0) 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
+.fdw-draw-group { position: relative; display: grid; }
+
+:where(.fdw-draw-toolbar) .fdw-draw-btn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  color: var(--muted);
+  background: transparent;
+}
+
+.fdw-draw-btn svg { width: 17px; height: 17px; }
+.fdw-draw-btn:hover:not(:disabled) { color: var(--ink); background: var(--surface-hover); }
+.fdw-draw-btn[aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); }
+.fdw-draw-btn.danger { color: var(--danger); }
+.fdw-draw-btn.danger:hover:not(:disabled) { color: var(--danger); background: var(--danger-soft); }
+.fdw-draw-btn:disabled { opacity: .4; }
+.fdw-draw-btn:focus-visible, .fdw-draw-more:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* The ▾ corner: opens the group's tool list. */
+:where(.fdw-draw-toolbar) .fdw-draw-more {
+  position: absolute;
+  right: -2px;
+  bottom: -1px;
+  display: grid;
+  place-items: center;
+  width: 13px;
+  height: 13px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--fdw-faint, var(--muted));
+  background: transparent;
+}
+
+.fdw-draw-more svg { width: 10px; height: 10px; }
+.fdw-draw-more:hover, .fdw-draw-more[aria-expanded="true"] { color: var(--ink); background: var(--surface-hover); }
+
+.fdw-draw-flyout {
+  position: absolute;
+  top: -4px;
+  left: calc(100% + 8px);
+  z-index: 30;
+  display: grid;
+  min-width: 196px;
+  padding: var(--space-1);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-card);
+  background: var(--panel);
+  box-shadow: var(--shadow-2);
+}
+
+.fdw-draw-flyout > strong {
+  padding: var(--space-1) var(--space-2) var(--space-1);
+  color: var(--muted);
+  font-size: var(--font-md);
+  font-weight: 600;
+}
+
+.fdw-draw-flyout > button {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 32px;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-control);
+  color: var(--ink);
+  background: transparent;
+  font-size: var(--font-md);
+  text-align: left;
+}
+
+.fdw-draw-flyout > button:hover { background: var(--surface-hover); }
+.fdw-draw-flyout > button[aria-checked="true"] { color: var(--accent); background: var(--accent-soft); }
+.fdw-draw-flyout kbd { color: var(--muted); font: var(--font-xs) var(--font-num); font-variant-numeric: tabular-nums; }
+
+.fdw-draw-confirm { top: auto; bottom: -4px; width: 236px; padding: var(--space-3); gap: var(--space-3); }
+.fdw-draw-confirm p { margin: 0; color: var(--ink); font-size: var(--font-md); line-height: 1.5; }
+.fdw-draw-confirm div { display: flex; justify-content: flex-end; gap: var(--space-2); }
+
+/* The armed tool's hint and the 测量 result's 保留 / 清除, top-left of the chart. */
+.fdw-draw-hint {
+  position: absolute;
+  top: 30px;
+  left: 12px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  max-width: calc(100% - 110px);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  color: var(--muted);
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  font-size: var(--font-sm);
+}
+
+.fdw-draw-hint .app-button { min-height: 24px; padding: var(--space-0) var(--space-2); }
+/* 图上拖线改价: a level past the market — the hint says so in the danger pair before the lift. */
+.fdw-draw-hint.is-blocked { border-color: var(--danger); color: var(--danger); background: var(--danger-soft); }
+
+.fdw-draw-notice {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  z-index: 7;
+  max-width: min(460px, calc(100% - 32px));
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+  border-radius: var(--radius-control);
+  color: var(--danger);
+  background: var(--danger-soft);
+  font-size: var(--font-md);
+  transform: translateX(-50%);
+}
+
+/* ── Floating style bar (样稿 ①) ── */
+.fdw-style-bar {
+  position: absolute;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  max-width: calc(100% - 16px);
+  padding: var(--space-1);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--panel);
+  box-shadow: var(--shadow-2);
+}
+
+.fdw-swatches { display: inline-flex; align-items: center; gap: var(--space-1); }
+
+:where(.fdw-style-bar, .fdw-cm-style) .fdw-swatch {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: var(--radius-control);
+  color: var(--muted);
+  background: var(--soft);
+  cursor: pointer;
+}
+
+/* Three classes deep: inside the right-click submenu the menu's own button hover must not repaint them. */
+.fdw-swatches .fdw-swatch[data-color="amber"] { background: var(--draw-amber); }
+.fdw-swatches .fdw-swatch[data-color="red"] { background: var(--draw-red); }
+.fdw-swatches .fdw-swatch[data-color="green"] { background: var(--draw-green); }
+.fdw-swatches .fdw-swatch[data-color="blue"] { background: var(--draw-blue); }
+.fdw-swatches .fdw-swatch[data-color="ink"] { background: var(--ink); }
+.fdw-context-menu.fdw-cm-style .fdw-swatches .fdw-swatch { display: grid; width: 20px; height: 20px; min-height: 20px; padding: 0; }
+.fdw-swatch[aria-checked="true"], .fdw-swatch-custom[data-checked="true"] { border-color: var(--ink); outline: 1px solid var(--panel); outline-offset: -1px; }
+.fdw-swatch-custom { border: 1px dashed var(--line-strong); }
+.fdw-swatch-custom svg { width: 12px; height: 12px; }
+.fdw-swatch-custom input { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; opacity: 0; cursor: pointer; }
+.fdw-swatch:focus-visible, .fdw-swatch-custom:focus-within { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.fdw-style-sep { width: 1px; height: 20px; margin: 0 var(--space-0); background: var(--line-strong); }
+
+.fdw-style-seg {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+}
+
+:where(.fdw-style-seg) button {
+  min-width: 26px;
+  height: 24px;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-right: 1px solid var(--line-strong);
+  color: var(--muted);
+  background: transparent;
+  font: var(--font-sm) var(--font-num);
+  font-variant-numeric: tabular-nums;
+}
+
+.fdw-style-seg button:last-child { border-right: 0; }
+.fdw-style-seg button:hover { color: var(--ink); background: var(--surface-hover); }
+.fdw-style-seg button[aria-checked="true"] { color: var(--accent); background: var(--accent-soft); }
+
+:where(.fdw-style-bar) .fdw-style-btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  color: var(--muted);
+  background: transparent;
+}
+
+.fdw-style-btn svg { width: 15px; height: 15px; }
+.fdw-style-btn:hover:not(:disabled) { color: var(--ink); background: var(--surface-hover); }
+.fdw-style-btn[aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); }
+.fdw-style-btn.danger { color: var(--danger); }
+.fdw-style-btn.danger:hover { background: var(--danger-soft); }
+.fdw-style-btn:disabled { opacity: .4; }
+
+/* ── 精确设置 (样稿 ②) ── */
+.fdw-draw-settings {
+  position: absolute;
+  top: 40px;
+  left: 50%;
+  z-index: 12;
+  display: flex;
+  flex-direction: column;
+  width: min(440px, calc(100% - 24px));
+  max-height: calc(100% - 56px);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-card);
+  color: var(--ink);
+  background: var(--panel);
+  box-shadow: var(--shadow-2);
+  transform: translateX(-50%);
+}
+
+.fdw-draw-settings header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--line);
+}
+
+.fdw-draw-settings header strong { min-width: 0; overflow-wrap: anywhere; font-size: var(--font-md); }
+.fdw-draw-settings header button { min-width: 24px; min-height: 24px; border: 0; border-radius: var(--radius-control); color: var(--muted); background: transparent; }
+.fdw-draw-settings header button:hover { color: var(--ink); background: var(--soft); }
+
+.fdw-draw-settings-body { display: grid; gap: var(--space-2); padding: var(--space-3); overflow-y: auto; }
+
+.fdw-draw-field {
+  display: grid;
+  grid-template-columns: 7.5em minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 32px;
+  font-size: var(--font-md);
+}
+
+.fdw-draw-field > span:first-child { color: var(--muted); }
+.fdw-draw-field > .app-switch-wrap { justify-self: start; }
+.fdw-draw-inputs { display: flex; flex-wrap: wrap; gap: var(--space-1); min-width: 0; }
+
+:where(.fdw-draw-settings) input[type="text"],
+:where(.fdw-draw-settings) input[type="number"],
+:where(.fdw-draw-settings) input[type="datetime-local"] {
+  min-width: 0;
+  height: 30px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  color: var(--ink);
+  background: var(--soft);
+  font: var(--font-md) var(--font-num);
+  font-variant-numeric: tabular-nums;
+}
+
+.fdw-draw-inputs input[type="datetime-local"] { flex: 1 1 190px; }
+.fdw-draw-inputs input[type="number"] { flex: 1 1 96px; width: 96px; }
+.fdw-draw-settings input:disabled { opacity: .6; }
+.fdw-draw-settings input:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; }
+
+.fdw-draw-check { display: flex; align-items: center; gap: var(--space-2); min-height: 30px; font-size: var(--font-md); }
+.fdw-draw-reason { color: var(--muted); font-size: var(--font-md); }
+.fdw-draw-error { color: var(--danger); font-size: var(--font-md); }
+
+.fdw-draw-settings footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--line);
+}
+
+/* ── Right-click menu (样稿 ③) ── */
+.fdw-context-menu { width: 236px; }
+/* The chart menu's submenus fly out beside it: the root must not clip them (the shared menu scrolls). */
+.fdw-context-menu.fdw-chart-menu { max-width: none; max-height: none; overflow: visible; }
+.fdw-context-menu hr { margin: var(--space-1) 0; border: 0; border-top: 1px solid var(--line); }
+.fdw-context-menu button { width: 100%; }
+.fdw-context-menu button > span { flex: 1 1 auto; min-width: 0; }
+.fdw-context-menu button > small { color: var(--muted); font-size: var(--font-md); white-space: nowrap; }
+.fdw-context-menu button > svg:last-child:not(:first-child) { color: var(--muted); }
+.fdw-context-menu button[aria-expanded="true"] { color: var(--accent); background: var(--accent-soft); }
+.fdw-context-menu button:is([role="menuitemradio"], [role="menuitemcheckbox"])[aria-checked="true"]::after { content: "✓"; margin-left: auto; color: var(--accent); }
+.fdw-context-menu button.danger { color: var(--danger); }
+.fdw-context-menu button.danger:hover { color: var(--danger); background: var(--danger-soft); }
+.fdw-context-menu button:disabled { opacity: .45; }
+
+.fdw-cm-wrap { position: relative; }
+
+.fdw-cm-sub {
+  position: absolute;
+  top: -6px;
+  left: calc(100% + 6px);
+  width: 250px;
+}
+
+.fdw-cm-sub[data-flip="true"] { left: auto; right: calc(100% + 6px); }
+
+.fdw-cm-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-0); padding: var(--space-1) var(--space-0); }
+
+.fdw-context-menu .fdw-cm-grid button {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-0);
+  min-height: 46px;
+  padding: var(--space-1) var(--space-0);
+  font-size: var(--font-md);
+  text-align: center;
+}
+
+.fdw-cm-grid button > span { flex: none; }
+
+/* 画线 ▸ 全部工具: the six groups, each opening the toolbar on its list. */
+.fdw-cm-groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-0); padding: var(--space-0); }
+.fdw-context-menu .fdw-cm-groups button { justify-content: center; min-height: 30px; padding: 0 var(--space-1); font-size: var(--font-md); }
+
+.fdw-cm-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-0); }
+
+.fdw-cm-style { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-2); }
+.fdw-context-menu.fdw-cm-style button { width: auto; min-height: 0; }
+.fdw-cm-style .fdw-style-seg button { min-height: 24px; padding: 0 var(--space-2); border-radius: 0; font-size: var(--font-md); }
+
+.fdw-draw-icon { flex: none; }

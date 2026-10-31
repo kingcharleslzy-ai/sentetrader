@@ -1,0 +1,103 @@
+/* 策略页改版第八批 (2026-10-08): the approved mockup — 新建策略, strategy cards, 结果页, 正在运行.
+   Colours are the theme's paired tokens only (both themes follow); market up / down carry money. */
+
+.strategy-workbench .sh-home { display: grid; gap: var(--space-3); min-width: 0; }
+/* 新建策略 (2026-10-08): its own row above the list, clear of the 我的策略 / 正在运行 tabs, at the size of the
+   main actions elsewhere (SettingRow's 32 px buttons). */
+.sh-home-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; padding-top: var(--space-1); }
+.strategy-workbench .sh-home-actions .sh-btn { display: inline-flex; align-items: center; gap: var(--space-1); min-height: 32px; padding: 0 var(--space-3); font-size: var(--font-md); }
+.strategy-workbench .sh-home-actions .sh-select { appearance: none; max-width: 180px; font: inherit; font-size: var(--font-md); cursor: pointer; }
+
+.sh-hint { color: var(--muted); font-size: var(--font-sm); line-height: 1.6; }
+.strategy-workbench .sh-btn { padding: var(--space-1) var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-control); background: var(--panel); color: var(--ink); font-size: var(--font-md); white-space: nowrap; }
+.strategy-workbench .sh-btn.primary { background: var(--primary-bg); border-color: var(--primary-bg); color: var(--on-primary); font-weight: 600; }
+.strategy-workbench .sh-btn.danger { color: var(--market-up); border-color: var(--market-up); }
+.strategy-scroll .sh-error, .sh-error { color: var(--danger); font-size: var(--font-md); }
+
+/* -- strategy cards ------------------------------------------------------------------------------- */
+.sh-list { display: grid; gap: var(--space-3); }
+.sh-card { display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--panel); min-width: 0; }
+.strategy-workbench .sh-card-open { display: grid; gap: var(--space-1); justify-items: start; width: 100%; padding: 0; border: 0; background: transparent; text-align: left; white-space: normal; }
+.strategy-workbench .sh-card-open:hover:not(:disabled) b { color: var(--accent); }
+.sh-card-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-2); width: 100%; min-width: 0; }
+.sh-card-top b { font-size: var(--font-lg); color: var(--ink); overflow-wrap: anywhere; }
+.sh-sym { margin-left: auto; color: var(--muted); font: var(--font-sm) var(--font-num); font-variant-numeric: tabular-nums; }
+.sh-state { padding: 0 var(--space-1); border-radius: var(--radius-sm); font-size: var(--font-md); font-style: normal; line-height: 1.7; color: var(--muted); background: var(--soft); border: 1px solid var(--line); }
+.sh-state[data-state="running"] { color: var(--market-up); background: var(--market-up-soft); border-color: transparent; }
+.sh-state[data-state="paused"] { color: var(--warning); background: var(--warning-soft); border-color: transparent; }
+.sh-state[data-state="draft"] { color: var(--accent); background: var(--accent-soft); border-color: transparent; }
+.sh-plain { color: var(--ink); opacity: .86; font-size: var(--font-md); line-height: 1.6; overflow-wrap: anywhere; }
+.sh-score { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); color: var(--muted); font-size: var(--font-md); }
+.sh-score b { color: var(--ink); font-family: var(--font-num); font-variant-numeric: tabular-nums; font-weight: 600; }
+.sh-score b.positive, .sh-big b.positive, .sh-tryit td.positive { color: var(--market-up); }
+.sh-score b.negative, .sh-big b.negative, .sh-tryit td.negative { color: var(--market-down); }
+.strategy-scroll .sh-clash { display: flex; gap: var(--space-2); align-items: baseline; margin: 0; padding: var(--space-1) var(--space-3); border-radius: var(--radius-control); background: var(--warning-soft); color: var(--warning); font-size: var(--font-md); line-height: 1.6; }
+
+/* -- 结果页 ----------------------------------------------------------------------------------------- */
+.sh-result { display: grid; gap: var(--space-3); min-width: 0; }
+.sh-result-top { display: grid; gap: var(--space-1); }
+.strategy-workbench .sh-back { justify-self: start; padding: var(--space-0) var(--space-2); border-color: transparent; background: transparent; color: var(--muted); font-size: var(--font-md); }
+.strategy-workbench .sh-back:hover { color: var(--ink); }
+.sh-result-name { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-2); }
+.sh-result-name strong { font-size: var(--font-lg); overflow-wrap: anywhere; }
+.sh-result-name small { color: var(--muted); font: var(--font-sm) var(--font-num); font-variant-numeric: tabular-nums; }
+.sh-result-head { display: grid; gap: var(--space-0); }
+.sh-result-head h3, .sh-result-empty h3 { margin: 0; font-size: var(--font-lg); }
+.sh-result-empty { display: grid; gap: var(--space-2); justify-items: start; padding: var(--space-3); border: 1px dashed var(--line-strong); border-radius: var(--radius-card); }
+.sh-big { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-0); margin: 0; background: var(--line); border: 1px solid var(--line); border-radius: var(--radius-control); overflow: hidden; }
+.sh-big > div { display: grid; gap: var(--space-0); padding: var(--space-3) var(--space-3); background: var(--panel); min-width: 0; }
+.sh-big dt { color: var(--muted); font-size: var(--font-md); }
+.sh-big dd { display: grid; gap: var(--space-0); margin: 0; min-width: 0; }
+.sh-big b { font: 600 var(--font-xl) var(--font-num); font-variant-numeric: tabular-nums; color: var(--ink); overflow-wrap: anywhere; }
+.sh-big small { color: var(--muted); font-size: var(--font-sm); }
+.sh-curve .strategy-backtest-curve { height: 90px; border-radius: var(--radius-control); }
+.sh-verdict { display: grid; gap: var(--space-1); padding: var(--space-3) var(--space-3); border-radius: var(--radius-control); background: var(--soft); }
+.sh-verdict b { font-size: var(--font-md); }
+.sh-verdict b small { margin-left: var(--space-1); color: var(--muted); font-weight: 400; font-size: var(--font-md); }
+.strategy-scroll .sh-verdict p { margin: 0; color: var(--ink); opacity: .9; line-height: 1.65; }
+.strategy-scroll .sh-verdict p.warn { color: var(--warning); opacity: 1; }
+.sh-rules { display: grid; border: 1px solid var(--line); border-radius: var(--radius-control); }
+.sh-rule { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: var(--space-2); padding: var(--space-2) var(--space-3); border-top: 1px solid var(--line); line-height: 1.65; }
+.sh-rule:first-child { border-top: 0; }
+.sh-rule > span { color: var(--muted); font-size: var(--font-md); }
+.sh-rule > div { min-width: 0; overflow-wrap: anywhere; color: var(--ink); }
+.sh-rule b { font-weight: 600; }
+.sh-rule .param-help, .sh-tryit-head .param-help { margin-left: var(--space-0); vertical-align: 1px; }
+.sh-tryit { display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-3); border: 1px dashed var(--line-strong); border-radius: var(--radius-control); min-width: 0; }
+.sh-tryit-head { display: flex; align-items: center; gap: var(--space-1); }
+.sh-tryit-head > .sh-btn { margin-left: auto; }
+.sh-tryit table { width: 100%; border-collapse: collapse; font-size: var(--font-md); }
+.sh-tryit th { text-align: left; color: var(--muted); font-weight: 400; padding: var(--space-1) var(--space-1); border-bottom: 1px solid var(--line); }
+.sh-tryit td { padding: var(--space-1) var(--space-1); border-bottom: 1px solid var(--line); font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.sh-tryit td:first-child { font-family: inherit; }
+.sh-tryit tr.best td { color: var(--ink); font-weight: 600; }
+.sh-tryit tr.best td.positive { color: var(--market-up); }
+.sh-tryit tr.best td.negative { color: var(--market-down); }
+.sh-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.sh-actions > .primary { margin-left: auto; }
+.sh-ask-ai { display: flex; gap: var(--space-2); min-width: 0; }
+.strategy-workbench .sh-ask-ai input { flex: 1; min-width: 0; padding: var(--space-1) var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-control); background: var(--panel); color: var(--ink); font: inherit; }
+.sh-more { border-top: 1px solid var(--line); padding-top: var(--space-1); }
+.sh-more > summary { cursor: pointer; padding: var(--space-2) 0; color: var(--muted); font-size: var(--font-md); }
+.sh-more-body { display: grid; gap: var(--space-3); padding-bottom: var(--space-2); }
+
+/* -- 正在运行 --------------------------------------------------------------------------------------- */
+.sh-sigs { display: grid; }
+.sh-sig { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: var(--space-0) var(--space-2); padding: var(--space-2) 0; border-top: 1px solid var(--line); font-size: var(--font-md); }
+.sh-sig time { font-family: var(--font-num); font-variant-numeric: tabular-nums; color: var(--muted); }
+.sh-sig span { color: var(--ink); overflow-wrap: anywhere; }
+.strategy-scroll .sh-sig-empty { margin: 0; padding-top: var(--space-2); border-top: 1px solid var(--line); font-size: var(--font-md); }
+.strategy-workbench .sh-link { justify-self: start; padding: 0; border: 0; background: transparent; color: var(--accent); font-size: var(--font-md); }
+.sh-run-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.sh-run-actions > .danger { margin-left: auto; }
+.sh-stop-confirm { display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-3); border: 1px solid var(--market-up); border-radius: var(--radius-control); }
+.strategy-scroll .sh-stop-confirm p { margin: 0; color: var(--ink); }
+.sh-stop-confirm > div { display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: flex-end; }
+
+@container strategy-home (max-width: 420px) {
+  .sh-big b { font-size: var(--font-lg); }
+  .sh-big > div { padding: var(--space-2); }
+  .sh-sym { margin-left: 0; }
+}
+
+.sh-home { container-type: inline-size; container-name: strategy-home; }

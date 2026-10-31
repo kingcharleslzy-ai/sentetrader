@@ -1,0 +1,47 @@
+{
+  "id": "supertrend",
+  "name": "SuperTrend 翻转",
+  "category": "trend_breakout",
+  "scenario": "参数少的趋势跟随，适合新手当第一个策略",
+  "plainSummary": "价格站到趋势线上方就做多、跌到下方就做空；回到线的另一边就平仓，下一根再按新方向开。趋势线会跟着价格和波动自动移动。",
+  "level": "新手", "holding": "会隔夜",
+  "source": {"label": "TradingView 官方 SuperTrend 说明（ATR 10，倍数 3）", "url": "https://www.tradingview.com/support/solutions/43000634738-supertrend/"},
+  "recommendedTimeframe": 900,
+  "approximations": [
+    "原版翻转即反手；本产品不同根内平仓再开仓：收盘跌破超级趋势线先平多，下一根K线再开空（穿越在最近 2 根内仍算数）。",
+    "原版没有止损；另设保护止损：入场价 ∓ 3×ATR14（取信号K线的 ATR，按品种波动自动缩放），超级趋势线本身按收盘价出场。"
+  ],
+  "params": [
+    {"key": "period", "label": "趋势线参考根数（ATR 周期）", "default": 10, "min": 2, "max": 100, "step": 1, "unit": "根",
+     "targets": ["rules.entryLong.conditions.0.right.period", "rules.exitLong.conditions.0.right.period",
+                 "rules.entryShort.conditions.0.right.period", "rules.exitShort.conditions.0.right.period"],
+     "help": {"what": "趋势线按最近多少根K线的平均波动（ATR）来定离价格多远", "up": "趋势线更平滑、翻转更少", "down": "趋势线跟得更紧、翻转更频繁"}},
+    {"key": "multiplier", "label": "趋势线距离（ATR 倍数）", "default": 3, "min": 0.5, "max": 10, "step": 0.1, "unit": "倍",
+     "targets": ["rules.entryLong.conditions.0.right.k", "rules.exitLong.conditions.0.right.k",
+                 "rules.entryShort.conditions.0.right.k", "rules.exitShort.conditions.0.right.k"],
+     "help": {"what": "趋势线离价格多少倍平均波动", "up": "线离得更远，翻转更少、拿得更久，但回吐更多", "down": "线贴得更近，翻转更频繁，来回止损也更多"}},
+    {"key": "stopAtr", "label": "保护止损（ATR 倍数）", "default": 3, "min": 0.5, "max": 10, "step": 0.5, "unit": "×ATR14", "targets": ["atrStop.multiple"],
+     "help": {"what": "止损放得离开仓价多远，按最近波动大小自动换算", "up": "不容易被正常波动扫出场，但万一做错单笔亏得更多", "down": "亏损控制得紧，但容易被来回波动打掉"}},
+    {"key": "maxPosition", "label": "每次手数", "default": 1, "min": 1, "max": 20, "step": 1, "unit": "手", "targets": ["maxPosition"],
+     "help": {"what": "每次开仓下多少手", "up": "盈亏都按手数放大，占用的保证金也更多", "down": "盈亏都跟着缩小，更稳妥"}},
+    {"key": "maxLoss", "label": "当日亏损上限", "default": null, "optional": true, "min": 100, "max": 1000000, "step": 100, "unit": "元", "targets": ["maxLoss"],
+     "help": {"what": "留空就不设。填了以后，账户当天的净亏损（已平仓、浮动盈亏和手续费合计）达到这个数，这条策略不再开新仓，止损和离场照常", "up": "允许当天亏得更多才停手", "down": "更早停止开新仓，也可能错过当天后面的机会"}}
+  ],
+  "plan": {
+    "name": "SuperTrend 翻转",
+    "description": "收盘价上穿超级趋势线({period},{multiplier}) 开多、下穿开空；收盘回到线的另一侧即平仓，下一根K线再按新方向开仓。保护止损 {stopAtr}×ATR14。来源：TradingView SuperTrend。",
+    "direction": "both", "timeframeSeconds": 900, "maxPosition": 1, "maxLoss": null,
+    "stopLossTicks": 20, "takeProfitTicks": null, "cooldownBars": 0, "maxOrdersPerDay": 20,
+    "atrStop": {"multiple": 3, "period": 14},
+    "rules": {
+      "entryLong": {"conditions": [{"label": "收盘上穿超级趋势({period},{multiplier})", "left": {"indicator": "close", "timeframe": 900},
+        "operator": "cross_up", "right": {"indicator": "supertrend", "period": 10, "k": 3, "timeframe": 900}, "withinBars": 2}]},
+      "exitLong": {"conditions": [{"label": "收盘跌到超级趋势线下方", "left": {"indicator": "close", "timeframe": 900},
+        "operator": "lt", "right": {"indicator": "supertrend", "period": 10, "k": 3, "timeframe": 900}}]},
+      "entryShort": {"conditions": [{"label": "收盘下穿超级趋势({period},{multiplier})", "left": {"indicator": "close", "timeframe": 900},
+        "operator": "cross_down", "right": {"indicator": "supertrend", "period": 10, "k": 3, "timeframe": 900}, "withinBars": 2}]},
+      "exitShort": {"conditions": [{"label": "收盘升到超级趋势线上方", "left": {"indicator": "close", "timeframe": 900},
+        "operator": "gt", "right": {"indicator": "supertrend", "period": 10, "k": 3, "timeframe": 900}}]}
+    }
+  }
+}

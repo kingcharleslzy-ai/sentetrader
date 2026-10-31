@@ -1,0 +1,23 @@
+{
+  "about": "第 5 批（今日作战表）：测试账号原本没有自选和打法——先把自选设成螺纹钢、沪金，建一个“验收开盘突破”打法，作战表接口与调研面板第一页都排出两行；再看品种调研的今日判断不写偏多偏空和信心。结束后自选清空、删掉打法。只用测试账号；它原本有自选就停下，不覆盖。",
+  "steps": [
+    {"api": "GET /api/preferences", "expect": {"body.preferences.watchlist.products.0": {"exists": false}}},
+    {"api": "PUT /api/preferences", "body": {"watchlist": {"products": ["SHFE.rb", "SHFE.au"]}}},
+    {"api": "POST /api/playbooks", "status": 201, "body": {"name": "验收开盘突破", "entryRules": "突破开盘区间高点再进", "exitRules": "", "stopRules": ""},
+     "save": {"playbookId": "body.playbook.id"}},
+    {"api": "GET /api/research/sheet", "expect": {"body.rows.1.product": {"exists": true}, "body.rows.0.priority": {"exists": true},
+     "body.rows.0.levels.0.label": {"exists": true}, "body.rows.0.stance": {"exists": false}, "body.playbookCount": 1}},
+    {"ui": {"panel": "news"}, "expect": {"panel": "news"}},
+    {"ui": {"news": {"tab": "sheet"}}, "expect": {"news.tab": "sheet", "news.sheet.status": "ready", "news.sheet.rows": 2,
+     "observation.text": {"includes": "今日作战表"}}},
+    {"screenshot": "01-sheet"},
+    {"ui": {"news": {"tab": "desk"}}, "expect": {"news.tab": "desk", "news.desk.status": "ready"}},
+    {"screenshot": "02-desk"},
+    {"ui": {"panel": null}, "expect": {"panel": null}}
+  ],
+  "cleanup": [
+    {"api": "DELETE /api/playbooks/{{playbookId}}"},
+    {"api": "PUT /api/preferences", "body": {"watchlist": {"products": []}}},
+    {"api": "GET /api/preferences", "expect": {"body.preferences.watchlist.products.0": {"exists": false}}}
+  ]
+}

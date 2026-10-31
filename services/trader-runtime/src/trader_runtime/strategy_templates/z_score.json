@@ -1,0 +1,69 @@
+{
+  "id": "z_score",
+  "name": "Z-Score 均值回归",
+  "category": "reversal",
+  "scenario": "均值回归：日线收盘偏离 14 日均值 1.8 个标准差反向进场，回到 0.4 以内离场，偏到 2.5 止损",
+  "plainSummary": "价格比最近一段时间的平均价低得太多就做多、高得太多就做空，回到平均价附近就离场；偏得更远说明看错了，立即离场；拿满几天还没回来也离场。",
+  "level": "进阶", "holding": "会隔夜",
+  "source": {"label": "TqSdk 示例 z_score.py（日线，窗口 14，开仓 1.8 / 平仓 0.4 / 止损 2.5 个标准差，时间止损 8 天）", "url": "https://github.com/shinnytech/tqsdk-python/blob/master/tqsdk/demo/example/z_score.py"},
+  "recommendedTimeframe": 86400,
+  "approximations": [
+    "Z 值写成布林带倍数：Z < −1.8 就是收盘低于布林下轨(14, 1.8)，Z > 1.8 就是高于布林上轨(14, 1.8)；均值和标准差（总体标准差，同 numpy.std）与原版一致。",
+    "按收盘确认：原版在新K线刚出现时用它的第一笔价格算 Z 值，这里用已收盘的日线算，下一根开盘成交。",
+    "回归离场：原版只在 Z 落回 −0.4 到 0.4 之间时平仓，一根就越过另一侧 0.4 的持仓会继续拿；这里多单 Z 回到 −0.4 以上（空单 0.4 以下）就平，越过也平。",
+    "时间止损：原版按开仓后满 8 个自然日（含周末），这里按持仓满 8 根日K线（交易日）。",
+    "原版每次 50 手、没有价格止损；这里默认 1 手，另设保护止损 3×ATR14 只防极端行情，Z 值止损（2.5）照原版按收盘判断。"
+  ],
+  "params": [
+    {"key": "window", "label": "均值参考根数（窗口）", "default": 14, "min": 5, "max": 100, "step": 1, "unit": "根",
+     "targets": ["rules.entryLong.conditions.0.right.period", "rules.entryShort.conditions.0.right.period",
+                 "rules.exitLong.conditions.0.right.period", "rules.exitLong.conditions.1.right.period",
+                 "rules.exitShort.conditions.0.right.period", "rules.exitShort.conditions.1.right.period"],
+     "help": {"what": "平均价和平时波动幅度（标准差）用最近多少根K线来算", "up": "平均价更稳，偏离要持续更久才算，信号更少", "down": "平均价跟得更紧，信号更多也更杂"}},
+    {"key": "entryZ", "label": "开仓偏离（开仓 Z 值）", "default": 1.8, "min": 0.5, "max": 4, "step": 0.1, "unit": "倍标准差",
+     "targets": ["rules.entryLong.conditions.0.right.k", "rules.entryShort.conditions.0.right.k"],
+     "help": {"what": "收盘价离平均价超过几倍平时波动幅度才反向开仓", "up": "要偏得更远才开，信号更少，但更像真的过头", "down": "稍一偏离就开，信号更多，也更容易逆着趋势"}},
+    {"key": "exitZ", "label": "回归离场（平仓 Z 值）", "default": 0.4, "min": 0.1, "max": 2, "step": 0.1, "unit": "倍标准差",
+     "targets": ["rules.exitLong.conditions.0.right.k", "rules.exitShort.conditions.0.right.k"],
+     "help": {"what": "价格回到离平均价几倍波动幅度以内就离场", "up": "离平均价还远就先走，拿得短、赚得少", "down": "要更贴近平均价才走，拿得更久"}},
+    {"key": "stopZ", "label": "偏离止损（止损 Z 值）", "default": 2.5, "min": 1, "max": 6, "step": 0.1, "unit": "倍标准差",
+     "targets": ["rules.exitLong.conditions.1.right.k", "rules.exitShort.conditions.1.right.k"],
+     "help": {"what": "开仓后价格反而偏得比这更远，就认错离场", "up": "给得更宽，不容易被扫出去，但做错时亏得更多", "down": "认错更快，但正常的再偏一点也会被扫出去"}},
+    {"key": "maxHold", "label": "最长持仓（时间止损）", "default": 8, "min": 1, "max": 60, "step": 1, "unit": "根",
+     "targets": ["maxHoldBars"],
+     "help": {"what": "持仓满这么多根K线还没回到平均价，就离场", "up": "给回归更多时间，也可能拿着不动的仓更久", "down": "更快放弃迟迟不回归的仓位"}},
+    {"key": "stopAtr", "label": "保护止损（ATR 倍数）", "default": 3, "min": 0.5, "max": 10, "step": 0.5, "unit": "×ATR14", "targets": ["atrStop.multiple"],
+     "help": {"what": "止损放得离开仓价多远，按最近波动大小自动换算", "up": "不容易被正常波动扫出场，但万一做错单笔亏得更多", "down": "亏损控制得紧，但容易被来回波动打掉"}},
+    {"key": "maxPosition", "label": "每次手数", "default": 1, "min": 1, "max": 20, "step": 1, "unit": "手", "targets": ["maxPosition"],
+     "help": {"what": "每次开仓下多少手", "up": "盈亏都按手数放大，占用的保证金也更多", "down": "盈亏都跟着缩小，更稳妥"}},
+    {"key": "maxLoss", "label": "当日亏损上限", "default": null, "optional": true, "min": 100, "max": 1000000, "step": 100, "unit": "元", "targets": ["maxLoss"],
+     "help": {"what": "留空就不设。填了以后，账户当天的净亏损（已平仓、浮动盈亏和手续费合计）达到这个数，这条策略不再开新仓，止损和离场照常", "up": "允许当天亏得更多才停手", "down": "更早停止开新仓，也可能错过当天后面的机会"}}
+  ],
+  "constraints": [
+    {"less": ["exitZ", "entryZ"], "message": "平仓 Z 值须小于开仓 Z 值"},
+    {"less": ["entryZ", "stopZ"], "message": "止损 Z 值须大于开仓 Z 值"}
+  ],
+  "plan": {
+    "name": "Z-Score 均值回归",
+    "description": "Z = (收盘 − {window} 根均值) ÷ {window} 根标准差。Z 低于 −{entryZ} 开多、高于 {entryZ} 开空（即收盘越过布林下轨 / 上轨({window},{entryZ})）；多单 Z 回到 −{exitZ} 以上离场、跌破 −{stopZ} 止损，空单对称；持仓满 {maxHold} 根离场。保护止损 {stopAtr}×ATR14。来源：TqSdk z_score.py。",
+    "direction": "both", "timeframeSeconds": 86400, "maxPosition": 1, "maxLoss": null,
+    "stopLossTicks": 20, "takeProfitTicks": null, "cooldownBars": 0, "maxOrdersPerDay": 20, "maxHoldBars": 8,
+    "atrStop": {"multiple": 3, "period": 14},
+    "rules": {
+      "entryLong": {"conditions": [{"label": "Z 低于 −{entryZ}（收盘低于布林下轨({window},{entryZ})）", "left": {"indicator": "close", "timeframe": 86400},
+        "operator": "lt", "right": {"indicator": "boll_down", "period": 14, "k": 1.8, "timeframe": 86400}}]},
+      "exitLong": {"join": "any", "conditions": [
+        {"label": "Z 回到 −{exitZ} 以上（回归离场）", "left": {"indicator": "close", "timeframe": 86400},
+         "operator": "gte", "right": {"indicator": "boll_down", "period": 14, "k": 0.4, "timeframe": 86400}},
+        {"label": "Z 跌破 −{stopZ}（偏离止损）", "left": {"indicator": "close", "timeframe": 86400},
+         "operator": "lt", "right": {"indicator": "boll_down", "period": 14, "k": 2.5, "timeframe": 86400}}]},
+      "entryShort": {"conditions": [{"label": "Z 高于 {entryZ}（收盘高于布林上轨({window},{entryZ})）", "left": {"indicator": "close", "timeframe": 86400},
+        "operator": "gt", "right": {"indicator": "boll_up", "period": 14, "k": 1.8, "timeframe": 86400}}]},
+      "exitShort": {"join": "any", "conditions": [
+        {"label": "Z 回到 {exitZ} 以下（回归离场）", "left": {"indicator": "close", "timeframe": 86400},
+         "operator": "lte", "right": {"indicator": "boll_up", "period": 14, "k": 0.4, "timeframe": 86400}},
+        {"label": "Z 升破 {stopZ}（偏离止损）", "left": {"indicator": "close", "timeframe": 86400},
+         "operator": "gt", "right": {"indicator": "boll_up", "period": 14, "k": 2.5, "timeframe": 86400}}]}
+    }
+  }
+}

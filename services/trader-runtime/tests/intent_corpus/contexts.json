@@ -1,0 +1,62 @@
+{
+  "_doc": "命名账户上下文快照。cases.jsonl 的 ctx 只引用这里的名字。以下以下划线开头的键是共享数据，不是上下文。",
+  "_catalog": {
+    "螺纹": {"symbol": "SHFE.rb2701", "name": "螺纹2701", "aliases": ["螺纹钢", "rb"]},
+    "沪金": {"symbol": "SHFE.au2612", "name": "沪金2612", "aliases": ["黄金", "金子", "金", "au"]},
+    "沪银": {"symbol": "SHFE.ag2612", "name": "沪银2612", "aliases": ["白银", "银子", "银", "ag"]},
+    "铁矿": {"symbol": "DCE.i2701", "name": "铁矿2701", "aliases": ["铁矿石", "i"]},
+    "热卷": {"symbol": "SHFE.hc2701", "name": "热卷2701", "aliases": ["hc"]},
+    "甲醇": {"symbol": "CZCE.MA611", "name": "甲醇MA611", "aliases": ["MA"]},
+    "豆粕": {"symbol": "DCE.m2701", "name": "豆粕2701", "aliases": ["m"]},
+    "豆油": {"symbol": "DCE.y2701", "name": "豆油2701", "aliases": ["y"]},
+    "白糖": {"symbol": "CZCE.SR701", "name": "白糖SR701", "aliases": ["糖", "SR"]},
+    "纯碱": {"symbol": "CZCE.SA701", "name": "纯碱SA701", "aliases": ["SA"]},
+    "棉花": {"symbol": "CZCE.CF701", "name": "棉花CF701", "aliases": ["CF"]},
+    "原油": {"symbol": "INE.sc2612", "name": "原油2612", "aliases": ["sc"]},
+    "焦炭": {"symbol": "DCE.j2701", "name": "焦炭2701", "aliases": ["j"]},
+    "PVC": {"symbol": "DCE.v2701", "name": "PVC2701", "aliases": ["v"]},
+    "多晶硅": {"symbol": "GFEX.ps2701", "name": "多晶硅2701", "aliases": ["ps"]}
+  },
+  "_catalog_note": "product 一律写目录规范名（生产目录名：螺纹/沪金/沪银/铁矿/热卷…，不是假目录的“螺纹钢”）。口语别名（白银→沪银、黄金/金子→沪金、螺纹钢→螺纹）按 aliases 归一。目录之外的品种（如“豆二”）不在表里，解析器不得编造。",
+  "_quotes": {
+    "SHFE.rb2701": {"last": 3066, "bid1": 3065, "ask1": 3067, "tick": 1},
+    "SHFE.au2612": {"last": 823.5, "bid1": 823.4, "ask1": 823.6, "tick": 0.02},
+    "SHFE.ag2612": {"last": 13878, "bid1": 13877, "ask1": 13879, "tick": 1},
+    "SHFE.hc2701": {"last": 3310, "bid1": 3309, "ask1": 3311, "tick": 1},
+    "CZCE.MA611": {"last": 3625, "bid1": 3624, "ask1": 3626, "tick": 1}
+  },
+  "_quotes_note": "只在需要判断口语价格量级（“八百二”=820 而不是 8.2 或 8200）或规划价格档位时才用到；盘口数值是固定样例，不代表真实行情。",
+
+  "flat_nochart":      {"chart": null, "positions": [], "orders": [], "pending_card": null, "market": "open"},
+  "flat_chart_rb":     {"chart": "SHFE.rb2701", "positions": [], "orders": [], "pending_card": null, "market": "open"},
+  "flat_chart_au":     {"chart": "SHFE.au2612", "positions": [], "orders": [], "pending_card": null, "market": "open"},
+  "flat_chart_ag":     {"chart": "SHFE.ag2612", "positions": [], "orders": [], "pending_card": null, "market": "open"},
+
+  "long1_rb":          {"chart": "SHFE.rb2701", "positions": [{"sym": "SHFE.rb2701", "dir": "long", "vol": 1, "today": 1, "yd": 0}], "orders": [], "pending_card": null, "market": "open"},
+  "long1_rb_yd1":      {"chart": "SHFE.rb2701", "positions": [{"sym": "SHFE.rb2701", "dir": "long", "vol": 1, "today": 0, "yd": 1}], "orders": [], "pending_card": null, "market": "open"},
+  "long2_rb":          {"chart": "SHFE.rb2701", "positions": [{"sym": "SHFE.rb2701", "dir": "long", "vol": 2, "today": 2, "yd": 0}], "orders": [], "pending_card": null, "market": "open"},
+  "long3_rb":          {"chart": "SHFE.rb2701", "positions": [{"sym": "SHFE.rb2701", "dir": "long", "vol": 3, "today": 3, "yd": 0}], "orders": [], "pending_card": null, "market": "open"},
+  "long4_rb":          {"chart": "SHFE.rb2701", "positions": [{"sym": "SHFE.rb2701", "dir": "long", "vol": 4, "today": 4, "yd": 0}], "orders": [], "pending_card": null, "market": "open"},
+  "long3_rb_today1_yd2": {"chart": "SHFE.rb2701", "positions": [{"sym": "SHFE.rb2701", "dir": "long", "vol": 3, "today": 1, "yd": 2}], "orders": [], "pending_card": null, "market": "open"},
+  "short1_rb":         {"chart": "SHFE.rb2701", "positions": [{"sym": "SHFE.rb2701", "dir": "short", "vol": 1, "today": 1, "yd": 0}], "orders": [], "pending_card": null, "market": "open"},
+  "short2_rb":         {"chart": "SHFE.rb2701", "positions": [{"sym": "SHFE.rb2701", "dir": "short", "vol": 2, "today": 2, "yd": 0}], "orders": [], "pending_card": null, "market": "open"},
+  "long2_au":          {"chart": "SHFE.au2612", "positions": [{"sym": "SHFE.au2612", "dir": "long", "vol": 2, "today": 1, "yd": 1}], "orders": [], "pending_card": null, "market": "open"},
+  "long2_au_short1_rb": {"chart": "SHFE.au2612", "positions": [{"sym": "SHFE.au2612", "dir": "long", "vol": 2, "today": 1, "yd": 1}, {"sym": "SHFE.rb2701", "dir": "short", "vol": 1, "today": 1, "yd": 0}], "orders": [], "pending_card": null, "market": "open"},
+  "long2_au_short1_hc": {"chart": "SHFE.au2612", "positions": [{"sym": "SHFE.au2612", "dir": "long", "vol": 2, "today": 1, "yd": 1}, {"sym": "SHFE.hc2701", "dir": "short", "vol": 1, "today": 1, "yd": 0}], "orders": [], "pending_card": null, "market": "open"},
+  "long1_ag":          {"chart": "SHFE.ag2612", "positions": [{"sym": "SHFE.ag2612", "dir": "long", "vol": 1, "today": 1, "yd": 0}], "orders": [], "pending_card": null, "market": "open"},
+  "long2_ma":          {"chart": "CZCE.MA611", "positions": [{"sym": "CZCE.MA611", "dir": "long", "vol": 2, "today": 2, "yd": 0}], "orders": [], "pending_card": null, "market": "open"},
+  "short1_ma":         {"chart": "CZCE.MA611", "positions": [{"sym": "CZCE.MA611", "dir": "short", "vol": 1, "today": 1, "yd": 0}], "orders": [], "pending_card": null, "market": "open"},
+  "short2_ma":         {"chart": "CZCE.MA611", "positions": [{"sym": "CZCE.MA611", "dir": "short", "vol": 2, "today": 2, "yd": 0}], "orders": [], "pending_card": null, "market": "open"},
+  "short1_hc":         {"chart": "SHFE.hc2701", "positions": [{"sym": "SHFE.hc2701", "dir": "short", "vol": 1, "today": 1, "yd": 0}], "orders": [], "pending_card": null, "market": "open"},
+
+  "order_rb_open":     {"chart": "SHFE.rb2701", "positions": [], "orders": [{"sym": "SHFE.rb2701", "side": "buy_open", "vol": 1, "left": 1, "price": 3066, "status": "ALIVE"}], "pending_card": null, "market": "open"},
+  "order_rb3000_au":   {"chart": "SHFE.rb2701", "positions": [], "orders": [{"sym": "SHFE.rb2701", "side": "buy_open", "vol": 1, "left": 1, "price": 3000, "status": "ALIVE"}, {"sym": "SHFE.au2612", "side": "buy_open", "vol": 1, "left": 1, "price": 820, "status": "ALIVE"}], "pending_card": null, "market": "open"},
+  "order_au_open":     {"chart": "SHFE.au2612", "positions": [], "orders": [{"sym": "SHFE.au2612", "side": "buy_open", "vol": 1, "left": 1, "price": 820, "status": "ALIVE"}], "pending_card": null, "market": "open"},
+  "long1_rb_order_rb_open": {"chart": "SHFE.rb2701", "positions": [{"sym": "SHFE.rb2701", "dir": "long", "vol": 1, "today": 1, "yd": 0}], "orders": [{"sym": "SHFE.rb2701", "side": "buy_open", "vol": 1, "left": 1, "price": 3066, "status": "ALIVE"}], "pending_card": null, "market": "open"},
+
+  "card_buyopen_rb1":  {"chart": "SHFE.rb2701", "positions": [], "orders": [], "pending_card": {"type": "trade", "sym": "SHFE.rb2701", "side": "buy_open", "vol": 1, "price_mode": "counter"}, "market": "open"},
+  "card_buyopen_au1":  {"chart": "SHFE.au2612", "positions": [], "orders": [], "pending_card": {"type": "trade", "sym": "SHFE.au2612", "side": "buy_open", "vol": 1, "price_mode": "counter"}, "market": "open"},
+  "card_sellopen_ag2": {"chart": "SHFE.ag2612", "positions": [], "orders": [], "pending_card": {"type": "trade", "sym": "SHFE.ag2612", "side": "sell_open", "vol": 2, "price_mode": "counter"}, "market": "open"},
+  "card_sellclose_rb1": {"chart": "SHFE.rb2701", "positions": [{"sym": "SHFE.rb2701", "dir": "long", "vol": 1, "today": 0, "yd": 1}], "orders": [], "pending_card": {"type": "trade", "sym": "SHFE.rb2701", "side": "sell_close", "vol": 1, "price_mode": "counter", "bucket": "yesterday"}, "market": "open"},
+  "card_close_batch":  {"chart": "SHFE.au2612", "positions": [{"sym": "SHFE.au2612", "dir": "long", "vol": 2, "today": 1, "yd": 1}], "orders": [], "pending_card": {"type": "close_batch", "legs": [{"sym": "SHFE.au2612", "side": "sell_close", "vol": 1, "bucket": "today"}, {"sym": "SHFE.au2612", "side": "sell_close", "vol": 1, "bucket": "yesterday"}]}, "market": "open"}
+}

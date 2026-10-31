@@ -1,0 +1,157 @@
+/* 提醒中心 (#932, 2026-10-15; the owner-approved mockup 提醒中心-20261015): the chart toolbar's bell and
+   popover, the phone's 提醒 page and AI 首页's 最新提醒. Colours are the paired theme tokens only; kind
+   tags use the status pairs, information kinds a neutral outline. */
+
+/* ---- shared pieces ---- */
+/* Type sizes follow 设置 → 界面 → 字体大小 (html[data-font-scale]); the popover is portaled out of the shell. */
+:is(.reminders-panel, .rc-mobile, .rc-latest, .app-settings-dialog) { --rc-name: var(--font-md); --rc-text: var(--font-md); --rc-small: var(--font-sm); --rc-tag: var(--font-xs); }
+:is(.rc-mobile, .rc-latest) { --rc-name: var(--font-lg); --rc-text: var(--font-lg); }
+html[data-font-scale="large"] :is(.reminders-panel, .app-settings-dialog) { --rc-name: var(--font-lg); --rc-text: var(--font-lg); --rc-small: var(--font-md); --rc-tag: var(--font-sm); }
+html[data-font-scale="large"] :is(.rc-mobile, .rc-latest) { --rc-name: var(--font-lg); --rc-text: var(--font-lg); --rc-small: var(--font-md); --rc-tag: var(--font-sm); }
+html[data-font-scale="extra-large"] :is(.reminders-panel, .app-settings-dialog) { --rc-name: var(--font-lg); --rc-text: var(--font-lg); --rc-small: var(--font-lg); --rc-tag: var(--font-md); }
+html[data-font-scale="extra-large"] :is(.rc-mobile, .rc-latest) { --rc-name: var(--font-xl); --rc-text: var(--font-lg); --rc-small: var(--font-lg); --rc-tag: var(--font-md); }
+:where(.reminders-panel, .rc-mobile, .rc-latest) button { font: inherit; }
+.rc-mono { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.rc-spacer { flex: 1; }
+.rc-button {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1); flex-shrink: 0;
+  min-height: 26px; padding: 0 var(--space-2); border: 1px solid var(--line-strong); border-radius: var(--radius-control);
+  color: var(--ink); background: var(--panel); font-size: var(--font-md); white-space: nowrap; cursor: pointer;
+}
+.rc-button:hover:not(:disabled) { background: var(--surface-hover); }
+.rc-button.ghost { border-color: transparent; color: var(--muted); background: transparent; }
+.rc-button.ghost:hover:not(:disabled) { color: var(--ink); background: var(--surface-hover); }
+.rc-button:disabled { opacity: .5; cursor: default; }
+.rc-button svg { width: 14px; height: 14px; }
+.rc-icon-button { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--radius-control); color: var(--muted); background: transparent; cursor: pointer; }
+.rc-icon-button:hover { color: var(--ink); background: var(--surface-hover); }
+.rc-icon-button svg { width: 16px; height: 16px; }
+
+.rc-badge {
+  position: absolute; top: -5px; right: -5px; min-width: 15px; height: 15px; padding: 0 var(--space-1); border-radius: var(--radius-control);
+  color: var(--panel); background: var(--danger); outline: 2px solid var(--bg); outline-offset: 0;
+  font: 600 var(--font-xs)/15px var(--font-num);
+  font-variant-numeric: tabular-nums; text-align: center; pointer-events: none;
+}
+
+.rc-block-head { display: flex; align-items: center; gap: var(--space-1); min-height: 28px; }
+.rc-block-head h3 { margin: 0; color: var(--muted); font-size: var(--font-md); font-weight: 600; }
+.rc-count { color: var(--muted); font: var(--font-sm) var(--font-num); font-variant-numeric: tabular-nums; }
+.rc-quiet { margin: var(--space-1) 0; color: var(--muted); font-size: var(--font-md); }
+
+/* A kind's tag: icon + label in the kind's pair. */
+.rc-tag {
+  display: inline-flex; align-items: center; gap: var(--space-0); height: 20px; padding: 0 var(--space-1); border-radius: var(--radius-control);
+  color: var(--muted); background: var(--soft); font-size: var(--font-xs); font-weight: 600; white-space: nowrap;
+}
+.rc-tag svg { width: 12px; height: 12px; stroke-width: 2; }
+.rc-tag[data-tone="warning"] { color: var(--warning); background: var(--warning-soft); }
+.rc-tag[data-tone="danger"] { color: var(--danger); background: var(--danger-soft); }
+.rc-tag[data-tone="positive"] { color: var(--positive); background: var(--positive-soft); }
+.rc-tag[data-tone="accent"] { color: var(--accent); background: var(--accent-soft); }
+.rc-tag[data-tone="alert"] { color: var(--price-alert); background: var(--price-alert-soft); }
+.rc-tag[data-tone="info"] { color: var(--muted); background: transparent; outline: 1px solid var(--line-strong); outline-offset: -1px; }
+.rc-tag-icon { width: 22px; height: 22px; justify-content: center; padding: 0; }
+.rc-tag-icon svg { width: 13px; height: 13px; }
+
+/* ---- the stream ---- */
+.rc-group-label { margin: var(--space-3) 0 var(--space-0); color: var(--muted); font-size: var(--font-md); font-weight: 600; letter-spacing: .02em; }
+.rc-list { margin: 0; padding: 0; list-style: none; }
+.rc-item { position: relative; border-top: 1px solid var(--line); }
+.rc-item:first-child { border-top: 0; }
+.rc-row {
+  width: 100%; display: grid; grid-template-columns: 40px minmax(0, 1fr) 14px; gap: var(--space-0) var(--space-2); align-items: start;
+  padding: var(--space-3) var(--space-2) var(--space-3) 0; border: 0; border-radius: var(--radius-control);
+  color: var(--ink); background: transparent; text-align: left; cursor: pointer;
+}
+.rc-row:hover { background: var(--surface-hover); }
+.rc-row > time { padding-top: var(--space-0); color: var(--muted); font: var(--font-sm)/1.6 var(--font-num); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+.rc-body { min-width: 0; display: grid; gap: var(--space-0); }
+.rc-line1 { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); min-width: 0; }
+.rc-line1 b { font-size: var(--font-md); font-weight: 500; overflow-wrap: anywhere; }
+.rc-account { font-size: var(--font-md); color: var(--muted); overflow-wrap: anywhere; }
+.rc-text { color: var(--muted); font-size: var(--font-md); line-height: 1.5; overflow-wrap: anywhere; }
+.rc-item[data-unread] .rc-line1 b { font-weight: 600; }
+.rc-item[data-unread] .rc-text { color: var(--ink); }
+.rc-dot { flex: none; width: 7px; height: 7px; border-radius: var(--radius-sm); background: var(--accent); }
+.rc-go { align-self: center; width: 14px; height: 14px; color: var(--muted); opacity: 0; transition: opacity var(--dur-1); }
+.rc-row:hover .rc-go, .rc-row:focus-visible .rc-go { opacity: 1; }
+.rc-extra { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); margin-top: calc(-1 * var(--space-1)); /* Align continuation text beyond the fixed row indicator and time column. */ padding: 0 var(--space-2) var(--space-3) calc(40px + var(--space-2)); }
+.rc-state { display: inline-flex; align-items: center; gap: var(--space-1); min-height: 22px; padding: 0 var(--space-2); border-radius: var(--radius-card); color: var(--muted); background: var(--soft); font-size: var(--font-md); font-variant-numeric: tabular-nums; }
+.rc-state[data-tone="ok"] { color: var(--positive); background: var(--positive-soft); }
+.rc-state[data-tone="wait"] { color: var(--warning); background: var(--warning-soft); }
+.rc-state[data-tone="warn"] { color: var(--danger); background: var(--danger-soft); }
+.rc-more { width: 100%; margin-top: var(--space-2); min-height: 32px; }
+.rc-more svg { width: 14px; height: 14px; }
+.rc-empty { display: grid; place-items: center; gap: var(--space-2); padding: var(--space-6) var(--space-4); color: var(--muted); text-align: center; }
+.rc-empty > svg { width: 28px; height: 28px; color: var(--accent); }
+.rc-empty strong { color: var(--ink); font-size: var(--font-lg); }
+
+/* ---- 到价提醒 · 生效中 ---- */
+.rc-alert-list { margin: 0; padding: 0; list-style: none; }
+.rc-alert-list li { display: flex; align-items: center; gap: var(--space-2); min-height: 30px; min-width: 0; }
+.rc-alert-name { flex: none; margin-left: calc(-1 * var(--space-1)); padding: var(--space-0) var(--space-1); border: 0; border-radius: var(--radius-control); color: var(--ink); background: transparent; font-size: var(--font-md); cursor: pointer; }
+.rc-alert-name:hover { background: var(--price-alert-soft); }
+.rc-alert-line { flex: 1; min-width: 0; overflow: hidden; font-size: var(--font-md); white-space: nowrap; text-overflow: ellipsis; }
+.rc-alert-line b { font-weight: 600; }
+.rc-alert-line b[data-direction="above"] { color: var(--market-up); }
+.rc-alert-line b[data-direction="below"] { color: var(--market-down); }
+.rc-alert-line i { margin-left: var(--space-1); color: var(--muted); font-style: normal; }
+.rc-alert-delete { flex: none; display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: var(--radius-control); color: var(--muted); background: transparent; cursor: pointer; }
+.rc-alert-delete:hover { color: var(--danger); background: var(--danger-soft); }
+.rc-alert-delete svg { width: 15px; height: 15px; }
+.rc-alert-form { margin: var(--space-1) 0 var(--space-1); padding: var(--space-2); border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--soft); }
+
+/* ---- 电脑: the bell and the 提醒 panel (2026-10-25: was a popover) ---- */
+.rc-bell-wrap { display: flex; align-items: center; }
+.fdw-chart-tools .rc-bell { position: relative; width: 31px; padding: 0; }
+.fdw-chart-tools .rc-bell[aria-expanded="true"] { color: var(--accent); background: var(--accent-soft); }
+.rc-bar { display: flex; align-items: center; gap: var(--space-2); }
+.rc-segmented { display: inline-grid; grid-auto-flow: column; gap: var(--space-1); padding: var(--space-0); border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--panel); }
+.rc-segmented button { min-height: 26px; padding: 0 var(--space-3); border: 0; border-radius: var(--radius-sm); color: var(--muted); background: transparent; font-size: var(--font-md); white-space: nowrap; cursor: pointer; }
+.rc-segmented button[aria-checked="true"] { color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+.rc-segmented .rc-mono, .rc-chips .rc-mono { margin-left: var(--space-1); }
+.reminders-panel-content { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: var(--space-2) var(--space-3) var(--space-3); }
+.reminders-panel-content > section + section { margin-top: var(--space-3); padding-top: var(--space-2); border-top: 1px solid var(--line); }
+
+/* ---- 手机: the 提醒 page, its cards and AI 首页's 最新提醒 ---- */
+.rc-card { padding: var(--space-2) var(--space-3) var(--space-1); border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--panel); }
+.rc-mobile-settings { margin-left: auto; }
+.rc-mobile .fdm-head > strong { margin-right: 0; }
+.rc-mobile-content .rc-day { display: flex; flex-direction: column; gap: var(--space-3); }
+/* The bottom tabs stay over this page: the list scrolls clear of them. */
+.rc-mobile > .fdm-content { /* Reserve the fixed mobile navigation and safe area. */ padding-bottom: calc(var(--space-4) + 64px + env(safe-area-inset-bottom)); }
+.rc-mobile-filters { display: flex; align-items: center; gap: var(--space-2); }
+.rc-chips { display: flex; gap: var(--space-1); }
+.rc-chips button {
+  display: inline-flex; align-items: center; gap: var(--space-1); min-height: 36px; padding: 0 var(--space-3);
+  border: 1px solid var(--line); border-radius: var(--radius-pill); color: var(--muted); background: transparent; font-size: var(--font-md); white-space: nowrap; cursor: pointer;
+}
+.rc-chips button[aria-checked="true"] { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+.rc-readall { min-height: 36px; padding: 0 var(--space-2); border: 0; color: var(--accent); background: transparent; font-size: var(--font-md); font-weight: 600; cursor: pointer; }
+.rc-readall:disabled { color: var(--muted); opacity: .6; cursor: default; }
+.rc-mobile .rc-day-head h3 { color: var(--ink); font-size: var(--font-md); }
+.rc-mobile .rc-group-label { margin: 0 0 var(--space-2); font-size: var(--font-md); }
+.rc-mobile .rc-list.rc-card, .rc-latest.rc-card .rc-list { padding-block: 0; }
+.rc-mobile .rc-block-head, .rc-latest .rc-block-head { min-height: 36px; }
+:is(.rc-mobile, .rc-latest) .rc-row { grid-template-columns: 44px minmax(0, 1fr) 16px; min-height: 52px; padding: var(--space-3) var(--space-1) var(--space-3) 0; }
+:is(.rc-mobile, .rc-latest) .rc-go { opacity: 1; width: 16px; height: 16px; }
+:is(.rc-mobile, .rc-latest) .rc-extra { /* Align continuation text beyond the fixed row indicator and time column. */ padding-left: calc(44px + var(--space-2)); padding-bottom: var(--space-3); }
+:is(.rc-mobile, .rc-latest) .rc-button { min-height: 36px; padding: 0 var(--space-3); font-size: var(--font-md); }
+.rc-mobile .rc-alert-list li { min-height: 44px; }
+.rc-mobile .rc-alert-delete { width: 44px; height: 44px; margin-right: calc(-1 * var(--space-2)); }
+.rc-mobile .rc-more { min-height: 44px; }
+.rc-mobile .fdw-alert-form input, .rc-mobile .fdw-alert-form button { min-height: 36px; }
+.fdm-bell > .rc-badge { top: 6px; right: 4px; outline: 2px solid var(--panel); outline-offset: 0; }
+.fdm-tab-icon > .rc-badge { top: -4px; right: -10px; outline: 2px solid var(--panel); outline-offset: 0; }
+/* 通用提醒 in the narrow 提醒 panel (2026-10-25): the label takes what the switch leaves, so a long name such as
+   策略出卡与自动下单 stays on one line with its icon and "?" instead of folding into three. */
+.reminders-panel .app-setting-row { grid-template-columns: minmax(0, 1fr) auto; }
+
+/* 条件提醒 (第 6 批 2026-10-25): the 只提醒 strategies above 到价提醒, with their own small actions. */
+.rc-my-reminders { margin-bottom: var(--space-4); }
+.rc-my-reminders .rc-alert-list li { flex-wrap: wrap; }
+.rc-alert-line b[data-status="monitoring"] { color: var(--accent); }
+.rc-reminder-actions { display: inline-flex; gap: var(--space-1); }
+.rc-button.ghost.danger { color: var(--danger); }
+.rc-button.ghost.danger:hover:not(:disabled) { color: var(--danger); background: var(--danger-soft); }

@@ -1,0 +1,2245 @@
+.fdw-shell {
+  --fdw-header: 64px;
+  --fdw-rail: 56px;
+  --fdw-ai: clamp(360px, 28vw, 450px);
+  --fdw-market-head: 78px;
+  --fdw-chart-tools: 50px;
+  --fdw-market-state: 34px;
+  --fdw-edge: var(--space-4);
+  --fdw-panel-pad: var(--space-3);
+  --fdw-control-gap: var(--space-2);
+  display: grid;
+  grid-template-rows: var(--fdw-header) minmax(0, 1fr);
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+  color: var(--ink);
+  background: var(--bg);
+  font-size: var(--font-md);
+  line-height: 1.35;
+}
+
+/* Composable workspace v4: visible layout controls and bounded direct resizing. */
+.fdw-shell {
+  --fdw-dock-track: min(var(--fdw-right-dock), 34vw);
+}
+
+.fdw-shell.dock-open[data-dock-side="right"] .fdw-body {
+  grid-template-columns: var(--fdw-rail) minmax(0, 1fr) 8px var(--fdw-dock-track) var(--fdw-tools);
+}
+
+.fdw-shell.dock-open[data-dock-side="left"] .fdw-body {
+  grid-template-columns: var(--fdw-rail) var(--fdw-tools) var(--fdw-dock-track) 8px minmax(0, 1fr);
+}
+
+.fdw-shell.dock-closed[data-dock-side="right"] .fdw-body {
+  grid-template-columns: var(--fdw-rail) minmax(0, 1fr) var(--fdw-tools);
+}
+
+.fdw-shell.dock-closed[data-dock-side="left"] .fdw-body {
+  grid-template-columns: var(--fdw-rail) var(--fdw-tools) minmax(0, 1fr);
+}
+
+.fdw-shell[data-dock-side="right"] .fdw-market {
+  grid-column: 2;
+}
+
+.fdw-shell.dock-open[data-dock-side="right"] .fdw-dock-resizer {
+  grid-column: 3;
+}
+
+.fdw-shell.dock-open[data-dock-side="right"] .fdw-ai,
+.fdw-shell.dock-open[data-dock-side="right"] .fdw-order-panel {
+  grid-column: 4;
+}
+
+.fdw-shell.dock-open[data-dock-side="left"] .fdw-ai,
+.fdw-shell.dock-open[data-dock-side="left"] .fdw-order-panel {
+  grid-column: 3;
+  border-right: 1px solid var(--line);
+  border-left: 0;
+  box-shadow: var(--shadow-2);
+}
+
+.fdw-shell.dock-open[data-dock-side="left"] .fdw-dock-resizer {
+  grid-column: 4;
+}
+
+.fdw-shell[data-dock-side="left"] .fdw-market {
+  grid-column: 5;
+}
+
+.fdw-shell.dock-closed[data-dock-side="left"] .fdw-market {
+  grid-column: 3;
+}
+
+.fdw-dock-resizer {
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 0;
+  color: var(--muted);
+  background: var(--soft);
+  touch-action: none;
+}
+
+.fdw-dock-resizer {
+  width: 8px;
+  min-width: 8px;
+  height: 100%;
+  cursor: col-resize;
+}
+
+.fdw-dock-resizer:hover,
+.fdw-dock-resizer:focus-visible {
+  color: var(--accent);
+  background: var(--accent-soft);
+  outline: 0;
+}
+
+.fdw-dock-resizer svg {
+  width: 12px;
+  height: 24px;
+}
+
+@media (max-width: 760px) {
+  .fdw-shell.dock-open[data-dock-side] .fdw-body {
+    grid-template-columns: minmax(0, 1fr) var(--fdw-tools);
+  }
+
+  .fdw-shell.dock-closed[data-dock-side] .fdw-body {
+    grid-template-columns: minmax(0, 1fr) var(--fdw-tools);
+  }
+
+  .fdw-shell[data-dock-side] .fdw-market,
+  .fdw-shell.dock-closed[data-dock-side] .fdw-market {
+    grid-column: 1;
+  }
+
+  .fdw-shell.dock-open[data-dock-side] .fdw-ai,
+  .fdw-shell.dock-open[data-dock-side] .fdw-order-panel {
+    grid-column: 1;
+    border-right: 0;
+    border-left: 0;
+  }
+
+  .fdw-dock-resizer {
+    display: none;
+  }
+}
+
+:where(.fdw-shell) button,
+:where(.fdw-shell) input {
+  font: inherit;
+}
+
+:where(.fdw-shell) button {
+  white-space: nowrap;
+}
+
+:where(.fdw-shell) button {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+:where(.fdw-shell) svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.8;
+}
+
+/* The brand stays a notch below the contract tabs: 16px, 17px on the larger font scales. */
+
+/* Contract tabs: every pinned contract is a trade workbench tab; "+" pins through the contract drawer. */
+
+/* Product glyphs follow the tab's text colour, like the 复盘 / 回放 icons. */
+
+/* Warnings never disappear: out of room the text truncates instead. */
+
+.fdw-body {
+  height: auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: var(--fdw-rail) minmax(0, 1fr) var(--fdw-ai);
+  overflow: hidden;
+}
+
+.fdw-market {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--panel);
+}
+
+.fdw-runtime-notice {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--danger);
+  color: var(--danger);
+  background: var(--danger-soft);
+  font-size: var(--font-md);
+}
+
+/* No quote yet: a dash where the price goes and one line saying why. */
+
+.fdw-shell .positive {
+  color: var(--market-up);
+}
+
+.fdw-shell .negative {
+  color: var(--market-down);
+}
+
+.fdw-market-core {
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(286px, 26%, 370px);
+  overflow: hidden;
+}
+
+.fdw-market-core.review {
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr) clamp(310px, 28%, 400px);
+}
+
+.fdw-market-core.side-closed {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.fdw-chart-stage {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  border-right: 1px solid var(--line);
+}
+
+/* The chart column plus the AI orb that floats over it: the wrapper is the orb's anchor
+   (2026-09-30), so the orb never covers the 复盘 list, side panels or the right dock. */
+.fdw-chart-area {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.fdw-chart-area > .fdw-chart-stage {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* The orb's area is the chart's safe area: inside the K 线 price axis (minimumWidth 74) and
+   above the time axis, so neither the default place (main-pane bottom-left) nor a remembered one lands
+   on an axis at any window size. 分时 reads its prices on the left, so the gap moves there.
+   Outside a chart (no quote yet) the area rule in AiActivity.css spans the market area. */
+.fdw-chart-area .ai-floating-area {
+  inset: 10px 82px 36px 12px;
+}
+
+.fdw-chart-area:has(.fdw-timeshare) .ai-floating-area {
+  right: 12px;
+  left: 82px;
+}
+
+.fdw-selected-price {
+  position: absolute;
+  top: 92px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-control);
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-size: var(--font-md);
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.fdw-selected-price svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* 清除候选价: the badge itself stays non-interactive, the small × inside is clickable. */
+.fdw-selected-price button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.fdw-selected-price button:hover {
+  background: var(--accent-soft-strong, color-mix(in srgb, var(--accent) 18%, transparent));
+}
+
+.fdw-selected-price button svg {
+  width: 12px;
+  height: 12px;
+}
+
+.fdw-chart-caption {
+  position: absolute;
+  bottom: 12px;
+  left: 14px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  color: var(--muted);
+  background: var(--panel);
+  font-size: var(--font-sm);
+}
+
+.fdw-chart-caption svg {
+  color: var(--accent);
+}
+
+.fdw-market-side {
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--soft);
+}
+
+/* Quick row: one tap at the opponent price, confirmed in a dialog unless the user turned that off. */
+
+.fdw-quick-order-dialog ul {
+  margin: 0 0 var(--space-1);
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.fdw-quick-order-dialog li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-control);
+  background: var(--soft);
+  color: var(--ink);
+}
+
+.fdw-quick-order-dialog li span { color: var(--muted); }
+
+.fdw-review-panel {
+  min-height: 100%;
+  padding: var(--space-3);
+  overflow: auto;
+}
+
+.fdw-review-panel > header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--line);
+  font-size: var(--font-md);
+  font-weight: 700;
+}
+
+.fdw-review-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-1);
+  padding: var(--space-3) 0;
+}
+
+.fdw-review-summary span {
+  padding: var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  color: var(--muted);
+  font-size: var(--font-md);
+}
+
+.fdw-review-summary strong {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--ink);
+  font-size: var(--font-md);
+}
+
+.fdw-review-list,
+.fdw-live-orders {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.fdw-review-list > div,
+.fdw-live-orders > div {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: var(--space-0) var(--space-2);
+  align-items: center;
+  padding: var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--panel);
+  font-size: var(--font-md);
+}
+
+.fdw-review-list > div time {
+  color: var(--muted);
+}
+
+.fdw-review-list > div span {
+  grid-column: 2;
+  color: var(--muted);
+}
+
+.fdw-review-list > div b {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+}
+
+.fdw-review-list > p {
+  margin: var(--space-4) var(--space-2);
+  color: var(--muted);
+  font-size: var(--font-md);
+  line-height: 1.6;
+}
+
+.fdw-live-orders {
+  margin-top: var(--space-3);
+}
+
+.fdw-live-orders > strong {
+  font-size: var(--font-md);
+}
+
+.fdw-live-orders > div span small {
+  display: block;
+  color: var(--muted);
+}
+
+.fdw-live-orders > div button {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-control);
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-size: var(--font-md);
+}
+
+.fdw-ai {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-left: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.fdw-ai.closed > header > div,
+.fdw-ai.closed > header > button {
+  display: none;
+}
+
+.fdw-agent-login {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--fdw-control-gap);
+  margin: var(--fdw-control-gap) var(--fdw-panel-pad) 0;
+  padding: var(--fdw-panel-pad);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-card);
+  background: var(--accent-soft);
+}
+
+.fdw-agent-login > svg {
+  width: 18px;
+  color: var(--accent);
+}
+
+.fdw-agent-login strong {
+  display: block;
+  color: var(--ink);
+  font-size: var(--font-md);
+}
+
+.fdw-agent-login p {
+  margin: var(--space-0) 0 0;
+  color: var(--muted);
+  font-size: var(--font-md);
+  line-height: 1.4;
+}
+
+.fdw-agent-login button {
+  min-height: 32px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-control);
+  color: var(--on-primary);
+  background: var(--primary-bg);
+  font-size: var(--font-md);
+  font-weight: 700;
+}
+
+.fdw-agent-login button:disabled {
+  opacity: .55;
+}
+
+.fdw-ai-scroll {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--fdw-panel-pad);
+  overscroll-behavior: contain;
+}
+
+.fdw-ai-scroll .conversation {
+  width: 100%;
+  margin: 0;
+}
+
+.fdw-ai-scroll .message {
+  margin-bottom: var(--space-3);
+}
+
+.fdw-ai-scroll .speaker {
+  margin-bottom: var(--space-1);
+  font-size: var(--font-sm);
+}
+
+.fdw-ai-scroll .bubble {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-card) var(--radius-card) var(--radius-card) var(--radius-sm);
+  font-size: var(--font-md);
+  line-height: 1.55;
+}
+
+.fdw-ai-scroll .bubble .reply-table { font-size: var(--font-md); }
+.fdw-ai-scroll .bubble .reply-table th, .fdw-ai-scroll .bubble .reply-table td { padding: var(--space-0) var(--space-1); }
+
+.fdw-ai-scroll .message.user .bubble { border-radius: var(--radius-card) var(--radius-card) var(--radius-sm) var(--radius-card); }
+.fdw-ai-scroll .bubble.advice-bubble { border-radius: var(--radius-card); }
+
+.fdw-ai-scroll .card {
+  margin-top: var(--space-2);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-1);
+}
+
+.fdw-ai-scroll .card-head,
+.fdw-ai-scroll .card-body,
+.fdw-ai-scroll .card-actions {
+  padding: var(--space-3);
+}
+
+.fdw-ai-scroll .card-title,
+.fdw-ai-scroll .card-title strong,
+.fdw-ai-scroll .card-title small,
+.fdw-ai-scroll .proposal-field,
+.fdw-ai-scroll .audit-note,
+.fdw-ai-scroll .primary-button,
+.fdw-ai-scroll .ghost-button {
+  font-size: var(--font-md);
+}
+
+.fdw-ai-scroll .proposal-grid,
+.fdw-ai-scroll .metric-grid,
+.fdw-ai-scroll .comparison-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* Narrow dock: the before → after pair must fit its half-width cell. */
+.fdw-ai-scroll .compare-item { min-width: 0; padding: var(--space-2) var(--space-3); }
+.fdw-ai-scroll .compare-values { flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-1); font-size: var(--font-md); }
+.fdw-ai-scroll .compare-values strong { font-size: var(--font-lg); }
+
+.fdw-ai-empty {
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: var(--space-2);
+  color: var(--muted);
+  text-align: center;
+}
+
+.fdw-ai-empty svg {
+  width: 26px;
+  height: 26px;
+  color: var(--accent);
+}
+
+.fdw-ai-empty strong {
+  color: var(--ink);
+  font-size: var(--font-md);
+}
+
+.fdw-ai-empty span {
+  max-width: 240px;
+  font-size: var(--font-md);
+  line-height: 1.5;
+}
+
+/* 建议问题 (useChatSuggestions.ts, 0–2 written by the AI): in the empty conversation a short stack
+   of quoted sentences; a click fills the input. With a conversation they lead the chip row as
+   dashed pills, so they read apart from the solid 快捷技能 chips that send at once. A new set
+   rises in once (no motion under reduced motion: --dur-3 is 0). */
+.fdw-ai-empty .fdw-chat-examples {
+  display: grid;
+  gap: var(--space-1);
+  width: min(100%, 280px);
+  margin-top: var(--space-1);
+}
+
+.fdw-ai-empty .fdw-chat-examples button {
+  min-height: 32px;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  color: var(--ink);
+  background: var(--panel);
+  font-size: var(--font-md);
+  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fdw-ai-empty .fdw-chat-examples button::before { content: "“"; color: var(--muted); }
+.fdw-ai-empty .fdw-chat-examples button::after { content: "”"; color: var(--muted); }
+
+.fdw-chat-examples button { animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; }
+
+.fdw-chat-examples button:hover,
+.fdw-chat-examples button:focus-visible {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.fdw-ai-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fdw-control-gap);
+  margin: var(--fdw-control-gap) var(--fdw-panel-pad) 0;
+}
+
+.fdw-ai-chips > .fdw-chat-examples {
+  display: contents;
+}
+
+.fdw-ai-chips .fdw-chat-examples button {
+  min-height: 28px;
+  padding: 0 var(--space-2);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-pill);
+  color: var(--muted);
+  background: transparent;
+  font-size: var(--font-md);
+  cursor: pointer;
+}
+
+.fdw-ai-composer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 38px 38px;
+  min-height: 48px;
+  gap: var(--fdw-control-gap);
+  margin: var(--fdw-control-gap) var(--fdw-panel-pad);
+  padding: var(--fdw-control-gap);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--panel);
+}
+
+/* Status / error lines above the input (the voice call state, the unsaved-draft warning). */
+.fdw-ai-composer > small {
+  grid-column: 1 / -1;
+  padding: 0 var(--space-1);
+  color: var(--muted);
+  font-size: var(--font-sm);
+}
+
+.fdw-ai-composer > small[role="alert"] { color: var(--danger); }
+
+.fdw-ai-composer input {
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  color: var(--ink);
+  background: transparent;
+  font-size: var(--font-md);
+}
+
+.fdw-ai-composer button {
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-control);
+  color: var(--muted);
+}
+
+.fdw-ai-composer button[type="submit"] {
+  color: var(--on-primary);
+  background: var(--primary-bg);
+}
+
+.fdw-ai-composer button:disabled {
+  opacity: 0.35;
+}
+
+/* 按住说话 (the composer): the microphone beside 发送; while held the input gives way to level bars, timer and words. */
+.fdw-ai-composer .fdw-ptt-button {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  color: var(--ink);
+  background: var(--soft);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.fdw-ai-composer .fdw-ptt-button.active.active {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+/* Recording: the microphone beats (the breathing halo of 它正在盯着) from the first moment of the hold. */
+.fdw-ai-composer .fdw-ptt-button[aria-pressed="true"][aria-pressed="true"] {
+  --fdw-ptt-halo: color-mix(in srgb, var(--danger) 30%, transparent);
+  outline: 2px solid var(--fdw-ptt-halo);
+  outline-offset: 0;
+  animation: none;
+}
+
+.fdw-ai-composer .fdw-ptt-button svg svg { width: 18px; height: 18px; }
+
+.fdw-ai-composer > small.fdw-ptt-notice { color: var(--warning); }
+
+.fdw-ptt-live {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: 0 var(--space-1);
+  color: var(--ink);
+  font-size: var(--font-md);
+}
+
+.fdw-ptt-meter {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-0);
+  height: 18px;
+}
+
+.fdw-ptt-meter i {
+  width: 3px;
+  height: 100%;
+  border-radius: var(--radius-sm);
+  background: var(--danger);
+  transform-origin: center;
+  transition: transform var(--dur-1) linear;
+}
+
+.fdw-ptt-live.transcribing .fdw-ptt-meter i {
+  background: var(--muted);
+  transform: scaleY(.25);
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fdw-ai-composer .fdw-ptt-button[aria-pressed="true"],
+  .fdw-ptt-live.transcribing .fdw-ptt-meter i { animation: none; }
+  .fdw-ptt-meter i { transition: none; }
+}
+
+.fdw-ptt-timer {
+  flex: none;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.fdw-ptt-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* 快捷技能栏: one wrap-friendly chip row above the composer; not rendered with no pins. */
+/* 快捷技能 chips share the .fdw-ai-chips row with the 建议问题. */
+.fdw-quick-skills {
+  display: contents;
+}
+
+.fdw-quick-skills > button {
+  min-height: 28px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  color: var(--muted);
+  background: var(--panel);
+  font-size: var(--font-md);
+}
+
+.fdw-quick-skills > button:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* A pinned skill the account cannot use stays visible with its reason in `title`. */
+.fdw-quick-skills > button:disabled {
+  opacity: 0.55;
+}
+
+
+.fdw-drawer-backdrop {
+  position: fixed;
+  z-index: 90;
+  inset: 0;
+  display: flex;
+  align-items: stretch;
+  background: var(--overlay);
+  backdrop-filter: blur(3px);
+}
+
+.fdw-shell ~ .approval-backdrop {
+  z-index: 130;
+}
+
+.fdw-drawer {
+  width: min(390px, calc(100vw - 24px));
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-3);
+  overflow: auto;
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: var(--shadow-2);
+}
+
+.fdw-drawer.positions {
+  width: min(520px, calc(100vw - 24px));
+  margin-left: auto;
+  border-right: 0;
+  border-left: 1px solid var(--line);
+  box-shadow: var(--shadow-2);
+}
+
+.fdw-drawer > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-1) 0 var(--space-3);
+  border-bottom: 1px solid var(--line);
+}
+
+.fdw-drawer > header strong {
+  font-size: var(--font-lg);
+}
+
+.fdw-drawer > header button {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-control);
+  background: var(--soft);
+}
+
+.fdw-search {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-3) 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+}
+
+.fdw-search svg {
+  color: var(--muted);
+}
+
+.fdw-search input {
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-size: var(--font-md);
+}
+
+.fdw-contract-list {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.fdw-contract-list > button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-control);
+  text-align: left;
+}
+
+.fdw-contract-list > button:hover,
+.fdw-contract-list > button.active {
+  background: var(--accent-soft);
+}
+
+.fdw-contract-list > button span:last-child {
+  text-align: right;
+}
+
+.fdw-contract-list strong,
+.fdw-contract-list small,
+.fdw-contract-list b {
+  display: block;
+}
+
+.fdw-contract-list strong {
+  font-size: var(--font-md);
+}
+
+.fdw-contract-list small {
+  margin-top: var(--space-0);
+  color: var(--muted);
+  font-size: var(--font-sm);
+}
+
+.fdw-contract-list b {
+  color: var(--muted);
+  font-size: var(--font-md);
+}
+
+.fdw-contract-guest {
+  margin: var(--space-2) 0 0;
+  color: var(--muted);
+  font-size: var(--font-md);
+}
+
+.fdw-contract-guest button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+}
+
+/* 自选品种 (2026-10-02): the one star the board rows, the contract drawer's product rows and
+   the contract head share — ★ marks a product in the account's watchlist, ☆ not yet. */
+.fdw-watch-star {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--muted);
+}
+
+.fdw-watch-star svg {
+  width: 13px;
+  height: 13px;
+}
+
+.fdw-watch-star:hover {
+  background: var(--surface-hover);
+  color: var(--ink);
+}
+
+.fdw-watch-star[aria-pressed="true"] {
+  color: var(--accent);
+}
+
+/* 合约抽屉两级 (2026-10-01): one row per 品种 (its main contract and price), the
+   months indented under the expanded one. */
+
+.fdw-contract-list .fdw-product {
+  display: grid;
+  gap: var(--space-0);
+}
+
+/* 只接了行情、不能在美元子账户交易的外盘主连（伦铜、美棉等）：合约代码后一个小标签。 */
+.fdw-contract-list .fdw-quote-only { margin-left: var(--space-1); padding: 0 var(--space-1); border-radius: var(--radius-sm); color: var(--muted); background: var(--soft); font-style: normal; font-size: var(--font-md); }
+.fdw-contract-list .fdw-product-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.fdw-contract-list .fdw-product-row > button:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-control);
+  text-align: left;
+}
+
+.fdw-contract-list .fdw-product-row > button:first-child:hover,
+.fdw-contract-list .fdw-product-row > button:first-child.active {
+  background: var(--accent-soft);
+}
+
+.fdw-product-expand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-control);
+  color: var(--muted);
+  background: var(--soft);
+  font-size: var(--font-md);
+  white-space: nowrap;
+}
+
+.fdw-product-expand[aria-expanded="true"] {
+  color: var(--accent);
+}
+
+.fdw-product-expand svg {
+  transition: transform var(--dur-1) var(--ease-standard);
+}
+
+.fdw-product-expand[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+.fdw-product-quote {
+  display: grid;
+  gap: var(--space-0);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.fdw-product-quote b {
+  font-size: var(--font-md);
+}
+
+.fdw-product-quote small {
+  color: var(--muted);
+  font-size: var(--font-sm);
+}
+
+.fdw-month-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-left: var(--space-5);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-control);
+  color: var(--ink);
+  text-align: left;
+}
+
+.fdw-month-row:hover,
+.fdw-month-row.active {
+  background: var(--accent-soft);
+}
+
+.fdw-month-row.hit {
+  outline: 2px solid var(--accent);
+}
+
+.fdw-month-row b {
+  color: var(--muted);
+  font-size: var(--font-md);
+  font-weight: 400;
+}
+
+.fdw-month-row.hit b {
+  color: var(--accent);
+}
+
+.fdw-contract-empty {
+  margin: var(--space-2) 0;
+  color: var(--muted);
+  font-size: var(--font-md);
+  text-align: center;
+}
+.fdw-contract-empty .ghost-button { margin-left: var(--space-2); }
+
+.fdw-inline-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius-control);
+  color: var(--danger);
+  background: var(--danger-soft);
+  font-size: var(--font-md);
+}
+
+.fdw-inline-error button {
+  color: var(--accent);
+}
+
+.fdw-drawer > section {
+  margin-top: var(--space-3);
+}
+
+.fdw-drawer > section h3 {
+  margin: 0 0 var(--space-2);
+  color: var(--muted);
+  font-size: var(--font-md);
+  text-transform: uppercase;
+}
+
+.fdw-blocking-state {
+  min-height: 60vh;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: var(--space-2);
+  color: var(--muted);
+}
+
+.fdw-blocking-state button {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-control);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* A contract's own condition (no trades, no quote yet): retrying is not the point, keep the button quiet. */
+.fdw-blocking-state button.secondary {
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--line);
+}
+
+.fdw-global-error {
+  position: fixed;
+  z-index: 110;
+  right: 18px;
+  bottom: 18px;
+  max-width: 420px;
+  padding: var(--space-3) var(--space-3);
+  border-radius: var(--radius-control);
+  color: var(--danger);
+  background: var(--danger-soft);
+  box-shadow: var(--shadow-2);
+  font-size: var(--font-md);
+}
+
+@media (max-width: 1180px) {
+  .fdw-shell {
+    --fdw-ai: 360px;
+  }
+
+  .fdw-market-core {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 34%);
+  }
+}
+
+@media (max-width: 1180px) {
+  .fdw-body {
+    grid-template-columns: var(--fdw-rail) minmax(0, 1fr);
+  }
+
+  .fdw-market {
+    grid-column: 2;
+  }
+
+  .fdw-ai {
+    position: fixed;
+    z-index: 50;
+    top: var(--fdw-header);
+    right: 0;
+    bottom: 0;
+    width: min(440px, calc(100vw - var(--fdw-rail)));
+    box-shadow: var(--shadow-2);
+  }
+
+  .fdw-ai.closed {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .fdw-body {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+
+  .fdw-market-core,
+  .fdw-market-core.review {
+    position: relative;
+    min-height: 0;
+    grid-template-columns: 1fr;
+  }
+
+  .fdw-chart-stage {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .fdw-market-side {
+    min-height: 0;
+  }
+
+  .fdw-market-core.side-open .fdw-market-side,
+  .fdw-market-core.review .fdw-market-side {
+    position: fixed;
+    z-index: 42;
+    top: 96px;
+    right: 0;
+    bottom: 0;
+    width: calc(100vw - 48px);
+    min-height: 0;
+    border-left: 1px solid var(--line);
+    box-shadow: var(--shadow-2);
+  }
+}
+
+@media (max-width: 760px) {
+  .fdw-body {
+    grid-template-columns: 42px minmax(0, 1fr);
+  }
+
+  .fdw-market-side {
+    min-height: 0;
+  }
+
+  .fdw-market-core.side-open .fdw-market-side,
+  .fdw-market-core.review .fdw-market-side {
+    width: calc(100vw - 42px);
+  }
+
+  .fdw-ai {
+    width: calc(100vw - 42px);
+  }
+}
+
+/* Execution workspace v2: one navigation axis, fixed ticket, optional AI drawer. */
+.fdw-shell {
+  --fdw-header: 58px;
+  --fdw-rail: 74px;
+  --fdw-ai: clamp(320px, 23vw, 360px);
+  --fdw-ticket: clamp(318px, 22vw, 352px);
+  --fdw-dock: 178px;
+}
+
+.fdw-body {
+  grid-template-columns: var(--fdw-rail) minmax(0, 1fr);
+}
+
+.fdw-market-core,
+.fdw-market-core.side-closed {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.fdw-market-core.review.side-open {
+  grid-template-columns: minmax(0, 1fr) clamp(310px, 28%, 400px);
+}
+
+.fdw-chart-stage {
+  border-right: 0;
+}
+
+/* Bar records: one line each, labels inline, one grid template for all three tabs; narrow widths wrap. */
+.fdw-dock-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  align-content: start;
+}
+
+.fdw-dock-rows > li {
+  min-width: 0;
+  min-height: 36px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-4);
+  padding: var(--space-1) var(--space-4);
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  font-size: var(--font-md);
+}
+
+.fdw-dock-rows > li > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.fdw-dock-rows > li > strong {
+  min-width: 120px;
+}
+
+/* 持仓行: the Chinese product name leads, its code rides underneath as a quiet second line. */
+.fdw-dock-rows > li > strong > small {
+  display: block;
+  margin-top: var(--space-0);
+  color: var(--muted);
+  font-size: var(--font-md);
+  font-weight: 400;
+}
+
+/* 开仓均价 → 现价: one unbreakable group, so a narrow dock wraps the cell, not the number. */
+.fdw-dock-rows > li > span.fdw-row-price {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
+.fdw-dock-rows > li > button,
+.fdw-dock-rows > li > .fdw-row-actions {
+  margin-left: auto;
+}
+
+.fdw-dock-rows > li > span,
+.fdw-dock-rows > li > em {
+  color: var(--muted);
+  font-style: normal;
+}
+
+.fdw-dock-rows > li > span.positive { color: var(--market-up); }
+.fdw-dock-rows > li > span.negative { color: var(--market-down); }
+
+.fdw-dock-rows > li > b {
+  font-variant-numeric: tabular-nums;
+}
+
+.fdw-dock-rows > li.fdw-dock-empty {
+  display: block;
+  min-height: 0;
+  padding: var(--space-5) var(--space-4);
+  border-bottom: 0;
+  color: var(--muted);
+}
+
+/* 外盘仓合并显示 (2026-10-21): the USD sub-account's rows sit under one quiet head with their dollar total. */
+.fdw-dock-rows > li.fdw-dock-group {
+  min-height: 0;
+  justify-content: space-between;
+  padding: var(--space-1) var(--space-4);
+  background: var(--soft);
+  color: var(--muted);
+  font-size: var(--font-md);
+}
+.fdw-dock-rows > li.fdw-dock-group > span { color: var(--muted); }
+
+/* The order row's 美元 tag: inline beside the code (the position row's code line is a block). */
+.fdw-dock-rows > li > strong > small.fdw-currency-tag {
+  display: inline-block;
+  margin: 0 0 0 var(--space-1);
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-control);
+  background: var(--soft);
+  color: var(--muted);
+}
+
+.fdw-dock-rows button {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-control);
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-size: var(--font-md);
+  white-space: nowrap;
+}
+
+.fdw-dock-rows button:disabled {
+  opacity: .45;
+}
+
+.fdw-dock-rows .fdw-row-actions {
+  display: flex;
+  gap: var(--space-1);
+}
+
+/* 持仓行: name and floating P&L on the first line, side · prices · 可用 and the actions on the
+   second; direction stays in the small side badge. */
+.fdw-position-rows { container-type: inline-size; }
+.fdw-position-rows > li { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name pnl" "meta actions" "protect protect"; align-items: center; gap: var(--space-1) var(--space-3); padding: var(--space-3) var(--space-3); transition: background-color var(--dur-1); }
+.fdw-position-rows > li:hover { background: var(--fdw-surface-hover); }
+.fdw-position-rows > li > strong { grid-area: name; min-width: 0; font-weight: 600; display: flex; flex-wrap: wrap; align-items: baseline; align-content: flex-start; row-gap: var(--space-2); height: 1lh; overflow: hidden; }
+.fdw-position-rows > li > strong > span { flex: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fdw-position-rows > li > strong > small { flex: none; white-space: nowrap; margin-top: 0; display: inline; margin-left: var(--space-2); color: var(--muted); font-size: var(--font-md); font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.fdw-position-rows > li > b { grid-area: pnl; justify-self: end; font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: var(--font-lg); font-weight: 600; white-space: nowrap; }
+.fdw-position-rows > li > b.positive { color: var(--market-up); }
+.fdw-position-rows > li > b.negative { color: var(--market-down); }
+.fdw-position-rows .fdw-row-meta { grid-area: meta; min-width: 0; display: flex; flex-wrap: wrap; gap: var(--space-0) var(--space-2); color: var(--muted); font-size: var(--font-sm); }
+.fdw-position-rows .fdw-row-meta .positive { color: var(--market-up); background: var(--market-up-soft); border-radius: var(--radius-control); padding: 0 var(--space-1); }
+.fdw-position-rows .fdw-row-meta .negative { color: var(--market-down); background: var(--market-down-soft); border-radius: var(--radius-control); padding: 0 var(--space-1); }
+.fdw-position-rows .fdw-row-meta .fdw-row-price { font-family: var(--font-num); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fdw-position-rows .fdw-row-actions { grid-area: actions; justify-self: end; align-items: center; margin-left: 0; }
+.fdw-position-rows .fdw-row-close { border: 1px solid var(--line-strong); color: var(--ink); background: transparent; }
+.fdw-position-rows .fdw-row-close:hover:not(:disabled) { background: var(--soft); }
+/* 下单顺带保护 · 持仓补挂 (2026-10-02): the row's armed lines and the inline 保护 form. */
+.fdw-position-rows .fdw-row-protect { grid-area: protect; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); color: var(--muted); font-size: var(--font-md); }
+.fdw-position-rows .fdw-row-protect > button { min-height: 22px; padding: 0 var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-pill); background: transparent; color: var(--muted); font-size: var(--font-md); cursor: pointer; }
+.fdw-position-rows .fdw-row-protect > button:hover:not(:disabled) { color: var(--ink); border-color: var(--line-strong); }
+.fdw-position-rows .fdw-protect-line { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--ink); }
+.fdw-position-rows .fdw-protect-line button { min-height: 20px; margin-left: var(--space-0); padding: 0 var(--space-1); border: 0; border-radius: var(--radius-control); background: transparent; color: var(--muted); font-size: var(--font-md); text-decoration: underline; cursor: pointer; }
+.fdw-position-rows .fdw-protect-line button:hover:not(:disabled) { color: var(--ink); }
+.fdw-position-rows .fdw-protect-form { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); width: 100%; padding: var(--space-1) var(--space-2); border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--fdw-surface-raised); }
+.fdw-position-rows .fdw-protect-form label { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--muted); }
+.fdw-position-rows .fdw-protect-form input { width: 84px; min-height: 24px; padding: 0 var(--space-1); border: 1px solid var(--line-strong); border-radius: var(--radius-control); background: var(--panel); color: var(--ink); font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: var(--font-md); }
+.fdw-position-rows .fdw-protect-form input:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 1px; }
+.fdw-position-rows .fdw-protect-buckets { display: inline-flex; gap: var(--space-1); }
+.fdw-position-rows .fdw-protect-buckets button { min-height: 22px; padding: 0 var(--space-2); border: 1px solid var(--line); border-radius: var(--radius-pill); background: transparent; color: var(--muted); font-size: var(--font-md); cursor: pointer; }
+.fdw-position-rows .fdw-protect-buckets button.active { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); background: var(--accent-soft); }
+.fdw-position-rows .fdw-protect-submit { min-height: 24px; padding: 0 var(--space-3); border: 0; border-radius: var(--radius-control); background: var(--primary-bg); color: var(--on-primary); font-size: var(--font-md); font-weight: 600; cursor: pointer; }
+.fdw-position-rows .fdw-protect-submit:disabled { opacity: .42; cursor: not-allowed; }
+.fdw-position-rows .fdw-protect-issue { flex-basis: 100%; color: var(--warning); }
+@container (min-width: 720px) {
+  .fdw-position-rows > li { grid-template-columns: minmax(150px, 1fr) minmax(0, 2fr) minmax(110px, auto) auto; grid-template-areas: "name meta pnl actions" "protect protect protect protect"; padding-block: var(--space-2); }
+  .fdw-position-rows > li > strong > small { display: inline; margin-left: var(--space-2); }
+}
+
+.fdw-ai {
+  box-shadow: var(--shadow-2);
+}
+
+.fdw-context-menu {
+  position: absolute;
+  z-index: 20;
+  width: 210px;
+  display: grid;
+  padding: var(--space-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--panel);
+  box-shadow: var(--shadow-2);
+}
+
+.fdw-context-menu > strong {
+  padding: var(--space-2) var(--space-2);
+  color: var(--muted);
+  font-size: var(--font-md);
+}
+
+.fdw-context-menu button {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-control);
+  color: var(--ink);
+  font-size: var(--font-md);
+  text-align: left;
+}
+
+.fdw-context-menu button:hover {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.fdw-context-menu button svg {
+  width: 15px;
+  height: 15px;
+}
+
+.fdw-body > .fdw-side-workbench {
+  grid-row: 1;
+}
+
+.fdw-shell[data-dock-side] .fdw-side-workbench-layout > .fdw-ai,
+.fdw-shell[data-dock-side] .fdw-side-workbench-layout > .fdw-order-panel {
+  grid-column: 1;
+  border-right: 0;
+  border-left: 0;
+}
+
+/* Adaptive decision workbench v5: AI and a safe quick ticket stay visible together. */
+.fdw-shell {
+  --fdw-dock-track: min(
+    var(--fdw-right-dock),
+    58vw,
+    calc(100vw - var(--fdw-rail) - var(--fdw-tools) - 420px)
+  );
+  --fdw-ticket-dock: 238px;
+}
+
+.fdw-shell.dock-open[data-dock-side="right"] .fdw-body {
+  grid-template-columns: var(--fdw-rail) minmax(0, 1fr) 8px var(--fdw-dock-track) var(--fdw-tools);
+}
+
+.fdw-shell.dock-open[data-dock-side="left"] .fdw-body {
+  grid-template-columns: var(--fdw-rail) var(--fdw-tools) var(--fdw-dock-track) 8px minmax(0, 1fr);
+}
+
+.fdw-shell.dock-open[data-dock-side="right"] .fdw-market { grid-column: 2; }
+.fdw-shell.dock-open[data-dock-side="right"] .fdw-dock-resizer { grid-column: 3; }
+.fdw-shell.dock-open[data-dock-side="right"] .fdw-side-workbench { grid-column: 4; }
+.fdw-shell.dock-open[data-dock-side="left"] .fdw-side-workbench { grid-column: 3; }
+.fdw-shell.dock-open[data-dock-side="left"] .fdw-dock-resizer { grid-column: 4; }
+.fdw-shell.dock-open[data-dock-side="left"] .fdw-market { grid-column: 5; }
+
+.fdw-side-workbench {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  container-type: inline-size;
+  background: var(--panel);
+}
+
+.fdw-shell[data-dock-side="right"] .fdw-side-workbench {
+  border-left: 1px solid var(--line);
+  box-shadow: var(--shadow-2);
+}
+
+.fdw-shell[data-dock-side="left"] .fdw-side-workbench {
+  border-right: 1px solid var(--line);
+  box-shadow: var(--shadow-2);
+}
+
+.fdw-side-workbench-layout {
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.fdw-side-workbench-layout > .fdw-ai,
+.fdw-side-workbench-layout > .fdw-order-panel {
+  min-width: 0;
+  min-height: 0;
+  width: auto !important;
+  height: auto;
+  border-left: 0;
+  box-shadow: none;
+}
+
+.fdw-ai-scroll .bubble.advice-bubble {
+  width: 100%;
+  padding: 0;
+}
+
+.fdw-ai-scroll .ai-advice-section {
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-3);
+}
+
+.fdw-ai-scroll .ai-advice-section h4 {
+  font-size: var(--font-md);
+}
+
+.fdw-ai-scroll .ai-advice-section p {
+  font-size: var(--font-md);
+  line-height: 1.5;
+}
+
+.fdw-ai-scroll .ai-advice-section.conclusion p {
+  font-size: var(--font-md);
+}
+
+.fdw-ai-scroll .ai-advice-sources summary {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-sm);
+}
+
+.fdw-ai-scroll .ai-advice-sources > div {
+  padding: 0 var(--space-3) var(--space-3);
+}
+
+@container (min-width: 620px) {
+}
+
+@media (max-width: 760px) {
+  .fdw-shell.dock-open[data-dock-side] .fdw-body {
+    grid-template-columns: minmax(0, 1fr) var(--fdw-tools);
+    grid-template-rows: minmax(150px, 1fr) minmax(360px, 65dvh);
+    /* Reserve the bottom navigation occupied height (58px). */
+    padding-bottom: 58px;
+  }
+
+  .fdw-shell.dock-open[data-dock-side] .fdw-market {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .fdw-shell.dock-open[data-dock-side] .fdw-side-workbench {
+    grid-column: 1;
+    grid-row: 2;
+    border-top: 1px solid var(--line);
+    border-right: 0;
+    border-left: 0;
+    box-shadow: var(--shadow-2);
+  }
+
+  .fdw-shell.dock-open[data-dock-side] .fdw-dock-resizer {
+    display: none;
+  }
+}
+
+@container workspace (max-width: 1680px) and (min-width: 761px) {
+
+  .fdw-trade .fdw-ai {
+    position: fixed;
+    z-index: 35;
+    top: var(--fdw-header);
+    right: var(--fdw-ticket);
+    bottom: 0;
+    width: var(--fdw-ai);
+  }
+}
+
+@media (max-width: 1180px) and (min-width: 761px) {
+  .fdw-shell {
+    --fdw-dock: 148px;
+    --fdw-market-head: 68px;
+    --fdw-chart-tools: 44px;
+  }
+}
+
+@media (max-width: 760px) {
+  .fdw-shell {
+    --fdw-rail: 62px;
+    --fdw-ticket: min(340px, calc(100vw - var(--fdw-rail)));
+  }
+
+  .fdw-ai {
+    position: fixed;
+    z-index: 36;
+    top: var(--fdw-header);
+    right: 0;
+    bottom: 0;
+    width: min(390px, calc(100vw - var(--fdw-rail)));
+  }
+
+  .fdw-ai.closed {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .fdw-shell {
+    --fdw-header: 52px;
+    --fdw-dock: 132px;
+  }
+
+  /* Phones: the compact picker and icon buttons fit beside the brand, so the nav stays on the one header row. */
+
+  .fdw-body {
+    height: calc(100% - var(--fdw-header));
+  }
+
+  .fdw-body {
+    grid-template-columns: minmax(0, 1fr);
+    /* Reserve the bottom navigation occupied height (58px). */
+    padding-bottom: 58px;
+  }
+
+  .fdw-dock-rows > li {
+    gap: var(--space-1) var(--space-3);
+  }
+
+  .fdw-ai {
+    right: 0;
+    left: 0;
+    width: 100%;
+    bottom: 58px;
+  }
+}
+/* Balanced Dock Workspace v3 baseline; the adaptive workbench above composes AI with the ticket. */
+.fdw-shell {
+  --fdw-header: 56px;
+  --fdw-rail: 64px;
+  --fdw-tools: 52px;
+  --fdw-right-dock: clamp(320px, 25vw, 360px);
+  --fdw-dock: 196px;
+  --fdw-market-head: 72px;
+  --fdw-chart-tools: 46px;
+  --fdw-market-state: 32px;
+}
+
+.fdw-body,
+.fdw-shell.dock-closed .fdw-body {
+  grid-template-columns: var(--fdw-rail) minmax(0, 1fr) var(--fdw-tools);
+}
+
+.fdw-shell.dock-open .fdw-body {
+  grid-template-columns: var(--fdw-rail) minmax(0, 1fr) var(--fdw-right-dock) var(--fdw-tools);
+}
+
+.fdw-ai,
+.fdw-order-panel {
+  position: static !important;
+  inset: auto !important;
+  width: auto !important;
+  min-width: 0;
+  max-width: none;
+  height: auto;
+  grid-column: auto;
+  overflow: hidden;
+  border-left: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: var(--shadow-2);
+}
+
+.fdw-ai {
+  display: flex;
+}
+
+.fdw-ai-scroll,
+.fdw-ai-composer {
+  margin-inline: var(--space-2);
+}
+
+.fdw-ai-scroll {
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 1180px) and (min-width: 761px) {
+  .fdw-shell {
+    --fdw-rail: 60px;
+    --fdw-tools: 48px;
+    --fdw-right-dock: clamp(260px, 28vw, 320px);
+    --fdw-dock: 170px;
+  }
+}
+
+@media (max-width: 1180px) and (min-width: 761px) {
+  .fdw-shell {
+    --fdw-dock: 150px;
+    --fdw-market-head: 64px;
+    --fdw-chart-tools: 42px;
+  }
+}
+
+@media (max-width: 760px) {
+  .fdw-shell {
+    --fdw-rail: 58px;
+    --fdw-tools: 48px;
+    --fdw-right-dock: auto;
+  }
+
+  .fdw-body,
+  .fdw-shell.dock-closed .fdw-body {
+    grid-template-columns: var(--fdw-rail) minmax(0, 1fr) var(--fdw-tools);
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .fdw-shell.dock-open .fdw-body {
+    grid-template-columns: var(--fdw-rail) minmax(0, 1fr) var(--fdw-tools);
+    grid-template-rows: minmax(150px, 1fr) minmax(360px, 65dvh);
+  }
+
+  .fdw-market {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .fdw-ai,
+  .fdw-order-panel {
+    grid-column: 2;
+    grid-row: 2;
+    border-top: 1px solid var(--line);
+    border-left: 0;
+    box-shadow: var(--shadow-2);
+  }
+}
+
+@media (max-width: 760px) {
+  .fdw-shell {
+    --fdw-tools: 46px;
+  }
+
+  .fdw-body,
+  .fdw-shell.dock-closed .fdw-body,
+  .fdw-shell.dock-open .fdw-body {
+    grid-template-columns: minmax(0, 1fr) var(--fdw-tools);
+    /* Reserve the bottom navigation occupied height (58px). */
+    padding-bottom: 58px;
+  }
+
+  .fdw-market {
+    grid-column: 1;
+  }
+
+  .fdw-ai,
+  .fdw-order-panel {
+    grid-column: 1;
+  }
+}
+
+@media (min-width: 761px) {
+  .fdw-body > .fdw-market,
+.fdw-body > .fdw-dock-resizer,
+.fdw-body > .fdw-ai,
+.fdw-body > .fdw-order-panel,
+.fdw-body > .fdw-tools-rail {
+    grid-row: 1;
+  }
+}
+
+/* Keep nested workbench panels in document flow after the legacy responsive rules. */
+.fdw-side-workbench-layout > .fdw-ai,
+.fdw-side-workbench-layout > .fdw-order-panel {
+  position: static;
+  inset: auto;
+  z-index: auto;
+  width: auto !important;
+  max-width: none;
+  height: auto;
+  box-shadow: none;
+}
+
+/*
+ * The WebView content box owns the viewport. Grid rows avoid fractional
+ * 100vh/calc rounding at Windows DPI scales, while only explicit inner
+ * work areas (for example the AI transcript) are allowed to scroll.
+ */
+.fdw-shell {
+  display: grid;
+  grid-template-rows: var(--fdw-header) minmax(0, 1fr);
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  max-width: 100%;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.fdw-body {
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  /* `hidden` still creates a scroll container that focus navigation can move. */
+  overflow: clip;
+}
+
+/* Approved two-bar trading layout: compact header, chart-first center, operations dock. */
+.fdw-shell {
+  --fdw-header: 50px;
+  --fdw-market-head: 52px;
+  --fdw-chart-tools: 40px;
+  --fdw-rail: 0px;
+  --fdw-tools: 52px;
+  --fdw-dock-track: clamp(
+    280px,
+    var(--fdw-right-dock),
+    min(58%, calc(100% - var(--fdw-tools) - 436px))
+  );
+}
+
+.fdw-body > .fdw-market,
+.fdw-body > .fdw-side-workbench,
+.fdw-body > .fdw-tools-rail {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.fdw-header > *,
+.fdw-side-workbench-layout > * {
+  min-width: 0;
+}
+
+.fdw-shell.dock-open[data-dock-side="right"] .fdw-body {
+  grid-template-columns: minmax(0, 1fr) 6px var(--fdw-dock-track) var(--fdw-tools);
+}
+
+.fdw-shell.dock-closed[data-dock-side="right"] .fdw-body {
+  grid-template-columns: minmax(0, 1fr) var(--fdw-tools);
+}
+
+.fdw-shell.dock-open[data-dock-side="left"] .fdw-body {
+  grid-template-columns: var(--fdw-tools) var(--fdw-dock-track) 6px minmax(0, 1fr);
+}
+
+.fdw-shell.dock-closed[data-dock-side="left"] .fdw-body {
+  grid-template-columns: var(--fdw-tools) minmax(0, 1fr);
+}
+
+.fdw-shell.dock-open[data-dock-side="right"] .fdw-market,
+.fdw-shell.dock-closed[data-dock-side="right"] .fdw-market { grid-column: 1; }
+.fdw-shell.dock-open[data-dock-side="right"] .fdw-dock-resizer { grid-column: 2; }
+.fdw-shell.dock-open[data-dock-side="right"] .fdw-side-workbench { grid-column: 3; }
+.fdw-shell.dock-open[data-dock-side="left"] .fdw-side-workbench { grid-column: 2; }
+.fdw-shell.dock-open[data-dock-side="left"] .fdw-dock-resizer { grid-column: 3; }
+.fdw-shell.dock-open[data-dock-side="left"] .fdw-market { grid-column: 4; }
+.fdw-shell.dock-closed[data-dock-side="left"] .fdw-market { grid-column: 2; }
+
+.fdw-dock-resizer { width: 6px; min-width: 6px; color: transparent; background: var(--soft); }
+.fdw-dock-resizer:hover,
+.fdw-dock-resizer:focus-visible { color: var(--accent); background: var(--accent-soft); }
+
+.fdw-market-core,
+.fdw-market-core.side-closed { min-height: 0; grid-template-columns: minmax(0, 1fr); }
+.fdw-chart-stage { border-right: 0; }
+.fdw-selected-price { top: 34px; right: 82px; padding: var(--space-0) var(--space-1); border: 0; background: var(--accent-soft); font-size: var(--font-md); }
+.fdw-chart-caption { opacity: .3; }
+.fdw-side-workbench .fdw-dock-rows > li { min-height: 29px; gap: var(--space-0) var(--space-2); padding: var(--space-1) var(--space-2); font-size: var(--font-md); }
+.fdw-side-workbench .fdw-dock-rows > li > strong { min-width: 0; }
+.fdw-side-workbench .fdw-dock-rows > li.fdw-dock-empty { padding: var(--space-3) var(--space-2); }
+
+@container (min-width: 620px) {
+}
+
+@media (max-width: 760px) {
+  .fdw-shell { --fdw-header: 48px; --fdw-tools: 44px; }
+  .fdw-shell.dock-open[data-dock-side] .fdw-body {
+    grid-template-columns: minmax(0, 1fr) var(--fdw-tools);
+    grid-template-rows: minmax(300px, 52%) minmax(320px, 48%);
+    padding-bottom: 0;
+  }
+  .fdw-shell.dock-closed[data-dock-side] .fdw-body { grid-template-columns: minmax(0, 1fr) var(--fdw-tools); padding-bottom: 0; }
+  .fdw-shell.dock-open[data-dock-side] .fdw-market { grid-column: 1; grid-row: 1; }
+  .fdw-shell.dock-open[data-dock-side] .fdw-side-workbench { grid-column: 1; grid-row: 2; }
+  .fdw-shell.dock-open[data-dock-side] .fdw-dock-resizer { display: none; }
+  .fdw-trading-charts { min-height: 260px; }
+}
+
+/* V8 production fidelity: two compact bars, chart-first canvas, one tool panel at a time. */
+.fdw-shell {
+  --fdw-header: 44px;
+  --fdw-command: 42px;
+  --fdw-tools: 58px;
+  --fdw-dock-track: clamp(
+    280px,
+    var(--fdw-right-dock),
+    min(var(--fdw-dock-max, 520px), calc(100% - var(--fdw-tools) - var(--fdw-chart-min, 480px)))
+  );
+  color: var(--fdw-text);
+  background: var(--fdw-app-bg);
+}
+
+/* Header fit levels: useHeaderFit sets data-fit plus these cumulative classes from the
+   header's measured space, never from viewport width. Level 3 switches tabs/picker by
+   class alone (both subtrees stay mounted so the measuring pass needs no re-render);
+   the aria-hidden attributes only mirror the settled level. Levels only ever give
+   content up; warnings and recovery stay visible. */
+
+.fdw-market { color: var(--fdw-text); background: var(--fdw-app-bg); }
+
+.fdw-market-core,
+.fdw-market-core.side-closed { min-height: 0; flex: 1 1 auto; background: var(--fdw-surface); }
+.fdw-chart-stage { min-height: 0; background: var(--fdw-surface); }
+.fdw-selected-price { color: var(--accent); background: var(--accent-soft); }
+
+.fdw-side-workbench,
+.fdw-side-workbench-layout,
+.fdw-ai,
+.fdw-order-panel {
+  color: var(--fdw-text);
+  background: var(--fdw-surface);
+  box-shadow: none;
+}
+.fdw-side-workbench { border-color: var(--fdw-line) !important; }
+.fdw-side-workbench-layout { display: block; }
+.fdw-side-workbench-layout > .fdw-ai,
+.fdw-side-workbench-layout > .fdw-order-panel { width: 100%; height: 100%; border: 0; }
+.fdw-ai > header,
+.fdw-order-panel > header { border-color: var(--fdw-line); }
+.fdw-ai > header small,
+.fdw-dock-rows > li.fdw-dock-empty { color: var(--fdw-muted); }
+.fdw-ai-scroll,
+.fdw-ai-composer { border-color: var(--fdw-line); background: var(--fdw-surface); }
+.fdw-ai-composer input { color: var(--fdw-text); background: transparent; }
+.fdw-ai-empty,
+.fdw-agent-login,
+.fdw-ticket,
+.fdw-ticket-fields input,
+.fdw-ticket-fields label,
+.fdw-ai-empty span,
+.fdw-dock-rows > li { border-color: var(--fdw-line); }
+
+.fdw-dock-resizer { background: var(--fdw-surface); }
+.fdw-dock-resizer:hover,
+.fdw-dock-resizer:focus-visible { color: var(--fdw-accent); background: var(--fdw-surface-hover); }
+
+.fdw-drawer,
+.fdw-context-menu {
+  color: var(--fdw-text);
+  border-color: var(--fdw-line);
+  background: var(--fdw-surface);
+}
+.fdw-drawer > section h3 { color: var(--fdw-muted); }
+.fdw-drawer > header button,
+.fdw-search,
+.fdw-contract-list > button:hover,
+.fdw-contract-list > button.active {
+  color: var(--fdw-text);
+  border-color: var(--fdw-line);
+  background: var(--fdw-surface-raised);
+}
+.fdw-drawer > header { border-color: var(--fdw-line); }
+.fdw-search input { color: var(--fdw-text); }
+
+@media (max-width: 760px) {
+  .fdw-shell { --fdw-header: 44px; --fdw-command: 42px; --fdw-tools: 46px; }
+  .fdw-shell.dock-open[data-dock-side] .fdw-side-workbench { min-height: 320px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fdw-shell *,
+  .fdw-shell *::before,
+  .fdw-shell *::after { scroll-behavior: auto !important; transition-duration: var(--dur-1) !important; animation-duration: 0.01ms !important; }
+}
+
+/* Review surfaces participate in the same theme as charts and order panels. */
+.fdw-review-panel,.fdw-review-summary strong{color:var(--fdw-text)}
+.fdw-review-panel>header,.fdw-review-summary span,.fdw-review-list>div,.fdw-live-orders>div{border-color:var(--fdw-line)}
+.fdw-review-list>div,.fdw-live-orders>div{background:var(--fdw-surface-raised);color:var(--fdw-text)}
+.fdw-review-summary span,.fdw-review-list>div time,.fdw-review-list>div span,.fdw-review-list>p{color:var(--fdw-muted)}
+.fdw-context-menu{z-index:100;max-width:252px;max-height:calc(100dvh - 16px);overflow-y:auto}.fdw-context-menu>strong{white-space:normal;line-height:1.6}.fdw-context-menu button:disabled{opacity:.4;cursor:default}.fdw-context-menu>small{display:block;padding:var(--space-1) var(--space-3);color:var(--fdw-muted)}.fdw-quick-message{margin:0;padding:var(--space-2) var(--space-3);color:var(--fdw-text);font-size:var(--font-md);line-height:1.5}
+
+/* The activity strip participates in layout; it never obscures price bars. */
+.fdw-chart-stage { display: flex; flex-direction: column; }
+.fdw-chart-stage > .fdw-trading-charts { flex: 1 1 0; height: 0; min-height: 260px; }
+.fdw-chat-history button { color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-control); padding: var(--space-1) var(--space-3); }
+.fdw-chat-history { max-height: 200px; overflow-y: auto; display: grid; gap: var(--space-2); padding: var(--space-3); }
+
+/* The global stop must remain visible when compact headers hide secondary controls. */
+
+/* A single scroll region connects monitoring, event evidence and conversation. */
+.fdw-ai-scroll .strategy-panel { display: block; height: auto; min-height: 0; overflow: visible; border: 0; }
+.fdw-ai-scroll .strategy-panel .strategy-scroll { overflow: visible; flex: none; padding: 0; }
+.fdw-ai-scroll .strategy-panel .strategy-actions { position: static; }
+/* AI monitor page: every module is a CardShell with the same head, rhythm and type size. */
+.ai-event-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); }
+.ai-operation-timeline button { min-height: 32px; padding: var(--space-1) var(--space-2); border-radius: var(--radius-control); }
+:where(.fdw-ai-scroll) .strategy-panel .card { margin-top: 0; }
+:where(.fdw-ai-scroll) .card-head { padding: var(--space-2) var(--space-3); gap: var(--space-2); }
+:where(.fdw-ai-scroll) .card-body { padding: var(--space-2) var(--space-3) var(--space-3); font-size: var(--font-md); line-height: 1.5; }
+:where(.fdw-ai-scroll) .card-icon { width: 26px; height: 26px; border-radius: var(--radius-control); }
+:where(.fdw-ai-scroll) .card-icon svg { width: 15px; height: 15px; }
+:where(.fdw-ai-scroll) .card-title strong, :where(.fdw-ai-scroll) .card-title small { overflow-wrap: anywhere; white-space: normal; }
+:where(.fdw-ai-scroll) .card-title > div:last-child { min-width: 0; }
+:where(.fdw-ai-scroll) .card-body > p { margin: 0 0 var(--space-2); }
+:where(.fdw-ai-scroll) .card-body > p:last-child { margin-bottom: 0; }
+.card-head-action { flex: 0 0 auto; }
+.card-head-action > button { min-height: 28px; padding: var(--space-1) var(--space-2); border: 1px solid transparent; border-radius: var(--radius-control); background: transparent; color: var(--accent); font-size: var(--font-md); font-weight: 600; }
+.card-head-action > button:hover, .card-head-action > button:focus-visible { background: var(--accent-soft); }
+.card-inline-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
+.card-inline-actions > button { min-height: 32px; padding: var(--space-1) var(--space-3); border-radius: var(--radius-control); font-size: var(--font-md); }
+.card-inline-actions > button.strategy-primary { flex: 1 1 auto; }
+.ai-brief-text { margin: 0; overflow-wrap: anywhere; }
+.ai-protection-lines { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-1); color: var(--muted); }
+.ai-protection-summary.warning .card-title strong { color: var(--danger); }
+.ai-explanation-availability { color: var(--muted); }
+.ai-event-warning { color: var(--danger); }
+.ai-event-explanation { border-top: 1px solid var(--fdw-line); margin-top: var(--space-2); padding: var(--space-2) 0; }
+.ai-event-explanation p { margin: var(--space-1) 0; }
+
+.ai-operation-row { padding: var(--space-2) 0; border-bottom: 1px solid var(--line); min-width: 0; }
+.ai-operation-row:first-child { padding-top: 0; }
+.ai-operation-row > header { display: grid; gap: var(--space-1); }
+.ai-operation-row time { color: var(--muted); font-size: .9em; }
+.ai-operation-row p { margin: var(--space-1) 0 var(--space-2); overflow-wrap: anywhere; }
+.ai-operation-row.warning { border-left: 3px solid var(--danger); padding-left: var(--space-2); }
+.fdw-chart-return { position: absolute; top: 40px; right: 16px; z-index: 5; padding: var(--space-2) var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-control); color: var(--ink); background: var(--panel); }
+.fdw-ai-scroll [hidden] { display: none !important; }
+
+.strategy-panel .card-title small:empty { display: none; }
+
+/* ── 右侧栏重设计 v2 (1.6.6): 对话 / 策略 / 新闻 / 下单 / 持仓 ───────────────────────────── */
+
+/* Header actions: the icon row at the right of a panel header (新对话 / 历史 / 刷新 / 收起). */
+.fdw-ai-error { margin: 0; padding: var(--space-2) var(--fdw-panel-pad); color: var(--danger); font-size: var(--font-md); }
+
+/* Call bar: one full-width row, click-to-connect (never press-and-hold). */
+
+/* Running-strategy banner, pinned under the call bar while a strategy is monitoring. */
+.fdw-strategy-banner {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-2) var(--fdw-panel-pad);
+  border-bottom: 1px solid var(--line); background: var(--soft);
+}
+.fdw-strategy-banner > div { min-width: 0; flex: 1 1 auto; display: grid; gap: var(--space-0); }
+.fdw-strategy-banner strong { font-size: var(--font-md); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fdw-strategy-banner span { color: var(--muted); font-size: var(--font-md); overflow-wrap: anywhere; }
+.fdw-strategy-banner b.positive { color: var(--market-up); }
+.fdw-strategy-banner b.negative { color: var(--market-down); }
+.fdw-strategy-banner > button {
+  flex: 0 0 auto; min-height: 30px; display: inline-flex; align-items: center; gap: var(--space-1);
+  padding: 0 var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-control);
+  color: var(--ink); background: var(--panel); font-size: var(--font-md);
+}
+.fdw-strategy-banner > button svg { width: 14px; height: 14px; }
+
+/* 持仓面板: KPI row and the tabs it shares with the bottom bar. */
+/* Six cells — 权益/今日/浮动盈亏/可用/保证金占用/风险度 — three across a pulled-wide dock, two in
+   a narrow one; an account number must never break mid-digit-group (1,026,5 / 80), so each cell
+   keeps one line and clips instead. */
+.fdw-positions-kpi {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  /* A 1px gap draws the table cell divider. */
+  gap: 1px; margin: 0; padding: 0; border-bottom: 1px solid var(--line); background: var(--line);
+}
+.fdw-positions-kpi > div { min-width: 0; display: grid; gap: var(--space-0); padding: var(--space-3) var(--space-3); background: var(--panel); }
+.fdw-positions-kpi dt { color: var(--fdw-faint); font-size: var(--font-md); white-space: nowrap; }
+.fdw-positions-kpi dd {
+  margin: 0; min-width: 0; font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: var(--font-lg); font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.fdw-positions-kpi dd.positive { color: var(--market-up); }
+.fdw-positions-kpi dd.negative { color: var(--market-down); }
+/* 风险度 (保证金占用 ÷ 权益): the higher, the closer to a forced liquidation. */
+.fdw-positions-kpi dd.warning { color: var(--warning); }
+.fdw-positions-kpi dd.danger { color: var(--danger); }
+/* 本站模拟两本账 (2026-10-22): the ledger's name above each row of six cells. */
+.fdw-positions-ledger { margin: 0; padding: var(--space-2) var(--space-3) 0; color: var(--fdw-muted); font-size: var(--font-md); background: var(--panel); }
+/* 到期结算挂起 / 暂估待核 (#527): one line per contract under the KPIs, wrapping at narrow widths. */
+.fdw-expiry-settlements {
+  display: grid; gap: var(--space-1); margin: 0; padding: var(--space-2) var(--space-3); list-style: none;
+  border-bottom: 1px solid var(--line); color: var(--warning); background: var(--warning-soft);
+  font-size: var(--font-md); line-height: 1.5; overflow-wrap: anywhere;
+}
+.fdw-positions-tabs { display: flex; flex-wrap: wrap; align-items: stretch; gap: var(--space-4); margin-bottom: var(--space-1); padding: 0 var(--space-3); border-bottom: 1px solid var(--line); }
+.fdw-positions-tabs > button {
+  position: relative; min-height: 38px; padding: 0; border: 0; border-radius: 0;
+  color: var(--muted); background: transparent; font-size: var(--font-md); font-weight: 600;
+}
+.fdw-positions-tabs > button:hover { color: var(--ink); }
+.fdw-positions-tabs > button.active { color: var(--ink); }
+.fdw-positions-tabs > button.active::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; border-radius: var(--radius-sm); background: var(--brand-gradient); }
+.fdw-positions-tabs > button[data-unknown] { color: var(--warning); }
+.fdw-positions-tabs > button.fdw-positions-history { align-self: center; min-height: 26px; margin-left: auto; padding: 0 var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-pill); font-weight: 500; }
+.fdw-positions-tabs > button.fdw-positions-history[aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+.fdw-positions-dock .fdw-dock-rows { padding: 0; }
+.fdw-positions-dock .card { margin-top: var(--space-3); }
+
+/* 成交 (2026-09-25): 来源 chips, trading-day groups with the day's closed P&L, one line per merged fill. */
+.fdw-fill-sources { display: flex; flex-wrap: wrap; gap: var(--space-1); padding-bottom: var(--space-2); }
+.fdw-fill-sources > button {
+  min-height: 28px; padding: 0 var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-pill);
+  color: var(--muted); background: var(--panel); font-size: var(--font-md);
+}
+.fdw-fill-sources > button[aria-pressed="true"] { color: var(--on-primary); background: var(--primary-bg); border-color: transparent; font-weight: 600; }
+.fdw-fill-day + .fdw-fill-day { margin-top: var(--space-2); }
+.fdw-fill-day > h4 {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-1) var(--space-2);
+  margin: 0; padding: var(--space-1) 0; border-bottom: 1px dashed var(--line);
+  color: var(--muted); font-size: var(--font-md); font-weight: 600;
+}
+.fdw-fill-day > h4 b { font-variant-numeric: tabular-nums; }
+.fdw-fill-day > h4 b.positive, .fdw-fill-rows > li > b.positive { color: var(--market-up); }
+.fdw-fill-day > h4 b.negative, .fdw-fill-rows > li > b.negative { color: var(--market-down); }
+.fdw-fill-rows > li > em { font-variant-numeric: tabular-nums; }
+.fdw-fill-rows > li > strong { min-width: 72px; }
+.fdw-fill-rows > li > b { margin-left: auto; }
+.fdw-fill-source {
+  padding: 0 var(--space-1); border: 1px solid var(--line); border-radius: var(--radius-sm);
+  color: var(--muted); font-size: var(--font-sm); font-style: normal; white-space: nowrap;
+}
+.fdw-fill-source[data-source="stop"] { color: var(--warning); border-color: currentColor; }
+.fdw-fill-source[data-source="strategy"], .fdw-fill-source[data-source="ai"], .fdw-fill-source[data-source="card"] { color: var(--accent); border-color: currentColor; }
+
+/* The strategy panel keeps the workbench's own section header out of the panel head. */
+.fdw-strategy-dock .fdw-ai-scroll .strategy-workbench > header { display: none; }
+
+@media (prefers-reduced-motion:reduce) {
+ .fdw-side-workbench-layout > * { animation:none !important; }
+}
+
+/* Positions / orders bar under the chart (Stage 5 round 1): always mounted, one line when collapsed. */
+
+.fdw-dock-rows > li[data-unknown] > em {
+  color: var(--warning);
+  font-weight: 600;
+}
+
+/* The AI floating ball keeps clear of the expanded positions bar; collapsed it uses the normal inset. */
+
+/* Narrow windows: the collapse chevron stays pinned at the right edge; "查看全部" folds away (rows still open the drawer). */
+
+/* Narrow windows with large fonts: one ticket field per row so the price input and its steppers stay visible. */
+
+/* Contract picker groups (最近 / 主力 / 全部). */
+.fdw-contract-list h4 {
+  margin: var(--space-2) 0 var(--space-0);
+  padding: 0 var(--space-3);
+  color: var(--muted);
+  font-size: var(--font-md);
+  font-weight: 600;
+}
+
+/* Speaker mark on voice turns in the conversation. */
+.conversation .speaker .voice-mark { display: inline-flex; align-items: center; margin-left: var(--space-1); color: var(--accent); }
+.conversation .speaker .voice-mark svg { width: 13px; height: 13px; }
+
+/* Batch-close proposal card. */
+.close-batch-orders { width: 100%; border-collapse: collapse; font-size: var(--font-md); }
+.close-batch-orders th { padding: var(--space-1) var(--space-1); text-align: left; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--line); white-space: nowrap; }
+/* 手机宽度（对话栏约 270px）下不许把“已成交 / 手数 / 螺纹2701”从中间折断：五列按内容宽度排得下。 */
+.close-batch-orders td { padding: var(--space-1) var(--space-1); border-bottom: 1px solid var(--line); vertical-align: top; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.close-batch-orders tr.negative td { color: var(--danger); }
+.close-batch-orders td small { display: block; color: var(--muted); font-size: var(--font-sm); }
+.close-batch-orders tr:last-child td { border-bottom: 0; }
+.close-batch-skipped { margin: var(--space-2) 0 0; color: var(--warning); font-size: var(--font-md); overflow-wrap: anywhere; }
+
+/* 手机下单台（375px 实测）：.fdw-ticket 两列把字段区挤到 163px，委托价输入框只剩 35px；
+ * 窄屏改为买卖按钮与字段上下排列。放在文件末尾以压过上方同名规则。 */
+
+/* 策略信号提醒 (2026-09): the monitor's proactive alert is one floating notice over the market
+   area that leaves on its own. */
+
+.fdw-signal-notice {
+  position: fixed;
+  z-index: 60;
+  left: 50%;
+  bottom: 92px;
+  transform: translateX(-50%);
+  max-width: min(520px, calc(100vw - 48px));
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--panel);
+  color: var(--ink);
+  font-size: var(--font-md);
+  line-height: 1.5;
+  box-shadow: var(--shadow-2);
+}
+
+/* Body and table rows stay at the readable body tier; metadata remains secondary. */
+.fdw-dock-rows, .fdw-position-rows > li > strong, .fdw-position-rows .fdw-row-meta { font-size: var(--font-md); }
+
+/* Column-aligned order and fill details retain JetBrains Mono. */
+.fdw-dock-rows[aria-label="在途委托"], .fdw-dock-rows[aria-label="全部委托"], .fdw-fill-rows {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.fdw-body {
+  container-type: inline-size;
+  container-name: workspace;
+}
+.fdw-market {
+  container-type: inline-size;
+  container-name: workspace-market;
+}
+.fdw-chart-area {
+  container-type: inline-size;
+  container-name: chart-area;
+}

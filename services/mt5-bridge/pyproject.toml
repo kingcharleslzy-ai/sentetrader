@@ -1,0 +1,25 @@
+[project]
+name = "ai-trader-mt5-bridge"
+version = "0.1.0"
+description = "Read-only MetaTrader 5 market-data bridge for AI Trader foreign futures (runs on the 4090 Windows host)"
+requires-python = ">=3.12"
+dependencies = [
+  # Official MetaQuotes package; Windows only. Tests use a fake module and run anywhere.
+  "MetaTrader5==5.0.6231; sys_platform == 'win32'",
+]
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mt5_bridge"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "W"]
+ignore = ["E501", "E701", "E702"]

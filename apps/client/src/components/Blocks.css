@@ -1,0 +1,99 @@
+/* 版面原则 (2026-09-26): bordered, titled blocks; figures in tiles; one rule per line. Theme tokens only. */
+.section-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--panel);
+  color: var(--ink);
+  overflow: hidden;
+}
+.section-card[data-tone="warning"] {
+  border-color: color-mix(in srgb, var(--warning) 55%, var(--line));
+  background: var(--warning-soft);
+}
+.section-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--soft);
+  border-bottom: 1px solid var(--line);
+}
+.section-card[data-tone="warning"] > .section-card-head {
+  background: transparent;
+  border-bottom-color: color-mix(in srgb, var(--warning) 35%, var(--line));
+}
+.section-card-head h3 { margin: 0; font-size: var(--font-lg); font-weight: 600; color: var(--ink); }
+.section-card[data-tone="warning"] .section-card-head h3 { color: var(--warning); }
+.section-card-hint { color: var(--muted); font-size: var(--font-sm); overflow-wrap: anywhere; }
+.section-card-actions { margin-left: auto; display: flex; gap: var(--space-2); align-items: center; }
+.section-card-body { padding: var(--space-3) var(--space-4); display: grid; gap: var(--space-2); }
+
+.stat-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  /* A 1px gap draws the table cell divider. */
+  gap: 1px;
+  margin: 0;
+  background: var(--line);
+}
+.stat-tiles[data-columns="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.stat-tiles[data-columns="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.section-card > .stat-tiles:not(:first-child) { border-top: 1px solid var(--line); }
+.stat-tile { background: var(--panel); padding: var(--space-3) var(--space-4); min-width: 0; }
+.stat-tile dt { color: var(--muted); font-size: var(--font-md); }
+.stat-tile dd { margin: var(--space-0) 0 0; color: var(--ink); font-size: var(--font-lg); font-weight: 600; overflow-wrap: anywhere; }
+.stat-tile[data-long] dd { font-size: var(--font-md); font-weight: 400; line-height: 1.5; }
+.stat-tile dd small { display: block; margin-top: var(--space-0); color: var(--muted); font-size: var(--font-sm); font-weight: 400; }
+
+.side-by-side { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.side-by-side > * { min-width: 0; padding: var(--space-3) var(--space-4); display: grid; gap: var(--space-2); align-content: start; }
+.side-by-side > * + * { border-left: 1px solid var(--line); }
+
+.rule-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  padding: var(--space-2) var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--soft);
+  color: var(--ink);
+  line-height: 1.5;
+}
+.rule-row[data-kind="filter"] { border-style: dashed; background: var(--panel); }
+.rule-row[data-kind="flag"] { border-color: color-mix(in srgb, var(--warning) 60%, var(--line)); background: var(--warning-soft); }
+.rule-row-period {
+  flex: none;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--ink);
+  font-size: var(--font-md);
+  line-height: 19px;
+}
+.rule-row-text { min-width: 0; overflow-wrap: anywhere; }
+.rule-row-text strong { color: var(--accent); font-weight: 600; }
+.rule-row-text small { color: var(--muted); font-size: var(--font-sm); }
+.rule-row-reading { display: block; color: var(--muted); font-size: var(--font-md); }
+.rule-row-reading[data-passed] { color: var(--positive); }
+
+/* "?" (说明收进问号, 2026-10-08): one shared button and popover for every explanation. The popover is fixed to the
+   viewport so a scrolling column cannot clip it; theme tokens only, readable in both themes. */
+.help-tip { position: relative; display: inline-flex; flex: none; align-self: center; vertical-align: middle; }
+.help-tip .help-tip-button {
+  display: inline-grid; place-items: center; width: 16px; min-width: 16px; height: 16px; min-height: 16px; padding: 0;
+  border: 1px solid var(--line-strong); border-radius: var(--radius-pill); background: transparent; color: var(--muted);
+  font: 600 var(--font-xs)/1 var(--font-mono, ui-monospace, monospace); cursor: help;
+}
+.help-tip .help-tip-button:hover, .help-tip .help-tip-button[aria-expanded="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.help-tip .help-tip-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.help-tip-pop {
+  position: fixed; z-index: 1000; box-sizing: border-box; display: block; max-width: calc(100vw - 16px);
+  padding: var(--space-2) var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-card);
+  background: var(--panel); color: var(--ink); box-shadow: var(--shadow-2); font-size: var(--font-md); font-weight: 400; line-height: 1.6;
+  white-space: normal; text-align: left; overflow-wrap: anywhere;
+}
+.help-tip-pop[data-above] { transform: translateY(-100%); }
+.help-tip-pop p { margin: 0; }
+.help-tip-pop p + p { margin-top: var(--space-1); }

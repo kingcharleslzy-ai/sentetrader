@@ -1,0 +1,533 @@
+[
+  {
+    "schemaVersion": 1,
+    "id": "event-contract-1",
+    "sessionId": "session-contract-1",
+    "kind": "message",
+    "name": "message.completed",
+    "timestamp": "2026-08-25T12:00:00+00:00",
+    "payload": {
+      "turnId": "turn-contract-1",
+      "role": "assistant",
+      "text": "契约事件",
+      "agentId": "native"
+    }
+  },
+  {
+    "schemaVersion": 1,
+    "id": "event-contract-2",
+    "sessionId": "session-contract-1",
+    "kind": "tool_call",
+    "name": "agent.tool.completed",
+    "timestamp": "2026-08-25T12:00:01+00:00",
+    "payload": {
+      "turnId": "turn-contract-1",
+      "taskId": "run-contract-1",
+      "itemId": "item-command-1",
+      "toolType": "command",
+      "status": "completed",
+      "command": "pytest workspace/tests",
+      "cwd": "workspace",
+      "exitCode": 0,
+      "outputSummary": "2 passed"
+    }
+  },
+  {
+    "schemaVersion": 1,
+    "id": "event-contract-3",
+    "sessionId": "session-contract-1",
+    "kind": "diff",
+    "name": "agent.diff",
+    "timestamp": "2026-08-25T12:00:02+00:00",
+    "payload": {
+      "turnId": "turn-contract-1",
+      "taskId": "run-contract-1",
+      "itemId": "item-file-1",
+      "status": "completed",
+      "changes": [
+        {
+          "path": "strategies/example.py",
+          "kind": "update",
+          "diff": "+threshold = 0.9"
+        }
+      ]
+    }
+  },
+  {
+    "schemaVersion": 1,
+    "id": "fixture-agent.result",
+    "sessionId": "session-contract-1",
+    "kind": "result",
+    "name": "agent.result",
+    "timestamp": "2026-08-25T12:00:00+00:00",
+    "payload": {
+      "turnId": "turn-1",
+      "taskId": "task-1",
+      "threadId": "session-1",
+      "status": "completed"
+    }
+  },
+  {
+    "schemaVersion": 1,
+    "id": "fixture-feed.account",
+    "sessionId": "session-contract-1",
+    "kind": "result",
+    "name": "feed.account",
+    "timestamp": "2026-08-25T12:00:00+00:00",
+    "payload": {
+      "account": {
+        "accountName": "演示账户",
+        "equity": 1000000,
+        "dataStatus": "simulated"
+      },
+      "positions": [],
+      "activity": {
+        "orders": [],
+        "trades": []
+      },
+      "risk": {
+        "status": "normal"
+      }
+    }
+  },
+  {
+    "schemaVersion": 1,
+    "id": "fixture-feed.market",
+    "sessionId": "session-contract-1",
+    "kind": "result",
+    "name": "feed.market",
+    "timestamp": "2026-08-25T12:00:00+00:00",
+    "payload": {
+      "schemaVersion": 1,
+      "durationSeconds": 60,
+      "capturedAt": "2026-08-25T12:00:00+00:00",
+      "ageSeconds": 0,
+      "dataStatus": "simulated",
+      "isCached": false,
+      "liveTrading": "disabled",
+      "quote": {
+        "symbol": "SHFE.au2612",
+        "lastPrice": 823.5
+      },
+      "bars": []
+    }
+  },
+  {
+    "schemaVersion": 1,
+    "id": "fixture-feed.activity",
+    "sessionId": "session-contract-1",
+    "kind": "result",
+    "name": "feed.activity",
+    "timestamp": "2026-08-25T12:00:00+00:00",
+    "payload": {
+      "environment": "simulation",
+      "replayId": null,
+      "symbol": "SHFE.au2612",
+      "capturedAt": "2026-08-25T12:00:00+00:00",
+      "dataStatus": "simulated",
+      "ageSeconds": 0,
+      "orders": [],
+      "fills": [],
+      "strategies": []
+    }
+  },
+  {
+    "schemaVersion": 1,
+    "id": "fixture-feed.execution",
+    "sessionId": "session-contract-1",
+    "kind": "result",
+    "name": "feed.execution",
+    "timestamp": "2026-08-25T12:00:00+00:00",
+    "payload": {
+      "authorization": null,
+      "controls": {
+        "stopStatus": null
+      },
+      "stops": [],
+      "simulationOnly": true,
+      "liveTrading": "disabled"
+    }
+  },
+  {
+    "schemaVersion": 1,
+    "id": "fixture-feed.ui",
+    "sessionId": "session-contract-1",
+    "kind": "result",
+    "name": "feed.ui",
+    "timestamp": "2026-08-25T12:00:00+00:00",
+    "payload": {
+      "reason": "command"
+    }
+  },
+  {
+    "schemaVersion": 1,
+    "id": "fixture-feed.debate",
+    "sessionId": "session-contract-1",
+    "kind": "result",
+    "name": "feed.debate",
+    "timestamp": "2026-10-24T07:42:00+00:00",
+    "payload": {
+      "id": "db0123456789ab",
+      "turn": 2,
+      "side": "bear",
+      "text": "超卖不等于见底。5 日线还压在 20 日线下面[F6]"
+    }
+  },
+  {
+    "schemaVersion": 1,
+    "id": "fixture-message.superseded",
+    "sessionId": "session-contract-1",
+    "kind": "message",
+    "name": "message.superseded",
+    "timestamp": "2026-08-25T12:00:00+00:00",
+    "payload": {
+      "turnId": "run-contract-1-user",
+      "supersededBy": "帮我看看沪金的行情走势"
+    }
+  },
+  {
+    "schemaVersion": 1,
+    "sessionId": "session-contract-1",
+    "id": "fixture-card-1",
+    "kind": "artifact",
+    "name": "card.order_question",
+    "timestamp": "2026-10-04T01:30:00Z",
+    "payload": {
+      "turnId": "turn-q",
+      "cardId": "question-turn-q",
+      "kind": "ask",
+      "title": "需要确认：方向",
+      "question": "螺纹钢2610 一手，做多还是做空？",
+      "missing": [
+        "direction"
+      ],
+      "options": [
+        {
+          "label": "买开（做多）",
+          "prompt": "螺纹买开一手"
+        },
+        {
+          "label": "卖开（做空）",
+          "prompt": "螺纹卖开一手"
+        }
+      ],
+      "actions": [],
+      "createdAt": "2026-10-04T01:30:00Z"
+    }
+  },
+  {
+    "schemaVersion": 1,
+    "sessionId": "session-contract-1",
+    "id": "fixture-card-2",
+    "kind": "artifact",
+    "name": "card.research_judgment",
+    "timestamp": "2026-10-04T01:30:00Z",
+    "payload": {
+      "turnId": "turn-j",
+      "cardId": "judgment-SHFE.rb-2026-10-04",
+      "symbol": "SHFE.rb2610",
+      "productName": "螺纹钢",
+      "status": "ready",
+      "stance": "偏多",
+      "confidence": "中",
+      "headline": "库存连续下降，现货走强",
+      "facts": [
+        {
+          "text": "社会库存环比下降",
+          "quote": "库存 520 万吨",
+          "source": "钢联",
+          "asOf": "2026-10-03"
+        }
+      ],
+      "invalidation": [
+        {
+          "text": "需求回落",
+          "quote": "表观消费下滑",
+          "source": "钢联",
+          "asOf": "2026-10-03"
+        }
+      ],
+      "generatedAt": "2026-10-04T00:46:00+00:00",
+      "researchDay": "2026-10-04",
+      "actions": [
+        {
+          "kind": "ui",
+          "label": "打开调研",
+          "changes": {
+            "news": {
+              "tab": "desk"
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "schemaVersion": 1,
+    "sessionId": "session-contract-1",
+    "id": "fixture-card-3",
+    "kind": "artifact",
+    "name": "card.reminder",
+    "timestamp": "2026-10-04T01:30:00Z",
+    "payload": {
+      "turnId": "pricealert-a1",
+      "cardId": "reminder-pricealert-a1",
+      "kind": "price_alert",
+      "title": "到价提醒",
+      "summary": "螺纹钢2610 涨到 3200（现 3201）",
+      "figures": [
+        {
+          "label": "目标价",
+          "value": "3200"
+        },
+        {
+          "label": "最新价",
+          "value": "3201"
+        }
+      ],
+      "symbol": "SHFE.rb2610",
+      "at": "2026-10-04T01:30:00Z",
+      "actions": [
+        {
+          "kind": "ask",
+          "label": "问 AI 怎么办",
+          "prompt": "螺纹钢2610 到了 3200，现在怎么办？"
+        }
+      ]
+    }
+  },
+  {
+    "schemaVersion": 1,
+    "sessionId": "session-contract-1",
+    "id": "fixture-card-4",
+    "kind": "artifact",
+    "name": "card.execution",
+    "timestamp": "2026-10-04T01:30:00Z",
+    "payload": {
+      "turnId": "turn-x",
+      "cardId": "execution-AIT123",
+      "source": "ai",
+      "sourceLabel": "AI 自主",
+      "orderKind": "order",
+      "symbol": "SHFE.rb2610",
+      "name": "螺纹钢2610",
+      "sideLabel": "买开",
+      "volume": 1,
+      "price": "3200",
+      "reason": "突破前高",
+      "status": "unknown",
+      "statusLabel": "结果未知",
+      "filledVolume": null,
+      "clientOrderId": "AIT123",
+      "updatedAt": "2026-10-04T01:30:00Z"
+    }
+  },
+  {
+    "schemaVersion": 1,
+    "sessionId": "session-contract-1",
+    "id": "fixture-card-5",
+    "kind": "artifact",
+    "name": "card.routine",
+    "timestamp": "2026-10-06T01:30:00Z",
+    "payload": {
+      "turnId": "turn-x",
+      "cardId": "routine-rd-1",
+      "draftId": "rd-1",
+      "routineId": null,
+      "mode": "create",
+      "name": "老规矩",
+      "steps": [
+        {
+          "kind": "read",
+          "kindLabel": "读",
+          "text": "读自选品种的今日判断"
+        },
+        {
+          "kind": "card",
+          "kindLabel": "出卡",
+          "text": "按约定拆两笔出开仓卡"
+        }
+      ],
+      "status": "draft",
+      "refusal": null,
+      "savedAt": null,
+      "note": "带「出卡」的步骤只出卡，下单仍要你点确认"
+    }
+  },
+  {
+    "schemaVersion": 1,
+    "sessionId": "session-contract-1",
+    "id": "fixture-card-6",
+    "kind": "artifact",
+    "name": "card.routine_run",
+    "timestamp": "2026-10-06T01:31:00Z",
+    "payload": {
+      "turnId": "turn-y",
+      "cardId": "routine-run-turn-y",
+      "routineId": "rt-1",
+      "name": "老规矩",
+      "status": "completed",
+      "steps": [
+        {
+          "kind": "read",
+          "kindLabel": "读",
+          "text": "读自选品种的今日判断",
+          "status": "done",
+          "result": "螺纹、铁矿符合你的做法"
+        },
+        {
+          "kind": "card",
+          "kindLabel": "出卡",
+          "text": "按约定拆两笔出开仓卡",
+          "status": "confirm",
+          "result": "出了 2 张开仓卡，等你确认"
+        }
+      ],
+      "startedAt": "2026-10-06T01:30:48Z",
+      "finishedAt": "2026-10-06T01:31:00Z",
+      "elapsedSeconds": 12.0,
+      "confirmCount": 1
+    }
+  },
+  {
+    "schemaVersion": 1,
+    "sessionId": "session-contract-1",
+    "id": "fixture-feed.order",
+    "kind": "result",
+    "name": "feed.order",
+    "timestamp": "2026-10-08T01:30:00Z",
+    "payload": {
+      "id": "ord-1",
+      "clientOrderId": "CO-20261008-1",
+      "proposalId": "prop-1",
+      "accountId": "acc-tqkq-1",
+      "displayStatus": "已成交",
+      "remoteStatus": "FINISHED",
+      "filledVolume": 2,
+      "submitPhase": "CONFIRMED",
+      "request": {
+        "symbol": "SHFE.rb2701",
+        "name": "螺纹钢2701",
+        "direction": "SELL",
+        "offset": "CLOSETODAY",
+        "volume": 2,
+        "limitPrice": 3074
+      },
+      "updatedAt": "2026-10-08T01:30:00Z"
+    }
+  },
+  {
+    "schemaVersion": 1,
+    "sessionId": "session-contract-1",
+    "kind": "artifact",
+    "timestamp": "2026-10-14T13:05:00Z",
+    "id": "fixture-card-answer-1",
+    "name": "card.answer",
+    "payload": {
+      "turnId": "turn-answer-1",
+      "cardId": "answer-turn-answer-1",
+      "title": "沪金夜盘",
+      "conclusion": "夜盘冲高回落，减仓下行，短线偏弱。",
+      "figures": [
+        {
+          "label": "最新价",
+          "value": "899.84",
+          "unit": "元/克",
+          "dir": "down"
+        },
+        {
+          "label": "涨跌",
+          "value": "-0.79%",
+          "dir": "down"
+        },
+        {
+          "label": "持仓变化",
+          "value": "-1500",
+          "unit": "手"
+        }
+      ],
+      "compare": null,
+      "reasons": [
+        "5 日均价跌破 20 日均价",
+        "夜盘减仓约 1500 手"
+      ],
+      "risk": "外盘若反弹，判断失效",
+      "symbol": "SHFE.au2612",
+      "basis": {
+        "at": "2026-10-14T13:04:58Z",
+        "sources": [
+          "行情快照",
+          "走势分析（60 根 5 分钟线）"
+        ]
+      },
+      "actions": [
+        {
+          "kind": "ui",
+          "label": "看图表",
+          "changes": {
+            "symbol": "SHFE.au2612",
+            "view": "trade"
+          }
+        },
+        {
+          "kind": "ask",
+          "label": "问 AI 怎么办",
+          "prompt": "沪金夜盘现在该怎么办？"
+        }
+      ]
+    }
+  },
+  {
+    "schemaVersion": 1,
+    "sessionId": "session-contract-1",
+    "kind": "artifact",
+    "timestamp": "2026-10-14T13:05:00Z",
+    "id": "fixture-card-data-1",
+    "name": "card.data",
+    "payload": {
+      "turnId": "turn-data-1",
+      "cardId": "data-positions-turn-data-1",
+      "kind": "positions",
+      "title": "持仓 · 1 个合约",
+      "figures": [
+        {
+          "label": "浮动盈亏",
+          "value": "+1240",
+          "unit": "元",
+          "dir": "up"
+        },
+        {
+          "label": "持仓",
+          "value": "2",
+          "unit": "手"
+        }
+      ],
+      "rows": [
+        {
+          "primary": "螺纹 rb2701 多 2 手",
+          "secondary": "开仓均价 3512",
+          "value": "+1240",
+          "dir": "up"
+        }
+      ],
+      "note": null,
+      "empty": null,
+      "symbol": null,
+      "basis": {
+        "at": "2026-10-14T13:05:00Z",
+        "sources": [
+          "持仓（本站模拟）"
+        ]
+      },
+      "actions": [
+        {
+          "kind": "ui",
+          "label": "打开持仓",
+          "changes": {
+            "panel": "positions"
+          }
+        }
+      ]
+    }
+  }
+]

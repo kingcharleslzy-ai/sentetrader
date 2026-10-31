@@ -1,0 +1,121 @@
+/* Header: brand · pinned-contract tabs · 复盘/回放 · status and the account chip.
+   Fit levels (useHeaderFit) hide parts as the header runs out of room; warnings never hide. */
+.fdw-header {
+  position: relative;
+  height: var(--fdw-header);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  /* The desktop window's buttons sit in the header's left edge: the desktop shell
+     (place_traffic_lights) puts them 15pt in, centred on the 44px header, ending near 75pt;
+     the brand mark follows after the same 15pt gap. */
+  /* Reserve the native window buttons / titlebar safe area. */
+  padding: 0 var(--space-3) 0 86px;
+  border-bottom: 1px solid var(--line);
+  color: var(--fdw-text);
+  background: var(--fdw-surface);
+  user-select: none;
+}
+.fdw-header[data-shell="web"] { padding-left: var(--space-4); }
+/* Installed web app on a desktop with the title bar folded in (manifest display_override, the
+   Chrome/Edge window controls overlay): the window buttons sit in the header's edge as in the
+   desktop client, nothing slides under them, and empty header space drags the window. Browser
+   tabs, standalone windows and phones never match this query. */
+@media (display-mode: window-controls-overlay) {
+  .fdw-header[data-shell="web"] {
+    /* Reserve the native window buttons / titlebar safe area. */
+    padding-left: calc(env(titlebar-area-x, 0px) + var(--space-4));
+    /* Reserve the native window buttons / titlebar safe area. */
+    padding-right: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + var(--space-3));
+    -webkit-app-region: drag;
+    app-region: drag;
+  }
+  .fdw-header[data-shell="web"] :is(button, a, input, select, textarea, label, [role="menu"], [role="dialog"], [tabindex]) {
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
+}
+
+.fdw-brand { display: flex; align-items: center; gap: var(--space-2); white-space: nowrap; color: var(--fdw-text); }
+.fdw-brand > .brand-mark { flex: none; filter: drop-shadow(0 2px 8px color-mix(in srgb, var(--brand-a) 45%, transparent)); }
+.fdw-brand strong { font-size: var(--font-lg); font-weight: 600; letter-spacing: .01em; }
+.fdw-brand span { padding: var(--space-0) var(--space-2); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); border-radius: var(--radius-pill); color: var(--accent); background: var(--accent-soft); font-size: var(--font-md); font-weight: 500; }
+
+.fdw-header > nav { display: flex; align-items: stretch; align-self: stretch; gap: var(--space-2); min-width: 0; }
+.fdw-contract-tabs, .fdw-contract-picker { position: relative; min-width: 0; display: flex; align-items: center; align-self: stretch; gap: var(--space-0); }
+.fdw-header > nav > .fdw-contract-picker { display: none; }
+
+/* Contract tab: name only; the active one gets the brand underline. */
+.fdw-contract-tab { position: relative; display: inline-flex; align-items: center; align-self: stretch; color: var(--fdw-muted); transition: color var(--dur-1) var(--ease-standard); }
+.fdw-contract-tab:hover { color: var(--fdw-text); }
+.fdw-contract-tab.active { color: var(--fdw-text); }
+.fdw-contract-tab.active::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: 0; height: 2px; border-radius: var(--radius-sm); background: var(--brand-gradient); box-shadow: var(--shadow-2); animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; }
+.fdw-header nav button { color: inherit; background: transparent; border: 0; }
+.fdw-header nav .fdw-contract-tab > button:first-child { min-width: 0; height: 100%; display: inline-flex; align-items: center; gap: var(--space-1); padding: 0 var(--space-1) 0 var(--space-3); font-size: var(--font-md); font-weight: 600; white-space: nowrap; }
+.fdw-header nav .fdw-contract-tab > button:last-child:not(:first-child),
+.fdw-header nav .fdw-contract-tab > .fdw-tab-menu-trigger { width: 20px; height: 22px; padding: 0; display: grid; place-items: center; border-radius: var(--radius-control); opacity: 0; }
+.fdw-contract-tab:hover > button:last-child:not(:first-child), .fdw-contract-tab.active > button:last-child:not(:first-child),
+.fdw-contract-tab > button:last-child:focus-visible, .fdw-header nav .fdw-contract-more > .fdw-tab-menu-trigger { opacity: .6; }
+.fdw-header nav .fdw-contract-tab > button:last-child:not(:first-child):hover,
+.fdw-header nav .fdw-contract-tab > .fdw-tab-menu-trigger:hover { opacity: 1; background: var(--soft); }
+.fdw-header nav svg { width: 14px; height: 14px; flex: none; }
+.fdw-header nav .fdw-contract-add { width: 26px; height: 26px; align-self: center; margin-left: var(--space-1); padding: 0; display: grid; place-items: center; border: 1px dashed var(--line-strong); border-radius: var(--radius-control); color: var(--muted); }
+.fdw-header nav .fdw-contract-add:hover, .fdw-header nav .fdw-contract-add:focus-visible { color: var(--fdw-text); border-style: solid; background: var(--soft); }
+.fdw-header nav .fdw-contract-picker > .fdw-tab-menu-trigger { height: 100%; display: inline-flex; align-items: center; gap: var(--space-1); padding: 0 var(--space-2); color: var(--fdw-text); font-size: var(--font-md); font-weight: 600; white-space: nowrap; }
+.fdw-nav-divider { align-self: center; width: 1px; height: 18px; background: var(--line); }
+
+/* Popover menus (folded tabs, the picker). */
+.fdw-tab-menu { position: absolute; top: calc(100% - 4px); left: 0; z-index: 30; min-width: 190px; display: grid; gap: var(--space-0); padding: var(--space-1); border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--panel); box-shadow: var(--shadow-2); animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; transform-origin: top left; }
+.fdw-tab-menu > div { display: flex; align-items: center; }
+.fdw-header nav .fdw-tab-menu button { min-width: 0; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-radius: var(--radius-control); color: var(--ink); font-size: var(--font-md); text-align: left; white-space: nowrap; }
+.fdw-header nav .fdw-tab-menu > div > button:first-child { flex: 1; }
+.fdw-header nav .fdw-tab-menu button[aria-current="true"] { color: var(--accent); font-weight: 600; }
+.fdw-header nav .fdw-tab-menu button:hover { background: var(--soft); }
+.fdw-header nav .fdw-tab-menu > div > button:last-child:not(:first-child) { width: 28px; padding: 0; justify-content: center; color: var(--muted); }
+.fdw-header nav .fdw-tab-menu-add { margin-top: var(--space-1); padding-top: var(--space-2); border-top: 1px solid var(--line) !important; border-radius: 0 !important; }
+
+/* 复盘 / 回放: one pill group. */
+.fdw-view-group { display: flex; align-items: center; align-self: center; gap: var(--space-0); padding: var(--space-0); border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--fdw-surface-raised); }
+.fdw-header nav .fdw-nav-view { height: 26px; display: inline-flex; align-items: center; gap: var(--space-1); padding: 0 var(--space-3); border-radius: var(--radius-control); color: var(--fdw-muted); font-size: var(--font-md); white-space: nowrap; }
+.fdw-header nav .fdw-nav-view:hover { color: var(--fdw-text); background: var(--fdw-surface-hover); }
+.fdw-header nav .fdw-nav-view.active { color: var(--accent); background: var(--accent-soft); outline: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); outline-offset: -1px; }
+.fdw-header nav .fdw-nav-view svg { width: 13px; height: 13px; }
+
+/* Status: warnings, recovery, the account chip. */
+.fdw-header-status { position: relative; display: flex; align-items: center; justify-content: flex-end; gap: var(--space-2); min-width: 0; color: var(--fdw-muted); font-size: var(--font-sm); }
+.fdw-header-status > span { display: flex; align-items: center; gap: var(--space-1); min-width: 0; overflow: hidden; white-space: nowrap; }
+.fdw-header-status > span > .fdw-warning-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fdw-header-status > span i { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--warning); box-shadow: var(--shadow-2); animation: none; }
+.fdw-header-status > span.warning { color: var(--warning); }
+.fdw-account-chip { display: flex; align-items: center; gap: var(--space-3); height: 30px; padding: 0 var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--fdw-surface-raised); color: var(--fdw-text); font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: var(--font-md); font-weight: 600; white-space: nowrap; }
+.fdw-account-chip > span { display: inline-flex; align-items: baseline; gap: var(--space-1); }
+button.fdw-account-chip { cursor: pointer; font: inherit; font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: var(--font-md); font-weight: 600; }
+button.fdw-account-chip:hover:not(:disabled), button.fdw-account-chip:focus-visible { border-color: var(--line-strong); background: var(--surface-hover); }
+button.fdw-account-chip:disabled { cursor: default; }
+.fdw-account-chip > span + span { padding-left: var(--space-3); border-left: 1px solid var(--line); }
+.fdw-account-chip small { color: var(--fdw-faint); font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; font-size: var(--font-sm); font-weight: 400; }
+.fdw-account-chip .positive { color: var(--market-up); }
+.fdw-account-chip .negative { color: var(--market-down); }
+/* Icon buttons only: the account chip is a button too (2026-10-22) and keeps its own box. */
+.fdw-header-status > button:not(.fdw-account-chip) { width: 30px; height: 30px; display: grid; place-items: center; border: 0; border-radius: var(--radius-control); color: var(--fdw-muted); background: transparent; }
+.fdw-header-status > button:not(.fdw-account-chip):hover { color: var(--fdw-text); background: var(--fdw-surface-hover); }
+.fdw-header-status > button svg { width: 16px; height: 16px; }
+.fdw-header-status > button.fdw-ai-safety-stop { width: auto; height: auto; padding: var(--space-1) var(--space-3); border-radius: var(--radius-control); color: var(--danger); background: var(--danger-soft); white-space: nowrap; }
+
+/* Fit levels. */
+.fdw-header.fdw-fit-hide-text .fdw-nav-view span { display: none; }
+.fdw-header.fdw-fit-hide-text .fdw-nav-view { padding: 0 var(--space-2); }
+.fdw-header.fdw-fit-hide-brand > .fdw-brand span { display: none; }
+.fdw-header.fdw-fit-contract-menu > nav > .fdw-contract-picker { display: flex; }
+.fdw-header.fdw-fit-contract-menu > nav > .fdw-contract-tabs { display: none; }
+.fdw-header.fdw-fit-hide-equity > .fdw-header-status > .fdw-account-chip { display: none; }
+
+@media (max-width: 1180px) { .fdw-header { padding-left: var(--space-3); } }
+@media (max-width: 760px) {
+  .fdw-header { gap: var(--space-1); padding: 0 var(--space-2); }
+  .fdw-header-status { gap: var(--space-1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fdw-contract-tab.active::after, .fdw-tab-menu, .fdw-header-status > span i { animation: none; }
+}

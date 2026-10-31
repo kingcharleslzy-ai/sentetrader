@@ -1,0 +1,219 @@
+.strategy-workbench,.strategy-trade-review{min-width:0;color:var(--fdw-text);background:var(--fdw-surface);font-size:var(--font-md)}
+.strategy-workbench{height:100%;display:flex;flex-direction:column}.strategy-workbench>header,.strategy-trade-review>header{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);padding:var(--space-3);border-bottom:1px solid var(--fdw-line)}
+.strategy-workbench>nav{display:flex;padding:var(--space-2);gap:var(--space-1);border-bottom:1px solid var(--fdw-line)}.strategy-workbench>nav button{flex:1}.strategy-workbench button,.replay-setup button,.strategy-trade-review button{cursor:pointer;border:1px solid var(--fdw-line);border-radius:var(--radius-control);padding:var(--space-2) var(--space-3);background:var(--fdw-surface-raised);color:var(--fdw-text);font:inherit;display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);max-width:100%}.strategy-workbench button:disabled,.replay-setup button:disabled{opacity:.45;cursor:default}.strategy-workbench button.active,.strategy-workbench button.selected,.replay-mode-options .selected{border-color:var(--fdw-accent,var(--accent));background:var(--fdw-surface-raised)}
+.strategy-scroll{min-height:0;overflow:auto;padding:var(--space-3);scrollbar-width:thin}.strategy-scroll p,.strategy-editor p,.strategy-trade-review p{color:var(--fdw-muted);line-height:1.65;overflow-wrap:anywhere;margin:var(--space-2) 0}.strategy-editor{display:flex;flex-direction:column;gap:var(--space-3);min-width:0}.strategy-editor label,.replay-setup label{display:flex;flex-direction:column;gap:var(--space-2);min-width:0;color:var(--fdw-muted)}.strategy-editor input,.strategy-editor select,.strategy-editor textarea,.replay-setup input,.replay-setup select{min-width:0;width:100%;font:inherit;color:var(--fdw-text);background:var(--fdw-surface);border:1px solid var(--fdw-line);border-radius:var(--radius-control);padding:var(--space-2);box-sizing:border-box}.strategy-editor textarea{resize:vertical;line-height:1.65}.strategy-editor fieldset{min-width:0;border:1px solid var(--fdw-line);border-radius:var(--radius-control);display:grid;gap:var(--space-2);padding:var(--space-3)}.strategy-risk-fields,.strategy-fee-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-3)}.strategy-risk-fields>label:first-child{grid-column:1/-1}.strategy-editor h3,.strategy-editor h4{margin:var(--space-1) 0;font-weight:600}.strategy-primary{background:var(--primary-bg)!important;color:var(--on-primary)!important;border-color:transparent!important}.strategy-library-item{display:flex!important;flex-direction:column;align-items:flex-start!important;width:100%;margin-block:var(--space-1);text-align:left}.strategy-library-item span{font-size:var(--font-md);color:var(--fdw-muted)}.strategy-original{white-space:pre-wrap}.strategy-trade-review{height:100%;overflow:auto;padding:0 var(--space-3) var(--space-4);scrollbar-width:thin}.strategy-trade-review>header{padding-inline:0}.strategy-trade-review h3{margin:0;font-size:var(--font-lg)}.strategy-trade-review header>span{font-size:var(--font-md);color:var(--fdw-muted)}.strategy-review-total{padding-block:var(--space-5) var(--space-3)}.strategy-review-total>span{color:var(--fdw-muted)}.strategy-review-total>strong{display:block;font-size:calc(var(--font-2xl) * 1.25);margin-top:var(--space-2);font-variant-numeric:tabular-nums}.strategy-review-total small{font-size:var(--font-sm);font-weight:400}.strategy-review-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-4);border-block:1px solid var(--fdw-line);padding-block:var(--space-4)}.strategy-review-metrics dt{color:var(--fdw-muted);font-size:var(--font-md)}.strategy-review-metrics dd{margin:var(--space-2) 0 0;font-size:var(--font-lg);font-variant-numeric:tabular-nums}.strategy-review-trade{display:flex!important;flex-direction:column;align-items:stretch!important;width:100%;margin-bottom:var(--space-2);text-align:left}.strategy-review-trade>span{display:flex;justify-content:space-between;gap:var(--space-2);flex-wrap:wrap}.strategy-review-trade small{color:var(--fdw-muted)}.strategy-review-trade.selected{border-color:var(--fdw-accent,var(--accent))}.strategy-trade-detail{border-left:2px solid var(--fdw-accent,var(--accent));padding:var(--space-2) var(--space-3);margin-top:var(--space-3)}.strategy-scroll [role=alert],.replay-setup [role=alert],.replay-error{color:var(--danger);line-height:1.6}.strategy-workbench input:focus-visible,.strategy-workbench textarea:focus-visible,.strategy-workbench select:focus-visible,.replay-setup input:focus-visible,.replay-setup select:focus-visible{outline:2px solid var(--fdw-accent,var(--accent));outline-offset:2px}
+.replay-setup{width:min(680px,calc(100% - 28px));max-height:calc(100dvh - 32px);overflow:auto;border:1px solid var(--fdw-line);border-radius:var(--radius-card);padding:0;color:var(--fdw-text);background:var(--fdw-surface);font-size:var(--font-md)}.replay-setup::backdrop{background:var(--overlay)}.replay-setup>header{display:flex;align-items:flex-start;justify-content:space-between;padding:var(--space-5);border-bottom:1px solid var(--fdw-line);gap:var(--space-4)}.replay-setup h2{font-size:var(--font-xl);margin:0 0 var(--space-2)}.replay-setup header p{margin:0;color:var(--fdw-muted);font-size:var(--font-md)}.replay-setup-body{padding:var(--space-5);display:flex;flex-direction:column;gap:var(--space-4);min-width:0}.replay-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-4)}.replay-fields>label:last-of-type{grid-column:1/-1}.replay-mode-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-3)}.replay-mode-options button{display:flex;flex-direction:column;align-items:flex-start;white-space:normal;padding:var(--space-3)}.replay-mode-options small{font-size:var(--font-sm);color:var(--fdw-muted)}.replay-error{margin:0;padding:var(--space-2) var(--space-3);background:var(--fdw-surface)}body:has(.replay-setup[open]){overflow:hidden}.fdw-side-workbench-layout>.strategy-workbench{width:100%;height:100%}.fdw-shell[data-right-dock=strategy] .fdw-side-workbench{min-width:0}
+@container replay-setup (max-width:480px){.replay-fields,.replay-mode-options{grid-template-columns:1fr}}
+@container replay-setup (max-width:480px){.replay-setup-body,.replay-setup>header{padding:var(--space-4)}}
+@container strategy-editor (max-width:480px){.strategy-risk-fields,.strategy-fee-fields{gap:var(--space-2)}}
+@container strategy-editor (max-width:480px){.strategy-scroll{padding:var(--space-3)}}
+@container strategy-editor (max-width:480px){.strategy-review-total>strong{font-size:calc(var(--font-2xl) * 1.0833)}}
+.strategy-clarifications { margin-top: var(--space-3); padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-control); min-width: 0; }
+.strategy-clarifications fieldset { min-width: 0; margin: var(--space-3) 0; padding: var(--space-3) 0; border: 0; border-top: 1px solid var(--line); }
+.strategy-clarifications legend { line-height: 1.6; overflow-wrap: anywhere; font-size: var(--font-sm); }
+.strategy-editor .strategy-choice { display: flex; flex-direction: row; align-items: flex-start; gap: var(--space-2); margin: var(--space-2) 0; padding: var(--space-2); border: 1px solid var(--line); border-radius: var(--radius-control); }
+.strategy-editor .strategy-choice input { width: auto; margin-top: var(--space-0); }
+.strategy-choice span { min-width: 0; }
+.strategy-choice small { display: block; margin-top: var(--space-1); line-height: 1.5; color: var(--muted); }
+.strategy-scope { display: grid; gap: var(--space-2); margin: var(--space-3) 0; }
+.strategy-scope label { display: grid; gap: var(--space-1); min-width: 0; }
+.strategy-scope input, .strategy-scope select { max-width: 100%; min-width: 0; }
+
+.strategy-library { display: grid; gap: var(--space-1); margin-bottom: var(--space-3); }
+.strategy-library-row { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: start; gap: var(--space-1); }
+.strategy-library-row .strategy-library-item { width: 100%; margin: 0; }
+.strategy-details { border-top: 1px solid var(--line); padding: var(--space-3) 0; }
+.strategy-details > summary { cursor: pointer; color: var(--ink); line-height: 1.5; overflow-wrap: anywhere; }
+.strategy-actions { flex-shrink: 0; padding: var(--space-3) var(--space-3); border-top: 1px solid var(--line); background: var(--panel); }
+.strategy-actions > button { width: 100%; min-height: 38px; }
+.strategy-editor .strategy-actions { position: sticky; bottom: -14px; margin: 0 calc(-1 * var(--space-3)) calc(-1 * var(--space-3)); z-index: 2; }
+.strategy-workbench .strategy-primary, .replay-setup .strategy-primary { background: var(--primary-bg); border-color: transparent; color: var(--on-primary) !important; font-weight: 600; }
+.strategy-feedback { color: var(--warning) !important; }
+.strategy-failure-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.strategy-failure-actions details { min-width: 0; overflow-wrap: anywhere; }
+.strategy-workbench .strategy-risk-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: var(--space-2); }
+.strategy-risk-fields > label:first-child { grid-column: 1 / -1; }
+.ai-progress-card.failed { border-color: var(--danger); }
+.ai-progress-card.failed > p { color: var(--danger); }
+
+/* Colors come from the shared .app-button.danger; only the compact menu size lives here. */
+.strategy-workbench .strategy-delete { align-self: center; padding: var(--space-2) var(--space-2); font-size: var(--font-md); gap: var(--space-0); }
+.strategy-library-row .strategy-library-item > strong { max-width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: left; }
+.strategy-fees { display: grid; gap: var(--space-1); min-width: 0; }
+.strategy-fees > .fee-summary { display: grid; gap: var(--space-2); width: 100%; padding: var(--space-3) var(--space-3); border: 1px solid var(--fdw-line); text-align: left; white-space: normal; }
+.fee-summary-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.fee-summary-heading strong { font-size: var(--font-md); font-weight: 600; }
+.fee-summary-heading small { margin-left: var(--space-1); color: var(--fdw-muted); font-size: var(--font-sm); font-weight: 400; }
+.fee-summary-heading > span { color: var(--fdw-accent); font-size: var(--font-md); }
+.fee-summary-values { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: var(--space-3); }
+.fee-summary-values > span { display: flex; align-items: baseline; gap: var(--space-1); min-width: 0; }
+.fee-summary-values small { color: var(--fdw-muted); font-size: var(--font-sm); white-space: nowrap; }
+.fee-summary-values strong { font-size: var(--font-lg); font-weight: 500; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.fee-applied-scope { color: var(--fdw-muted); font-size: var(--font-md); }
+/* 外盘合约的手续费（只读）：在国内费率摘要上方一行。 */
+.fee-foreign { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0; padding: var(--space-2) var(--space-3); color: var(--ink); background: var(--soft); border-radius: var(--radius-control); font-size: var(--font-md); }
+.fee-foreign strong { font-variant-numeric: tabular-nums; }
+.strategy-editor.fee-editor { gap: var(--space-2); padding: var(--space-0) 0; }
+.fee-editor label { gap: var(--space-1); font-size: var(--font-md); }
+.fee-editor input, .fee-editor select { padding: var(--space-1) var(--space-2); min-height: 32px; }
+.fee-editor .strategy-fee-fields { grid-template-columns: repeat(3,minmax(0,1fr)); gap: var(--space-2); }
+.fee-editor .strategy-fee-fields > label:first-child { grid-column: 1 / -1; }
+.fee-overrides { border-top: 1px solid var(--fdw-line); padding-top: var(--space-2); }
+.fee-overrides > summary { cursor: pointer; color: var(--fdw-muted); font-size: var(--font-md); }
+.fee-overrides > fieldset { margin: var(--space-2) 0; padding: var(--space-2); gap: var(--space-2); }
+.fee-overrides > button { margin-top: var(--space-2); }
+.fee-message { margin: 0; color: var(--fdw-muted); font-size: var(--font-md); line-height: 1.5; }
+.fee-editor-actions { display: flex; justify-content: flex-end; gap: var(--space-2); }
+.fee-editor-actions > button { min-height: 32px; padding: var(--space-1) var(--space-3); }
+.replay-setup[open] { display: flex; flex-direction: column; overflow: hidden; }
+.replay-setup > header { flex: 0 0 auto; padding: var(--space-4) var(--space-4); }
+.replay-setup h2 { font-size: var(--font-xl); margin-bottom: var(--space-1); }
+.replay-setup > .replay-setup-body { min-height: 0; overflow-y: auto; padding: var(--space-4) var(--space-4); gap: var(--space-3); }
+.replay-fields { grid-template-columns: repeat(3,minmax(0,1fr)); gap: var(--space-2); }
+.replay-fields > label:last-of-type { grid-column: auto; }
+.replay-fields input { min-height: 34px; padding: var(--space-1) var(--space-2); }
+.replay-mode-options { gap: var(--space-2); }
+.replay-mode-options button { padding: var(--space-3) var(--space-3); gap: var(--space-0); }
+.replay-strategy-picker { display: grid; gap: var(--space-2); min-width: 0; }
+.replay-strategy-actions { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.replay-strategy-actions button { padding: var(--space-1) var(--space-2); font-size: var(--font-md); }
+.replay-strategy-notice, .replay-blocked-reason { margin: 0; color: var(--warning); font-size: var(--font-md); line-height: 1.5; }
+.replay-strategy-designer { min-width: 0; border-top: 1px solid var(--fdw-line); padding-top: var(--space-3); }
+.replay-design-close { margin-bottom: var(--space-2); }
+.replay-start-actions { flex: 0 0 auto; display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-top: 1px solid var(--fdw-line); background: var(--fdw-surface); }
+.replay-start-actions > button { width: 100%; min-height: 36px; }
+@container replay-setup (max-width:540px){ .replay-fields { grid-template-columns: repeat(2,minmax(0,1fr)); }}
+@container replay-setup (max-width:540px){ .replay-fields > label:last-of-type { grid-column: 1 / -1; }}
+@container replay-setup (max-width:540px){ .replay-mode-options { grid-template-columns: 1fr; }}
+.strategy-question-nav{display:flex;justify-content:space-between;gap:var(--space-3)}.strategy-clarifications,.strategy-clarifications fieldset,.strategy-editor .strategy-choice{border-color:var(--fdw-line)}.strategy-choice small{color:var(--fdw-muted)}.strategy-editor .strategy-choice:has(input:checked){border-color:var(--fdw-accent);background:var(--fdw-surface-raised)}.strategy-library-row{position:relative;align-items:start}.strategy-library-row .strategy-more{flex:none;width:28px;height:28px;min-height:28px;padding:0;border-color:transparent;color:var(--fdw-muted);background:transparent}.strategy-item-menu{position:absolute;right:0;top:100%;z-index:20;min-width:150px;max-width:100%;padding:var(--space-2);border:1px solid var(--fdw-line);border-radius:var(--radius-control);background:var(--fdw-surface-raised);box-shadow:var(--shadow-2)}.strategy-item-menu>button{width:100%}.strategy-item-menu p{overflow-wrap:anywhere}.strategy-item-menu>div{display:flex;gap:var(--space-1);justify-content:flex-end}
+
+.strategy-idea-fields{min-width:0;border:1px solid var(--fdw-line);border-radius:var(--radius-control);padding:var(--space-3) var(--space-3)}.strategy-idea-fields>summary{cursor:pointer;color:var(--fdw-muted);line-height:1.5}.strategy-idea-body{display:grid;gap:var(--space-3);padding-top:var(--space-3)}.strategy-design-dialog .strategy-new-action{align-self:flex-start;padding:var(--space-1) var(--space-2);font-size:var(--font-md)}.strategy-design-dialog .strategy-clarifications{margin-top:0;padding:var(--space-3)}.strategy-dialog-tools{flex-shrink:0}
+
+.replay-setup > header > div { display:flex; gap:var(--space-2); align-items:center; }
+.replay-setup > header h2 { margin:0; }
+.replay-setup > header button[aria-label="查看说明"] { flex:none; width:28px; padding:0; }
+.replay-strategy-picker select { width:100%; min-height:38px; border:1px solid var(--line); border-radius:var(--radius-control); padding:var(--space-2); color:var(--ink); background:var(--panel); font:inherit; }
+.replay-strategy-picker label { min-width:0; display:grid; gap:var(--space-2); flex:1; }
+.replay-fee-details { border-top:1px solid var(--line); padding-top:var(--space-3); }
+.replay-fee-details > summary { cursor:pointer; color:var(--muted); }
+.replay-mode-options button { min-height:40px; }
+
+.strategy-library-row.without-actions { grid-template-columns: minmax(0, 1fr); }
+.strategy-state { margin-left: var(--space-2); padding: var(--space-0) var(--space-2); border-radius: var(--radius-pill); font-size: var(--font-md); font-style: normal; font-weight: 600; color: var(--muted); background: var(--soft); vertical-align: middle; }
+.strategy-state[data-state="running"] { color: var(--positive); background: var(--positive-soft); }
+.strategy-state[data-state="paused"] { color: var(--warning); background: var(--warning-soft); }
+.strategy-state[data-state="draft"] { color: var(--accent); background: var(--accent-soft); }
+.account-pnl>header select{font:inherit;color:var(--fdw-text);background:var(--fdw-surface);border:1px solid var(--fdw-line);border-radius:var(--radius-control);padding:var(--space-1) var(--space-2);max-width:55%}.account-pnl-fee-hint{display:inline-flex!important;vertical-align:middle;margin-left:var(--space-1);padding:0 var(--space-0)!important;border:0!important;background:transparent!important;color:var(--fdw-muted)}.account-detail-rows{margin:var(--space-3) 0 0;padding:0}.account-detail-rows>div{display:flex;justify-content:space-between;gap:var(--space-3);padding:var(--space-2) 0;border-bottom:1px solid var(--line)}.account-detail-rows dt{color:var(--muted)}.account-detail-rows dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;min-width:0}.account-detail-rows dd input{width:9em;font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-control);padding:var(--space-1) var(--space-1);text-align:right}.account-detail-rows dd small{display:block;margin-top:var(--space-1);color:var(--muted);font-size:var(--font-sm)}.account-fee-settings{margin-top:var(--space-3);padding:var(--space-2) var(--space-3);border-radius:var(--radius-control);border:0;font:inherit;cursor:pointer}.account-pnl-months,.account-pnl-days,.account-pnl-trades{list-style:none;margin:0;padding:0}.account-pnl-months>li{margin-bottom:var(--space-2)}.account-pnl-months>li>button,.account-pnl-days>li>button{display:flex!important;width:100%;justify-content:space-between;gap:var(--space-2);text-align:left;font-variant-numeric:tabular-nums}.account-pnl-months>li>button span,.account-pnl-days>li>button span{color:var(--fdw-muted);font-size:var(--font-md);flex:1}.account-pnl-days{margin:var(--space-1) 0 var(--space-1) var(--space-2);border-left:2px solid var(--fdw-line);padding-left:var(--space-2)}.account-pnl-days>li{margin-bottom:var(--space-1)}.account-pnl-days>li>button{padding:var(--space-1) var(--space-3)}.account-pnl-trades{margin:var(--space-1) 0 var(--space-0) var(--space-1)}.account-pnl-trades>li{margin-bottom:var(--space-1)}.account-pnl-trades .strategy-review-trade small{overflow-wrap:anywhere}.account-pnl-empty{color:var(--fdw-muted);padding:var(--space-2) 0}.fdw-dock-rows em[title]{margin-left:var(--space-1);font-style:normal;font-size:var(--font-md);color:var(--warning)}
+
+
+/* 策略面板 (2026-09-25): 策略库 / 详情 / 运行中. One scroll region (the dock's), 4/8/12/16 spacing. */
+/* 策略库 / 详情 / 运行中: underlined tabs, the same as the 持仓 panel's. */
+.strategy-panel > .strategy-tabs { gap: var(--space-4); padding: 0 var(--space-3); border-bottom: 1px solid var(--line); }
+.strategy-panel > .strategy-tabs > button { position: relative; flex: none; min-height: 40px; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--muted); font-size: var(--font-md); white-space: nowrap; }
+.strategy-panel > .strategy-tabs > button:hover { color: var(--ink); background: transparent; }
+.strategy-panel > .strategy-tabs > button[aria-pressed="true"] { color: var(--ink); font-weight: 600; background: transparent; box-shadow: none; }
+.strategy-panel > .strategy-tabs > button[aria-pressed="true"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; border-radius: var(--radius-sm); background: var(--brand-gradient); }
+.strategy-panel > .strategy-scroll { padding: var(--space-3) 0 0; }
+.strategy-empty { color: var(--muted); }
+.strategy-detail { display: grid; gap: var(--space-4); min-width: 0; }
+/* 详情 (版面重做, 2026-09-26): head with name, state, actions, chips and the one sentence; then titled blocks. */
+/* Flex-wrap, not a two-column grid: in a narrow panel the actions drop below the name instead of squeezing it to one glyph per line. */
+.strategy-detail-head { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); align-items: flex-start; padding-bottom: var(--space-3); border-bottom: 1px solid var(--line); }
+.strategy-detail-title { flex: 1 1 240px; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; }
+.strategy-detail-title h3 { margin: 0; font-size: var(--font-lg); font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
+.strategy-detail-title h3 small { color: var(--muted); font-weight: 400; font-size: var(--font-sm); }
+.strategy-detail-title .strategy-state { margin-left: 0; }
+.strategy-detail-chips { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
+.strategy-detail-chips li { padding: var(--space-0) var(--space-2); border-radius: var(--radius-control); background: var(--soft); color: var(--ink); font-size: var(--font-md); }
+.strategy-detail-head .strategy-plan-summary { flex: 1 1 100%; margin: 0; padding: var(--space-3) var(--space-3); border-radius: var(--radius-card); background: var(--soft); color: var(--ink); font-size: var(--font-lg); line-height: 1.7; }
+.strategy-detail > p { margin: 0; }
+.strategy-blocks { display: grid; gap: var(--space-4); }
+.strategy-block-note { padding: var(--space-3) var(--space-4) 0; color: var(--muted); }
+.strategy-block-note p { margin: 0; }
+.strategy-side > h4 { display: flex; align-items: center; gap: var(--space-1); margin: 0; font-size: var(--font-md); }
+.strategy-side > h4::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--market-up); }
+.strategy-side[data-side="short"] > h4::before { background: var(--market-down); }
+.strategy-side[data-side="long"] > h4 { color: var(--market-up); }
+.strategy-side[data-side="short"] > h4 { color: var(--market-down); }
+.strategy-side > h4 small { color: var(--muted); font-weight: 400; font-size: var(--font-sm); }
+.strategy-side-part { color: var(--muted); font-size: var(--font-md); }
+.strategy-side-note { margin: 0 !important; color: var(--muted); font-size: var(--font-sm); }
+/* 条件组合: one branch, set off by a rule line on its start side. */
+.strategy-branch { display: grid; gap: var(--space-1); padding-inline-start: var(--space-2); border-inline-start: 2px solid var(--line); }
+/* 详情底部的“更多”块（不是策略库每行的“更多”按钮 .strategy-more：同名曾让按钮里的图标吃到这里的边框和内边距）。 */
+.strategy-more-block details { border-top: 1px solid var(--line); padding: var(--space-3) var(--space-4); }
+.strategy-more-block details:first-of-type { border-top: 0; }
+.strategy-more-block > :not(header):not(details) { padding: var(--space-3) var(--space-4); border-top: 1px solid var(--line); }
+/* The designer's 常用 / 高级 still use the older block style. */
+.strategy-block > h3 { margin: 0; color: var(--muted); font-size: var(--font-md); font-weight: 600; letter-spacing: .06em; }
+.strategy-kv { display: grid; gap: var(--space-1); margin: 0; }
+.strategy-kv > div { display: grid; grid-template-columns: minmax(64px, auto) minmax(0, 1fr); gap: var(--space-2); }
+.strategy-kv dt { color: var(--muted); white-space: nowrap; }
+.strategy-kv dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.strategy-kv b.positive { color: var(--market-up); }
+.strategy-kv b.negative { color: var(--market-down); }
+/* 第六批 (2026-09-28): the designer's editable 加仓 / 分批止盈 blocks inside the 高级 fold. */
+.strategy-advanced-body { display: grid; gap: var(--space-3); padding-top: var(--space-3); }
+.strategy-block-edit { display: grid; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-control); }
+.strategy-block-edit legend { padding: 0 var(--space-1); color: var(--muted); font-size: var(--font-sm); font-weight: 600; letter-spacing: .06em; }
+.strategy-block-edit small { color: var(--muted); line-height: 1.5; }
+.strategy-block-edit .strategy-block-toggle { flex-direction: row; align-items: center; gap: var(--space-2); }
+.strategy-block-edit .strategy-block-toggle input { width: auto; }
+.strategy-tier-row { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) auto; gap: var(--space-2); align-items: end; }
+.strategy-tier-row button { align-self: end; }
+.strategy-tier-add { justify-self: start; }
+@container strategy-editor (max-width: 540px){ .strategy-tier-row { grid-template-columns: 1fr 1fr; }}
+@container strategy-editor (max-width: 540px){ .strategy-tier-row button { justify-self: start; }}
+.strategy-detail-actions { flex: 0 1 auto; min-width: 0; display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.strategy-detail-actions > button { min-height: 32px; }
+.strategy-detail-actions { justify-content: flex-end; }
+.strategy-running { display: grid; gap: var(--space-2); }
+.strategy-running .card { margin: 0; }
+.strategy-run-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--positive); }
+.strategy-run-dot[data-status="paused"] { background: var(--warning); }
+.strategy-run-card .card-icon { background: transparent; }
+/* 运行中卡 (版面原则): 当前信号 stands out, 今日 is three figure cells. */
+.strategy-run-signal { margin: 0 !important; padding: var(--space-2) var(--space-3); border-radius: var(--radius-control); background: var(--soft); color: var(--ink) !important; line-height: 1.6; }
+.strategy-run-signal > span { display: block; color: var(--muted); font-size: var(--font-md); }
+.strategy-run-card .stat-tiles { border: 1px solid var(--line); border-radius: var(--radius-control); overflow: hidden; }
+.strategy-run-card .stat-tile b.positive { color: var(--market-up); }
+.strategy-run-card .stat-tile b.negative { color: var(--market-down); }
+.strategy-run-log { margin-top: var(--space-2); border-top: 1px solid var(--line); padding-top: var(--space-2); }
+.strategy-run-log time { color: var(--muted); font-variant-numeric: tabular-nums; }
+.strategy-actions-inline { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+/* 侧栏重设计第三期 (2026-09-25): 上线对话框, 运行中卡的执行方式与停止确认. */
+.strategy-launch-dialog { width: min(520px, calc(100vw - 32px)); }
+.strategy-launch-body { gap: var(--space-3); }
+.strategy-launch-name { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
+.strategy-launch-name small { color: var(--muted); }
+.strategy-launch-body label small { color: var(--muted); font-size: var(--font-sm); line-height: 1.5; }
+.strategy-signal-options { display: grid; gap: var(--space-2); margin: 0; padding: var(--space-3); min-width: 0; border: 1px solid var(--line); border-radius: var(--radius-card); }
+.strategy-signal-options legend { padding: 0 var(--space-1); color: var(--muted); }
+.strategy-launch-body .strategy-choice { flex-direction: row; align-items: flex-start; gap: var(--space-2); padding: var(--space-2); border: 1px solid var(--line); border-radius: var(--radius-control); color: var(--ink); cursor: pointer; }
+.strategy-launch-body .strategy-choice input { width: auto; margin-top: var(--space-0); }
+.strategy-launch-body .strategy-choice:has(input:checked) { border-color: var(--accent); background: var(--soft); }
+.strategy-launch-body .strategy-choice[data-disabled] { cursor: default; color: var(--muted); }
+.strategy-launch-body .strategy-choice strong { display: block; }
+.strategy-launch-error { margin: 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-control); background: var(--danger-soft); color: var(--danger); overflow-wrap: anywhere; }
+.strategy-launch-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); }
+/* The card's own clipping would cut the 执行方式 and AI ▾ menus; they float over the panel. */
+.card.strategy-run-card { overflow: visible; }
+.strategy-signal-action { position: relative; display: inline-flex; max-width: 100%; }
+.strategy-workbench .strategy-signal-trigger { padding: var(--space-0) var(--space-2); min-height: 24px; font-size: var(--font-md); white-space: normal; text-align: left; justify-content: flex-start; }
+.strategy-signal-action .strategy-signal-list { left: 0; right: auto; }
+.strategy-workbench .strategy-signal-action .strategy-signal-list > button { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-0); width: 100%; padding: var(--space-1) var(--space-2); border: 0; background: transparent; text-align: left; white-space: normal; }
+.strategy-workbench .strategy-signal-action .strategy-signal-list > button[aria-checked="true"] { background: var(--soft); }
+.strategy-workbench .strategy-signal-action .strategy-signal-list > button:hover:not(:disabled) { background: var(--surface-hover); }
+.strategy-signal-action .strategy-signal-list small { color: var(--muted); font-size: var(--font-sm); line-height: 1.4; }
+.strategy-stop-confirm { margin-top: var(--space-2); padding: var(--space-2) var(--space-3); border: 1px solid var(--warning); border-radius: var(--radius-control); background: var(--warning-soft); color: var(--ink); }
+.strategy-stop-confirm p { margin: 0 0 var(--space-2); color: var(--ink); }
+.strategy-stop-confirm > div { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); }
+.strategy-workbench .strategy-danger { border-color: var(--danger); color: var(--danger); }
+/* 详情里来自模板的参数: the same figure cells as the blocks below (版面原则). */
+.strategy-detail > .strategy-template-values { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-0); background: var(--line); border: 1px solid var(--line); border-radius: var(--radius-card); overflow: hidden; }
+.strategy-detail > .strategy-template-values > div { display: grid; gap: var(--space-0); padding: var(--space-2) var(--space-3); background: var(--panel); }
+.strategy-detail > .strategy-template-values dd { font-size: var(--font-lg); }
+.strategy-backtest-entry .section-card-body { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.strategy-backtest-entry .section-card-body > button { min-height: 32px; }
+.replay-setup{container-type:inline-size;container-name:replay-setup}
+.strategy-editor, .strategy-workbench{container-type:inline-size;container-name:strategy-editor}

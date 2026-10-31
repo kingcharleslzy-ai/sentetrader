@@ -1,0 +1,10 @@
+{
+  "about": "第 4 批（手动持仓追踪止损）：下单票开仓页填一个止损价后出现“止损方式”（固定 / 追踪 · 按跳数 / 按百分比 / ATR 吊灯）和“浮盈 1R 后移到成本”。只输入、不提交，不下单、不挂保护；真正挂追踪止损并看它收紧要在交易时段用测试账号另做。",
+  "steps": [
+    {"ui": {"view": "trade"}, "expect": {"view": "trade"}},
+    {"ui": {"panel": "order"}, "expect": {"panel": "order"}},
+    {"fill": {"label": "止损价", "value": "1"}},
+    {"screenshot": "ticket-stop-motion", "scrollTo": "止损方式"},
+    {"ui": {"panel": null}, "expect": {"panel": null}}
+  ]
+}

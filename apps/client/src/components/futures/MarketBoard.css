@@ -1,0 +1,335 @@
+/* 报价总表 (2026-10-01): every product's main contract in one scroll region.
+   列可自定义 (2026-10-02): the head and rows share one grid template the
+   component builds from the account's column list; a ResizeObserver folds the
+   tail of that list under 720/520 px and the head ends with "+N 列已收起"
+   (clicking it opens the 列 popover). */
+
+.fdw-quote-board {
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--panel);
+}
+
+.fdw-board-top {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-3);
+  border-bottom: 1px solid var(--line);
+}
+
+.fdw-board-search {
+  flex: 0 1 240px;
+  margin: 0;
+  min-width: 160px;
+}
+
+.fdw-board-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.fdw-board-chips button {
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--soft);
+  color: var(--ink);
+  font-size: var(--font-md);
+  line-height: 1.5;
+}
+
+.fdw-board-chips button[aria-pressed="true"] {
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.fdw-board-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--muted);
+  font-size: var(--font-sm);
+  white-space: nowrap;
+}
+
+.fdw-board-error {
+  color: var(--danger);
+}
+
+.fdw-board-updated {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 列: opens the column editor popover; an icon plus its word, like the chart's label buttons. */
+.fdw-board-columns-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--soft);
+  color: var(--ink);
+  font-size: var(--font-md);
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.fdw-board-columns-button svg {
+  width: 12px;
+  height: 12px;
+}
+
+.fdw-board-columns-button:hover {
+  background: var(--surface-hover);
+}
+
+.fdw-board-head,
+.fdw-board-row {
+  display: grid;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+}
+
+.fdw-board-head {
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: var(--font-md);
+  line-height: 2.4;
+}
+
+.fdw-board-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-0);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  white-space: nowrap;
+}
+
+.fdw-board-sort i {
+  font-style: normal;
+  font-size: var(--font-xs);
+  opacity: .6;
+}
+
+.fdw-board-sort.active {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* The head-end fold hint; the row grid leaves its `auto` track empty (zero width). */
+.fdw-board-fold {
+  justify-self: end;
+  padding: var(--space-0) var(--space-2);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  white-space: nowrap;
+}
+
+.fdw-board-fold:hover {
+  background: var(--surface-hover);
+  color: var(--ink);
+}
+
+.fdw-board-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The row is a div[role=button]: it holds the star button, and HTML forbids nesting buttons. */
+.fdw-board-row {
+  min-height: 34px;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 55%, transparent);
+  background: none;
+  color: var(--ink);
+  font-size: var(--font-md);
+  line-height: 1.6;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fdw-board-row:hover {
+  background: var(--surface-hover);
+}
+
+.fdw-board-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.fdw-board-row.active {
+  background: var(--accent-soft);
+}
+
+/* A starred product without a quote: stays listed (grey, nothing to click through). */
+.fdw-board-row.absent {
+  cursor: default;
+}
+
+.fdw-board-row.absent:hover {
+  background: none;
+}
+
+.fdw-board-row.quiet .fdw-board-cell {
+  color: var(--muted);
+}
+
+.fdw-board-cell {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fdw-board-cell.num {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.fdw-board-cell.name {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.fdw-board-cell.name .fdw-watch-star {
+  align-self: center;
+}
+
+.fdw-board-cell.name strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+
+.fdw-board-cell.name small {
+  color: var(--muted);
+  font-size: var(--font-sm);
+  text-transform: uppercase;
+}
+
+.fdw-board-empty {
+  padding: var(--space-5) var(--space-3);
+  color: var(--muted);
+  font-size: var(--font-md);
+  text-align: center;
+}
+
+/* 还没有成交时最新价位置显示昨结算：灰色，与真实成交价区分。 */
+.fdw-board-cell.fallback,
+.fdw-product-quote .fallback { color: var(--muted); font-weight: 400; }
+
+/* 列设置 (2026-10-02): the shared editor — one row per column (checkbox · name · move), the
+   unchecked ones after them, 恢复默认 and the inline status at the bottom. Rendered inside the
+   board's popover and in 设置 → 界面 → 报价总表. */
+.fdw-board-cols-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0);
+}
+
+.fdw-board-cols-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 30px;
+  padding: 0 var(--space-0);
+  font-size: var(--font-md);
+}
+
+.fdw-board-cols-row + .fdw-board-cols-row {
+  border-top: 1px solid color-mix(in srgb, var(--line) 45%, transparent);
+}
+
+.fdw-board-cols-row input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.fdw-board-cols-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink);
+}
+
+.fdw-board-cols-row:not(:has(input:checked)) .fdw-board-cols-name {
+  color: var(--muted);
+}
+
+.fdw-board-cols-move {
+  display: inline-flex;
+  gap: var(--space-1);
+}
+
+.fdw-board-cols-move button {
+  padding: var(--space-0) var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--soft);
+  color: var(--ink);
+  font-size: var(--font-md);
+  line-height: 1.5;
+}
+
+.fdw-board-cols-move button:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.fdw-board-cols-move button:disabled {
+  opacity: .4;
+}
+
+.fdw-board-cols-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  margin-top: var(--space-1);
+  border-top: 1px solid var(--line);
+}
+
+.fdw-board-cols-footer button {
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--soft);
+  color: var(--ink);
+  font-size: var(--font-md);
+  line-height: 1.5;
+}
+
+.fdw-board-cols-footer button:hover {
+  background: var(--surface-hover);
+}
+
+.fdw-board-cols-footer [role="status"] {
+  color: var(--muted);
+  font-size: var(--font-md);
+}

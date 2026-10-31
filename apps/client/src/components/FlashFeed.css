@@ -1,0 +1,59 @@
+/* 快讯页签 (2026-10-03; 第六批 2026-10-07): 今日新闻要点, the filter row, the tiered events (NewsEvents.css), the
+ * folds and sources, then the week's key data. Sections sit 20px apart without a card around the feed. */
+.flash-stack { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
+.flash-stack > * { flex-shrink: 0; }
+.news-panel .flash-stack > .flash-note { padding: 0; }
+.flash-stack > .flash-raw { font-size: var(--font-md); }
+.news-panel .flash-note { margin: 0; padding: var(--space-3) var(--space-4); color: var(--muted); font-size: var(--font-md); }
+
+/* 本周重要数据: grouped by day; time · region · event · figures on one wrapping line. */
+.flash-calendar-body { padding: var(--space-2) var(--space-4) var(--space-3); display: grid; gap: var(--space-2); }
+.flash-day h4 { margin: 0 0 var(--space-0); font-size: var(--font-md); font-weight: 600; color: var(--muted); }
+.flash-day ul { margin: 0; padding: 0; list-style: none; display: grid; }
+.flash-event { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-0) var(--space-2); padding: var(--space-1) 0 var(--space-1) var(--space-2); border-left: 2px solid transparent; font-size: var(--font-md); line-height: 1.45; }
+.flash-event + .flash-event { border-top: 1px dashed var(--line); }
+.flash-event time { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: var(--font-sm); color: var(--muted); width: 5ch; flex: none; }
+.flash-region { flex: none; color: var(--muted); font-size: var(--font-md); min-width: 3em; }
+.flash-event-name { flex: 1 1 12em; min-width: 0; overflow-wrap: anywhere; color: var(--ink); }
+.flash-event-values { margin-left: auto; display: inline-flex; flex-wrap: wrap; gap: 0 var(--space-2); justify-content: flex-end; color: var(--muted); font-size: var(--font-md); font-variant-numeric: tabular-nums; }
+.flash-event-values strong { color: var(--ink); font-weight: 600; }
+/* The top importance tier carries the accent: a bar and a bold event name. */
+.flash-event[data-high] { border-left-color: var(--warning); }
+.flash-event[data-high] .flash-event-name { font-weight: 600; }
+/* Already behind us: the event steps back to the muted ink; a published figure stays readable. */
+.flash-event[data-past] .flash-event-name { color: var(--muted); font-weight: 400; }
+.flash-event[data-past][data-high] { border-left-color: color-mix(in srgb, var(--warning) 40%, transparent); }
+.news-panel .flash-more { justify-self: start; padding: var(--space-1) var(--space-3); font-size: var(--font-md); color: var(--muted); }
+
+/* 快讯流: a single-select filter row, then compact rows with a monospace time column. */
+.flash-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.flash-filters { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+/* 按时间 / 按影响: a small segmented switch at the row's end (wraps under the filters when narrow). */
+.flash-sort { margin-left: auto; display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius-control); overflow: hidden; }
+.news-panel .flash-sort > button { padding: var(--space-0) var(--space-3); border: 0; border-radius: 0; background: transparent; color: var(--muted); font-size: var(--font-md); line-height: 20px; }
+.news-panel .flash-sort > button + button { border-left: 1px solid var(--line); }
+.news-panel .flash-sort > button[aria-pressed="true"] { background: var(--soft); color: var(--ink); font-weight: 600; }
+.flash-stack .news-dropped-list small { color: var(--muted); }
+.news-panel .flash-filters > button { padding: var(--space-1) var(--space-3); border-radius: var(--radius-pill); font-size: var(--font-md); color: var(--muted); background: transparent; }
+.news-panel .flash-filters > button[aria-pressed="true"] { color: var(--on-primary); background: var(--primary-bg); border-color: var(--primary-bg); }
+.flash-list { margin: 0; padding: 0; list-style: none; display: grid; }
+.flash-row { display: grid; grid-template-columns: 5ch minmax(0, 1fr); gap: var(--space-3); padding: var(--space-2) 0; border-top: 1px solid var(--line); }
+.flash-list[data-older] .flash-row { grid-template-columns: 11ch minmax(0, 1fr); }
+.flash-row:first-child { border-top: 0; }
+.flash-row[data-fresh] { animation: ui-fill-arrival var(--dur-2) var(--ease-out); }
+.flash-row > time { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: var(--font-sm); line-height: 20px; color: var(--muted); white-space: nowrap; }
+.flash-row-main { min-width: 0; display: grid; gap: var(--space-0); }
+.flash-row-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); min-height: 20px; font-size: var(--font-sm); }
+.flash-source { color: var(--muted); }
+.flash-tag { color: var(--muted); border: 1px solid var(--line); border-radius: var(--radius-pill); padding: 0 var(--space-1); font-size: var(--font-md); line-height: 18px; }
+.news-panel .flash-chip { padding: 0 var(--space-2); border-radius: var(--radius-pill); font-size: var(--font-md); line-height: 18px; color: var(--ink); background: var(--soft); border: 1px solid var(--line); }
+.news-panel button.flash-chip:hover { border-color: var(--line-strong); }
+.news-panel .flash-row-meta a { margin-left: auto; color: var(--muted); font-size: var(--font-sm); text-decoration: none; }
+.news-panel .flash-row-meta a:hover { color: var(--ink); text-decoration: underline; }
+/* The text is its own toggle: two lines folded, the whole passage on click. */
+.news-panel .flash-text { display: block; width: 100%; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--ink); text-align: left; font-size: var(--font-md); line-height: 20px; }
+.flash-text > span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; white-space: normal; }
+.flash-text[aria-expanded="true"] > span { display: block; -webkit-line-clamp: unset; line-clamp: none; }
+.flash-text strong { font-weight: 600; }
+/* The translated item's original English title, folded behind its Chinese one. */
+.flash-text .flash-orig { display: block; margin-top: var(--space-1); color: var(--muted); font-size: var(--font-md); line-height: 18px; overflow-wrap: anywhere; }

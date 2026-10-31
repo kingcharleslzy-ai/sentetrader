@@ -54,11 +54,38 @@
 
 首次登录填写邀请码 **`sente`**。
 
+## 从源码运行
+
+需要 Node 22、npm 10、Python 3.12 和 [uv](https://docs.astral.sh/uv/)；桌面版另需 Rust 和 Tauri 2 的平台工具链。
+
+```bash
+npm ci
+uv sync --frozen --python 3.12 --project services/trader-runtime
+npm run dev
+```
+
+浏览器打开 `http://127.0.0.1:5173`，本机服务在 `http://127.0.0.1:8000`，用内置演示数据运行；设 `AI_TRADER_AGENT_MODE=fake` 可不配模型离线体验。用你自己的模型密钥和快期账号、完全不连我们服务器的本机版正在做。实盘交易始终关闭。
+
+```text
+apps/client/                 网页与桌面共用的界面（React + Vite）
+apps/desktop/                桌面壳（Tauri 2）、命令行与 MCP
+services/trader-runtime/     本机/云端服务：模型、策略、回测、模拟交易
+services/tqkq-sidecar/       快期行情、模拟撮合与回放
+services/mt5-bridge/         外盘只读行情桥（可选）
+packages/ui-events/          前后端共用的事件契约
+skills/ai-trader/            外部 AI 操作指南（MCP / CLI）
+docs/                        架构与功能说明
+```
+
 ## 关于这个仓库
 
-这里只放产品介绍、官网 Sente 页的静态快照（[`docs/`](docs/index.html)，以[官网](https://qilinshuzhi.com/trader/download)为准）和各版本安装包，**不含源代码**。Sente 是杭州富阳启临数智科技工作室的专有软件。
+代码从开发仓库自动同步过来，每次修复合并后都会出现在这里；官网 Sente 页的静态快照在 [`docs/index.html`](docs/index.html)（以[官网](https://qilinshuzhi.com/trader/download)为准），各版本安装包在 Releases。
 
 问题与建议欢迎提 [Issue](https://github.com/kingcharleslzy-ai/sentetrader/issues)，或写信 lzy619202200@163.com。
+
+## 许可证
+
+[GNU AGPL-3.0](LICENSE)，Copyright (C) 2026 杭州富阳启临数智科技工作室。可以自由使用、修改和分发；把修改后的版本作为网络服务提供给别人时，须按 AGPL 公开对应源码。第三方组件见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
 ## 风险提示
 

@@ -1,0 +1,47 @@
+{
+  "id": "consecutive_updown",
+  "name": "连涨连跌",
+  "category": "trend_breakout",
+  "scenario": "动量跟随：收盘连续 3 根上涨做多、连续 3 根下跌做空，反向连涨连跌就平仓",
+  "plainSummary": "收盘价一根比一根高、连续涨够几根就做多，连续跌够几根就做空；持有中出现反方向的连涨或连跌就平仓，下一根还在延续再按新方向开。",
+  "level": "新手", "holding": "会隔夜",
+  "source": {"label": "TradingView 内置策略 Consecutive Up/Down Strategy（连涨 3 根做多、连跌 3 根做空）", "url": "https://www.tradingview.com/support/solutions/43000599836-consecutive-up-down-strategy/"},
+  "recommendedTimeframe": 900,
+  "approximations": [
+    "上涨按收盘价高于上一根收盘价算（同原版 close > close[1]），收平会打断连续。",
+    "原版连涨数够了就在同一根反手（先平空再开多）；本产品不同根内平仓再开仓：反向连涨连跌先平仓，下一根仍在延续（连续根数再多一根）才开反向仓。",
+    "按收盘确认、下一根开盘成交，与原版默认的撮合方式相同。",
+    "原版不限周期、没有止损；这里推荐 15 分钟，另设保护止损 3×ATR14。"
+  ],
+  "params": [
+    {"key": "upBars", "label": "连涨根数（做多）", "default": 3, "min": 2, "max": 10, "step": 1, "unit": "根",
+     "targets": ["rules.entryLong.conditions.0.consecutive", "rules.exitShort.conditions.0.consecutive"],
+     "help": {"what": "收盘价连续上涨多少根才做多，空单也在连涨这么多根时平仓", "up": "要涨得更久才确认，信号更少、进场更晚", "down": "涨一两根就进场，信号更多，假动作也更多"}},
+    {"key": "downBars", "label": "连跌根数（做空）", "default": 3, "min": 2, "max": 10, "step": 1, "unit": "根",
+     "targets": ["rules.entryShort.conditions.0.consecutive", "rules.exitLong.conditions.0.consecutive"],
+     "help": {"what": "收盘价连续下跌多少根才做空，多单也在连跌这么多根时平仓", "up": "要跌得更久才确认，信号更少、进场更晚", "down": "跌一两根就进场，信号更多，假动作也更多"}},
+    {"key": "stopAtr", "label": "保护止损（ATR 倍数）", "default": 3, "min": 0.5, "max": 10, "step": 0.5, "unit": "×ATR14", "targets": ["atrStop.multiple"],
+     "help": {"what": "止损放得离开仓价多远，按最近波动大小自动换算", "up": "不容易被正常波动扫出场，但万一做错单笔亏得更多", "down": "亏损控制得紧，但容易被来回波动打掉"}},
+    {"key": "maxPosition", "label": "每次手数", "default": 1, "min": 1, "max": 20, "step": 1, "unit": "手", "targets": ["maxPosition"],
+     "help": {"what": "每次开仓下多少手", "up": "盈亏都按手数放大，占用的保证金也更多", "down": "盈亏都跟着缩小，更稳妥"}},
+    {"key": "maxLoss", "label": "当日亏损上限", "default": null, "optional": true, "min": 100, "max": 1000000, "step": 100, "unit": "元", "targets": ["maxLoss"],
+     "help": {"what": "留空就不设。填了以后，账户当天的净亏损（已平仓、浮动盈亏和手续费合计）达到这个数，这条策略不再开新仓，止损和离场照常", "up": "允许当天亏得更多才停手", "down": "更早停止开新仓，也可能错过当天后面的机会"}}
+  ],
+  "plan": {
+    "name": "连涨连跌",
+    "description": "收盘价连续 {upBars} 根高于上一根收盘开多、连续 {downBars} 根低于上一根收盘开空；多单遇连续 {downBars} 根下跌平仓，空单遇连续 {upBars} 根上涨平仓，下一根仍满足再按新方向开。保护止损 {stopAtr}×ATR14。来源：TradingView Consecutive Up/Down Strategy。",
+    "direction": "both", "timeframeSeconds": 900, "maxPosition": 1, "maxLoss": null,
+    "stopLossTicks": 20, "takeProfitTicks": null, "cooldownBars": 0, "maxOrdersPerDay": 20,
+    "atrStop": {"multiple": 3, "period": 14},
+    "rules": {
+      "entryLong": {"conditions": [{"label": "收盘连续 {upBars} 根上涨", "left": {"indicator": "close", "timeframe": 900},
+        "operator": "rising", "right": {"indicator": "constant", "value": 1, "timeframe": 900}, "consecutive": 3}]},
+      "exitLong": {"conditions": [{"label": "收盘连续 {downBars} 根下跌", "left": {"indicator": "close", "timeframe": 900},
+        "operator": "falling", "right": {"indicator": "constant", "value": 1, "timeframe": 900}, "consecutive": 3}]},
+      "entryShort": {"conditions": [{"label": "收盘连续 {downBars} 根下跌", "left": {"indicator": "close", "timeframe": 900},
+        "operator": "falling", "right": {"indicator": "constant", "value": 1, "timeframe": 900}, "consecutive": 3}]},
+      "exitShort": {"conditions": [{"label": "收盘连续 {upBars} 根上涨", "left": {"indicator": "close", "timeframe": 900},
+        "operator": "rising", "right": {"indicator": "constant", "value": 1, "timeframe": 900}, "consecutive": 3}]}
+    }
+  }
+}

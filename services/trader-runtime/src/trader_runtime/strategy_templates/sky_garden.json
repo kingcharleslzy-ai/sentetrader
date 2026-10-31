@@ -1,0 +1,52 @@
+{
+  "id": "sky_garden",
+  "name": "空中花园（开盘跳空突破）",
+  "category": "intraday_range",
+  "scenario": "大幅跳空开盘的日子：顺跳空方向突破开盘第一根K线。适合常跳空的品种（原油、白银、燃油、甲醇、苯乙烯等）；螺纹、热卷、玉米、豆粕几乎不跳空，很少开单",
+  "plainSummary": "只在开盘大幅高开或低开的日子做：高开后突破开盘第一根K线的最高价就做多，低开后跌破第一根的最低价就做空；反向跌破（升破）第一根K线就离场，收盘前全部平掉。",
+  "level": "进阶", "holding": "日内",
+  "source": {"label": "经典策略汇总仓库 BigNewbiePlus/QuantTradeStrategy（原版止损规则未核实）", "url": "https://github.com/BigNewbiePlus/QuantTradeStrategy"},
+  "recommendedTimeframe": 300,
+  "approximations": [
+    "止损是我们的保守补充：多单收盘跌破开盘第一根K线的最低价离场（空单对称），按收盘价判断；另有保护止损（默认 100 跳）。",
+    "每个方向每个交易日最多开 1 次、收盘前 5 分钟平仓。",
+    "“开盘第一根”与“今开 / 昨收”按交易日算（夜盘归下一交易日）：有夜盘的品种是夜盘开盘的第一根。",
+    "开盘跳空幅度默认 0.5%（原版 1%）：近一年 28 个主力品种里，1% 只在原油、白银、燃油等少数品种常见，螺纹一整年没有一天达到；0.5% 时平均约三成交易日达到（2026-09-27 按日线统计）。"
+  ],
+  "params": [
+    {"key": "gapPercent", "label": "高开低开幅度（跳空幅度）", "default": 0.5, "min": 0.1, "max": 5, "step": 0.1, "unit": "%",
+     "targets": ["rules.entryLong.conditions.0.right.value", {"path": "rules.entryShort.conditions.0.right.value", "scale": -1}],
+     "help": {"what": "今天开盘价比昨天收盘价高（或低）至少这个百分比，当天才会做", "up": "只做大幅跳空的日子，交易更少", "down": "小跳空也做，交易更多，信号质量可能下降；螺纹、热卷、玉米、豆粕这类几乎不跳空的品种，要调到 0.2% 左右才会开单"}},
+    {"key": "closeBefore", "label": "收盘前平仓", "default": 5, "min": 1, "max": 60, "step": 1, "unit": "分钟", "targets": ["closeBeforeEndMinutes"],
+     "help": {"what": "当天最后一个交易时段收盘前多少分钟把持仓全部平掉，不留隔夜仓", "up": "更早平仓，少担收盘前的波动，但也少拿一段行情", "down": "拿到更接近收盘，但留给平仓成交的时间更少"}},
+    {"key": "stopLossTicks", "label": "保护止损", "default": 100, "min": 5, "max": 2000, "step": 1, "unit": "跳", "targets": ["stopLossTicks"],
+     "help": {"what": "止损离开仓价多少跳（跳是这个合约价格最小的变动单位）", "up": "不容易被来回波动扫掉，但做错时亏得更多", "down": "亏得少，但更容易被正常波动打掉"}},
+    {"key": "maxPosition", "label": "每次手数", "default": 1, "min": 1, "max": 20, "step": 1, "unit": "手", "targets": ["maxPosition"],
+     "help": {"what": "每次开仓下多少手", "up": "盈亏都按手数放大，占用的保证金也更多", "down": "盈亏都跟着缩小，更稳妥"}},
+    {"key": "maxLoss", "label": "当日亏损上限", "default": null, "optional": true, "min": 100, "max": 1000000, "step": 100, "unit": "元", "targets": ["maxLoss"],
+     "help": {"what": "留空就不设。填了以后，账户当天的净亏损（已平仓、浮动盈亏和手续费合计）达到这个数，这条策略不再开新仓，止损和离场照常", "up": "允许当天亏得更多才停手", "down": "更早停止开新仓，也可能错过当天后面的机会"}}
+  ],
+  "plan": {
+    "name": "空中花园",
+    "description": "今开相对昨收高开 ≥ {gapPercent}% 时，收盘突破开盘第一根K线最高价开多；低开 ≥ {gapPercent}% 时，收盘跌破第一根最低价开空。多单收盘跌破第一根最低价离场，空单收盘升破第一根最高价离场；每个方向每天最多 1 次，收盘前 {closeBefore} 分钟平仓。保护止损 {stopLossTicks} 跳。来源：经典策略汇总（止损为保守补充）。",
+    "direction": "both", "timeframeSeconds": 300, "maxPosition": 1, "maxLoss": null,
+    "stopLossTicks": 100, "takeProfitTicks": null, "cooldownBars": 0, "maxOrdersPerDay": 20,
+    "closeBeforeEndMinutes": 5, "maxEntriesPerDirection": 1,
+    "rules": {
+      "entryLong": {"conditions": [
+        {"label": "高开 ≥ {gapPercent}%", "left": {"indicator": "gap_percent", "timeframe": 300},
+         "operator": "gte", "right": {"indicator": "constant", "value": 0.5, "timeframe": 300}},
+        {"label": "收盘突破开盘第一根最高", "left": {"indicator": "close", "timeframe": 300},
+         "operator": "gt", "right": {"indicator": "opening_range_high", "period": 1, "timeframe": 300}}]},
+      "exitLong": {"conditions": [{"label": "收盘跌破开盘第一根最低（止损）", "left": {"indicator": "close", "timeframe": 300},
+        "operator": "lt", "right": {"indicator": "opening_range_low", "period": 1, "timeframe": 300}}]},
+      "entryShort": {"conditions": [
+        {"label": "低开 ≥ {gapPercent}%", "left": {"indicator": "gap_percent", "timeframe": 300},
+         "operator": "lte", "right": {"indicator": "constant", "value": -0.5, "timeframe": 300}},
+        {"label": "收盘跌破开盘第一根最低", "left": {"indicator": "close", "timeframe": 300},
+         "operator": "lt", "right": {"indicator": "opening_range_low", "period": 1, "timeframe": 300}}]},
+      "exitShort": {"conditions": [{"label": "收盘升破开盘第一根最高（止损）", "left": {"indicator": "close", "timeframe": 300},
+        "operator": "gt", "right": {"indicator": "opening_range_high", "period": 1, "timeframe": 300}}]}
+    }
+  }
+}

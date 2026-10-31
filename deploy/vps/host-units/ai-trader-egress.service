@@ -1,0 +1,37 @@
+# CFTC egress (2026-09-29): a SOCKS5 listener on the docker bridge address 172.17.0.1:1080 that exits
+# through zgo-la, because publicreporting.cftc.gov refuses mainland IPs. Runtime reaches it with
+# AI_TRADER_CFTC_PROXY=socks5h://172.17.0.1:1080 (docker-compose.yml); the UFW rule that lets
+# containers (172.16.0.0/12) reach 172.17.0.1:1080 is created by migrate-to-host.sh's init phase.
+# Host-side only: migrate-to-host.sh installs and reads it back; the key is never in the repository.
+#
+# On the host, once, as root:
+#   useradd --system --create-home --home-dir /var/lib/ai-trader-egress --shell /usr/sbin/nologin ai-trader-egress
+#   install -d -m 700 -o ai-trader-egress -g ai-trader-egress /var/lib/ai-trader-egress/.ssh
+#   sudo -u ai-trader-egress ssh-keygen -t ed25519 -N '' -f /var/lib/ai-trader-egress/.ssh/id_ed25519
+#   ssh-keyscan -t ed25519 38.49.54.254 > /var/lib/ai-trader-egress/.ssh/known_hosts   # verify the fingerprint
+# and add the public key to zgo-la's aitrader-egress account (/bin/false; 61-aitrader-egress.conf and
+# authorized_keys both permit only permitopen publicreporting.cftc.gov:443). Dormant until the key exists.
+[Unit]
+Description=AI Trader CFTC egress SOCKS tunnel (172.17.0.1:1080 via zgo-la)
+After=network-online.target docker.service
+Wants=network-online.target
+ConditionPathExists=/var/lib/ai-trader-egress/.ssh/id_ed25519
+
+[Service]
+Type=simple
+User=ai-trader-egress
+ExecStart=/usr/bin/ssh -N -T \
+  -D 172.17.0.1:1080 \
+  -o ExitOnForwardFailure=yes \
+  -o ServerAliveInterval=30 \
+  -o ServerAliveCountMax=3 \
+  -o StrictHostKeyChecking=yes \
+  -o UserKnownHostsFile=/var/lib/ai-trader-egress/.ssh/known_hosts \
+  -o IdentitiesOnly=yes \
+  -i /var/lib/ai-trader-egress/.ssh/id_ed25519 \
+  aitrader-egress@38.49.54.254
+Restart=always
+RestartSec=15
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,13 @@
+{
+  "name": "@ai-trader/ui-events",
+  "version": "1.8.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "types": "./src/index.ts",
+  "dependencies": {
+    "zod": "^4.1.11"
+  }
+}

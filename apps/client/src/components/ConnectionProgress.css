@@ -1,0 +1,22 @@
+/* Startup / reconnect progress: one quiet line of stage chips over the market area (hidden once all are
+   ready); before the first market snapshot it centres in the empty chart space instead. */
+.fdw-connection-progress { min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--fdw-line); color: var(--fdw-muted); background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 6%, var(--fdw-surface)), var(--fdw-surface) 60%); font-size: var(--font-md); }
+.fdw-connection-progress.is-initial { flex: 1; flex-direction: column; justify-content: center; gap: var(--space-3); border: 0; background: transparent; text-align: center; }
+.fdw-connection-stages { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.fdw-connection-stages span { display: inline-flex; align-items: center; gap: var(--space-1); height: 24px; padding: 0 var(--space-3); border: 1px solid var(--fdw-line); border-radius: var(--radius-pill); background: var(--fdw-surface); }
+.fdw-connection-stages svg { width: 13px; height: 13px; flex: none; }
+.fdw-connection-stages [data-state="ready"] { color: var(--positive); }
+.fdw-connection-stages :is([data-state="backup"], [data-state="stale"]) { color: var(--warning); border-color: color-mix(in srgb, var(--warning) 40%, transparent); background: var(--warning-soft); }
+.fdw-connection-stages [data-state="failed"] { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
+.fdw-startup-phases { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); margin: 0; padding: 0; list-style: none; }
+.fdw-startup-phases li { display: inline-flex; align-items: center; gap: var(--space-1); }
+.fdw-startup-phases li[data-state="done"] { color: var(--positive); }
+.fdw-startup-phases li[data-state="pending"] { color: var(--fdw-faint); }
+.fdw-startup-phases svg { width: 13px; height: 13px; flex: none; }
+.fdw-startup-phases .dot { width: 13px; height: 13px; display: inline-grid; place-items: center; }
+.fdw-startup-phases .dot::before { width: 5px; height: 5px; border-radius: 50%; background: currentColor; content: ""; }
+.fdw-connection-progress p { margin: 0; }
+.fdw-connection-progress small { color: var(--fdw-faint); font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: var(--font-sm); }
+.fdw-connection-progress > button { height: 26px; padding: 0 var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-control); color: var(--accent); background: transparent; font-size: var(--font-md); cursor: pointer; }
+.connection-spinner { animation: none; }
+@media (prefers-reduced-motion: reduce) { .connection-spinner { animation: none; } }

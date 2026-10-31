@@ -1,0 +1,47 @@
+{
+  "id": "aberration",
+  "name": "Aberration",
+  "category": "channel_reversion",
+  "scenario": "日线中期趋势：收盘突破布林带入场，回到中轨离场",
+  "plainSummary": "收盘价冲出均线上下那条波动带的上沿就做多、跌破下沿就做空；价格回到中间那条均线就离场。",
+  "level": "新手", "holding": "会隔夜",
+  "source": {"label": "TqSdk aberration.py（日线布林 26 / 2）", "url": "https://github.com/shinnytech/tqsdk-python/blob/master/tqsdk/demo/example/aberration.py"},
+  "recommendedTimeframe": 86400,
+  "approximations": [
+    "按收盘确认：原版盘中最新价一过上 / 下轨就成交、一回中轨就离场，这里按日线收盘判断，下一根开盘成交。",
+    "布林带用总体标准差（TqSdk BOLL 用 pandas 样本标准差），上下轨略窄约 2%。",
+    "原版没有止损；另设保护止损 4×ATR20（日线）：原版在中轨离场，入场的上 / 下轨离中轨 2 个标准差，日线上约 3–5 个 ATR20，4×ATR 大致落在中轨附近或之外，只防极端行情，不抢在原版的中轨离场之前。"
+  ],
+  "params": [
+    {"key": "period", "label": "通道参考根数（布林周期）", "default": 26, "min": 5, "max": 120, "step": 1, "unit": "根",
+     "targets": ["rules.entryLong.conditions.0.right.period", "rules.entryShort.conditions.0.right.period",
+                 "rules.exitLong.conditions.0.right.period", "rules.exitShort.conditions.0.right.period"],
+     "help": {"what": "中间那条均线和上下沿的宽度，用最近多少根K线来算", "up": "通道更平滑、信号更少，反应也更慢", "down": "通道更贴近价格、信号更多，假突破也更多"}},
+    {"key": "k", "label": "通道宽度（布林倍数）", "default": 2, "min": 0.5, "max": 5, "step": 0.1, "unit": "倍标准差",
+     "targets": ["rules.entryLong.conditions.0.right.k", "rules.entryShort.conditions.0.right.k"],
+     "help": {"what": "上下沿离中间均线多远，按价格平时波动幅度（标准差）的倍数算", "up": "要冲得更远才算突破，信号更少", "down": "轻轻一冲就算突破，信号更多，假信号也更多"}},
+    {"key": "stopAtr", "label": "保护止损（ATR 倍数）", "default": 4, "min": 0.5, "max": 10, "step": 0.5, "unit": "×ATR20", "targets": ["atrStop.multiple"],
+     "help": {"what": "止损放得离开仓价多远，按最近波动大小自动换算", "up": "不容易被正常波动扫出场，但万一做错单笔亏得更多", "down": "亏损控制得紧，但容易被来回波动打掉"}},
+    {"key": "maxPosition", "label": "每次手数", "default": 1, "min": 1, "max": 20, "step": 1, "unit": "手", "targets": ["maxPosition"],
+     "help": {"what": "每次开仓下多少手", "up": "盈亏都按手数放大，占用的保证金也更多", "down": "盈亏都跟着缩小，更稳妥"}},
+    {"key": "maxLoss", "label": "当日亏损上限", "default": null, "optional": true, "min": 100, "max": 1000000, "step": 100, "unit": "元", "targets": ["maxLoss"],
+     "help": {"what": "留空就不设。填了以后，账户当天的净亏损（已平仓、浮动盈亏和手续费合计）达到这个数，这条策略不再开新仓，止损和离场照常", "up": "允许当天亏得更多才停手", "down": "更早停止开新仓，也可能错过当天后面的机会"}}
+  ],
+  "plan": {
+    "name": "Aberration",
+    "description": "日线收盘突破布林上轨({period},{k}) 开多、跌破下轨开空；多单收盘跌破中轨离场，空单收盘升破中轨离场。保护止损 {stopAtr}×ATR20。来源：TqSdk aberration.py。",
+    "direction": "both", "timeframeSeconds": 86400, "maxPosition": 1, "maxLoss": null,
+    "stopLossTicks": 20, "takeProfitTicks": null, "cooldownBars": 0, "maxOrdersPerDay": 20,
+    "atrStop": {"multiple": 4, "period": 20},
+    "rules": {
+      "entryLong": {"conditions": [{"label": "日线收盘突破布林上轨({period},{k})", "left": {"indicator": "close", "timeframe": 86400},
+        "operator": "gt", "right": {"indicator": "boll_up", "period": 26, "k": 2, "timeframe": 86400}}]},
+      "exitLong": {"conditions": [{"label": "收盘跌破布林中轨({period})", "left": {"indicator": "close", "timeframe": 86400},
+        "operator": "lt", "right": {"indicator": "boll_mid", "period": 26, "timeframe": 86400}}]},
+      "entryShort": {"conditions": [{"label": "日线收盘跌破布林下轨({period},{k})", "left": {"indicator": "close", "timeframe": 86400},
+        "operator": "lt", "right": {"indicator": "boll_down", "period": 26, "k": 2, "timeframe": 86400}}]},
+      "exitShort": {"conditions": [{"label": "收盘升破布林中轨({period})", "left": {"indicator": "close", "timeframe": 86400},
+        "operator": "gt", "right": {"indicator": "boll_mid", "period": 26, "timeframe": 86400}}]}
+    }
+  }
+}

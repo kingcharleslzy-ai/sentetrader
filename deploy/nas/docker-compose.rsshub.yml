@@ -1,0 +1,38 @@
+# RSSHub moved off the production cloud host onto the home NAS (2026-10-09): the same image digest
+# and environment as the tencent `rsshub` service, bound to the VM's loopback only. The Runtime
+# reaches it through the reverse SSH tunnel (deploy/nas/ai-trader-tunnel.service): NAS loopback
+# 1200 → tencent loopback 11200 → the rsshub-tunnel relay container → the Runtime.
+#
+#   mkdir -p ~/services/ai-trader-rsshub && cp deploy/nas/docker-compose.rsshub.yml ~/services/ai-trader-rsshub/
+#   cd ~/services/ai-trader-rsshub && docker compose -p ai-trader-rsshub up -d
+#
+# Rollback to the on-host copy: stop this (`docker compose -p ai-trader-rsshub down`), then on the
+# tencent host set RSSHUB_URL=http://rsshub:1200 and AI_TRADER_LOCAL_RSSHUB=1 in
+# /opt/ai-trader/.env.production and redeploy (the local-rsshub profile container comes back).
+services:
+  rsshub:
+    image: diygod/rsshub:2026-10-06@sha256:9702431d8d8cb8e3bf08a0fa3275ec05343c0ec65b8d15c5c772f7ba541fae74
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:1200:1200"
+    environment:
+      NODE_ENV: production
+      CACHE_TYPE: memory
+      CACHE_EXPIRE: "300"
+      CACHE_CONTENT_EXPIRE: "3600"
+      NO_LOGFILES: "true"
+      LOGGER_LEVEL: info
+    mem_limit: 384m
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:1200/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL

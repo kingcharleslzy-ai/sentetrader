@@ -1,0 +1,153 @@
+/* Structured conversation cards (2026-10-04): 追问/没能出卡、今日判断、提醒、执行回报 and the compact
+   快讯/异动 card. Built on CardShell; colors come only from theme.css's paired semantic tokens, market
+   direction (偏多/偏空) from --market-up / --market-down so the 涨跌色 preference applies. Selectors use
+   sc-* class names only, so they never reach the shared controls. */
+
+.sc-card .card-body { display: grid; gap: var(--space-2); }
+.sc-card .card-body > * { margin: 0; }
+
+/* The shared fact rows follow the workspace type size inside these cards (设置 → 字体). */
+.sc-card .card-facts > div { font-size: var(--font-md); }
+/* 执行回报 title: break at the spaces, never inside "螺纹钢2610". */
+.sc-exec .card-title strong { word-break: keep-all; }
+
+.sc-line { color: var(--ink); font-size: var(--font-md); line-height: 1.55; overflow-wrap: anywhere; }
+.sc-tags { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); }
+.sc-review-pnl { margin-right: var(--space-1); font-family: var(--font-num); font-size: var(--font-md); font-variant-numeric: tabular-nums; }
+.sc-sub { color: var(--muted); font-size: var(--font-md); line-height: 1.5; overflow-wrap: anywhere; }
+
+/* Small field tags (缺少：方向 · 手数). */
+.sc-tags { display: flex; flex-wrap: wrap; gap: var(--space-1); align-items: center; }
+.sc-tag {
+  padding: var(--space-0) var(--space-2); border-radius: var(--radius-pill); font-size: var(--font-xs); line-height: 1.5;
+  color: var(--warning); background: var(--warning-soft);
+}
+
+/* 追问 options: two across, each one tap; long labels wrap instead of clipping. */
+.sc-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: var(--space-2); }
+.sc-option {
+  min-height: 34px; padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line-strong); border-radius: var(--radius-control);
+  color: var(--ink); background: var(--panel);
+  font-size: var(--font-md); font-weight: 600; line-height: 1.4; text-align: center; overflow-wrap: anywhere;
+}
+.sc-option:hover:not(:disabled), .sc-option:focus-visible { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.sc-option:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* The user's own words, quoted. */
+.sc-quote {
+  margin: 0; padding: var(--space-1) var(--space-3);
+  border-left: 3px solid var(--line-strong); border-radius: 0 var(--radius-control) var(--radius-control) 0;
+  color: var(--muted); background: var(--soft); font-size: var(--font-md); line-height: 1.55; overflow-wrap: anywhere;
+}
+
+.card-actions .sc-action { min-height: 32px; padding: var(--space-1) var(--space-3); overflow-wrap: anywhere; text-align: center; }
+
+/* 今日判断: stance chip + headline, then 关键事实 / 失效条件 one per line. */
+.sc-stance-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.sc-stance {
+  flex: 0 0 auto; padding: var(--space-0) var(--space-3); border-radius: var(--radius-control);
+  font-size: var(--font-md); font-weight: 700; line-height: 1.4;
+  color: var(--ink); background: var(--soft);
+}
+.sc-stance[data-stance="long"] { color: var(--market-up); background: var(--market-up-soft); }
+.sc-stance[data-stance="short"] { color: var(--market-down); background: var(--market-down-soft); }
+.sc-stance-row strong { flex: 1 1 160px; min-width: 0; color: var(--ink); font-size: var(--font-md); line-height: 1.45; overflow-wrap: anywhere; }
+.sc-section { display: grid; gap: var(--space-1); }
+.sc-section > h4 { margin: 0; color: var(--muted); font-size: var(--font-md); font-weight: 600; }
+.sc-lines { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.sc-lines > li {
+  display: grid; gap: var(--space-0); padding-left: var(--space-3); position: relative;
+  font-size: var(--font-md); line-height: 1.5; color: var(--ink); overflow-wrap: anywhere;
+}
+.sc-lines > li::before {
+  content: ""; position: absolute; left: 0; top: 0.6em; width: 5px; height: 5px; border-radius: 50%; background: var(--line-strong);
+}
+.sc-lines.invalidation > li::before { background: var(--warning); }
+.sc-lines q { color: var(--muted); quotes: "「" "」"; }
+.sc-lines small, .sc-foot { color: var(--muted); font-size: var(--font-md); font-variant-numeric: tabular-nums; }
+.sc-foot { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); }
+
+/* 生成中: a soft pulsing dot before the note. */
+.sc-pending { display: flex; align-items: flex-start; gap: var(--space-2); color: var(--muted); font-size: var(--font-md); line-height: 1.5; }
+.sc-pending > i {
+  flex: 0 0 auto; width: 8px; height: 8px; margin-top: 0.45em; border-radius: 50%; background: var(--accent);
+  animation: ui-ai-thinking 1.2s var(--ease-standard) infinite;
+}
+@media (prefers-reduced-motion: reduce) { .sc-pending > i { animation: none; } }
+
+/* Compact figures (提醒卡): wrap to as many rows as the panel needs; a value never truncates. */
+.sc-figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); gap: var(--space-1); margin: 0; }
+.sc-figures > div { min-width: 0; padding: var(--space-1) var(--space-2); border-radius: var(--radius-control); background: var(--soft); }
+.sc-figures dt { margin: 0; color: var(--muted); font-size: var(--font-md); line-height: 1.4; }
+.sc-figures dd {
+  margin: var(--space-0) 0 0; color: var(--ink); font-size: var(--font-lg); font-weight: 600; line-height: 1.3;
+  font-variant-numeric: tabular-nums; overflow-wrap: anywhere;
+}
+.sc-figures > div[data-tone="positive"] dd { color: var(--positive); }
+.sc-figures > div[data-tone="warning"] dd { color: var(--warning); }
+.sc-figures > div[data-tone="danger"] dd { color: var(--danger); }
+.sc-figures > div[data-tone="warning"] { background: var(--warning-soft); }
+.sc-figures > div[data-tone="danger"] { background: var(--danger-soft); }
+
+/* Card icon tint follows the card's meaning; the icon box keeps CardShell's shape. */
+.sc-card.sc-tone-warning .card-icon { color: var(--warning); background: var(--warning-soft); }
+.sc-card.sc-tone-danger .card-icon { color: var(--danger); background: var(--danger-soft); }
+.sc-card.sc-tone-positive .card-icon { color: var(--positive); background: var(--positive-soft); }
+
+/* 快讯 / 行情异动: one compact block in the conversation, not a full card. */
+.sc-brief {
+  display: grid; gap: var(--space-1);
+  margin: var(--space-2) 0; padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line); border-radius: var(--radius-card);
+  color: var(--ink); background: var(--panel);
+}
+.sc-brief-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); min-width: 0; }
+.sc-brief-head > svg { flex: 0 0 auto; width: 15px; height: 15px; color: var(--accent); }
+.sc-brief[data-kind="market"] .sc-brief-head > svg { color: var(--warning); }
+.sc-brief-head strong { font-size: var(--font-md); font-weight: 600; }
+.sc-brief-symbol {
+  padding: var(--space-0) var(--space-1); border-radius: var(--radius-control);
+  color: var(--muted); background: var(--soft); font-size: var(--font-md); overflow-wrap: anywhere;
+}
+.sc-brief-head time { margin-left: auto; color: var(--muted); font-size: var(--font-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sc-brief > p { margin: 0; font-size: var(--font-md); line-height: 1.55; overflow-wrap: anywhere; }
+.sc-brief-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-1) var(--space-2); }
+.sc-brief-foot small { color: var(--muted); font-size: var(--font-sm); overflow-wrap: anywhere; }
+.sc-brief-foot button {
+  min-height: 28px; padding: var(--space-0) var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-control);
+  color: var(--accent); background: var(--panel); font-size: var(--font-md); font-weight: 600;
+}
+.sc-brief-foot button:hover:not(:disabled), .sc-brief-foot button:focus-visible { background: var(--accent-soft); }
+.sc-brief-foot button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Larger type (设置 → 字体): the figure cells widen so a value keeps its line. */
+html:is([data-font-scale="large"], [data-font-scale="extra-large"]) .sc-figures { grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); }
+
+/* A brief enters like the conversation's cards (message-in + one brand-colour border glow, styles.css). */
+.conversation .sc-brief { animation: ui-panel-in var(--dur-2) var(--ease-out) backwards, ui-fill-arrival var(--dur-2) var(--ease-out); }
+
+/* 合并卡 / 保本提醒 (2026-10-06, 样稿 steps2): the card's numbered steps in one bordered list — the
+   step, its detail under it, its own outcome on the right. The stop step uses the chart's stop colour. */
+.sc-steps { display: grid; margin: 0; padding: 0; list-style: none; border: 1px solid var(--line); border-radius: var(--radius-control); overflow: hidden; }
+.sc-steps > li {
+  display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: var(--space-2); align-items: center;
+  padding: var(--space-2) var(--space-2); border-top: 1px solid var(--line);
+}
+.sc-steps > li:first-child { border-top: 0; }
+.sc-step-n {
+  display: grid; place-items: center; width: 20px; height: 20px; border-radius: var(--radius-card);
+  color: var(--accent); background: var(--accent-soft); font-size: var(--font-md); font-weight: 700;
+}
+.sc-step-text { display: grid; gap: var(--space-0); min-width: 0; }
+.sc-step-text b { color: var(--ink); font-size: var(--font-md); font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
+.sc-step-text b.sc-step-stop { color: var(--protection-stop); }
+.sc-step-text small { color: var(--muted); font-size: var(--font-sm); line-height: 1.45; overflow-wrap: anywhere; }
+.sc-step-outcome { font-size: var(--font-md); font-weight: 600; white-space: nowrap; color: var(--muted); }
+.sc-step-outcome[data-tone="ok"] { color: var(--positive); }
+.sc-step-outcome[data-tone="fail"] { color: var(--danger); }
+.sc-step-result { margin: 0; padding: var(--space-1) var(--space-2); border-radius: var(--radius-control); font-size: var(--font-md); line-height: 1.5;
+  color: var(--positive); background: var(--positive-soft); overflow-wrap: anywhere; }
+.sc-step-result[data-tone="part"] { color: var(--warning); background: var(--warning-soft); }
+.sc-step-note { margin: 0; color: var(--muted); font-size: var(--font-sm); line-height: 1.45; }
+.sc-step-block { display: grid; gap: var(--space-2); margin-top: var(--space-1); }

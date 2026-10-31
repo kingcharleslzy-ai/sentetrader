@@ -1,0 +1,10 @@
+/* 打法本 (2026-10-25): the strategy panel's 打法 tab. Theme tokens only. */
+.playbook-page { display: flex; flex-direction: column; gap: var(--space-3); }
+.playbook-quiet { margin: 0; color: var(--muted); }
+.playbook-editor { display: flex; flex-direction: column; gap: var(--space-2); }
+.playbook-field { display: flex; flex-direction: column; gap: var(--space-1); color: var(--muted); }
+.playbook-field textarea { resize: vertical; min-height: 48px; color: var(--ink); background: var(--panel); }
+.playbook-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
+.playbook-rules { display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); margin: 0; }
+.playbook-rules dt { color: var(--muted); }
+.playbook-rules dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; white-space: pre-wrap; }

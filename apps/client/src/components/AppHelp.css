@@ -1,0 +1,68 @@
+/* 使用说明卡 (2026-09-25 两层重做): search + grouped navigation | topic. On a narrow card the
+   navigation becomes a drop-down above the topic (container query on the card). */
+.app-help-card { box-sizing: border-box; width: min(960px, calc(100vw - 32px)); height: min(720px, calc(100dvh - 32px)); max-width: none; max-height: none;
+  padding: 0; border: 1px solid var(--line); border-radius: var(--radius-card); color: var(--ink); background: var(--panel); box-shadow: var(--shadow-3);
+  font-size: var(--font-md); container-type: inline-size; container-name: app-help; }
+.app-help-card[open] { display: flex; flex-direction: column; }
+.app-help-card::backdrop { background: var(--overlay); }
+.app-help-card > header { display: flex; flex: none; justify-content: space-between; align-items: center; gap: var(--space-2);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4); border-bottom: 1px solid var(--line); }
+.app-help-card > header strong { font-size: var(--font-lg); }
+.app-help-card button, .app-help-menu button { border: 0; color: inherit; background: transparent; padding: var(--space-2); border-radius: var(--radius-control); font: inherit; cursor: pointer; }
+.app-help-card button:hover, .app-help-menu button:hover { background: var(--surface-hover); }
+.app-help-card button:focus-visible, .app-help-search:focus-visible, .app-help-picker:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.app-help-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0; padding: var(--space-4); color: var(--muted); }
+
+.app-help-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(180px, 220px) minmax(0, 1fr); }
+.app-help-nav { display: flex; flex-direction: column; gap: var(--space-2); min-height: 0; padding: var(--space-3); border-right: 1px solid var(--line);
+  background: var(--soft); overflow-y: auto; }
+.app-help-search, .app-help-picker { box-sizing: border-box; width: 100%; min-height: 32px; padding: var(--space-1) var(--space-2); border: 1px solid var(--line);
+  border-radius: var(--radius-control); color: var(--ink); background: var(--panel); font: inherit; }
+.app-help-picker { display: none; }
+.app-help-group h4, .app-help-group-toggle { margin: var(--space-2) 0 var(--space-1); padding: 0 var(--space-2); color: var(--muted);
+  font-size: var(--font-md); font-weight: 600; }
+.app-help-card .app-help-group-toggle { display: flex; width: 100%; justify-content: space-between; padding: var(--space-1) var(--space-2); text-align: left; }
+.app-help-group-toggle::after { content: "▸"; }
+.app-help-group-toggle[aria-expanded="true"]::after { content: "▾"; }
+.app-help-group ul { display: grid; gap: var(--space-0); margin: 0; padding: 0; list-style: none; }
+.app-help-card .app-help-group li button { width: 100%; padding: var(--space-1) var(--space-2); text-align: left; line-height: 1.4; white-space: normal; overflow-wrap: anywhere; }
+.app-help-card .app-help-group li button[aria-current="page"] { color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+.app-help-empty { margin: var(--space-2); color: var(--muted); }
+
+.app-help-topic { min-height: 0; padding: var(--space-4); overflow-y: auto; line-height: 1.7; overflow-wrap: anywhere; }
+/* Readable line length: about 60–70 Chinese characters at most. */
+.app-help-topic > * { max-width: 66em; }
+.app-help-topic h3 { margin: 0 0 var(--space-2); font-size: var(--font-xl); line-height: 1.35; }
+.app-help-summary { margin: 0 0 var(--space-4); padding: var(--space-3); border-left: 3px solid var(--accent); border-radius: var(--radius-control);
+  color: var(--ink); background: var(--accent-soft); font-size: var(--font-lg); }
+.app-help-topic section { margin-bottom: var(--space-4); }
+.app-help-topic h4 { margin: 0 0 var(--space-2); font-size: var(--font-md); font-weight: 600; }
+.app-help-steps { display: grid; gap: var(--space-1); margin: 0; padding-left: 1.6em; }
+.app-help-card .app-help-tour { margin: 0 0 var(--space-4); padding: var(--space-2) var(--space-3); color: var(--on-primary); background: var(--primary-bg); font-weight: 600; }
+.app-help-card .app-help-tour:hover { color: var(--on-primary); background: var(--primary-bg); filter: brightness(1.08); }
+.app-help-terms { display: grid; gap: var(--space-1); margin: 0; }
+.app-help-terms > div { display: grid; grid-template-columns: minmax(6em, 10em) minmax(0, 1fr); gap: var(--space-3); padding: var(--space-2) 0; border-bottom: 1px solid var(--line); }
+.app-help-terms dt { font-weight: 600; }
+.app-help-terms dd { margin: 0; }
+.app-help-terms small { display: block; color: var(--muted); font-size: var(--font-sm); }
+.app-help-faq { border: 1px solid var(--line); border-radius: var(--radius-card); }
+.app-help-faq-item + .app-help-faq-item { border-top: 1px solid var(--line); }
+.app-help-card .app-help-faq-item button, .app-help-card .app-help-detail-toggle { display: flex; width: 100%; justify-content: space-between; gap: var(--space-2);
+  padding: var(--space-2) var(--space-3); text-align: left; line-height: 1.5; white-space: normal; }
+.app-help-faq-item button::after, .app-help-detail-toggle::after { flex: none; color: var(--muted); content: "+"; }
+.app-help-faq-item button[aria-expanded="true"]::after, .app-help-detail-toggle[aria-expanded="true"]::after { content: "−"; }
+.app-help-faq-item p { margin: 0; padding: 0 var(--space-3) var(--space-3); color: var(--muted); }
+.app-help-detail { border-top: 1px solid var(--line); padding-top: var(--space-2); }
+.app-help-card .app-help-detail-toggle { padding-left: 0; color: var(--muted); font-weight: 600; }
+.app-help-detail-body p { margin: 0 0 var(--space-3); color: var(--muted); font-size: var(--font-md); }
+.app-help-card mark { border-radius: var(--radius-sm); color: var(--ink); background: var(--warning-soft); outline: 1px solid var(--warning); outline-offset: 0; }
+
+.app-help-menu { position: fixed; z-index: 1000; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius-control); box-shadow: var(--shadow-2); }
+
+@container app-help (max-width: 640px) {
+  .app-help-body { display: flex; flex-direction: column; }
+  .app-help-nav { flex: none; flex-direction: row; flex-wrap: wrap; padding: var(--space-2) var(--space-3); border-right: 0; border-bottom: 1px solid var(--line); overflow: visible; }
+  .app-help-nav nav { display: none; }
+  .app-help-picker { display: block; }
+  .app-help-topic { flex: 1; }
+}

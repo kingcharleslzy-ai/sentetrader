@@ -1,0 +1,11 @@
+{
+  "about": "第 4 批后半：下单票填止损价后“止损方式”多“追踪 · 前 N 根 K 线”（只看选项，不提交、不挂保护）。真正挂上并看它跟着 K 线低点收紧要在交易时段用测试账号另做。",
+  "steps": [
+    {"ui": {"view": "trade"}, "expect": {"view": "trade"}},
+    {"ui": {"panel": "order"}, "expect": {"panel": "order"}},
+    {"fill": {"label": "止损价", "value": "1"}},
+    {"ui": {"panel": "order"}, "expect": {"observation.controls": {"includes": "追踪 · 前 N 根 K 线"}}},
+    {"screenshot": "01-ticket-stop-motion", "scrollTo": "止损方式"},
+    {"ui": {"panel": null}, "expect": {"panel": null}}
+  ]
+}

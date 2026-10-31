@@ -1,0 +1,45 @@
+FROM python:3.12-slim
+# uv comes from PyPI (the CN production host cannot reach ghcr.io); an empty PIP_INDEX_URL keeps
+# pip's default index, an empty UV_DEFAULT_INDEX keeps uv's default.
+ARG UV_VERSION=0.11.28
+ARG PIP_INDEX_URL=
+ARG UV_DEFAULT_INDEX=
+# An ARG declared empty still reaches RUN as an empty env var, and pip/uv read PIP_INDEX_URL /
+# UV_DEFAULT_INDEX from the environment: unset the empty ones so the defaults really apply.
+RUN sh -c '[ -n "$PIP_INDEX_URL" ] || unset PIP_INDEX_URL; \
+     pip install --no-cache-dir ${PIP_INDEX_URL:+-i "$PIP_INDEX_URL"} "uv==${UV_VERSION}"'
+# jemalloc for the AI_TRADER_JEMALLOC switch (docker-entrypoint.sh, 2026-10-13). APT_MIRROR (e.g.
+# http://mirrors.aliyun.com or http://mirrors.tencentyun.com) replaces deb.debian.org, which the CN
+# builders reach slowly; empty keeps the image's own sources. The library gets a fixed path so the
+# entrypoint does not depend on the architecture directory.
+ARG APT_MIRROR=
+RUN sh -c 'set -e; [ -z "$APT_MIRROR" ] || sed -i "s#http://deb.debian.org#$APT_MIRROR#g" /etc/apt/sources.list.d/debian.sources; \
+     apt-get update && apt-get install -y --no-install-recommends libjemalloc2 && rm -rf /var/lib/apt/lists/*; \
+     ln -s "$(ls /usr/lib/*/libjemalloc.so.2)" /usr/local/lib/libjemalloc.so.2'
+
+WORKDIR /app
+RUN groupadd --system ai-trader && useradd --system --gid ai-trader --home /data ai-trader
+COPY services/tqkq-sidecar/pyproject.toml services/tqkq-sidecar/uv.lock ./
+COPY services/tqkq-sidecar/src ./src
+# The lock pins files.pythonhosted.org download URLs and `uv sync` fetches them directly, which
+# stalls from the CN production host. Export the locked set (same versions and hashes) and install
+# it through the configured index instead; the project itself is installed non-editable on top.
+RUN --mount=type=cache,target=/root/.cache/uv sh -c \
+     '[ -n "$UV_DEFAULT_INDEX" ] || unset UV_DEFAULT_INDEX; \
+      uv venv --no-managed-python /app/.venv && \
+      uv export --frozen --no-dev --no-editable --extra tqkq --no-emit-project -o /tmp/requirements.txt && \
+      uv pip install --python /app/.venv ${UV_DEFAULT_INDEX:+--index-url "$UV_DEFAULT_INDEX"} -r /tmp/requirements.txt && \
+      uv pip install --python /app/.venv --no-deps ${UV_DEFAULT_INDEX:+--index-url "$UV_DEFAULT_INDEX"} . && \
+      rm -f /tmp/requirements.txt'
+ENV PATH="/app/.venv/bin:$PATH"
+
+RUN mkdir -p /data && chown ai-trader:ai-trader /data
+ENV HOME=/data
+ENV PYTHONUNBUFFERED=1
+
+COPY --chmod=755 services/tqkq-sidecar/docker-entrypoint.sh /usr/local/bin/ai-trader-entrypoint
+USER ai-trader
+# The entrypoint only picks the allocator (AI_TRADER_JEMALLOC) and execs the command; compose
+# `command:` overrides CMD for the pool and the paper engine and still runs through it.
+ENTRYPOINT ["/usr/local/bin/ai-trader-entrypoint"]
+CMD ["python", "-m", "tqkq_readonly_sidecar.container_entry"]

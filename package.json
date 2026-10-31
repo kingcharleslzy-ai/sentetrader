@@ -1,0 +1,50 @@
+{
+  "name": "ai-trader",
+  "version": "1.8.1",
+  "private": true,
+  "description": "AI 原生期货单页客户端第一阶段工程",
+  "packageManager": "npm@10.9.7",
+  "workspaces": [
+    "apps/client",
+    "apps/desktop",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:client": "npm --workspace @ai-trader/client run dev",
+    "dev:desktop": "npm --workspace @ai-trader/desktop run dev",
+    "dev:runtime": "AI_TRADER_RELOAD_ENABLED=1 uv run --project services/trader-runtime uvicorn trader_runtime.main:app --reload --reload-dir services/trader-runtime/src --timeout-graceful-shutdown 2 --host 127.0.0.1 --port 8000",
+    "start:runtime": "uv run --project services/trader-runtime uvicorn trader_runtime.main:app --timeout-graceful-shutdown 2 --host 127.0.0.1 --port 8000",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint:web && npm run lint:python",
+    "lint:web": "eslint apps/client packages/ui-events",
+    "lint:python": "cd services/trader-runtime && uv run ruff check . ../tqkq-sidecar ../mt5-bridge && uv run mypy",
+    "build:web": "node scripts/build_web_candidate.mjs",
+    "check:web": "node scripts/check_web_candidate.mjs",
+    "build:desktop": "node scripts/build_desktop_app.mjs",
+    "check:desktop": "npm --workspace @ai-trader/desktop run check",
+    "test": "npm run test:unit && npm run test:runtime && npm run test:sidecar && npm run test:workspace && npm run test:release",
+    "test:unit": "npm --workspace @ai-trader/client run test",
+    "test:runtime": "uv run --project services/trader-runtime pytest services/trader-runtime/tests -n 6 --durations=15 --durations-min=2",
+    "test:sidecar": "uv run --project services/tqkq-sidecar --extra tqkq pytest services/tqkq-sidecar/tests -n 4 --durations=15 --durations-min=2",
+    "test:workspace": "cd workspace && uv run --project ../services/trader-runtime pytest",
+    "test:e2e": "npm --workspace @ai-trader/client run test:e2e",
+    "test:release": "node --test scripts/check_desktop_release.test.mjs scripts/ci_select_checks.test.mjs scripts/sync_public_repo.test.mjs scripts/readback.test.mjs && npm run test:mt5-bridge",
+    "test:mt5-bridge": "uv run --no-project --python 3.12 python -m unittest discover -s services/mt5-bridge/tests",
+    "test:changed": "node scripts/test_changed.mjs",
+    "test:e2e:compose": "npm --workspace @ai-trader/client run test:e2e:compose",
+    "release:desktop:preflight": "node scripts/check_desktop_release.mjs",
+    "release:desktop:update": "node scripts/publish_desktop_update.mjs",
+    "release:all": "node scripts/release_all.mjs",
+    "release:prepare": "node scripts/prepare_release_version.mjs",
+    "generate:workbench-api": "node scripts/generate_workbench_api.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.10.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.12.0",
+    "openapi-typescript": "7.13.0",
+    "typescript-eslint": "8.70.0"
+  }
+}

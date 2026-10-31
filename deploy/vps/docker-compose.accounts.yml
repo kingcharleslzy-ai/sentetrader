@@ -1,0 +1,64 @@
+# 可选覆盖层：第二个交易账户。只在服务器 .env.production 里 AI_TRADER_ACCOUNTS_OVERLAY=1 时由
+# deploy-release.sh 追加（docker compose -f docker-compose.yml -f docker-compose.accounts.yml -f images.yml）；
+# 不追加时基础 compose 与单账户部署逐字节不变。启用步骤见 docs/THREE_PLATFORM_AND_WEB_DEPLOYMENT.md
+# 「启用第二个模拟账户」。第二个 sidecar 与主 sidecar 共享网络命名空间（runtime 经
+# 127.0.0.1:19002 访问它），自身不发布端口，数据卷独立。
+services:
+  tqkq-sidecar-2:
+    build:
+      context: ../..
+      dockerfile: services/tqkq-sidecar/Dockerfile.cloud
+    restart: unless-stopped
+    network_mode: service:tqkq-sidecar
+    environment:
+      AI_TRADER_TQKQ_MODE: tqkq-simulation
+      AI_TRADER_TQKQ_SYMBOLS: ${AI_TRADER_TQKQ_SYMBOLS:-SHFE.au2612,SHFE.rb2610}
+      AI_TRADER_TQKQ_SIDECAR_PORT: "19002"
+      AI_TRADER_READONLY_SIDECAR_TOKEN_FILE: /run/secrets/tqkq_sidecar_token_2
+      AI_TRADER_TQKQ_USERNAME_FILE: /run/secrets/tqkq_username_2
+      AI_TRADER_TQKQ_PASSWORD_FILE: /run/secrets/tqkq_password_2
+      AI_TRADER_JEMALLOC: ${AI_TRADER_SIDECAR_JEMALLOC:-1}  # same switch as tqkq-sidecar
+    secrets:
+      - tqkq_sidecar_token_2
+      - tqkq_username_2
+      - tqkq_password_2
+    volumes:
+      - ai-trader-tqkq-2-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  trader-runtime-blue:
+    depends_on:
+      - tqkq-sidecar
+      - tqkq-sidecar-2
+    environment:
+      AI_TRADER_ACCOUNTS_FILE: /run/secrets/accounts_file
+    secrets:
+      - accounts_file
+
+  trader-runtime-green:
+    depends_on:
+      - tqkq-sidecar
+      - tqkq-sidecar-2
+    environment:
+      AI_TRADER_ACCOUNTS_FILE: /run/secrets/accounts_file
+    secrets:
+      - accounts_file
+
+volumes:
+  ai-trader-tqkq-2-data:
+
+secrets:
+  tqkq_sidecar_token_2:
+    file: ${AI_TRADER_READONLY_SIDECAR_TOKEN_2_FILE:?set sidecar token 2 file}
+  tqkq_username_2:
+    file: ${AI_TRADER_TQKQ_USERNAME_2_FILE:?set TqKq username 2 file}
+  tqkq_password_2:
+    file: ${AI_TRADER_TQKQ_PASSWORD_2_FILE:?set TqKq password 2 file}
+  accounts_file:
+    file: ${AI_TRADER_ACCOUNTS_FILE_HOST:?set accounts file host path}

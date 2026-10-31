@@ -1,0 +1,11 @@
+[Unit]
+Description=Retain AI Trader updates and reclaim idle build storage
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/ai-trader/maintenance/maintain_update_host.py --apply --docker --journal --storage
+ExecStopPost=/usr/bin/python3 /opt/ai-trader/maintenance/maintain_update_host.py --recover-registry
+Nice=15
+IOSchedulingClass=idle
+TimeoutStartSec=600

@@ -1,0 +1,17 @@
+/* The AI's pointer over a surface: theme tokens only, never a click target. */
+.ai-highlight-layer { position: fixed; inset: 0; z-index: 90; pointer-events: none; }
+.ai-highlight { position: fixed; box-sizing: border-box; border: 2px solid var(--accent); border-radius: var(--radius-control); pointer-events: none; }
+.ai-highlight.pulse { animation: ui-ai-thinking 1.2s var(--ease-standard) infinite; outline: 4px solid color-mix(in srgb, var(--accent) 28%, transparent); outline-offset: 0; }
+.ai-highlight.outline { outline: 3px solid color-mix(in srgb, var(--accent) 22%, transparent); outline-offset: 0; }
+.ai-highlight-bubble {
+  position: absolute; width: max-content; max-width: min(320px, 70vw); padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-control); background: var(--primary-bg); color: var(--on-primary);
+  font-size: var(--font-md); line-height: 1.5; white-space: normal; overflow-wrap: anywhere; box-shadow: var(--shadow-2);
+}
+.ai-highlight-bubble.above { bottom: calc(100% + 6px); }
+.ai-highlight-bubble.below { top: calc(100% + 6px); }
+.ai-highlight-bubble.above.start, .ai-highlight-bubble.below.start { left: 0; }
+.ai-highlight-bubble.above.end, .ai-highlight-bubble.below.end { right: 0; }
+.ai-highlight-bubble.left { right: calc(100% + 6px); top: 50%; transform: translateY(-50%); }
+.ai-highlight-bubble.right { left: calc(100% + 6px); top: 50%; transform: translateY(-50%); }
+@media (prefers-reduced-motion: reduce) { .ai-highlight.pulse { animation: none; } }

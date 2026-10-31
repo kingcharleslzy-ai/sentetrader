@@ -1,0 +1,53 @@
+/* 持仓带 under the chart (`positionsBar`): collapsed it is one line of position chips; expanded it
+   slides up the 持仓 / 委托 / 成交 rows (the same rows as the 持仓面板, three at most). */
+.fdw-position-dock { min-width: 0; overflow: hidden; border-top: 1px solid var(--line); background: var(--panel); }
+.fdw-market > .fdw-position-dock { flex: 0 0 auto; display: flex; flex-direction: column; max-height: var(--fdw-dock); }
+.fdw-position-dock [data-unknown] { color: var(--warning); }
+
+/* Collapsed: label · chips · separator · stats · expand. */
+.fdw-position-dock.collapsed { max-height: none; flex-direction: row; align-items: center; gap: var(--space-2); height: 36px; padding: 0 var(--space-1) 0 var(--space-3); font-size: var(--font-md); }
+.fdw-strip-label { flex: none; color: var(--fdw-faint); }
+/* Chips that do not fit wrap onto a hidden second line: a chip is shown whole or not at all. */
+.fdw-strip-chips { display: flex; flex-wrap: wrap; align-items: center; align-content: flex-start; gap: var(--space-4) var(--space-1); height: 24px; min-width: 0; margin: 0; padding: 0; list-style: none; overflow: hidden; }
+.fdw-strip-chips > li { flex: none; }
+.fdw-strip-chips button { display: inline-flex; align-items: center; gap: var(--space-2); height: 24px; padding: 0 var(--space-3) 0 var(--space-2); border: 1px solid var(--line); border-radius: var(--radius-pill); background: var(--fdw-surface-raised); color: var(--fdw-text); font-size: var(--font-md); white-space: nowrap; cursor: pointer; }
+.fdw-strip-chips button:hover { border-color: var(--line-strong); background: var(--fdw-surface-hover); }
+.fdw-strip-chips button > i { width: 3px; height: 12px; border-radius: var(--radius-sm); background: var(--market-up); }
+.fdw-strip-chips button[data-direction="short"] > i { background: var(--market-down); }
+.fdw-strip-chips button > span { color: var(--fdw-muted); }
+.fdw-strip-chips button > b, .fdw-strip-stat b { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-weight: 600; }
+.fdw-strip-chips .positive { color: var(--market-up); }
+.fdw-strip-chips .negative { color: var(--market-down); }
+.fdw-strip-more, .fdw-strip-empty { color: var(--fdw-faint); line-height: 24px; }
+.fdw-strip-sep { flex: none; width: 1px; height: 14px; background: var(--line); }
+.fdw-strip-stat { flex: none; color: var(--fdw-faint); white-space: nowrap; }
+.fdw-strip-stat b { color: var(--fdw-text); }
+.fdw-positions-summary { flex: none; width: 28px; height: 28px; margin-left: auto; display: grid; place-items: center; padding: 0; border: 0; border-radius: var(--radius-control); color: var(--muted); background: transparent; cursor: pointer; }
+.fdw-positions-summary:hover { color: var(--ink); background: var(--soft); }
+.fdw-positions-summary svg { width: 16px; height: 16px; }
+
+/* Expanded: tabs row, then the records; rises from the bottom edge. */
+.fdw-position-dock:not(.collapsed) { box-shadow: var(--shadow-2); animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; }
+.fdw-position-dock > header { height: 38px; flex: none; display: flex; align-items: stretch; justify-content: space-between; padding: 0 var(--space-1) 0 var(--space-3); border-bottom: 1px solid var(--line); }
+.fdw-position-dock > header nav { display: flex; gap: var(--space-4); min-width: 0; overflow: hidden; }
+.fdw-position-dock > header button { position: relative; border: 0; background: transparent; color: var(--muted); font-size: var(--font-md); font-weight: 600; white-space: nowrap; cursor: pointer; }
+.fdw-position-dock > header nav button:hover { color: var(--ink); }
+.fdw-position-dock > header nav button.active { color: var(--ink); }
+.fdw-position-dock > header nav button.active::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; border-radius: var(--radius-sm); background: var(--brand-gradient); }
+.fdw-position-dock > header nav button[data-unknown].active { color: var(--warning); }
+.fdw-position-dock > header > div { flex: none; display: flex; align-items: center; gap: var(--space-1); }
+.fdw-position-dock > header > div > button { height: 26px; padding: 0 var(--space-3); border-radius: var(--radius-control); font-weight: 500; }
+.fdw-position-dock > header > div > button:hover { background: var(--soft); color: var(--ink); }
+.fdw-position-dock > header > div > button[title="持仓面板"] { color: var(--accent); }
+.fdw-position-dock > header > div > button[aria-pressed="true"] { color: var(--ink); background: var(--soft); }
+.fdw-position-dock > header > div > button:last-child { width: 28px; padding: 0; display: grid; place-items: center; }
+.fdw-position-dock > header > div > button:last-child svg { width: 16px; height: 16px; }
+.fdw-market:has(.fdw-position-dock:not(.collapsed)) .ai-floating-area { bottom: calc(var(--fdw-dock) + 34px); }
+
+@container workspace-market (max-width: 960px) {
+  .fdw-position-dock > header nav { gap: var(--space-3); }
+  .fdw-position-dock > header > div > button:first-child:not(:last-child) { display: none; }
+  .fdw-strip-stat[data-testid="positions-market-value"] { display: none; }
+}
+@media (max-width: 760px) { .fdw-shell.dock-open .fdw-position-dock { display: none; } }
+@media (prefers-reduced-motion: reduce) { .fdw-position-dock:not(.collapsed) { animation: none; } }

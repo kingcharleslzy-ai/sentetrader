@@ -1,0 +1,59 @@
+/* 指标选择器 (策略编辑卡第二版, 2026-10-08; picker.html). Theme tokens only; the desktop shows it under its row,
+   the phone inside the condition's bottom sheet (categories as a sliding row of chips). */
+.ip { display: grid; gap: 0; min-width: 0; border: 1px solid var(--line-strong); border-radius: var(--radius-card); background: var(--panel);
+  color: var(--ink); box-shadow: var(--shadow-2); overflow: hidden; font-size: var(--font-md); }
+.ip[data-layout="mobile"] { border: 0; border-radius: 0; box-shadow: none; background: transparent; gap: var(--space-2); overflow: visible; }
+.ip-head { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-3); border-bottom: 1px solid var(--line); background: var(--soft); }
+.ip-head b { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.ip-search { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--line); color: var(--muted); }
+.ip[data-layout="mobile"] .ip-search { padding: 0; border: 0; }
+.ip-search input { flex: 1; min-width: 0; padding: var(--space-1) var(--space-2); border: 1px solid var(--line-strong); border-radius: var(--radius-control);
+  background: var(--soft); color: var(--ink); font: inherit; }
+.ip-search input::placeholder { color: var(--muted); }
+.ip-search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; }
+
+.ip-grid { display: grid; grid-template-columns: minmax(104px, 128px) minmax(0, 1fr); min-height: 0; }
+.ip-cats { display: grid; align-content: start; padding: var(--space-1) 0; border-right: 1px solid var(--line); }
+.ip .ip-cats > button { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-1); padding: var(--space-1) var(--space-3); border: 0;
+  border-left: 2px solid transparent; border-radius: 0; background: transparent; color: var(--muted); font: inherit; text-align: left; cursor: pointer; }
+.ip .ip-cats > button:hover { color: var(--ink); background: var(--soft); }
+.ip .ip-cats > button[aria-pressed="true"] { border-left-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.ip-cats small { color: var(--muted); font: var(--font-xs) var(--font-num); font-variant-numeric: tabular-nums; }
+.ip-chips { display: flex; gap: var(--space-1); overflow-x: auto; padding-bottom: var(--space-0); scrollbar-width: none; }
+.ip .ip-chips > button { flex: none; padding: var(--space-1) var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-pill); background: var(--panel);
+  color: var(--muted); font: inherit; white-space: nowrap; }
+.ip .ip-chips > button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+
+.ip-items { display: grid; align-content: start; max-height: 300px; overflow-y: auto; padding: var(--space-1) 0; }
+.ip[data-layout="mobile"] .ip-items { max-height: none; padding: 0; }
+.ip .ip-items > .ip-item { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); min-height: 32px; padding: var(--space-1) var(--space-3);
+  border: 0; border-radius: 0; background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.ip[data-layout="mobile"] .ip .ip-items > .ip-item { min-height: 44px; padding: var(--space-2) var(--space-0); border-bottom: 1px solid var(--line); }
+.ip .ip-items > .ip-item:hover:not(:disabled), .ip .ip-items > .ip-item:focus-visible { background: var(--surface-hover); outline: none; }
+.ip .ip-items > .ip-item[aria-pressed="true"] { background: var(--accent-soft); }
+.ip .ip-items > .ip-item[aria-pressed="true"] b { color: var(--accent); }
+.ip .ip-items > .ip-item:disabled { cursor: not-allowed; }
+.ip .ip-items > .ip-item:disabled b { color: var(--muted); }
+.ip-item b { font-weight: 500; }
+.ip-item span { flex: none; max-width: 55%; color: var(--muted); text-align: right; overflow-wrap: anywhere; }
+.ip-empty { margin: 0; padding: var(--space-3); color: var(--muted); }
+
+.ip-params { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-3); border-top: 1px solid var(--line); background: var(--soft); }
+.ip[data-layout="mobile"] .ip-params { margin: 0 calc(-1 * var(--space-4)); padding: var(--space-3) var(--space-4); }
+.ip-chosen { font-weight: 600; }
+.ip-none { color: var(--muted); }
+.ip-problem { color: var(--warning); }
+.ip-actions { display: inline-flex; gap: var(--space-2); margin-left: auto; }
+.ip-num input[type="number"] { width: 4.5em; }
+.ip-num select { max-width: 11em; }
+
+/* A condition's 修饰 chips (N 根内发生 · 连续 N 根 · N 根内至少 M 根). */
+.se-card .se-mods { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-1); flex-basis: 100%; padding-left: var(--space-5); }
+.se-card .se-mod { display: inline-flex; align-items: center; gap: var(--space-0); min-height: 24px; padding: 0 var(--space-2); border: 1px dashed var(--line-strong); border-radius: var(--radius-pill);
+  background: transparent; color: var(--muted); font-size: var(--font-md); white-space: nowrap; }
+.se-card .se-mod[data-on] { border-style: solid; border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.se-card .se-mod input { width: 3em; min-width: 0; padding: 0 var(--space-0); border: 0; border-bottom: 1px solid currentColor; background: transparent; color: var(--ink);
+  font: inherit; font-family: var(--font-num); font-variant-numeric: tabular-nums; text-align: center; }
+.se-card .se-mod .se-x { width: 18px; height: 18px; }
+.se-card button.se-mod:disabled { opacity: .55; cursor: not-allowed; }
+.se-card .se-mod-add { color: var(--muted); }

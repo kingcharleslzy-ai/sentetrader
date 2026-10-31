@@ -1,0 +1,13 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "AI Trader main window with notifications and export dialogs",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-start-dragging",
+    "core:webview:allow-set-webview-zoom",
+    "notification:default",
+    "dialog:allow-save"
+  ]
+}

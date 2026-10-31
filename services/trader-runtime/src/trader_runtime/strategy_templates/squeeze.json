@@ -1,0 +1,73 @@
+{
+  "id": "squeeze",
+  "name": "挤压释放",
+  "category": "trend_breakout",
+  "scenario": "波动收窄一段后放大：布林带收进肯特纳通道至少 N 根，放出来的那根顺动量方向入场",
+  "plainSummary": "行情先安静一段（波动越收越窄），等它突然放大的那一根，按价格比一段时间前高还是低决定做多还是做空；之后从持仓后的最高点（空单是最低点）回撤一定幅度就离场。",
+  "level": "进阶", "holding": "会隔夜",
+  "source": {"label": "TradingView LazyBear Squeeze Momentum（布林 20 / 2，肯特纳 20 / 1.5，John Carter TTM Squeeze）", "url": "https://www.tradingview.com/script/nqQ1DT5a-Squeeze-Momentum-Indicator-LazyBear/"},
+  "recommendedTimeframe": 900,
+  "approximations": [
+    "挤压 = 布林带整个收在肯特纳通道之内。两者都以收盘价 20 根简单均线为中轨，上轨在里面时下轨也在里面，所以只比上轨。肯特纳宽度用 Wilder ATR20（原版用真实波幅的 20 根简单均值），数值略有差别。",
+    "原版指标一出现挤压就标记，没有最少根数；这里要求释放前至少连续 5 根（参数“最少挤压根数”）处于挤压，是保守补充（John Carter 原书是否有根数要求未核实）。",
+    "动量是近似：原版用 20 根线性回归（收盘价减去“20 根高低中点与均线的平均”）的正负判断方向；这里用“收盘价高于 / 低于 20 根前”（参数“动量回看”）代替。",
+    "原版是指标，作者建议动量转弱（柱子变色）时离场，没有具体止损；这里出场用 ATR 吊灯追踪止损（持仓后最高 / 最低价回撤 3×ATR22），另设保护止损 3×ATR14。",
+    "按收盘确认：K线收盘判断，下一根开盘成交。"
+  ],
+  "params": [
+    {"key": "length", "label": "通道参考根数（通道周期）", "default": 20, "min": 5, "max": 100, "step": 1, "unit": "根",
+     "targets": ["rules.entryLong.conditions.0.left.period", "rules.entryLong.conditions.0.right.period",
+                 "rules.entryLong.conditions.1.left.period", "rules.entryLong.conditions.1.right.period",
+                 "rules.entryShort.conditions.0.left.period", "rules.entryShort.conditions.0.right.period",
+                 "rules.entryShort.conditions.1.left.period", "rules.entryShort.conditions.1.right.period"],
+     "help": {"what": "布林带和肯特纳通道都用最近多少根K线来算", "up": "通道更平滑，“安静期”的判断更慢", "down": "通道更灵敏，“安静期”的判断更频繁"}},
+    {"key": "bollK", "label": "布林带宽度（布林倍数）", "default": 2, "min": 0.5, "max": 5, "step": 0.1, "unit": "倍标准差",
+     "targets": ["rules.entryLong.conditions.0.left.k", "rules.entryLong.conditions.1.left.k",
+                 "rules.entryShort.conditions.0.left.k", "rules.entryShort.conditions.1.left.k"],
+     "help": {"what": "布林带上下沿离中线多少倍标准差（价格平时的波动幅度）", "up": "布林带更宽，更难收进肯特纳通道里，“安静期”更少", "down": "布林带更窄，更容易出现“安静期”，信号更多"}},
+    {"key": "keltnerK", "label": "肯特纳宽度（肯特纳倍数）", "default": 1.5, "min": 0.5, "max": 5, "step": 0.1, "unit": "×ATR",
+     "targets": ["rules.entryLong.conditions.0.right.k", "rules.entryLong.conditions.1.right.k",
+                 "rules.entryShort.conditions.0.right.k", "rules.entryShort.conditions.1.right.k"],
+     "help": {"what": "肯特纳通道上下沿离中线多少倍平均波动（ATR）", "up": "肯特纳更宽，布林带更容易收进去，“安静期”更多", "down": "肯特纳更窄，更难出现“安静期”，信号更少"}},
+    {"key": "minBars", "label": "最短安静根数（最少挤压根数）", "default": 5, "min": 1, "max": 20, "step": 1, "unit": "根",
+     "targets": ["rules.entryLong.conditions.0.consecutive", "rules.entryShort.conditions.0.consecutive"],
+     "help": {"what": "布林带至少连续多少根收在肯特纳通道里面，才算一段“安静期”", "up": "要安静更久才算数，信号更少", "down": "短暂收窄也算，信号更多"}},
+    {"key": "momentum", "label": "方向回看根数（动量回看）", "default": 20, "min": 1, "max": 20, "step": 1, "unit": "根",
+     "targets": ["rules.entryLong.conditions.2.right.value", "rules.entryShort.conditions.2.right.value"],
+     "help": {"what": "放大的那一根，按收盘价比多少根之前高还是低来决定做多还是做空", "up": "看更长一段的方向", "down": "看更短一段的方向，更灵敏"}},
+    {"key": "chandelier", "label": "离场距离（吊灯倍数）", "default": 3, "min": 0.5, "max": 10, "step": 0.5, "unit": "×ATR22", "targets": ["trailingStop.value"],
+     "help": {"what": "持仓后从最高点（空单是最低点）回撤多少倍平均波动（ATR22）就离场，离场线只收紧不放松", "up": "拿得更久，但回吐的利润更多", "down": "离场更快，但容易被正常回调洗出去"}},
+    {"key": "stopAtr", "label": "保护止损（ATR 倍数）", "default": 3, "min": 0.5, "max": 10, "step": 0.5, "unit": "×ATR14", "targets": ["atrStop.multiple"],
+     "help": {"what": "止损放得离开仓价多远，按最近波动大小自动换算", "up": "不容易被正常波动扫出场，但万一做错单笔亏得更多", "down": "亏损控制得紧，但容易被来回波动打掉"}},
+    {"key": "maxPosition", "label": "每次手数", "default": 1, "min": 1, "max": 20, "step": 1, "unit": "手", "targets": ["maxPosition"],
+     "help": {"what": "每次开仓下多少手", "up": "盈亏都按手数放大，占用的保证金也更多", "down": "盈亏都跟着缩小，更稳妥"}},
+    {"key": "maxLoss", "label": "当日亏损上限", "default": null, "optional": true, "min": 100, "max": 1000000, "step": 100, "unit": "元", "targets": ["maxLoss"],
+     "help": {"what": "留空就不设。填了以后，账户当天的净亏损（已平仓、浮动盈亏和手续费合计）达到这个数，这条策略不再开新仓，止损和离场照常", "up": "允许当天亏得更多才停手", "down": "更早停止开新仓，也可能错过当天后面的机会"}}
+  ],
+  "plan": {
+    "name": "挤压释放",
+    "description": "布林带({length},{bollK}) 收在肯特纳通道({length},{keltnerK}，均线中轨) 之内至少连续 {minBars} 根后，第一根放出来的K线：收盘高于 {momentum} 根前开多，低于则开空（动量为近似）。出场用 ATR 吊灯追踪止损 {chandelier}×ATR22，另有 {stopAtr}×ATR14 保护止损。来源：LazyBear Squeeze Momentum（John Carter TTM Squeeze）。",
+    "direction": "both", "timeframeSeconds": 900, "maxPosition": 1, "maxLoss": null,
+    "stopLossTicks": 20, "takeProfitTicks": null, "cooldownBars": 0, "maxOrdersPerDay": 20,
+    "atrStop": {"multiple": 3, "period": 14},
+    "trailingStop": {"mode": "atr_chandelier", "value": 3, "activateAfter": 0, "atrPeriod": 22},
+    "rules": {
+      "entryLong": {"conditions": [
+        {"label": "此前至少连续 {minBars} 根处于挤压", "left": {"indicator": "boll_up", "period": 20, "k": 2, "timeframe": 900},
+         "operator": "lt", "right": {"indicator": "keltner_up", "period": 20, "k": 1.5, "basis": "ma", "timeframe": 900},
+         "consecutive": 5, "withinBars": 2},
+        {"label": "这根挤压释放", "left": {"indicator": "boll_up", "period": 20, "k": 2, "timeframe": 900},
+         "operator": "gt", "right": {"indicator": "keltner_up", "period": 20, "k": 1.5, "basis": "ma", "timeframe": 900}},
+        {"label": "收盘高于 {momentum} 根前（动量向上）", "left": {"indicator": "close", "timeframe": 900},
+         "operator": "rising", "right": {"indicator": "constant", "value": 20, "timeframe": 900}}]},
+      "entryShort": {"conditions": [
+        {"label": "此前至少连续 {minBars} 根处于挤压", "left": {"indicator": "boll_up", "period": 20, "k": 2, "timeframe": 900},
+         "operator": "lt", "right": {"indicator": "keltner_up", "period": 20, "k": 1.5, "basis": "ma", "timeframe": 900},
+         "consecutive": 5, "withinBars": 2},
+        {"label": "这根挤压释放", "left": {"indicator": "boll_up", "period": 20, "k": 2, "timeframe": 900},
+         "operator": "gt", "right": {"indicator": "keltner_up", "period": 20, "k": 1.5, "basis": "ma", "timeframe": 900}},
+        {"label": "收盘低于 {momentum} 根前（动量向下）", "left": {"indicator": "close", "timeframe": 900},
+         "operator": "falling", "right": {"indicator": "constant", "value": 20, "timeframe": 900}}]}
+    }
+  }
+}

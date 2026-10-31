@@ -1,0 +1,76 @@
+/* Side panels (对话 / 策略 / 新闻 / 下单 / 持仓) share one title bar:
+   icon badge · title over a one-line subtitle · actions on the right (收起 last). */
+.fdw-ai > header, .fdw-order-panel > header {
+  flex: 0 0 auto; min-height: 56px; display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
+  padding: 0 var(--space-3) 0 var(--space-3); border-bottom: 1px solid var(--line); background: var(--panel);
+}
+.fdw-ai > header > div:first-child, .fdw-order-panel > header > div:first-child { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: var(--space-2); }
+.fdw-ai > header > div:first-child > svg, .fdw-order-panel > header > div:first-child > svg {
+  flex: none; width: 30px; height: 30px; padding: var(--space-2); border-radius: var(--radius-control); color: var(--accent); background: var(--accent-soft);
+}
+.fdw-ai > header > div:first-child > .ai-avatar { flex: none; }
+.fdw-ai > header > div:first-child > span:not(.ai-avatar), .fdw-order-panel > header > div > span { min-width: 0; display: flex; flex-direction: column; gap: var(--space-0); }
+.fdw-ai > header strong, .fdw-order-panel > header strong { font-size: var(--font-lg); font-weight: 600; white-space: nowrap; }
+.fdw-ai > header small, .fdw-order-panel > header small { overflow: hidden; color: var(--fdw-faint); font-size: var(--font-sm); text-overflow: ellipsis; white-space: nowrap; }
+.fdw-order-panel > header small.live { color: var(--positive); }
+.fdw-order-panel > header small.blocked { color: var(--warning); }
+.fdw-ai > header > .fdw-ai-safety-stop { width: auto; height: 30px; padding: 0 var(--space-2); border: 1px solid var(--danger); border-radius: var(--radius-control); color: var(--danger); background: var(--danger-soft); font-size: var(--font-md); white-space: nowrap; }
+
+/* Actions: quiet icon buttons; the panel's close button is the same everywhere. */
+.fdw-ai-head-actions { display: flex; align-items: center; gap: var(--space-0); flex: 0 0 auto; }
+.fdw-ai-head-actions > button, .fdw-ai > header > button, .fdw-order-panel > header > button {
+  flex: none; min-width: 30px; height: 30px; display: grid; place-items: center; padding: 0 var(--space-1); border: 0; border-radius: var(--radius-control); color: var(--muted); background: transparent; cursor: pointer;
+}
+.fdw-ai-head-actions > button:hover:not(:disabled), .fdw-ai-head-actions > button:focus-visible,
+.fdw-ai > header > button:hover, .fdw-order-panel > header > button:hover { color: var(--ink); background: var(--surface-hover); }
+.fdw-ai-head-actions > button:disabled { opacity: .45; }
+.fdw-ai-head-actions > button[aria-expanded="true"] { color: var(--accent); background: var(--accent-soft); }
+.fdw-ai-head-actions svg, .fdw-ai > header > button svg, .fdw-order-panel > header > button svg { width: 16px; height: 16px; }
+.fdw-ai-head-actions > button.fdw-strategy-new { width: auto; display: inline-flex; align-items: center; gap: var(--space-1); padding: 0 var(--space-3); margin-right: var(--space-1); color: var(--on-primary); background: var(--primary-bg); font-size: var(--font-md); font-weight: 600; white-space: nowrap; }
+.fdw-ai-head-actions > button.fdw-strategy-new:hover:not(:disabled), .fdw-ai-head-actions > button.fdw-strategy-new[aria-expanded="true"] { color: var(--on-primary); background: var(--primary-bg); filter: brightness(1.08); }
+.fdw-ai-head-actions > button.fdw-strategy-new svg { width: 14px; height: 14px; }
+
+/* Voice call: idle is a green 通话 pill among the header actions; a live call or an error is a
+   full-width bar under the header. */
+.fdw-call-bar { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--line); }
+.fdw-ai-head-actions > .fdw-call-bar { padding: 0; margin-right: var(--space-1); border: 0; }
+.fdw-call-bar > .fdw-call-start, .fdw-call-bar > .fdw-call-end { flex: 1 1 auto; min-height: 36px; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1); padding: 0 var(--space-3); border: 0; border-radius: var(--radius-pill); font-size: var(--font-md); font-weight: 600; white-space: nowrap; cursor: pointer; }
+.fdw-ai-head-actions > .fdw-call-bar > .fdw-call-start { flex: none; min-height: 28px; padding: 0 var(--space-3) 0 var(--space-3); font-size: var(--font-md); }
+.fdw-call-bar > .fdw-call-start { color: var(--on-call-start); background: var(--call-start-bg); box-shadow: var(--shadow-2); }
+.fdw-call-bar > .fdw-call-start:hover:not(:disabled) { filter: brightness(1.06); }
+.fdw-call-bar > .fdw-call-end { flex: 0 0 auto; color: var(--on-call-end); background: var(--call-end-bg); }
+.fdw-call-bar > .fdw-call-start:disabled { opacity: .5; box-shadow: none; }
+.fdw-call-bar svg { width: 15px; height: 15px; }
+.fdw-call-bar > p[role="alert"] { flex: 1 1 100%; margin: 0; color: var(--danger); font-size: var(--font-md); }
+.fdw-ai > .fdw-call-hint { display: block; padding: var(--space-1) var(--space-3); border-bottom: 1px solid var(--line); color: var(--fdw-faint); font-size: var(--font-sm); }
+/* Error: the message, 重试 and ✕ share one row and wrap on a narrow panel. */
+.fdw-call-bar[data-state="error"] > p[role="alert"] { flex: 1 1 160px; }
+.fdw-call-dismiss { flex: none; width: 32px; height: 32px; display: inline-grid; place-items: center; padding: 0; border: 0; border-radius: var(--radius-control); color: var(--muted); background: transparent; cursor: pointer; }
+.fdw-call-dismiss:hover, .fdw-call-dismiss:focus-visible { color: var(--ink); background: var(--soft); }
+.fdw-call-retry { min-height: 32px; padding: 0 var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-pill); color: var(--ink); background: var(--panel); display: inline-flex; align-items: center; gap: var(--space-1); }
+.fdw-call-live { flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: var(--space-2); }
+.fdw-call-state { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: var(--font-md); }
+.fdw-call-time { flex: 0 0 auto; color: var(--ink); font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: var(--font-md); }
+.fdw-call-mute { flex: 0 0 auto; width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 50%; color: var(--ink); background: var(--panel); }
+.fdw-call-mute[aria-pressed="true"] { color: var(--on-primary); background: var(--primary-bg); border-color: transparent; }
+/* The live call's waveform: bars scaled per frame by CallBar (transform only), yours in
+   --wave-me, the AI's in --wave-ai; the speaker label beside it in the accent. */
+.fdw-call-bar[data-state="live"], .fdw-call-bar[data-state="connecting"] { background: linear-gradient(180deg, var(--accent-soft), var(--panel)); }
+.fdw-call-who { flex: 0 0 auto; min-width: 48px; color: var(--accent); font-size: var(--font-md); white-space: nowrap; }
+.fdw-call-wave { flex: 1 1 0; min-width: 32px; height: 28px; display: flex; align-items: center; justify-content: space-between; gap: var(--space-0); color: var(--wave-me); }
+.fdw-call-wave[data-who="ai"] { color: var(--wave-ai); }
+.fdw-call-wave i { flex: 0 1 3px; min-width: 2px; height: 100%; border-radius: var(--radius-sm); background: currentColor; opacity: .85; transform: scaleY(.08); transition: transform var(--dur-1) linear; }
+.fdw-call-wave[data-who="idle"] i { opacity: .45; }
+/* While someone talks the speaker label carries the line; the orb's sentence stays for assistive tech. */
+/* 没有收到麦克风声音: its own row under the live bar, the warning tone (a reason, not an error). */
+.fdw-call-bar > .fdw-call-mic { flex: 1 1 100%; min-width: 0; margin: 0; display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1); color: var(--warning); font-size: var(--font-md); line-height: 1.4; }
+.fdw-call-mic > span { min-width: 0; overflow-wrap: anywhere; }
+.fdw-call-state[data-shadowed] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .fdw-call-wave i { transition: none; } }
+
+/* Opening or switching a panel: a short slide from the rail side. */
+.fdw-side-workbench-layout > * { animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; --enter-transform: translateX(12px); }
+.fdw-shell[data-dock-side="left"] .fdw-side-workbench-layout > * { animation-name: ui-panel-in; --enter-transform: translateX(-12px); }
+
+@media (max-width: 760px) { .fdw-ai > header, .fdw-order-panel > header { min-height: 48px; padding: 0 var(--space-2) 0 var(--space-3); } }
+@media (prefers-reduced-motion: reduce) { .fdw-side-workbench-layout > * { animation: none; } }

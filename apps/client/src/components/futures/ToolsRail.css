@@ -1,0 +1,26 @@
+/* Tools rail: 对话 | 策略 新闻 | 下单 持仓 … 下载 设置 (at the bottom). One panel open at a time;
+   the sliding brand bar (RailIndicator) marks it. Grid placement follows the dock side. */
+.fdw-shell.dock-open[data-dock-side="right"] .fdw-tools-rail { grid-column: 4; }
+.fdw-shell.dock-closed[data-dock-side="right"] .fdw-tools-rail { grid-column: 2; }
+.fdw-shell[data-dock-side="left"] .fdw-tools-rail { grid-column: 1; border-right: 1px solid var(--fdw-line); border-left: 0; }
+
+.fdw-tools-rail { position: relative; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: var(--space-0); padding: var(--space-1) 0; border-left: 1px solid var(--fdw-line); background: var(--fdw-surface); }
+.fdw-tools-rail :is(button, a) { position: relative; width: calc(100% - 10px); height: 48px; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); border: 0; border-radius: var(--radius-card); color: var(--fdw-muted); background: transparent; font-size: var(--font-xs); cursor: pointer; text-decoration: none; }
+.fdw-tools-rail :is(button, a):hover { color: var(--fdw-text); background: var(--fdw-surface-hover); }
+.fdw-tools-rail :is(button, a).active { color: var(--accent); background: var(--accent-soft); }
+.fdw-tools-rail :is(button, a):focus-visible { outline-offset: -3px; }
+.fdw-tools-rail :is(button, a):disabled { cursor: not-allowed; opacity: .45; }
+.fdw-tools-rail :is(button, a) svg { width: 18px; height: 18px; transition: transform var(--dur-2) var(--ease-out); }
+.fdw-tools-rail :is(button, a):hover svg { transform: translateY(-2px); }
+.fdw-tools-rail .fdw-rail-bottom { margin-top: auto; }
+.fdw-rail-sep { flex: none; width: 24px; height: 1px; margin: var(--space-1) 0; background: var(--fdw-line); }
+.fdw-rail-indicator { position: absolute; z-index: 2; left: 0; top: 0; width: 2px; border-radius: var(--radius-sm); background: var(--brand-gradient); box-shadow: var(--shadow-2); pointer-events: none; transition: transform var(--dur-3) var(--ease-out), height var(--dur-2) ease, opacity var(--dur-1) ease; }
+
+@media (max-width: 760px) {
+  .fdw-shell[data-dock-side] .fdw-tools-rail, .fdw-shell.dock-open[data-dock-side] .fdw-tools-rail, .fdw-shell.dock-closed[data-dock-side] .fdw-tools-rail { grid-column: 2; grid-row: 1 / -1; border-right: 0; border-left: 1px solid var(--fdw-line); }
+  .fdw-tools-rail :is(button, a) { height: 44px; min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fdw-rail-indicator, .fdw-tools-rail :is(button, a) svg { transition: none !important; }
+  .fdw-tools-rail :is(button, a):hover svg { transform: none; }
+}

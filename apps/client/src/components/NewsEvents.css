@@ -1,0 +1,101 @@
+/* 新闻改版 (2026-10-07 第六批, approved sample): 今日新闻要点, the tiered events, the folds and the 今晚 line.
+ * Theme tokens only; direction colours follow the market's (红涨绿跌 flips with html[data-updown]), 中性 is
+ * the warning (yellow) pair, 分歧 the accent. Rows are divided by hairlines, not boxed; sections 20px apart. */
+.news-brief { display: grid; gap: var(--space-3); padding: var(--space-3) var(--space-4); border: 1px solid var(--line-strong); border-radius: var(--radius-card); background: var(--soft); color: var(--ink); min-width: 0; }
+.news-brief-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); min-width: 0; }
+.news-brief-head h3 { margin: 0; font-size: var(--font-lg); font-weight: 600; }
+.news-brief-meta { margin-left: auto; color: var(--muted); font-size: var(--font-sm); overflow-wrap: anywhere; }
+.news-net { padding: var(--space-0) var(--space-2); border-radius: var(--radius-sm); font-size: var(--font-md); font-weight: 600; line-height: 20px; }
+:is(.news-net, .news-dir, .news-dot)[data-tone="up"] { --tone: var(--market-up); --tone-soft: var(--market-up-soft); }
+:is(.news-net, .news-dir, .news-dot)[data-tone="down"] { --tone: var(--market-down); --tone-soft: var(--market-down-soft); }
+:is(.news-net, .news-dir, .news-dot)[data-tone="flat"] { --tone: var(--warning); --tone-soft: var(--warning-soft); }
+:is(.news-net, .news-dir, .news-dot)[data-tone="split"] { --tone: var(--accent); --tone-soft: var(--accent-soft); }
+.news-net { color: var(--tone); background: var(--tone-soft); }
+.news-take { margin: 0; font-size: var(--font-lg); line-height: 1.6; color: var(--ink); text-wrap: pretty; overflow-wrap: anywhere; }
+.news-brief-wait { margin: 0; color: var(--muted); font-size: var(--font-md); }
+.news-points { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-2); }
+.news-points > li { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: var(--space-2); font-size: var(--font-md); line-height: 1.6; color: var(--muted); overflow-wrap: anywhere; }
+.news-points b { color: var(--ink); font-weight: 600; }
+.news-dot { width: 8px; height: 8px; margin-top: var(--space-2); border-radius: 50%; background: var(--tone); }
+.news-cite { color: var(--muted); font-size: var(--font-md); }
+.news-watch { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-2); padding-top: var(--space-3); border-top: 1px solid var(--line); color: var(--muted); font-size: var(--font-md); }
+.news-watch b { color: var(--ink); font-weight: 600; }
+
+.news-tonight { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-3); margin: 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-control); background: var(--soft); color: var(--muted); font-size: var(--font-md); line-height: 1.5; }
+.news-tonight b { color: var(--ink); font-weight: 600; }
+
+.news-sec { min-width: 0; }
+.news-sec > h4 { display: flex; align-items: baseline; gap: var(--space-2); margin: 0 0 var(--space-1); color: var(--muted); font-size: var(--font-md); font-weight: 600; letter-spacing: .06em; }
+.news-sec > h4 > span { font-weight: 400; letter-spacing: 0; }
+.news-ev-list { margin: 0; padding: 0; list-style: none; display: grid; }
+.news-ev { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; gap: var(--space-0) var(--space-3); padding: var(--space-3) 0; border-top: 1px solid var(--line); min-width: 0; }
+.news-ev:first-child { border-top: 0; }
+.news-ev > time { padding-top: var(--space-0); color: var(--muted); font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: var(--font-sm); line-height: 20px; white-space: nowrap; }
+.news-ev-hl { min-width: 0; color: var(--ink); font-size: var(--font-lg); font-weight: 600; line-height: 1.5; overflow-wrap: anywhere; }
+.news-ev-why { grid-column: 2; min-width: 0; color: color-mix(in srgb, var(--ink) 82%, var(--panel)); font-size: var(--font-md); line-height: 1.55; overflow-wrap: anywhere; }
+.news-ev-src { grid-column: 2; min-width: 0; color: var(--muted); font-size: var(--font-md); line-height: 1.6; overflow-wrap: anywhere; }
+.news-ev:is([data-tier="other"], [data-tier="minor"]) { padding: var(--space-2) 0; }
+.news-ev:is([data-tier="other"], [data-tier="minor"]) .news-ev-hl { font-size: var(--font-md); font-weight: 400; color: color-mix(in srgb, var(--ink) 88%, var(--panel)); }
+.news-ev .news-ev-hl a { color: inherit; text-decoration: none; }
+.news-ev-hl a:hover { text-decoration: underline; }
+.news-ev :is(.news-ev-src, .news-ev-more) a { color: var(--accent); text-decoration: none; }
+.news-ev :is(.news-ev-src, .news-ev-more) a:hover { text-decoration: underline; }
+:where(.news-ev) :is(.news-ev-open, .news-ev-count, .news-ev-orig-open) { display: inline; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--accent); font: inherit; font-size: var(--font-md); font-weight: 400; cursor: pointer; }
+:where(.news-ev) .news-ev-count { margin-left: var(--space-1); color: var(--muted); }
+:is(.news-ev-open, .news-ev-count, .news-ev-orig-open):hover { text-decoration: underline; }
+/* The folded-original toggle follows the label font preference like the text beside it. */
+.news-ev .news-ev-orig-open { font-size: var(--font-md); }
+.news-dir { display: inline-flex; align-items: center; gap: var(--space-1); padding-top: var(--space-0); color: var(--tone); font-size: var(--font-md); line-height: 20px; white-space: nowrap; }
+.news-bars { display: inline-flex; gap: var(--space-0); }
+.news-bars > i { width: 4px; height: 10px; border-radius: var(--radius-sm); background: var(--line-strong); }
+.news-bars > i[data-on] { background: currentColor; }
+.news-ev-more { grid-column: 2 / -1; display: grid; gap: var(--space-1); margin-top: var(--space-1); min-width: 0; }
+.news-ev-more > p { margin: 0; color: var(--muted); font-size: var(--font-md); }
+.news-reports { margin: 0; padding: 0; list-style: none; display: grid; }
+.news-reports > li { display: flex; gap: var(--space-2); align-items: baseline; padding: var(--space-1) 0; border-top: 1px dashed var(--line); color: var(--muted); font-size: var(--font-md); line-height: 1.5; }
+.news-reports > li:first-child { border-top: 0; }
+.news-reports time { flex: none; font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.news-reports > li > span { flex: 1; min-width: 0; color: var(--ink); overflow-wrap: anywhere; }
+.news-reports a { flex: none; }
+/* The folded original English title of a translated report, under its Chinese headline. */
+.news-ev-orig { display: block; margin-top: var(--space-1); color: var(--muted); font-size: var(--font-md); line-height: 18px; overflow-wrap: anywhere; }
+/* An exchange notice's 交易所 badge: the spacing scale and the label font token, so the pill
+ * follows the user's large-font preference like the folded original beside it. */
+.news-ev-tag { display: inline-block; margin-left: var(--space-1); padding: 0 var(--space-1); border: 1px solid var(--line); border-radius: var(--radius-pill); color: var(--muted); font-size: var(--font-md); line-height: 18px; vertical-align: 1px; }
+
+.news-fold { display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-3); border: 1px dashed var(--line-strong); border-radius: var(--radius-control); color: var(--muted); font-size: var(--font-md); line-height: 1.5; }
+.news-fold-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); }
+.news-fold-row > span { flex: 1 1 16em; min-width: 0; overflow-wrap: anywhere; }
+.news-fold-row b { color: var(--ink); font-weight: 600; }
+:where(.news-fold) .news-fold-open { margin-left: auto; padding: 0 var(--space-1); border: 0; border-radius: var(--radius-control); background: transparent; color: var(--accent); font: inherit; font-size: var(--font-md); cursor: pointer; }
+.news-fold-open:hover { text-decoration: underline; }
+
+/* Times with a date (an item from yesterday, a 资讯 report) get a wider column on every row alike. */
+:is(.flash-stack[data-older], .news-events) .news-ev { grid-template-columns: 11ch minmax(0, 1fr) auto; }
+.news-events { display: grid; gap: var(--space-4); }
+
+/* Phone: time and headline, the direction under the headline. */
+.fdm-section .news-ev { grid-template-columns: 40px minmax(0, 1fr); }
+.fdm-section .news-ev > .news-dir { grid-column: 2; padding-top: 0; }
+.fdm-section .news-ev > .news-ev-side { grid-column: 2; justify-self: start; flex-direction: row-reverse; }
+.fdm-section .news-brief { padding: var(--space-3); }
+.fdm-section .news-take { font-size: var(--font-md); }
+
+/* 多 AI 研讨 (2026-10-11): a row's products with their live change, the 已研讨 tag, and 研讨 on 重要 rows —
+   shown on hover / keyboard focus with a mouse, always on touch screens. */
+.news-ev-tags { grid-column: 2 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: var(--space-1); min-width: 0; }
+:where(.news-ev) .news-ev-chip { display: inline-flex; align-items: center; gap: var(--space-1); min-height: 20px; padding: 0 var(--space-2); border: 1px solid var(--line);
+  border-radius: var(--radius-sm); background: var(--panel); color: var(--muted); font: inherit; font-size: var(--font-md); line-height: 18px; cursor: default; }
+:where(.news-ev) button.news-ev-chip { cursor: pointer; }
+:where(.news-ev) button.news-ev-chip:hover { border-color: var(--accent); color: var(--ink); }
+.news-ev-change { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.news-ev-change[data-tone="up"] { color: var(--market-up); }
+.news-ev-change[data-tone="down"] { color: var(--market-down); }
+:where(.news-ev) .news-ev-debated { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); background: var(--accent-soft); color: var(--accent); }
+.news-ev-side { display: inline-flex; align-items: center; gap: var(--space-2); }
+:where(.news-ev) .news-ev-debate { min-height: 24px; margin-block: calc(var(--space-1) * -0.5); padding: 0 var(--space-2); font-size: var(--font-md); }
+@media (hover: hover) and (pointer: fine) {
+  .news-ev[data-debatable] .news-ev-debate { opacity: 0; }
+  .news-ev[data-debatable]:is(:hover, :focus-within) .news-ev-debate { opacity: 1; }
+  .news-ev[data-debatable]:hover { background: var(--soft); }
+}

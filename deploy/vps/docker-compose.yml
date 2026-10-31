@@ -1,0 +1,306 @@
+# Blue-green Runtime slots: trader-runtime-blue (host 127.0.0.1:18000 → netns 8000) and
+# trader-runtime-green (127.0.0.1:18001 → netns 8001). deploy-release.sh starts the idle slot,
+# gates on its /healthz commit, switches the nginx upstream include, then stops the old slot —
+# the only service stopped at deploy time, so the shared sidecar netns and its subscribers
+# (tqkq-sidecar-2, tqkq-pool) keep running. Both slots share one image, one data volume and
+# one environment; the instance lease keeps exactly one of them running the ordering loops.
+x-trader-runtime-slot: &trader-runtime-slot
+  build:
+    context: ../..
+    dockerfile: services/trader-runtime/Dockerfile.cloud
+  restart: unless-stopped
+  depends_on:
+    - tqkq-sidecar
+  network_mode: service:tqkq-sidecar
+  volumes:
+    - ai-trader-cloud-data:/data
+  environment:
+    # 2026-10-26: trading-session bursts left ~95% of the RSS growth in glibc's per-thread arenas, not in live
+    # Python objects (tracemalloc); two arenas let freed memory be reused instead of ratcheting until swap.
+    MALLOC_ARENA_MAX: "2"
+    AI_TRADER_AUTH_MODE: owner-password
+    AI_TRADER_OWNER_USERNAME: ${AI_TRADER_OWNER_USERNAME:?set the owner username}
+    AI_TRADER_OWNER_PASSWORD_HASH_FILE: /run/secrets/owner_password_hash
+    AI_TRADER_OWNER_SESSION_SECRET_FILE: /run/secrets/owner_session_secret
+    AI_TRADER_OWNER_PROFILE_ID: ${AI_TRADER_OWNER_PROFILE_ID:-owner-default}
+    AI_TRADER_ALLOWED_ORIGINS: ${AI_TRADER_ALLOWED_ORIGINS:?set the exact web origin}
+    AI_TRADER_SECURE_COOKIES: "1"
+    AI_TRADER_BUILD_SHA: ${AI_TRADER_BUILD_SHA:?set the deployed git commit}
+    AI_TRADER_AGENT_MODE: ${AI_TRADER_AGENT_MODE:-fake}
+    AI_TRADER_AGENT_PROVIDER: ${AI_TRADER_AGENT_PROVIDER:-deepseek}
+    AI_TRADER_AGENT_MODEL: ${AI_TRADER_AGENT_MODEL:-deepseek-flash}
+    DEEPSEEK_API_KEY_FILE: /run/secrets/deepseek_api_key
+    ZHIPU_API_KEY_FILE: /run/secrets/zhipu_api_key
+    # Kimi Code: member conversations, debate judge and bear fallback.
+    MOONSHOT_API_KEY_FILE: /run/secrets/moonshot_api_key
+    AI_TRADER_KIMI_BASE_URL: ${AI_TRADER_KIMI_BASE_URL:-}
+    AI_TRADER_KIMI_MODEL: ${AI_TRADER_KIMI_MODEL:-}
+    FRED_API_KEY_FILE: /run/secrets/fred_api_key
+    EIA_API_KEY_FILE: /run/secrets/eia_api_key
+    # 快讯 from the self-hosted RSSHub (金十 / 华尔街见闻 / 第一财经 / 隆众资讯); empty skips them.
+    # 2026-10-09 the RSSHub itself moved to the home NAS: the `rsshub-tunnel` relay below forwards
+    # this container address to the NAS's reverse SSH tunnel (host loopback 127.0.0.1:11200), and the
+    # local container is the fallback behind the `local-rsshub` profile — set
+    # RSSHUB_URL=http://rsshub:1200 plus AI_TRADER_LOCAL_RSSHUB=1 in .env.production to go back.
+    RSSHUB_URL: ${RSSHUB_URL-http://172.17.0.1:11200}
+    # News screening (news_screen.py): model calls per Beijing day; over it the feeds fall back to keywords.
+    AI_TRADER_NEWS_SCREEN_DAILY_CALLS: ${AI_TRADER_NEWS_SCREEN_DAILY_CALLS:-300}
+    # Research / news / flash limits (docs: THREE_PLATFORM_AND_WEB_DEPLOYMENT.md). Counts carry the code's
+    # own default here because the code reads an empty value as 0 (off); the models fall back through the
+    # same chain as the code (news_* → NEWS_SCREEN → RESEARCH_DESK → deepseek-flash).
+    AI_TRADER_RESEARCH_DESK_DAILY_CALLS: ${AI_TRADER_RESEARCH_DESK_DAILY_CALLS:-200}
+    # 外盘数据源顺序（foreign_market.py，逗号分隔；空＝默认 sina,kqd；可选 sina、mt5、kqd）
+    AI_TRADER_FOREIGN_SOURCES: ${AI_TRADER_FOREIGN_SOURCES:-}
+    # MT5 只读行情桥（4090，经反向隧道到宿主回环 11210，容器经下面的 mt5-tunnel 中继读
+    # http://172.17.0.1:11210）；空地址或空令牌文件＝不可用，外盘按顺序用下一个源。
+    AI_TRADER_MT5_BRIDGE_URL: ${AI_TRADER_MT5_BRIDGE_URL:-}
+    AI_TRADER_MT5_BRIDGE_TOKEN_FILE: /run/secrets/mt5_bridge_token
+    AI_TRADER_RESEARCH_DESK_MODEL: ${AI_TRADER_RESEARCH_DESK_MODEL:-deepseek-flash}
+    AI_TRADER_NEWS_SCREEN_MODEL: ${AI_TRADER_NEWS_SCREEN_MODEL:-${AI_TRADER_RESEARCH_DESK_MODEL:-deepseek-flash}}
+    AI_TRADER_NEWS_TRANSLATE_MODEL: ${AI_TRADER_NEWS_TRANSLATE_MODEL:-${AI_TRADER_NEWS_SCREEN_MODEL:-${AI_TRADER_RESEARCH_DESK_MODEL:-deepseek-flash}}}
+    AI_TRADER_NEWS_TRANSLATE_DAILY_CALLS: ${AI_TRADER_NEWS_TRANSLATE_DAILY_CALLS:-100}
+    AI_TRADER_NEWS_ANALYST_MODEL: ${AI_TRADER_NEWS_ANALYST_MODEL:-${AI_TRADER_RESEARCH_DESK_MODEL:-deepseek-flash}}
+    AI_TRADER_NEWS_ANALYST_DAILY_CALLS: ${AI_TRADER_NEWS_ANALYST_DAILY_CALLS:-16}
+    AI_TRADER_FLASH_MEDIA_RETAIN_HOURS: ${AI_TRADER_FLASH_MEDIA_RETAIN_HOURS:-72}
+    AI_TRADER_FLASH_OFFICIAL_RETAIN_DAYS: ${AI_TRADER_FLASH_OFFICIAL_RETAIN_DAYS:-30}
+    AI_TRADER_FLASH_OFFICIAL_MAX_ITEMS: ${AI_TRADER_FLASH_OFFICIAL_MAX_ITEMS:-3000}
+    # 多 AI 研讨 (research_debate.py): each role's model; empty falls back to the defaults (多方 deepseek-flash,
+    # 空方 glm-5.3-flash, 裁判 Kimi K3.1 Pro); leave overrides empty for defaults.
+    AI_TRADER_DEBATE_BULL_MODEL: ${AI_TRADER_DEBATE_BULL_MODEL:-}
+    AI_TRADER_DEBATE_BEAR_MODEL: ${AI_TRADER_DEBATE_BEAR_MODEL:-}
+    AI_TRADER_DEBATE_JUDGE_MODEL: ${AI_TRADER_DEBATE_JUDGE_MODEL:-}
+    AI_TRADER_DEBATE_BEAR_FALLBACK: ${AI_TRADER_DEBATE_BEAR_FALLBACK:-}
+    AI_TRADER_DEBATE_DAILY_RUNS: ${AI_TRADER_DEBATE_DAILY_RUNS:-30}
+    AI_TRADER_REMINDER_RETAIN_DAYS: ${AI_TRADER_REMINDER_RETAIN_DAYS:-30}
+    AI_TRADER_DEBATE_CONCURRENCY: ${AI_TRADER_DEBATE_CONCURRENCY:-1}
+    # CFTC refuses mainland IPs; socks5h://172.17.0.1:1080 is the host's ai-trader-egress tunnel (CFTC only).
+    AI_TRADER_CFTC_PROXY: ${AI_TRADER_CFTC_PROXY:-}
+    AI_TRADER_VOICE_REALTIME_KEY_FILE: /run/secrets/voice_realtime_key
+    # 语音前台直接查询 (voice_front.py): empty = off; "all"; or comma-separated user ids.
+    AI_TRADER_VOICE_FRONT_QUERY: ${AI_TRADER_VOICE_FRONT_QUERY:-}
+    # 语音前台下单类直接出卡 (voice_front.py, needs the query switch too): same values.
+    AI_TRADER_VOICE_FRONT_ACTION: ${AI_TRADER_VOICE_FRONT_ACTION:-}
+    # 语音下单念句时机 (voice_realtime.py): direct = 卡片一出 Runtime 就念 (default); turn = 等豆包同轮替换.
+    AI_TRADER_VOICE_ACTION_SPEAK: ${AI_TRADER_VOICE_ACTION_SPEAK:-direct}
+    AI_TRADER_AGENT_REASONING_EFFORT: ${AI_TRADER_AGENT_REASONING_EFFORT:-low}
+    AI_TRADER_REGISTRATION_ENABLED: ${AI_TRADER_REGISTRATION_ENABLED:-0}
+    # M1b (auth.py): 0 关闭快期首次登录的邀请码门槛.
+    AI_TRADER_TQKQ_LOGIN_INVITE: ${AI_TRADER_TQKQ_LOGIN_INVITE:-1}
+    AI_TRADER_GUEST_ENABLED: ${AI_TRADER_GUEST_ENABLED:-0}
+    AI_TRADER_GUEST_MARKET_ACCOUNT_ID: ${AI_TRADER_GUEST_MARKET_ACCOUNT_ID:-}
+    AI_TRADER_SHARED_MARKET_ACCOUNT_ID: ${AI_TRADER_SHARED_MARKET_ACCOUNT_ID:-}
+    AI_TRADER_SHARED_MARKET_ACCOUNT_IDS: ${AI_TRADER_SHARED_MARKET_ACCOUNT_IDS:-}
+    # 新浪备用行情 (shared_market.py): empty = 代码默认 (真实数据模式开, fake/回放关); off|sina 覆盖.
+    AI_TRADER_MARKET_BACKUP: ${AI_TRADER_MARKET_BACKUP:-}
+    AI_TRADER_DAILY_TOKEN_LIMIT: ${AI_TRADER_DAILY_TOKEN_LIMIT:-200000000}
+    AI_TRADER_DATA_MODE: tqkq-sidecar
+    AI_TRADER_READONLY_SIDECAR_URL: http://127.0.0.1:19001
+    AI_TRADER_READONLY_SIDECAR_TOKEN_FILE: /run/secrets/tqkq_sidecar_token
+    # M1b: the static main account's TqKq username — same file the sidecar logs
+    # in with; a login naming it answers use_owner_login instead of binding it.
+    AI_TRADER_STATIC_TQKQ_USERNAME_FILE: /run/secrets/tqkq_username
+    AI_TRADER_SIMULATION_TRADING: "1"
+    # 回测并发 (backtest_settings.py, one entry for the rule backtest queue + worker pool and the AI
+    # official backtest): running at once overall / per user, queue wait before 429, worker processes
+    # (default = the overall limit). Empty or invalid falls back to the default; never 0.
+    AI_TRADER_BACKTEST_GLOBAL_LIMIT: ${AI_TRADER_BACKTEST_GLOBAL_LIMIT:-2}
+    AI_TRADER_BACKTEST_USER_LIMIT: ${AI_TRADER_BACKTEST_USER_LIMIT:-1}
+    AI_TRADER_BACKTEST_QUEUE_WAIT_SECONDS: ${AI_TRADER_BACKTEST_QUEUE_WAIT_SECONDS:-60}
+    AI_TRADER_BACKTEST_WORKERS: ${AI_TRADER_BACKTEST_WORKERS:-}
+    AI_TRADER_BACKTEST_GLOBAL_QUEUE_LIMIT: ${AI_TRADER_BACKTEST_GLOBAL_QUEUE_LIMIT:-32}
+    AI_TRADER_BACKTEST_USER_QUEUE_LIMIT: ${AI_TRADER_BACKTEST_USER_QUEUE_LIMIT:-4}
+    AI_TRADER_BACKTEST_TIMEOUT_SECONDS: ${AI_TRADER_BACKTEST_TIMEOUT_SECONDS:-30}
+    # 后台「服务器」: the infra console metrics read token (an empty file leaves the page unconfigured).
+    AI_TRADER_INFRA_CONSOLE_URL: ${AI_TRADER_INFRA_CONSOLE_URL:-}
+    AI_TRADER_INFRA_HOSTS: ${AI_TRADER_INFRA_HOSTS:-}
+    AI_TRADER_INFRA_CONSOLE_TOKEN_FILE: /run/secrets/infra_console_token
+    # 锁屏推送: the VAPID private key (PEM, P-256; an empty file leaves push "not configured").
+    AI_TRADER_WEBPUSH_VAPID_PRIVATE_KEY_FILE: /run/secrets/webpush_vapid_private_key
+    # RUM (rum.py): 1 on; sample rate 0–1 per page session.
+    AI_TRADER_RUM_ENABLED: ${AI_TRADER_RUM_ENABLED:-1}
+    AI_TRADER_RUM_SAMPLE_RATE: ${AI_TRADER_RUM_SAMPLE_RATE:-1}
+  secrets:
+    - owner_password_hash
+    - owner_session_secret
+    - deepseek_api_key
+    - zhipu_api_key
+    - moonshot_api_key
+    - fred_api_key
+    - eia_api_key
+    - voice_realtime_key
+    - tqkq_sidecar_token
+    - tqkq_username
+    - mt5_bridge_token
+    - infra_console_token
+    - webpush_vapid_private_key
+  read_only: true
+  tmpfs:
+    - /tmp:size=64m,mode=1777
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+
+services:
+  tqkq-sidecar:
+    build:
+      context: ../..
+      dockerfile: services/tqkq-sidecar/Dockerfile.cloud
+    restart: unless-stopped
+    environment:
+      AI_TRADER_TQKQ_MODE: tqkq-simulation
+      AI_TRADER_TQKQ_SYMBOLS: ${AI_TRADER_TQKQ_SYMBOLS:-SHFE.au2612,SHFE.rb2610}
+      AI_TRADER_READONLY_SIDECAR_TOKEN_FILE: /run/secrets/tqkq_sidecar_token
+      AI_TRADER_TQKQ_USERNAME_FILE: /run/secrets/tqkq_username
+      AI_TRADER_TQKQ_PASSWORD_FILE: /run/secrets/tqkq_password
+      # jemalloc switch (services/tqkq-sidecar/docker-entrypoint.sh, 2026-10-13): 1 = jemalloc with
+      # background purge, 0 = glibc malloc as before. Rolled out service by service — the pool
+      # first, second stage (2026-10-14) on here; AI_TRADER_SIDECAR_JEMALLOC=0 in .env.production
+      # switches it back at the next deploy of a different SHA (a change recreates the sidecar and
+      # with it every container in its network namespace).
+      AI_TRADER_JEMALLOC: ${AI_TRADER_SIDECAR_JEMALLOC:-1}
+    secrets:
+      - tqkq_sidecar_token
+      - tqkq_username
+      - tqkq_password
+    volumes:
+      - ai-trader-tqkq-data:/data
+    # It also publishes the host ports of both Runtime slots; its own server stays on netns port 19001.
+    ports:
+      - "127.0.0.1:${AI_TRADER_RUNTIME_PORT:-18000}:8000"
+      - "127.0.0.1:${AI_TRADER_RUNTIME_GREEN_PORT:-18001}:8001"
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  trader-runtime-blue:
+    <<: *trader-runtime-slot
+    # The graceful cap keeps docker stop's 10 s window enough for the lifespan
+    # shutdown that releases the instance lease (SSE readers would otherwise
+    # hold the server open and the next slot would wait out the stale window).
+    command: ["uvicorn", "trader_runtime.main:app", "--host", "0.0.0.0", "--port", "8000",
+              "--proxy-headers", "--forwarded-allow-ips=*", "--timeout-graceful-shutdown", "5"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:8000/healthz')); assert d['status']=='ok' and d['liveTrading']=='disabled'"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 15s
+
+  trader-runtime-green:
+    <<: *trader-runtime-slot
+    command: ["uvicorn", "trader_runtime.main:app", "--host", "0.0.0.0", "--port", "8001",
+              "--proxy-headers", "--forwarded-allow-ips=*", "--timeout-graceful-shutdown", "5"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:8001/healthz')); assert d['status']=='ok' and d['liveTrading']=='disabled'"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 15s
+
+  # Forwarder between the containers and the NAS RSSHub's reverse SSH tunnel (2026-10-09). The
+  # tunnel's sshd listener sits on the production host's loopback (127.0.0.1:11200, the only port
+  # the restricted tunnel key may open), which a container cannot reach directly; this relay runs in
+  # the host network namespace, binds the docker0 IP (172.17.0.1) the containers route to and dials
+  # loopback — the same pattern as the CFTC egress SOCKS. UFW needs one rule at cutover
+  # (172.16.0.0/12 → 172.17.0.1:11200). Not part of the blue-green chain; deploy-release.sh brings
+  # it up with the release. With the tunnel down connections fail fast and the Runtime's flash feed
+  # just lacks the RSSHub sources.
+  rsshub-tunnel:
+    image: alpine/socat:latest@sha256:82ad20f6f6e29b91ff33b6662d24063522b1378f08fd8569cd3ab412cac13f50
+    network_mode: host
+    command: ["TCP-LISTEN:11200,bind=172.17.0.1,fork,reuseaddr,keepalive", "TCP:127.0.0.1:11200"]
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  # Same relay for the MT5 read-only quote bridge (2026-10-18, #976): the 4090's reverse SSH tunnel
+  # listens on host loopback 127.0.0.1:11210 (the only port its restricted key may open); this binds
+  # 172.17.0.1:11210 for the Runtime (AI_TRADER_MT5_BRIDGE_URL). UFW: 172.16.0.0/12 → 172.17.0.1:11210.
+  # Tunnel or bridge down: connections fail fast and the 外盘 rows come from the next source.
+  mt5-tunnel:
+    image: alpine/socat:latest@sha256:82ad20f6f6e29b91ff33b6662d24063522b1378f08fd8569cd3ab412cac13f50
+    network_mode: host
+    command: ["TCP-LISTEN:11210,bind=172.17.0.1,fork,reuseaddr,keepalive", "TCP:127.0.0.1:11210"]
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  # Self-hosted RSSHub (AGPL, the official image run as a separate service — none of its code is in
+  # this repository): the Runtime reads a few news routes from it. Default network only, no published
+  # port (the Runtime reaches it as rsshub:1200 through the sidecar netns); in-memory cache, no redis,
+  # no browser. Fallback since 2026-10-09 (the primary RSSHub runs on the home NAS behind
+  # rsshub-tunnel): disabled unless AI_TRADER_LOCAL_RSSHUB=1 in .env.production turns the
+  # local-rsshub profile on. Not part of the blue-green chain: deploy-release.sh brings it up after
+  # the switch and removes the container when the profile is off.
+  rsshub:
+    profiles: ["local-rsshub"]
+    image: diygod/rsshub:2026-10-06@sha256:9702431d8d8cb8e3bf08a0fa3275ec05343c0ec65b8d15c5c772f7ba541fae74
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      CACHE_TYPE: memory
+      CACHE_EXPIRE: "300"
+      CACHE_CONTENT_EXPIRE: "3600"
+      NO_LOGFILES: "true"
+      LOGGER_LEVEL: info
+    mem_limit: 384m
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:1200/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+volumes:
+  ai-trader-cloud-data:
+  ai-trader-tqkq-data:
+
+secrets:
+  owner_password_hash:
+    file: ${AI_TRADER_OWNER_PASSWORD_HASH_FILE:?set owner password hash file}
+  owner_session_secret:
+    file: ${AI_TRADER_OWNER_SESSION_SECRET_FILE:?set owner session secret file}
+  deepseek_api_key:
+    file: ${AI_TRADER_DEEPSEEK_API_KEY_FILE:-${DEEPSEEK_API_KEY_FILE:-/dev/null}}
+  zhipu_api_key:
+    file: ${AI_TRADER_ZHIPU_API_KEY_FILE:-/dev/null}
+  moonshot_api_key:
+    file: ${AI_TRADER_MOONSHOT_API_KEY_FILE:-/dev/null}
+  # Research desk official data; an empty file just leaves FRED/EIA out.
+  fred_api_key:
+    file: ${AI_TRADER_FRED_API_KEY_FILE:-/dev/null}
+  eia_api_key:
+    file: ${AI_TRADER_EIA_API_KEY_FILE:-/dev/null}
+  voice_realtime_key:
+    file: ${AI_TRADER_VOICE_REALTIME_KEY_FILE:-/dev/null}
+  infra_console_token:
+    file: ${AI_TRADER_INFRA_CONSOLE_TOKEN_FILE:-/dev/null}
+  webpush_vapid_private_key:
+    file: ${AI_TRADER_WEBPUSH_VAPID_PRIVATE_KEY_FILE:-/dev/null}
+  # MT5 bridge Bearer token (host file /opt/ai-trader/secrets/mt5-bridge-token); /dev/null = MT5 source off.
+  mt5_bridge_token:
+    file: ${AI_TRADER_MT5_BRIDGE_TOKEN_FILE:-/dev/null}
+  tqkq_sidecar_token:
+    file: ${AI_TRADER_READONLY_SIDECAR_TOKEN_FILE:?set sidecar token file}
+  tqkq_username:
+    file: ${AI_TRADER_TQKQ_USERNAME_FILE:?set TqKq username file}
+  tqkq_password:
+    file: ${AI_TRADER_TQKQ_PASSWORD_FILE:?set TqKq password file}

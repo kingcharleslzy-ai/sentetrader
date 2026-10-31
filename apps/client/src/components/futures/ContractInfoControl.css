@@ -1,0 +1,77 @@
+/* 合约信息卡 (2026-10-02): the contract head's delivery badge and ⓘ, the popover's four blocks,
+   and the delivery chips the position rows, the open-mode ticket and the drawer's month rows reuse.
+   The popover chrome is ChartPopover's (.fdw-ind-popover); the blocks are SectionCard's. Colors
+   come from the --warning / --danger status pairs of theme.css, never a local palette. */
+
+.fdw-contract-marks { display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
+
+/* The badge in the contract head: amber while the 平仓 deadline still has trading days left,
+   red from the last three days or inside the delivery month. Opens the same card as the ⓘ. */
+.fdw-delivery-badge {
+  height: 22px;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-xs);
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.fdw-delivery-badge[data-level="warning"] { color: var(--warning); background: var(--warning-soft); }
+.fdw-delivery-badge[data-level="danger"] { color: var(--danger); background: var(--danger-soft); }
+.fdw-delivery-badge:hover { outline: 1px solid color-mix(in srgb, currentColor 35%, transparent); outline-offset: -1px; }
+
+.fdw-contract-info-button {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  color: var(--fdw-muted);
+  background: var(--fdw-surface-raised);
+  cursor: pointer;
+}
+.fdw-contract-info-button svg { width: 13px; height: 13px; }
+.fdw-contract-info-button:hover { color: var(--fdw-text); border-color: var(--line-strong); }
+
+/* The card body: a stack of SectionCards, the reading-surface pattern. */
+.fdw-contract-info-card { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+
+/* 时间 block: one line per session, the label fixed and the spans wrapping (跨零点段带“次日”). */
+.fdw-contract-schedule { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-3) var(--space-4) var(--space-3); }
+.fdw-contract-schedule p { display: flex; align-items: baseline; gap: var(--space-2); margin: 0; min-width: 0; }
+.fdw-contract-schedule b { flex: none; color: var(--muted); font-size: var(--font-md); font-weight: 600; }
+.fdw-contract-schedule span { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: var(--font-md); line-height: 1.5; overflow-wrap: anywhere; }
+.fdw-contract-schedule-empty { margin: 0; padding: var(--space-3) var(--space-4) var(--space-3); color: var(--muted); font-size: var(--font-md); }
+
+/* 交割 block's reminder line: the same level colors as the badge. */
+.fdw-contract-delivery-line { margin: 0; padding: var(--space-2) var(--space-4) var(--space-3); font-size: var(--font-md); line-height: 1.5; }
+.fdw-contract-delivery-line[data-level="warning"] { color: var(--warning); }
+.fdw-contract-delivery-line[data-level="danger"] { color: var(--danger); }
+
+/* The shared delivery chip: the position rows' meta line and the drawer's month rows (an <i>,
+   so font-style resets here). Same wording as the head badge (deliveryBadgeText). */
+.fdw-delivery-chip {
+  display: inline-block;
+  padding: var(--space-0) var(--space-1);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-md);
+  font-style: normal;
+  font-weight: 600;
+  line-height: 16px;
+  white-space: nowrap;
+}
+.fdw-delivery-chip[data-level="warning"] { color: var(--warning); background: var(--warning-soft); }
+.fdw-delivery-chip[data-level="danger"] { color: var(--danger); background: var(--danger-soft); }
+
+/* The open-mode ticket's one reminder line: visible, never disabling anything. */
+.fdw-ticket-delivery { margin: var(--space-0) 0 0; font-size: var(--font-md); line-height: 1.5; }
+.fdw-ticket-delivery[data-level="warning"] { color: var(--warning); }
+.fdw-ticket-delivery[data-level="danger"] { color: var(--danger); }

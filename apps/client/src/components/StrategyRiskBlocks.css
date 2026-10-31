@@ -1,0 +1,26 @@
+/* 按资金比例 / 回撤停机 (2026-10-09): the funds lines and the drawdown status; theme tokens only. */
+.risk-hint { color: var(--muted); font-size: var(--font-sm); overflow-wrap: anywhere; }
+.risk-warn { margin: 0; color: var(--warning); font-size: var(--font-md); overflow-wrap: anywhere; }
+.risk-funds { display: grid; gap: var(--space-0); min-width: 0; font-size: var(--font-md); color: var(--ink); }
+.risk-funds p { margin: 0; min-width: 0; line-height: 1.7; overflow-wrap: anywhere; }
+.risk-funds p > .risk-hint { margin-right: var(--space-2); }
+.risk-funds b { font-size: var(--font-md); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.risk-funds .risk-lots { color: var(--accent); font-size: var(--font-lg); }
+.risk-funds[data-zero] .risk-lots { color: var(--warning); white-space: normal; }
+
+.risk-dd { display: grid; gap: var(--space-2); min-width: 0; }
+.risk-dd-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); font-size: var(--font-md); }
+.risk-dd-head > .risk-hint { margin-left: auto; font-variant-numeric: tabular-nums; }
+.risk-dd-head > .risk-hint + .risk-hint { margin-left: 0; }
+.risk-dd .stat-tiles { border: 1px solid var(--line); border-radius: var(--radius-control); overflow: hidden; }
+.risk-dd .stat-tile { padding: var(--space-1) var(--space-3); }
+.risk-dd .stat-tile dd { font-size: var(--font-md); font-variant-numeric: tabular-nums; }
+.risk-curve { display: block; width: 100%; height: 72px; overflow: visible; }
+.risk-curve polyline { stroke: var(--accent); stroke-width: 1.8; }
+.risk-curve-peak { stroke: var(--muted); stroke-dasharray: 2 3; vector-effect: non-scaling-stroke; }
+.risk-curve-stop { stroke: var(--warning); stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; }
+.risk-state { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; }
+.risk-badge { padding: var(--space-0) var(--space-2); border-radius: var(--radius-pill); font-size: var(--font-md); font-weight: 600; white-space: nowrap; color: var(--accent); background: var(--accent-soft); }
+.risk-badge[data-tone="warning"] { color: var(--warning); background: var(--warning-soft); }
+.risk-badge[data-tone="danger"] { color: var(--danger); background: var(--danger-soft); }
+.risk-resume { display: inline-flex; align-items: center; gap: var(--space-2); margin-left: auto; }

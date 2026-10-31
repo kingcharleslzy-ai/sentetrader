@@ -1,0 +1,12 @@
+{
+  "about": "第 6 批手机：手机提醒页我的提醒有“新建提醒”，打开整屏编辑页的提醒模式（品种、什么时候提醒、提醒时段，底部保存 / 开始提醒）。只打开和关闭，不保存、不开始提醒。",
+  "device": "phone",
+  "steps": [
+    {"ui": {"reminders": {"tab": "mine"}}, "expect": {"reminders.tab": "mine", "myReminders.status": "ready", "observation.text": {"includes": "新建提醒"}}},
+    {"screenshot": "01-phone-mine"},
+    {"ui": {"strategyEditor": {"new": true, "reminder": true}}, "expect": {"strategyEditor.open": true, "strategyEditor.reminder": true,
+     "observation.text": {"includes": "提醒时段"}}},
+    {"screenshot": "02-phone-editor-reminder"},
+    {"ui": {"strategyEditor": {"close": true}}, "expect": {"strategyEditor.open": false}}
+  ]
+}

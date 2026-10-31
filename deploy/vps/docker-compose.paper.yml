@@ -1,0 +1,74 @@
+# 可选覆盖层：本站模拟盘撮合引擎（paper-engine，2026-10-03）。只在服务器
+# .env.production 里 AI_TRADER_PAPER_ENGINE=1 时由 deploy-release.sh 追加
+# （docker compose -f docker-compose.yml -f images.yml -f docker-compose.paper.yml）；
+# 不追加时基础 compose 与单账户部署逐字节不变。
+#
+# paper-engine 与主 sidecar 共享网络命名空间（Runtime 经 127.0.0.1:19011 访问），
+# 自身不发布端口；与 sidecar 同一镜像，命令行覆盖为 `paper --serve`。所有模拟账户
+# 的撮合状态在自有卷 /data/paper.sqlite3，启动时用 fcntl 文件锁保证同一数据库只有
+# 一个实例。鉴权复用 sidecar token；行情源是引擎进程内的 data-only TqApi，快期账号
+# 口令经 secrets 文件读入（与 sidecar 相同入口），环境里没有明文。2026-10-12 起撮合
+# 行情在公共行情源清单的账号间接力：这里挂的是主 sidecar 账号（清单里的 local），
+# 账户池账号的登录由 Runtime 经 POST /v1/market-sources 下发、只在引擎内存，不另挂
+# secrets 文件。
+services:
+  paper-engine:
+    build:
+      context: ../..
+      dockerfile: services/tqkq-sidecar/Dockerfile.cloud
+    command: ["python", "-m", "tqkq_readonly_sidecar.paper", "--serve"]
+    restart: unless-stopped
+    network_mode: service:tqkq-sidecar
+    environment:
+      AI_TRADER_PAPER_PORT: "19011"
+      AI_TRADER_PAPER_DB: /data/paper.sqlite3
+      AI_TRADER_READONLY_SIDECAR_TOKEN_FILE: /run/secrets/tqkq_sidecar_token
+      AI_TRADER_TQKQ_USERNAME_FILE: /run/secrets/tqkq_username
+      AI_TRADER_TQKQ_PASSWORD_FILE: /run/secrets/tqkq_password
+      # jemalloc switch (docker-entrypoint.sh, 2026-10-13); second stage (2026-10-14) on here.
+      # AI_TRADER_PAPER_JEMALLOC=0 in .env.production switches it back at the next deploy of a
+      # different SHA.
+      AI_TRADER_JEMALLOC: ${AI_TRADER_PAPER_JEMALLOC:-1}
+      # 成交模型（#833，2026-10-13）：默认真实模式；.env.production 设
+      # AI_TRADER_PAPER_FILL_MODE=ideal 退回理想成交（改后重新发布以重建引擎）。参数留空
+      # 时取 paper_fill.FillModel 的默认值（300ms / 500ms / 1 跳 / 0.5）。
+      AI_TRADER_PAPER_FILL_MODE: ${AI_TRADER_PAPER_FILL_MODE:-realistic}
+      AI_TRADER_PAPER_FILL_LATENCY_MS: ${AI_TRADER_PAPER_FILL_LATENCY_MS:-}
+      AI_TRADER_PAPER_FILL_ARRIVAL_WAIT_MS: ${AI_TRADER_PAPER_FILL_ARRIVAL_WAIT_MS:-}
+      AI_TRADER_PAPER_FILL_IMPACT_TICKS: ${AI_TRADER_PAPER_FILL_IMPACT_TICKS:-}
+      AI_TRADER_PAPER_FILL_QUEUE_SHARE: ${AI_TRADER_PAPER_FILL_QUEUE_SHARE:-}
+      # 外盘本站模拟（paper_foreign.py，2026-10-19）：同一进程里的第二个引擎实例，美元子账户，
+      # 行情来自 MT5 只读行情桥（与 Runtime 外盘行情同一个桥），自己的库与端口；桥地址或令牌
+      # 为空时不启动，国内引擎不受影响。Runtime 经 127.0.0.1:19012 访问。
+      AI_TRADER_PAPER_FOREIGN_PORT: "19012"
+      AI_TRADER_PAPER_FOREIGN_DB: /data/paper-foreign.sqlite3
+      AI_TRADER_MT5_BRIDGE_URL: ${AI_TRADER_MT5_BRIDGE_URL:-}
+      AI_TRADER_MT5_BRIDGE_TOKEN_FILE: /run/secrets/mt5_bridge_token
+    secrets:
+      - tqkq_sidecar_token
+      - tqkq_username
+      - tqkq_password
+      - mt5_bridge_token
+    volumes:
+      - ai-trader-paper-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  # 两个 Runtime 槽同在 sidecar 网络命名空间里：开了这个覆盖层，Runtime 就接上引擎
+  # （注册与快期登录后开本站模拟账户）；不开时 Runtime 不知道引擎存在，行为不变。
+  trader-runtime-blue:
+    environment:
+      AI_TRADER_PAPER_ENGINE_URL: http://127.0.0.1:19011
+      AI_TRADER_PAPER_FOREIGN_ENGINE_URL: http://127.0.0.1:19012
+  trader-runtime-green:
+    environment:
+      AI_TRADER_PAPER_ENGINE_URL: http://127.0.0.1:19011
+      AI_TRADER_PAPER_FOREIGN_ENGINE_URL: http://127.0.0.1:19012
+
+volumes:
+  ai-trader-paper-data:

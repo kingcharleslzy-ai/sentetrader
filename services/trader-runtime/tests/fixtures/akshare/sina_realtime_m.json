@@ -1,0 +1,110 @@
+[
+ {
+  "symbol": "M0",
+  "exchange": "dce",
+  "name": "豆粕连续",
+  "trade": 3363.0,
+  "settlement": 3386.0,
+  "presettlement": 3405.0,
+  "close": 3363.0,
+  "volume": 1162962,
+  "position": 2575067,
+  "tradedate": "2026-09-28"
+ },
+ {
+  "symbol": "M2701",
+  "exchange": "dce",
+  "name": "豆粕2701",
+  "trade": 3363.0,
+  "settlement": 3386.0,
+  "presettlement": 3405.0,
+  "close": 3363.0,
+  "volume": 1162962,
+  "position": 2575067,
+  "tradedate": "2026-09-28"
+ },
+ {
+  "symbol": "M2705",
+  "exchange": "dce",
+  "name": "豆粕2705",
+  "trade": 2982.0,
+  "settlement": 2998.0,
+  "presettlement": 3013.0,
+  "close": 2982.0,
+  "volume": 157696,
+  "position": 848668,
+  "tradedate": "2026-09-28"
+ },
+ {
+  "symbol": "M2611",
+  "exchange": "dce",
+  "name": "豆粕2611",
+  "trade": 3333.0,
+  "settlement": 3360.0,
+  "presettlement": 3386.0,
+  "close": 3333.0,
+  "volume": 135790,
+  "position": 576382,
+  "tradedate": "2026-09-28"
+ },
+ {
+  "symbol": "M2703",
+  "exchange": "dce",
+  "name": "豆粕2703",
+  "trade": 3303.0,
+  "settlement": 3328.0,
+  "presettlement": 3346.0,
+  "close": 3303.0,
+  "volume": 47762,
+  "position": 366089,
+  "tradedate": "2026-09-28"
+ },
+ {
+  "symbol": "M2612",
+  "exchange": "dce",
+  "name": "豆粕2612",
+  "trade": 3370.0,
+  "settlement": 3396.0,
+  "presettlement": 3416.0,
+  "close": 3370.0,
+  "volume": 17981,
+  "position": 294967,
+  "tradedate": "2026-09-28"
+ },
+ {
+  "symbol": "M2707",
+  "exchange": "dce",
+  "name": "豆粕2707",
+  "trade": 2939.0,
+  "settlement": 2954.0,
+  "presettlement": 2969.0,
+  "close": 2939.0,
+  "volume": 14451,
+  "position": 240200,
+  "tradedate": "2026-09-28"
+ },
+ {
+  "symbol": "M2708",
+  "exchange": "dce",
+  "name": "豆粕2708",
+  "trade": 3073.0,
+  "settlement": 3090.0,
+  "presettlement": 3103.0,
+  "close": 3073.0,
+  "volume": 2753,
+  "position": 59145,
+  "tradedate": "2026-09-28"
+ },
+ {
+  "symbol": "M2709",
+  "exchange": "dce",
+  "name": "豆粕2709",
+  "trade": 3069.0,
+  "settlement": 3083.0,
+  "presettlement": 3094.0,
+  "close": 3069.0,
+  "volume": 7089,
+  "position": 23074,
+  "tradedate": "2026-09-28"
+ }
+]

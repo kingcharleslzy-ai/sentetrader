@@ -1,0 +1,48 @@
+{
+  "id": "double_ma",
+  "name": "双均线（基准）",
+  "category": "ma_trend",
+  "scenario": "所有策略的对照基准：快线上穿慢线做多、下穿做空",
+  "plainSummary": "短期均线从下往上穿过长期均线就做多、从上往下穿就做空；两条线再反向交叉就平仓，下一根再按新方向开。最简单的顺势做法，常拿来当对照。",
+  "level": "新手", "holding": "会隔夜",
+  "source": {"label": "vn.py DoubleMaStrategy（fast 10 / slow 20，SMA）", "url": "https://github.com/vnpy/vnpy_ctastrategy/blob/main/vnpy_ctastrategy/strategies/double_ma_strategy.py"},
+  "recommendedTimeframe": 60,
+  "approximations": [
+    "原版在交叉当根反手；本产品不同根内平仓再开仓，反向交叉先平仓，下一根K线再开反向（交叉在最近 2 根内仍算数）。",
+    "原版没有止损；本产品每笔持仓须有止损，另设保护止损 3×ATR14（按品种波动自动缩放）。"
+  ],
+  "params": [
+    {"key": "fast", "label": "短均线（快线周期）", "default": 10, "min": 2, "max": 100, "step": 1, "unit": "根",
+     "targets": ["rules.entryLong.conditions.0.left.period", "rules.exitLong.conditions.0.left.period",
+                 "rules.entryShort.conditions.0.left.period", "rules.exitShort.conditions.0.left.period"],
+     "help": {"what": "短期均线用最近多少根K线的平均价", "up": "短均线更平滑，交叉更少、更慢", "down": "短均线更灵敏，交叉更多，假信号也更多"}},
+    {"key": "slow", "label": "长均线（慢线周期）", "default": 20, "min": 3, "max": 200, "step": 1, "unit": "根",
+     "targets": ["rules.entryLong.conditions.0.right.period", "rules.exitLong.conditions.0.right.period",
+                 "rules.entryShort.conditions.0.right.period", "rules.exitShort.conditions.0.right.period"],
+     "help": {"what": "长期均线用最近多少根K线的平均价", "up": "只跟更大的趋势，信号更少", "down": "信号更多，震荡时更容易来回止损"}},
+    {"key": "stopAtr", "label": "保护止损（ATR 倍数）", "default": 3, "min": 0.5, "max": 10, "step": 0.5, "unit": "×ATR14", "targets": ["atrStop.multiple"],
+     "help": {"what": "止损放得离开仓价多远，按最近波动大小自动换算", "up": "不容易被正常波动扫出场，但万一做错单笔亏得更多", "down": "亏损控制得紧，但容易被来回波动打掉"}},
+    {"key": "maxPosition", "label": "每次手数", "default": 1, "min": 1, "max": 20, "step": 1, "unit": "手", "targets": ["maxPosition"],
+     "help": {"what": "每次开仓下多少手", "up": "盈亏都按手数放大，占用的保证金也更多", "down": "盈亏都跟着缩小，更稳妥"}},
+    {"key": "maxLoss", "label": "当日亏损上限", "default": null, "optional": true, "min": 100, "max": 1000000, "step": 100, "unit": "元", "targets": ["maxLoss"],
+     "help": {"what": "留空就不设。填了以后，账户当天的净亏损（已平仓、浮动盈亏和手续费合计）达到这个数，这条策略不再开新仓，止损和离场照常", "up": "允许当天亏得更多才停手", "down": "更早停止开新仓，也可能错过当天后面的机会"}}
+  ],
+  "constraints": [{"less": ["fast", "slow"], "message": "快线周期须小于慢线周期"}],
+  "plan": {
+    "name": "双均线",
+    "description": "MA{fast} 上穿 MA{slow} 开多、下穿开空；快线回到慢线另一侧即平仓，下一根K线再按新方向开仓。保护止损 {stopAtr}×ATR14。来源：vn.py DoubleMaStrategy。",
+    "direction": "both", "timeframeSeconds": 60, "maxPosition": 1, "maxLoss": null,
+    "stopLossTicks": 20, "takeProfitTicks": null, "cooldownBars": 0, "maxOrdersPerDay": 20,
+    "atrStop": {"multiple": 3, "period": 14},
+    "rules": {
+      "entryLong": {"conditions": [{"label": "MA{fast} 上穿 MA{slow}", "left": {"indicator": "ma", "period": 10, "timeframe": 60},
+        "operator": "cross_up", "right": {"indicator": "ma", "period": 20, "timeframe": 60}, "withinBars": 2}]},
+      "exitLong": {"conditions": [{"label": "MA{fast} 回到 MA{slow} 下方", "left": {"indicator": "ma", "period": 10, "timeframe": 60},
+        "operator": "lt", "right": {"indicator": "ma", "period": 20, "timeframe": 60}}]},
+      "entryShort": {"conditions": [{"label": "MA{fast} 下穿 MA{slow}", "left": {"indicator": "ma", "period": 10, "timeframe": 60},
+        "operator": "cross_down", "right": {"indicator": "ma", "period": 20, "timeframe": 60}, "withinBars": 2}]},
+      "exitShort": {"conditions": [{"label": "MA{fast} 回到 MA{slow} 上方", "left": {"indicator": "ma", "period": 10, "timeframe": 60},
+        "operator": "gt", "right": {"indicator": "ma", "period": 20, "timeframe": 60}}]}
+    }
+  }
+}

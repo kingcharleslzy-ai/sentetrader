@@ -1,0 +1,68 @@
+{
+  "id": "williams_r",
+  "name": "威廉 %R 确认反转",
+  "category": "reversal",
+  "scenario": "威廉 %R 先跌进超卖区，再回升穿过中线 −50 才做多（超买后跌穿 −50 做空），不在极值处抄底",
+  "plainSummary": "价格先跌到最近一段的最底部附近，等它真的往回走、回到这段区间的中间才做多；反过来先冲到顶部附近、再掉回中间就做空。持有中出现反方向的这种信号就离场。",
+  "level": "进阶", "holding": "会隔夜",
+  "source": {"label": "Larry Williams 威廉 %R（StockCharts ChartSchool：超卖后上穿 −50 确认上涨、超买后下穿 −50 确认下跌）", "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-indicators/williams-r"},
+  "recommendedTimeframe": 900,
+  "approximations": [
+    "“先超卖”按最近 5 根里至少一根 %R 低于 −80 判断，“再确认”是本根 %R 上穿 −50；做空反过来（−20 以上、下穿 −50）。",
+    "原文只描述信号，没有固定离场；这里用反方向的确认信号离场，另设 2.5×ATR14 保护止损。",
+    "不在同一根内反手：先平仓，下一根仍满足再开反向仓。"
+  ],
+  "params": [
+    {"key": "period", "label": "回看根数", "default": 14, "min": 5, "max": 60, "step": 1, "unit": "根",
+     "targets": ["rules.entryLong.conditions.0.left.period", "rules.entryLong.conditions.1.left.period",
+                 "rules.entryShort.conditions.0.left.period", "rules.entryShort.conditions.1.left.period",
+                 "rules.exitLong.conditions.0.left.period", "rules.exitLong.conditions.1.left.period",
+                 "rules.exitShort.conditions.0.left.period", "rules.exitShort.conditions.1.left.period"],
+     "help": {"what": "判断“到了底部 / 顶部附近”时看最近多少根K线的高低点", "up": "看得更长，信号更少更稳", "down": "看得更短，信号更多，来回也更多"}},
+    {"key": "extreme", "label": "超买超卖线", "default": 20, "min": 5, "max": 40, "step": 1, "unit": "",
+     "targets": [{"path": "rules.entryLong.conditions.0.right.value", "scale": 1, "add": -100},
+                 {"path": "rules.exitShort.conditions.0.right.value", "scale": 1, "add": -100},
+                 {"path": "rules.entryShort.conditions.0.right.value", "scale": -1},
+                 {"path": "rules.exitLong.conditions.0.right.value", "scale": -1}],
+     "help": {"what": "离区间顶部或底部多近才算“到头了”（20 表示最底部或最顶部 20% 以内）", "up": "放宽标准，信号更多", "down": "要求到更极端的位置，信号更少"}},
+    {"key": "lookback", "label": "确认等待根数", "default": 5, "min": 1, "max": 20, "step": 1, "unit": "根",
+     "targets": ["rules.entryLong.conditions.0.withinBars", "rules.entryShort.conditions.0.withinBars",
+                 "rules.exitLong.conditions.0.withinBars", "rules.exitShort.conditions.0.withinBars"],
+     "help": {"what": "到底部 / 顶部之后，最多等多少根K线回到中间还算数", "up": "等得更久也算，信号更多", "down": "要求很快拐回来，信号更少更干脆"}},
+    {"key": "stopAtr", "label": "保护止损（ATR 倍数）", "default": 2.5, "min": 0.5, "max": 10, "step": 0.5, "unit": "×ATR14", "targets": ["atrStop.multiple"],
+     "help": {"what": "止损放得离开仓价多远，按最近 14 根的平均波动自动换算", "up": "不容易被正常波动扫出场，但万一做错单笔亏得更多", "down": "亏损控制得紧，但容易被来回波动打掉"}},
+    {"key": "maxPosition", "label": "每次手数", "default": 1, "min": 1, "max": 20, "step": 1, "unit": "手", "targets": ["maxPosition"],
+     "help": {"what": "每次开仓下多少手", "up": "盈亏都按手数放大，占用的保证金也更多", "down": "盈亏都跟着缩小，更稳妥"}},
+    {"key": "maxLoss", "label": "当日亏损上限", "default": null, "optional": true, "min": 100, "max": 1000000, "step": 100, "unit": "元", "targets": ["maxLoss"],
+     "help": {"what": "留空就不设。填了以后，账户当天的净亏损（已平仓、浮动盈亏和手续费合计）达到这个数，这条策略不再开新仓，止损和离场照常", "up": "允许当天亏得更多才停手", "down": "更早停止开新仓，也可能错过当天后面的机会"}}
+  ],
+  "plan": {
+    "name": "威廉 %R 确认反转",
+    "description": "威廉 %R{period} 最近 {lookback} 根内进入超卖区（离 {period} 根最低价 {extreme}% 以内）且本根上穿 −50 开多；最近 {lookback} 根内进入超买区（离最高价 {extreme}% 以内）且本根下穿 −50 开空；反方向信号离场。保护止损 {stopAtr}×ATR14。来源：StockCharts Williams %R。",
+    "direction": "both", "timeframeSeconds": 900, "maxPosition": 1, "maxLoss": null,
+    "stopLossTicks": 20, "takeProfitTicks": null, "cooldownBars": 0, "maxOrdersPerDay": 20,
+    "atrStop": {"multiple": 2.5, "period": 14},
+    "rules": {
+      "entryLong": {"conditions": [
+        {"label": "最近 {lookback} 根到过超卖区", "left": {"indicator": "williams_r", "period": 14, "timeframe": 900},
+         "operator": "lt", "right": {"indicator": "constant", "value": -80, "timeframe": 900}, "withinBars": 5},
+        {"label": "%R 上穿 −50", "left": {"indicator": "williams_r", "period": 14, "timeframe": 900},
+         "operator": "cross_up", "right": {"indicator": "constant", "value": -50, "timeframe": 900}}]},
+      "exitLong": {"conditions": [
+        {"label": "最近 {lookback} 根到过超买区", "left": {"indicator": "williams_r", "period": 14, "timeframe": 900},
+         "operator": "gt", "right": {"indicator": "constant", "value": -20, "timeframe": 900}, "withinBars": 5},
+        {"label": "%R 下穿 −50", "left": {"indicator": "williams_r", "period": 14, "timeframe": 900},
+         "operator": "cross_down", "right": {"indicator": "constant", "value": -50, "timeframe": 900}}]},
+      "entryShort": {"conditions": [
+        {"label": "最近 {lookback} 根到过超买区", "left": {"indicator": "williams_r", "period": 14, "timeframe": 900},
+         "operator": "gt", "right": {"indicator": "constant", "value": -20, "timeframe": 900}, "withinBars": 5},
+        {"label": "%R 下穿 −50", "left": {"indicator": "williams_r", "period": 14, "timeframe": 900},
+         "operator": "cross_down", "right": {"indicator": "constant", "value": -50, "timeframe": 900}}]},
+      "exitShort": {"conditions": [
+        {"label": "最近 {lookback} 根到过超卖区", "left": {"indicator": "williams_r", "period": 14, "timeframe": 900},
+         "operator": "lt", "right": {"indicator": "constant", "value": -80, "timeframe": 900}, "withinBars": 5},
+        {"label": "%R 上穿 −50", "left": {"indicator": "williams_r", "period": 14, "timeframe": 900},
+         "operator": "cross_up", "right": {"indicator": "constant", "value": -50, "timeframe": 900}}]}
+    }
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "id": "r_breaker",
+  "name": "R-Breaker",
+  "category": "intraday_range",
+  "scenario": "日内：突破昨日枢轴的最外两条线就追；冲过观察价又跌回反转价就平仓，收盘前平仓",
+  "plainSummary": "用昨天的最高价、最低价和收盘价算出几条价格线：今天冲破最外面的线就顺势追；已经冲过“观察线”又掉头回到“反转线”就平仓，收盘前全部平掉。",
+  "level": "进阶", "holding": "日内",
+  "source": {"label": "TqSdk rbreaker2.py（非隔夜留仓，14:50 平仓，止损 10 元/克）", "url": "https://github.com/shinnytech/tqsdk-python/blob/master/tqsdk/demo/example/rbreaker2.py"},
+  "recommendedTimeframe": 60,
+  "approximations": [
+    "六条线就是上一交易日日线的枢轴位（已与原版公式逐项核对）：突破买入 = R3、观察卖出 = R2、反转卖出 = R1、反转买入 = S1、观察买入 = S2、突破卖出 = S3。",
+    "按收盘确认：原版盘中最新价一过线就成交，这里 1 分钟K线收盘后判断、下一根开盘成交；“当日最高 / 最低”从这个交易日第一根算起（夜盘归下一交易日）。",
+    "反手只做了“平”的一半：原版持多时当日最高超过观察卖出价（R2）后跌破反转卖出价（R1）就直接反手做空。我们的模型先平后开、不能同一根完成，而开仓条件只能写“全部满足”或“任一满足”，写不出“收盘跌破 S3，或者（曾过 R2 且跌破 R1）”；所以这里只在反转时平多，平仓后不自动开空，要等收盘跌破突破卖出价（S3）才开空。空头对称。结果交易比原版少、没有反转那一段的盈亏。",
+    "止损换算：原版止损是价格单位 10 元/克，只适用于黄金（au2006 当时约 340–400 元/克，约合价格的 2.5%–3%），在当天必平的持仓里很少触及，作用是防极端行情。换成 ATR：按 1 分钟 ATR14 算会远超 20 倍（按比例估算，未用当时行情实测），这里取上限 20×ATR14，同样只防极端行情，并随品种波动缩放；盘中触及即止损。",
+    "14:50 平仓写成“当日收盘前 10 分钟平仓”（按合约交易时段）。原版每次 3 手，这里默认 1 手，可调。"
+  ],
+  "params": [
+    {"key": "closeBefore", "label": "收盘前平仓", "default": 10, "min": 1, "max": 60, "step": 1, "unit": "分钟", "targets": ["closeBeforeEndMinutes"],
+     "help": {"what": "当天最后一个交易时段收盘前多少分钟把持仓全部平掉，不留隔夜仓", "up": "更早平仓，少担收盘前的波动，但也少拿一段行情", "down": "拿到更接近收盘，但留给平仓成交的时间更少"}},
+    {"key": "stopAtr", "label": "止损（ATR 倍数）", "default": 20, "min": 0.5, "max": 20, "step": 0.5, "unit": "×ATR14", "targets": ["atrStop.multiple"],
+     "help": {"what": "止损放得离开仓价多远，按最近波动大小自动换算；默认放得很远，只防极端行情", "up": "不容易被正常波动扫出场，但万一做错单笔亏得更多", "down": "亏损控制得紧，但容易被来回波动打掉"}},
+    {"key": "maxPosition", "label": "每次手数", "default": 1, "min": 1, "max": 20, "step": 1, "unit": "手", "targets": ["maxPosition"],
+     "help": {"what": "每次开仓下多少手", "up": "盈亏都按手数放大，占用的保证金也更多", "down": "盈亏都跟着缩小，更稳妥"}},
+    {"key": "maxLoss", "label": "当日亏损上限", "default": null, "optional": true, "min": 100, "max": 1000000, "step": 100, "unit": "元", "targets": ["maxLoss"],
+     "help": {"what": "留空就不设。填了以后，账户当天的净亏损（已平仓、浮动盈亏和手续费合计）达到这个数，这条策略不再开新仓，止损和离场照常", "up": "允许当天亏得更多才停手", "down": "更早停止开新仓，也可能错过当天后面的机会"}}
+  ],
+  "keyParam": "stopAtr",
+  "plan": {
+    "name": "R-Breaker",
+    "description": "按上一交易日 H/L/C 算枢轴 P 与 R1–R3、S1–S3。空仓时收盘突破突破买入价（R3）开多、跌破突破卖出价（S3）开空；持多时当日最高曾超过观察卖出价（R2）、收盘又跌破反转卖出价（R1）即平多，持空时当日最低曾低于观察买入价（S2）、收盘又升破反转买入价（S1）即平空（原版在此反手，这里只平仓）；收盘前 {closeBefore} 分钟平仓。止损 {stopAtr}×ATR14。来源：TqSdk rbreaker2.py。",
+    "direction": "both", "timeframeSeconds": 60, "maxPosition": 1, "maxLoss": null,
+    "stopLossTicks": 20, "takeProfitTicks": null, "cooldownBars": 0, "maxOrdersPerDay": 20,
+    "atrStop": {"multiple": 20, "period": 14},
+    "closeBeforeEndMinutes": 10,
+    "rules": {
+      "entryLong": {"conditions": [{"label": "收盘突破突破买入价（R3）", "left": {"indicator": "close", "timeframe": 60},
+        "operator": "gt", "right": {"indicator": "pivot", "value": 3, "timeframe": 60}}]},
+      "exitLong": {"conditions": [
+        {"label": "当日最高曾超过观察卖出价（R2）", "left": {"indicator": "session_high", "timeframe": 60},
+         "operator": "gt", "right": {"indicator": "pivot", "value": 2, "timeframe": 60}},
+        {"label": "收盘跌破反转卖出价（R1）", "left": {"indicator": "close", "timeframe": 60},
+         "operator": "lt", "right": {"indicator": "pivot", "value": 1, "timeframe": 60}}]},
+      "entryShort": {"conditions": [{"label": "收盘跌破突破卖出价（S3）", "left": {"indicator": "close", "timeframe": 60},
+        "operator": "lt", "right": {"indicator": "pivot", "value": -3, "timeframe": 60}}]},
+      "exitShort": {"conditions": [
+        {"label": "当日最低曾低于观察买入价（S2）", "left": {"indicator": "session_low", "timeframe": 60},
+         "operator": "lt", "right": {"indicator": "pivot", "value": -2, "timeframe": 60}},
+        {"label": "收盘升破反转买入价（S1）", "left": {"indicator": "close", "timeframe": 60},
+         "operator": "gt", "right": {"indicator": "pivot", "value": -1, "timeframe": 60}}]}
+    }
+  }
+}

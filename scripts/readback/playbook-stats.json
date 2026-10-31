@@ -1,0 +1,21 @@
+{
+  "about": "第 2 批后半（复盘事后补标打法、按打法/时段/星期分组）：建一个“验收打法”，给最近一笔已平仓交易补标，复盘接口与复盘页都看得到，再撤掉补标、删掉打法。只用测试账号；那笔交易原本有打法就停下，不覆盖。",
+  "steps": [
+    {"api": "GET /api/account/pnl", "expect": {"body.breakdown.byPlaybook": {"exists": true}, "body.trades.0.id": {"exists": true}, "body.trades.0.playbookName": {"exists": false}},
+     "save": {"roundId": "body.trades.0.id"}},
+    {"api": "POST /api/playbooks", "status": 201, "body": {"name": "验收打法", "entryRules": "信号明确再入场", "exitRules": "目标到达离场", "stopRules": "条件失效止损"},
+     "save": {"playbookId": "body.playbook.id"}},
+    {"api": "PUT /api/account/trade-playbooks/{{roundId}}", "body": {"playbookId": "{{playbookId}}"}, "expect": {"body.playbookName": "验收打法"}},
+    {"api": "GET /api/account/pnl", "expect": {"body.trades.0.id": "{{roundId}}", "body.trades.0.playbookName": "验收打法"}},
+    {"ui": {"view": "review"}, "expect": {"view": "review", "review.tiles": {"exists": true}}},
+    {"ui": {"reviewSelect": "{{roundId}}"}, "expect": {"review.selectedTradeId": "{{roundId}}",
+     "observation.text": {"includes": "按打法、时段、星期"}}},
+    {"screenshot": "review-breakdown", "scrollTo": "打法"},
+    {"screenshot": "review-round-playbook", "scrollTo": "这笔的打法"}
+  ],
+  "cleanup": [
+    {"api": "DELETE /api/account/trade-playbooks/{{roundId}}", "expect": {"body.cleared": true}},
+    {"api": "DELETE /api/playbooks/{{playbookId}}"},
+    {"api": "GET /api/account/pnl", "expect": {"body.trades.0.playbookName": {"exists": false}}}
+  ]
+}

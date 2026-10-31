@@ -1,0 +1,41 @@
+{
+  "id": "pivot_reversal",
+  "name": "枢轴反转",
+  "category": "reversal",
+  "scenario": "日线高抛低吸：跌破昨日枢轴 S1 做多、升破 R1 做空，回到枢轴 P 止盈，可隔夜",
+  "plainSummary": "用昨天的最高价、最低价和收盘价算出今天的支撑线和压力线；收盘跌破支撑线就做多、升破压力线就做空，回到中间的平衡线就获利离场，持仓可以过夜。",
+  "level": "进阶", "holding": "会隔夜",
+  "source": {"label": "TqSdk pivot_point.py（日线枢轴 S1 / R1 反转，回到 P 止盈，止损 100 点）", "url": "https://github.com/shinnytech/tqsdk-python/blob/master/tqsdk/demo/example/pivot_point.py"},
+  "recommendedTimeframe": 86400,
+  "approximations": [
+    "枢轴按上一交易日日线 H/L/C：P = (H+L+C)/3，R1 = 2P − L，S1 = 2P − H（与原版公式相同）。原版用日线、持仓隔夜，这里同样日线执行、不设收盘前平仓。",
+    "按收盘确认：原版只在每天新K线出现时用当时的价格（开盘价）判断一次，这里用日线收盘价判断、下一根开盘成交。",
+    "止损换算：原版止损 100 点是价格单位（示例合约铜 cu2309，一跳 10 元 → 10 跳，约为当时铜价的 0.15%），而且只在每天开盘那一刻检查一次。换成 ATR 倍数远小于 1 倍日线 ATR（按比例估算，未用当时行情实测），低于本模板允许的下限；这里取下限 0.5×ATR14（日线），并按我们的口径盘中触及即止损，比原版更容易触发，想放宽可调大。",
+    "原版打印的“反转确认点数”没有参与交易判断，这里也不用。"
+  ],
+  "params": [
+    {"key": "stopAtr", "label": "止损（ATR 倍数）", "default": 0.5, "min": 0.5, "max": 10, "step": 0.5, "unit": "×ATR14", "targets": ["atrStop.multiple"],
+     "help": {"what": "止损放得离开仓价多远，按最近波动大小自动换算", "up": "不容易被正常波动扫出场，但万一做错单笔亏得更多", "down": "亏损控制得紧，但容易被来回波动打掉"}},
+    {"key": "maxPosition", "label": "每次手数", "default": 1, "min": 1, "max": 20, "step": 1, "unit": "手", "targets": ["maxPosition"],
+     "help": {"what": "每次开仓下多少手", "up": "盈亏都按手数放大，占用的保证金也更多", "down": "盈亏都跟着缩小，更稳妥"}},
+    {"key": "maxLoss", "label": "当日亏损上限", "default": null, "optional": true, "min": 100, "max": 1000000, "step": 100, "unit": "元", "targets": ["maxLoss"],
+     "help": {"what": "留空就不设。填了以后，账户当天的净亏损（已平仓、浮动盈亏和手续费合计）达到这个数，这条策略不再开新仓，止损和离场照常", "up": "允许当天亏得更多才停手", "down": "更早停止开新仓，也可能错过当天后面的机会"}}
+  ],
+  "plan": {
+    "name": "枢轴反转",
+    "description": "按上一交易日日线算枢轴 P、R1、S1。日线收盘跌破 S1 开多、升破 R1 开空；多单收盘回到 P 及以上止盈，空单收盘回到 P 及以下止盈；止损 {stopAtr}×ATR14。持仓可以隔夜。来源：TqSdk pivot_point.py。",
+    "direction": "both", "timeframeSeconds": 86400, "maxPosition": 1, "maxLoss": null,
+    "stopLossTicks": 20, "takeProfitTicks": null, "cooldownBars": 0, "maxOrdersPerDay": 20,
+    "atrStop": {"multiple": 0.5, "period": 14},
+    "rules": {
+      "entryLong": {"conditions": [{"label": "收盘跌破枢轴 S1", "left": {"indicator": "close", "timeframe": 86400},
+        "operator": "lt", "right": {"indicator": "pivot", "value": -1, "timeframe": 86400}}]},
+      "exitLong": {"conditions": [{"label": "收盘回到枢轴 P（止盈）", "left": {"indicator": "close", "timeframe": 86400},
+        "operator": "gte", "right": {"indicator": "pivot", "value": 0, "timeframe": 86400}}]},
+      "entryShort": {"conditions": [{"label": "收盘升破枢轴 R1", "left": {"indicator": "close", "timeframe": 86400},
+        "operator": "gt", "right": {"indicator": "pivot", "value": 1, "timeframe": 86400}}]},
+      "exitShort": {"conditions": [{"label": "收盘回到枢轴 P（止盈）", "left": {"indicator": "close", "timeframe": 86400},
+        "operator": "lte", "right": {"indicator": "pivot", "value": 0, "timeframe": 86400}}]}
+    }
+  }
+}

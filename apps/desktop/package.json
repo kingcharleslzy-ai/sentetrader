@@ -1,0 +1,16 @@
+{
+  "name": "@ai-trader/desktop",
+  "version": "1.8.1",
+  "private": true,
+  "scripts": {
+    "tauri": "tauri",
+    "prepare:sidecars": "uv run --python 3.12 --with \"pyinstaller==6.22.2\" python ../../scripts/build_desktop_sidecars.py",
+    "dev": "tauri dev --config src-tauri/tauri.conf.json",
+    "check": "cargo check --manifest-path src-tauri/Cargo.toml",
+    "build:app": "tauri build",
+    "build:update": "tauri build --config src-tauri/tauri.updater.conf.json"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.11.4"
+  }
+}

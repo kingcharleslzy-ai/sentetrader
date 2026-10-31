@@ -1,0 +1,67 @@
+# 可选覆盖层：多人接入池（M1a）。只在服务器 .env.production 里 AI_TRADER_TQKQ_POOL=1 时由
+# deploy-release.sh 追加（docker compose -f docker-compose.yml -f images.yml -f docker-compose.pool.yml）；
+# 不追加时基础 compose 与单账户部署逐字节不变。启用步骤见 docs/THREE_PLATFORM_AND_WEB_DEPLOYMENT.md
+# 「多人接入（M1a）：接入池与按需装配」。
+#
+# tqkq-pool 与主 sidecar 共享网络命名空间（runtime 经 127.0.0.1:19010 访问控制面；子接入进程
+# 从 19100 起递增分配端口，同在 sidecar 的网络栈里，Runtime 侧同样按 127.0.0.1 访问），自身不
+# 发布端口。池与每个子进程都是同一 sidecar 镜像；命令行覆盖为 `pool --serve`。凭据只经子进程
+# stdin 传递，环境里没有快期账号口令；credential_key 是 Runtime 侧托管密码的 AES-256-GCM 主密钥。
+services:
+  tqkq-pool:
+    build:
+      context: ../..
+      dockerfile: services/tqkq-sidecar/Dockerfile.cloud
+    command: ["python", "-m", "tqkq_readonly_sidecar.pool", "--serve"]
+    restart: unless-stopped
+    network_mode: service:tqkq-sidecar
+    environment:
+      AI_TRADER_TQKQ_POOL_PORT: "19010"
+      AI_TRADER_TQKQ_POOL_MAX: ${AI_TRADER_TQKQ_POOL_MAX:-8}
+      AI_TRADER_TQKQ_POOL_BASE_PORT: "19100"
+      AI_TRADER_TQKQ_SYMBOLS: ${AI_TRADER_TQKQ_SYMBOLS:-SHFE.au2612,SHFE.rb2610}
+      AI_TRADER_READONLY_SIDECAR_TOKEN_FILE: /run/secrets/tqkq_sidecar_token
+      # jemalloc switch (docker-entrypoint.sh, 2026-10-13); the pool's children inherit it. First
+      # stage of the rollout: on here. AI_TRADER_POOL_JEMALLOC=0 in .env.production switches it back
+      # at the next deploy of a different SHA.
+      AI_TRADER_JEMALLOC: ${AI_TRADER_POOL_JEMALLOC:-1}
+    secrets:
+      - tqkq_sidecar_token
+    volumes:
+      - ai-trader-tqkq-pool-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  trader-runtime-blue:
+    depends_on:
+      - tqkq-sidecar
+      - tqkq-pool
+    environment:
+      AI_TRADER_TQKQ_POOL_URL: http://127.0.0.1:19010
+      AI_TRADER_CREDENTIAL_KEY_FILE: /run/secrets/credential_key
+      AI_TRADER_ACCOUNT_IDLE_SECONDS: ${AI_TRADER_ACCOUNT_IDLE_SECONDS:-1800}
+    secrets:
+      - credential_key
+
+  trader-runtime-green:
+    depends_on:
+      - tqkq-sidecar
+      - tqkq-pool
+    environment:
+      AI_TRADER_TQKQ_POOL_URL: http://127.0.0.1:19010
+      AI_TRADER_CREDENTIAL_KEY_FILE: /run/secrets/credential_key
+      AI_TRADER_ACCOUNT_IDLE_SECONDS: ${AI_TRADER_ACCOUNT_IDLE_SECONDS:-1800}
+    secrets:
+      - credential_key
+
+volumes:
+  ai-trader-tqkq-pool-data:
+
+secrets:
+  credential_key:
+    file: ${AI_TRADER_CREDENTIAL_KEY_FILE_HOST:?set credential key file host path (32 bytes, base64)}

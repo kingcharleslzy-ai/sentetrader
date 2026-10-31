@@ -1,0 +1,269 @@
+/* 策略编辑卡 (2026-10-08; 第二版 the same day: wide.html). Theme tokens only (both themes follow); AI-prefilled fields
+   wear the accent pair, the 补一句 highlight the warning pair; market up / down mark long / short. The desktop card
+   (`.se-desk`) fills the strategy panel: the head on top, then the form and the right column (流程图 + 回测) each
+   scrolling on their own; a narrow card stacks them in one scroll with the 回测 block kept at the bottom. The phone page
+   (`.fdm-se`, MobileStrategyEditor.css) shares the field styles below. */
+
+/* The panel hands the editor its whole height (the card scrolls inside itself). */
+.fdw-ai-scroll:has(> .strategy-panel-editing) { display: flex; flex-direction: column; overflow: hidden; padding: 0; }
+.fdw-ai-scroll > .strategy-panel.strategy-panel-editing, .strategy-panel.strategy-panel-editing { display: flex; flex-direction: column; flex: 1; height: auto; min-height: 0; overflow: hidden; }
+.se-card { display: flex; flex-direction: column; min-width: 0; color: var(--ink); font-size: var(--font-md); }
+.se-card.se-desk { flex: 1; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); container: se-card / inline-size; background: var(--panel); }
+
+/* -- head: 返回 · 名称 · 补一句 · 放弃 ------------------------------------------------------------------ */
+.se-desk .se-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--line); background: var(--panel); }
+.se-card .se-back { flex: none; display: inline-flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-1); border: 0; background: transparent; color: var(--muted); font-size: var(--font-md); }
+.se-card .se-back:hover { color: var(--ink); background: transparent; }
+.se-card .se-name {
+  flex: 0 1 280px; min-width: 120px; padding: var(--space-1) var(--space-1); border: 1px solid transparent; border-radius: var(--radius-control);
+  background: transparent; color: var(--ink); font: inherit; font-size: var(--font-lg); font-weight: 600;
+}
+.se-card .se-name:hover, .se-card .se-name:focus { border-color: var(--line-strong); }
+.se-card .se-name::placeholder { color: var(--muted); }
+.se-desk .se-head .se-ask { flex: 1 1 260px; min-width: 200px; }
+.se-desk .se-head > .se-btn.danger { margin-left: auto; }
+
+/* -- the two columns -------------------------------------------------------------------------------- */
+/* Narrow (the default): one scroll — the form, the 流程图, 回测明细 and the 回测 block; only the bar (one line of the
+   four figures + the buttons) stays fixed at the bottom so the form keeps its height (2026-10-09 mockup ②). */
+.se-desk .se-cols { display: flex; flex-direction: column; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.se-desk .se-form { display: grid; grid-auto-rows: max-content; gap: var(--space-3); align-content: start; padding: var(--space-3) var(--space-3) var(--space-4); min-width: 0; container: se-form / inline-size; }
+.se-desk .se-side { display: contents; }
+.se-desk .se-form, .se-desk .se-side > * { flex-shrink: 0; }
+.se-desk .se-flow-card { order: 1; margin: 0 var(--space-3) var(--space-3); }
+.se-desk .se-detail { order: 2; margin: 0 var(--space-3) var(--space-3); }
+.se-desk .se-foot { order: 3; margin: 0 var(--space-3) var(--space-3); padding-bottom: var(--space-3); }
+.se-desk .se-foot .se-curve { display: none; }
+.se-desk .se-bar { order: 4; position: sticky; bottom: 0; z-index: 3; margin-top: auto; border-top: 1px solid var(--line-strong); background: var(--panel);
+  box-shadow: var(--shadow-2); }
+/* Wide (wide.html, the right column fits beside the form): the form and the 460px column scroll on their own. */
+@container se-card (min-width: 880px) {
+  .se-desk .se-cols { display: grid; grid-template-columns: minmax(0, 1fr) clamp(340px, 36%, 460px); overflow: hidden; }
+  .se-desk .se-form { overflow-y: auto; overscroll-behavior: contain; padding: var(--space-3) var(--space-4) var(--space-4); border-right: 1px solid var(--line); }
+  .se-desk .se-side { display: grid; grid-template-columns: minmax(0, 1fr); grid-auto-rows: max-content; gap: var(--space-3); align-content: start; overflow-y: auto; overscroll-behavior: contain;
+    padding: var(--space-3) var(--space-4) var(--space-4); background: color-mix(in srgb, var(--soft) 40%, var(--panel)); container: se-side / inline-size; }
+  .se-desk .se-flow-card, .se-desk .se-detail { order: 0; margin: 0; }
+  .se-desk .se-detail { order: 2; }
+  .se-desk .se-foot { order: 1; margin: 0; padding-bottom: var(--space-2); border-bottom: 0; border-radius: var(--radius-card) var(--radius-card) 0 0; }
+  .se-desk .se-foot .se-curve { display: block; }
+  /* The bar is the 回测 block's last row here, as before: same card, a line above the buttons. */
+  .se-desk .se-bar { order: 1; position: static; margin: calc(-1 * var(--space-3)) 0 0; border: 1px solid var(--line); border-radius: 0 0 var(--radius-card) var(--radius-card); box-shadow: none; }
+}
+/* ③ 平仓 and ④ 仓位与时段 side by side once the form column has room for both. */
+.se-card .se-pair { display: grid; gap: var(--space-3); align-items: start; min-width: 0; }
+@container se-form (min-width: 500px) { .se-card .se-pair { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* -- shared field styles ---------------------------------------------------------------------------- */
+.se-card .se-lbl { flex: none; display: inline-flex; align-items: center; gap: var(--space-1); min-width: 64px; color: var(--muted); font-size: var(--font-md); }
+.se-card .se-hint { color: var(--muted); font-size: var(--font-sm); line-height: 1.5; overflow-wrap: anywhere; }
+.se-card .se-basis { color: var(--accent); }
+.se-card .se-status { margin: 0; color: var(--muted); font-size: var(--font-sm); }
+.se-card .se-error { margin: 0; color: var(--danger); font-size: var(--font-md); line-height: 1.5; }
+.se-card .se-start { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+
+/* Buttons (scoped over the panel's own button reset). */
+.se-card .se-btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1); min-height: 30px; padding: var(--space-1) var(--space-3); border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control); background: var(--soft); color: var(--ink); font-size: var(--font-md); white-space: nowrap; }
+.se-card .se-btn:hover:not(:disabled) { background: var(--surface-hover); }
+.se-card .se-btn.primary { background: var(--primary-bg); border-color: var(--primary-bg); color: var(--on-primary); font-weight: 600; }
+.se-card .se-btn.primary:hover:not(:disabled) { background: var(--primary-bg); filter: brightness(1.06); }
+.se-card .se-btn.ghost { background: transparent; border-color: transparent; color: var(--muted); }
+.se-card .se-btn.ghost:hover:not(:disabled) { color: var(--ink); background: var(--soft); }
+/* Destructive (放弃 drops the draft): the theme's danger pair, readable in both themes. */
+.se-card .se-btn.danger { background: var(--danger-soft); border-color: color-mix(in srgb, var(--danger) 40%, transparent); color: var(--danger); font-weight: 600; }
+.se-card .se-btn.danger:hover:not(:disabled) { background: var(--danger-soft); border-color: var(--danger); }
+.se-card .se-link { display: inline-flex; align-items: center; gap: var(--space-0); padding: 0 var(--space-0); border: 0; background: transparent; color: var(--accent); font-size: var(--font-md); }
+.se-card .se-link:hover { background: transparent; text-decoration: underline; }
+.se-card .se-x { flex: none; display: inline-grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 0; background: transparent; color: var(--muted); }
+.se-card .se-x:hover { color: var(--danger); background: var(--soft); }
+
+/* Segmented choices. */
+.se-card .se-seg { display: inline-flex; flex-wrap: wrap; max-width: 100%; border: 1px solid var(--line-strong); border-radius: var(--radius-control); overflow: hidden; }
+.se-card .se-seg > button, .se-card .se-seg > select {
+  padding: var(--space-0) var(--space-3); min-height: 26px; border: 0; border-right: 1px solid var(--line-strong); border-radius: 0;
+  background: var(--panel); color: var(--muted); font-size: var(--font-md);
+}
+.se-card .se-seg > :last-child { border-right: 0; }
+.se-card .se-seg > button:hover:not(:disabled) { color: var(--ink); background: var(--soft); }
+.se-card .se-seg > button[aria-pressed="true"], .se-card .se-seg > select.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.se-card .se-seg > button:disabled { opacity: .5; cursor: not-allowed; }
+.se-card .se-seg > select { appearance: none; field-sizing: content; padding-right: var(--space-3); cursor: pointer; max-width: 160px; }
+
+/* A field control: number / select / time inputs inside one bordered pill. */
+.se-card .se-ctl {
+  display: inline-flex; align-items: center; gap: var(--space-1); min-height: 26px; max-width: 100%;
+  padding: var(--space-0) var(--space-2); border: 1px solid var(--line-strong); border-radius: var(--radius-control); background: var(--soft);
+  color: var(--ink); font-size: var(--font-md); white-space: nowrap;
+}
+.se-card .se-ctl[data-empty] { border-style: dashed; }
+.se-card .se-ctl > span { color: var(--muted); }
+.se-card .se-ctl input, .se-card .se-ctl select, .se-card .se-op, .se-card .se-select {
+  min-width: 0; padding: var(--space-0) 0; border: 0; background: transparent; color: var(--ink); font: inherit; font-size: var(--font-md);
+}
+.se-card .se-ctl input[type="number"] { width: 5.5em; font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.se-card .se-ctl input.se-time { width: 3.6em; font-family: var(--font-num); font-variant-numeric: tabular-nums; text-align: center; }
+.se-card .se-sublists { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); padding-top: var(--space-1); border-top: 1px dashed var(--line); }
+.se-card .se-sublist { flex: 1 1 100%; display: grid; gap: var(--space-1); }
+.se-card .se-sublist > .se-link { justify-self: start; }
+.se-card .se-ctl input::placeholder { color: var(--muted); font-family: inherit; }
+.se-card .se-symbol input { width: 10em; font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.se-card .se-op, .se-card .se-select { padding: var(--space-0) var(--space-1); border: 1px solid var(--line-strong); border-radius: var(--radius-control); background: var(--soft); color: var(--accent); font-weight: 600; }
+.se-card .se-select { color: var(--ink); font-weight: 400; }
+.se-card .se-ctl :is(input, select):focus-visible { outline: none; }
+.se-card .se-ctl:focus-within { border-color: var(--accent); outline: 1px solid var(--accent); outline-offset: 0; }
+.se-card :is(.se-op, .se-select, .se-seg > select, .se-seg > button):focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* An operand opens the picker: one button showing what it is. */
+.se-card button.se-operand { cursor: pointer; color: var(--ink); font: inherit; font-size: var(--font-md); }
+.se-card button.se-operand:hover { border-color: var(--accent); }
+.se-card button.se-operand[aria-expanded="true"] { border-color: var(--accent); outline: 2px solid var(--accent-soft); outline-offset: 0; }
+.se-card button.se-operand[data-empty] .se-operand-text { color: var(--muted); }
+.se-card button.se-operand > span[aria-hidden] { color: var(--muted); }
+.se-card .se-operand-text { max-width: 18em; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
+.se-card .se-picker { flex-basis: 100%; min-width: 0; padding-left: var(--space-5); }
+.se-card .se-check { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--ink); font-size: var(--font-md); }
+
+/* AI prefill: accent border and the small tag; 补一句: changed fields lit once. */
+.se-card [data-ai] { border-color: color-mix(in srgb, var(--accent) 60%, var(--line-strong)); outline: 1px solid color-mix(in srgb, var(--accent) 18%, transparent); outline-offset: -1px; }
+.se-card .se-mark[data-ai] { box-shadow: none; border: 0; }
+.se-card .se-aitag { display: inline-block; margin-left: var(--space-0); padding: 0 var(--space-1); border-radius: var(--radius-sm); background: var(--accent-soft); color: var(--accent); font: 600 var(--font-xs)/16px var(--font-num); font-variant-numeric: tabular-nums; }
+.se-card [data-changed] { border-radius: var(--radius-control); background: var(--warning-soft); outline: 2px solid color-mix(in srgb, var(--warning) 45%, transparent); outline-offset: 0; }
+.se-card .se-ctl[data-changed] { border-color: var(--warning); }
+/* A count outside its rule (#755): red until fixed; the reason is in the box's title and the 还差 line. */
+.se-card .se-ctl[data-invalid] { border-color: var(--danger); }
+.se-card .se-mark { display: inline-flex; align-items: center; gap: var(--space-1); }
+/* 流程图 → 表单: the field a block stands for, lit for a moment. */
+.se-card [data-flash] { border-radius: var(--radius-card); animation: ui-fill-arrival var(--dur-2) var(--ease-out); }
+
+.se-card .se-switch { position: relative; flex: none; width: 30px; height: 18px; min-height: 0; padding: 0; border: 0; border-radius: var(--radius-card); background: var(--line-strong); }
+.se-card .se-switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 12px; height: 12px; border-radius: 50%; background: var(--panel); transition: left var(--dur-1) var(--ease-out); }
+.se-card .se-switch[aria-checked="true"] { background: var(--primary-bg); }
+.se-card .se-switch[aria-checked="true"]::after { left: 15px; background: var(--on-primary); }
+.se-card .se-switch:hover { filter: brightness(1.05); }
+
+/* -- AI note, ask box, prefill trades ---------------------------------------------------------------- */
+.se-desk .se-ainote { flex: 1 1 280px; }
+.se-card .se-ainote {
+  display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); align-items: center; min-width: 0;
+  padding: var(--space-1) var(--space-3); border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); border-radius: var(--radius-control);
+  background: var(--accent-soft); font-size: var(--font-md); line-height: 1.6;
+}
+.se-card .se-ainote b { color: var(--accent); }
+.se-card .se-src { flex-basis: 100%; color: var(--muted); overflow-wrap: anywhere; }
+.se-card .se-act { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-left: auto; }
+.se-card .se-ainote .se-btn { min-height: 24px; padding: var(--space-0) var(--space-2); }
+.se-card .se-ask { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-0) var(--space-1) var(--space-0) var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-card); background: var(--soft); color: var(--muted); }
+.se-card .se-ask input { flex: 1; min-width: 0; padding: var(--space-1) 0; border: 0; background: transparent; color: var(--ink); font: inherit; outline: none; }
+.se-card .se-ask input::placeholder { color: var(--muted); }
+.se-card .se-ask .se-btn { min-height: 24px; border-radius: var(--radius-card); }
+.se-card .se-ask:focus-within { border-color: var(--accent); }
+.se-card .se-questions { display: grid; gap: var(--space-1); }
+.se-card .se-questions .strategy-clarifications { margin-top: 0; background: var(--panel); }
+.se-card .se-trades { width: 100%; border-collapse: collapse; font-size: var(--font-md); font-variant-numeric: tabular-nums; }
+.se-card .se-trades th { padding: var(--space-1); color: var(--muted); font-weight: 400; text-align: left; border-bottom: 1px solid var(--line); }
+.se-card .se-trades td { padding: var(--space-1); border-bottom: 1px solid var(--line); white-space: nowrap; }
+.se-card .se-trades td:last-child, .se-card .se-trades th:last-child { text-align: right; }
+
+/* -- the four blocks ------------------------------------------------------------------------------ */
+.se-card .section-card-head h3 { display: inline-flex; align-items: center; gap: var(--space-2); }
+.se-card .se-num { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--surface-hover); color: var(--muted); font: 600 var(--font-xs) var(--font-num); font-variant-numeric: tabular-nums; }
+.se-card .se-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; }
+.se-card .se-row > .se-lbl { min-width: 72px; }
+.se-card .se-basics .se-row > .se-lbl { min-width: 40px; }
+.se-card .se-stack { display: grid; gap: var(--space-1); justify-items: start; min-width: 0; }
+.se-card .se-inline { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.se-card .se-folded { margin: 0; padding-top: var(--space-2); border-top: 1px dashed var(--line); color: var(--muted); font-size: var(--font-md); }
+.se-card .se-sub { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--muted); font-size: var(--font-md); font-weight: 600; }
+.se-card .se-exit-rules { display: grid; gap: var(--space-2); }
+/* ④ 开仓手数 / 回撤停机: the chosen option's own fields, indented under it. */
+.se-card .se-pane { display: grid; gap: var(--space-2); justify-items: start; min-width: 0; margin-left: var(--space-3); padding: var(--space-1) 0 var(--space-1) var(--space-3); border-left: 2px solid var(--line-strong); }
+.se-card .se-pane > .risk-funds { justify-self: stretch; }
+.se-card .se-pane .se-ctl { flex-wrap: wrap; white-space: normal; }
+.se-card .se-pane > .se-inline { font-size: var(--font-md); }
+.se-card .se-acts { display: flex; flex-wrap: wrap; gap: var(--space-0) var(--space-2); color: var(--ink); font-size: var(--font-md); }
+.se-card .se-acts > span { white-space: nowrap; }
+.se-card .se-acts > span + span::before { content: "·"; margin-right: var(--space-2); color: var(--muted); }
+
+.se-card .se-group { display: grid; gap: var(--space-1); padding: var(--space-2) var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-control); min-width: 0; }
+.se-card .se-group-h { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); font-size: var(--font-md); }
+.se-card .se-together { margin-left: auto; font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.se-card .se-dir { padding: var(--space-0) var(--space-2); border-radius: var(--radius-sm); font-weight: 600; }
+.se-card .se-dir[data-side="long"] { color: var(--market-up); background: var(--market-up-soft); }
+.se-card .se-dir[data-side="short"] { color: var(--market-down); background: var(--market-down-soft); }
+.se-card .se-cond { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); min-width: 0; }
+.se-card .se-cond .se-i { flex: none; width: 16px; color: var(--muted); font: var(--font-xs) var(--font-num); font-variant-numeric: tabular-nums; }
+.se-card .se-cond .se-tail { margin-left: auto; display: inline-flex; align-items: center; gap: var(--space-1); }
+.se-card .se-cond .se-hits { color: var(--muted); font: var(--font-xs) var(--font-num); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.se-card .se-cond-locked { flex: 1 1 200px; min-width: 0; }
+.se-card .se-add { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); padding-top: var(--space-0); }
+
+.se-card .se-more { border-top: 1px dashed var(--line); padding-top: var(--space-2); }
+.se-card .se-more > summary { color: var(--muted); font-size: var(--font-md); cursor: pointer; }
+.se-card .se-more > summary:hover { color: var(--ink); }
+.se-card .se-more-body { display: grid; gap: var(--space-2); padding-top: var(--space-2); }
+.se-card .se-more .strategy-block-edit { margin: 0; }
+.se-card .se-more .strategy-block-edit legend { display: inline-flex; align-items: center; gap: var(--space-1); }
+.se-card .se-advanced { margin: var(--space-2) 0; padding-left: var(--space-4); display: grid; gap: var(--space-1); color: var(--ink); font-size: var(--font-md); line-height: 1.6; overflow-wrap: anywhere; }
+
+/* -- the right column: 流程图 and the 回测 block ------------------------------------------------------- */
+.se-card .se-flow-card .section-card-body { padding: var(--space-3); }
+.se-desk .se-foot { display: grid; gap: 0; background: var(--panel); overflow: hidden; }
+.se-desk .se-foot > .section-card-head { padding: var(--space-2) var(--space-3); }
+.se-desk .se-foot .se-meta { margin-left: auto; font-size: var(--font-sm); }
+/* The sentence stays three lines at most so a narrow panel keeps room for the blocks; the whole text is its title. */
+.se-card .se-summary { margin: 0; padding: var(--space-2) var(--space-3) 0; color: var(--ink); font-size: var(--font-md); line-height: 1.55; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
+.se-card .se-summary > span { color: var(--muted); }
+.se-card .se-blank { margin: 0; color: var(--muted); font-size: var(--font-md); line-height: 1.6; }
+.se-card .se-missing { display: block; color: var(--warning); }
+.se-desk .se-foot .stat-tiles { margin: var(--space-2) var(--space-3) 0; border: 1px solid var(--line); border-radius: var(--radius-control); overflow: hidden; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.se-card .se-foot .stat-tile { padding: var(--space-1) var(--space-3); }
+.se-card .se-foot .stat-tile dd { font: 600 var(--font-lg) var(--font-num); font-variant-numeric: tabular-nums; }
+.se-card .se-foot .stat-tile dd small { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.se-card .positive { color: var(--market-up); }
+.se-card .negative { color: var(--market-down); }
+.se-desk .se-foot > .se-error { padding: var(--space-2) var(--space-3) 0; }
+.se-desk .se-foot > .se-blank { padding: var(--space-2) var(--space-3); }
+.se-card .se-curve { width: calc(100% - 2 * var(--space-3)); height: 72px; margin: var(--space-2) var(--space-3) 0; overflow: visible; }
+.se-card .se-curve polyline { stroke-width: 1.8; }
+.se-card .se-curve polyline[data-sign="up"] { stroke: var(--market-up); }
+.se-card .se-curve polyline[data-sign="down"] { stroke: var(--market-down); }
+.se-card .se-curve-base { stroke: var(--line-strong); stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
+.se-card .se-footrow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.se-desk .se-footrow { padding: var(--space-3) var(--space-3); }
+/* The bar's one line: 扣费后净收益 · 最大回撤 · 胜率 · 笔数, wrapping (never cut) when the panel is narrow. */
+.se-desk .se-oneline { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-0) var(--space-3); margin: 0; padding: var(--space-2) var(--space-3) 0;
+  color: var(--muted); font-size: var(--font-md); line-height: 1.5; }
+.se-desk .se-oneline b { color: var(--ink); font: 600 var(--font-sm) var(--font-num); font-variant-numeric: tabular-nums; }
+.se-desk .se-oneline b.positive { color: var(--market-up); }
+.se-desk .se-oneline b.negative { color: var(--market-down); }
+.se-desk .se-oneline.se-missing { color: var(--warning); }
+.se-desk .se-oneline.se-error { color: var(--danger); }
+/* A wide card shows the full 回测 block right above the buttons: no summary line. */
+@container se-card (min-width: 880px) { .se-desk .se-oneline { display: none; } }
+.se-desk .se-footrow > .se-btn { flex: 1 1 0; min-height: 32px; }
+.se-card .se-meta { flex: 1 1 140px; min-width: 0; color: var(--muted); font-size: var(--font-sm); }
+
+@media (prefers-reduced-motion: reduce) {
+  .se-card .se-switch::after { transition: none; }
+  .se-card [data-flash] { animation: none; outline: 2px solid var(--accent); outline-offset: 0; }
+}
+/* 起点: the chosen template's full name on its own line under the segment (the segment keeps "模板 ▾"). */
+.se-card .se-start-name { flex: 1 0 100%; color: var(--ink); font-size: var(--font-md); line-height: 1.5; overflow-wrap: anywhere; }
+/* A narrow card: 返回 · 名称 · 放弃 on the first line, 补一句 the whole second line. */
+@container se-card (max-width: 879px) { .se-desk .se-head .se-ask { order: 1; flex: 1 1 100%; } }
+/* ① 品种、周期与方向 in one line (合约 · 周期 · 方向, wide.html) once the panel is 900px or wider: compact segments, the
+   contract's name moves into the box's tooltip; narrower panels wrap. */
+@container se-card (min-width: 900px) {
+  .se-desk .se-basics { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+  .se-desk .se-basics > .se-row { flex-wrap: nowrap; gap: var(--space-1); }
+  .se-desk .se-basics > .se-row > .se-lbl { min-width: 0; }
+  .se-desk .se-basics .se-symbol input { width: auto; field-sizing: content; min-width: 6em; max-width: 9em; }
+  .se-desk .se-basics .se-symbol-name { display: none; }
+  .se-desk .se-basics .se-seg > button { padding: var(--space-0) var(--space-1); }
+}
+/* A right column under 480px keeps the four figures two by two. */
+@container se-side (max-width: 479px) { .se-desk .se-foot .stat-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* 提醒模式 (第 6 批): no 回测 block to hang under — the bar is its own card, and its line (满足几次 / 还差) always shows. */
+.se-desk .se-bar.se-remind { margin: 0; border: 1px solid var(--line); border-radius: var(--radius-card); }
+@container se-card (min-width: 880px) { .se-desk .se-bar.se-remind .se-oneline { display: flex; } }

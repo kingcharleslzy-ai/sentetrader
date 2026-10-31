@@ -1,0 +1,209 @@
+.fdw-trading-charts {
+  position: relative;
+  z-index: 0;
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 420px;
+  overflow: hidden;
+  background: var(--fdw-surface);
+}
+
+.fdw-chart-pane {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.fdw-chart-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.fdw-chart-pane-label {
+  position: absolute;
+  z-index: 3;
+  top: 5px;
+  left: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  right: 80px;
+  gap: var(--space-1) var(--space-2);
+  overflow: hidden;
+  pointer-events: none;
+  color: var(--fdw-faint);
+  font-size: var(--font-sm);
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .01em;
+}
+
+.fdw-chart-pane-label strong { color: var(--fdw-muted); font-family: inherit; font-size: var(--font-sm); font-weight: 600; }
+
+.fdw-chart-pane-label button {
+  min-height: 20px;
+  padding: var(--space-0) var(--space-1);
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  background: transparent;
+  font-size: var(--font-sm);
+  pointer-events: auto;
+  opacity: 1;
+}
+
+/* #734: a guest's 最近 N 个交易日 basis gets its own line; 数据不足 replaces a pane's values. */
+.fdw-chart-pane-label .fdw-history-note { flex-basis: 100%; color: var(--fdw-muted); }
+.fdw-chart-pane-label .fdw-pane-short { color: var(--fdw-muted); }
+
+.fdw-chart-pane:hover .fdw-chart-pane-label button,
+.fdw-chart-pane-label button:focus-visible { color: var(--ink); }
+
+.fdw-pane-resizer {
+  z-index: 5;
+  width: 100%;
+  height: 5px;
+  min-height: 5px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: linear-gradient(var(--fdw-line), var(--fdw-line)) center / 100% 1px no-repeat;
+  cursor: row-resize;
+  transition: background var(--dur-2) var(--ease-standard);
+  touch-action: none;
+}
+
+.fdw-pane-resizer:hover,
+.fdw-pane-resizer:focus-visible { background: linear-gradient(var(--fdw-accent), var(--fdw-accent)) center / 100% 1px no-repeat, color-mix(in srgb, var(--fdw-accent) 14%, transparent); outline: 0; }
+
+.fdw-synced-crosshair {
+  position: absolute;
+  z-index: 4;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: color-mix(in srgb, var(--fdw-accent) 55%, transparent);
+  pointer-events: none;
+}
+
+/* 十字光标那根 K 线的开高低收（2026-10-20）：价格标签下另起一行，只在光标停在图上时出现。 */
+/* 读数这一行铺满整行宽，底色只铺在各段上（段间无缝、两端圆角），K 线升到左上角时字不被蜡烛压住，又不遮整条图。 */
+.fdw-bar-readout { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: var(--space-0) 0; color: var(--fdw-muted); font-size: var(--font-md); font-variant-numeric: tabular-nums; }
+.fdw-bar-readout > span { padding: var(--space-0) var(--space-1); background: color-mix(in srgb, var(--panel) 82%, transparent); }
+.fdw-bar-readout > span:first-child { padding-left: var(--space-1); border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+.fdw-bar-readout > span:last-child { padding-right: var(--space-1); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.fdw-bar-readout b { color: var(--ink); font-weight: 500; }
+.fdw-bar-readout [data-direction="up"] { color: var(--market-up); }
+.fdw-bar-readout [data-direction="down"] { color: var(--market-down); }
+.fdw-crosshair-time { position: absolute; bottom: 0; transform: translateX(-50%); z-index: 6; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); color: var(--on-primary); background: var(--primary-bg); font-family: var(--font-num); font-size: var(--font-xs); font-variant-numeric: tabular-nums; white-space: nowrap; pointer-events: none; }
+
+@container chart-area (max-width: 760px) {
+  .fdw-trading-charts { min-height: 340px; }
+}
+
+/* 图表指标可配置 (2026-10-02): the indicator label buttons on the panes and the editors they
+   open (the popover here; the same components again in 设置 → 图表 → 指标参数与均线). */
+
+.fdw-ind-label { border: 1px solid transparent; }
+
+.fdw-ind-label:hover,
+.fdw-ind-label:focus-visible { color: var(--ink); border-color: var(--fdw-line); background: var(--fdw-surface); }
+
+.fdw-ind-add-pane { color: var(--fdw-accent); }
+
+.fdw-ind-popover {
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  max-height: min(440px, calc(100vh - 16px));
+  min-width: min(360px, calc(100vw - 16px));
+  padding: 0;
+  border: 1px solid var(--fdw-line);
+  border-radius: var(--radius-card);
+  color: var(--ink);
+  background: var(--panel);
+  box-shadow: var(--shadow-2);
+  text-align: left;
+}
+
+.fdw-ind-popover-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--fdw-line);
+  font-size: var(--font-md);
+}
+
+.fdw-ind-popover-title button {
+  min-width: 22px;
+  min-height: 22px;
+  padding: 0 var(--space-1);
+  border: 0;
+  border-radius: var(--radius-control);
+  color: var(--muted);
+  background: transparent;
+  font-size: var(--font-md);
+  line-height: 1;
+}
+
+.fdw-ind-popover-title button:hover,
+.fdw-ind-popover-title button:focus-visible { color: var(--ink); background: var(--soft); }
+
+.fdw-ind-popover-body { padding: var(--space-3); overflow-y: auto; }
+
+.fdw-ind-editor { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+
+.fdw-ind-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); }
+
+.fdw-ind-row-label { color: var(--muted); font-size: var(--font-md); }
+
+.fdw-ind-ma-row { flex-wrap: nowrap; gap: var(--space-2); }
+.fdw-ind-ma-row .fdw-ind-row-label { flex: 0 0 44px; }
+.fdw-ind-ma-row .fdw-ind-remove { margin-left: auto; }
+
+.fdw-ind-field { display: inline-flex; align-items: center; gap: var(--space-1); min-width: 0; }
+
+.fdw-ind-field-label { color: var(--muted); font-size: var(--font-md); white-space: nowrap; }
+
+.fdw-ind-add,
+.fdw-ind-remove {
+  min-height: 24px;
+  padding: var(--space-0) var(--space-3);
+  border: 1px solid var(--fdw-line);
+  border-radius: var(--radius-control);
+  color: var(--ink);
+  background: var(--soft);
+  font-size: var(--font-md);
+  text-align: left;
+}
+
+.fdw-ind-add:hover:not(:disabled),
+.fdw-ind-remove:hover:not(:disabled),
+.fdw-ind-add:focus-visible:not(:disabled),
+.fdw-ind-remove:focus-visible:not(:disabled) { border-color: var(--fdw-accent); }
+
+.fdw-ind-add:disabled,
+.fdw-ind-remove:disabled { opacity: .45; cursor: not-allowed; }
+
+.fdw-ind-remove { color: var(--danger); }
+
+.fdw-ind-status { color: var(--muted); font-size: var(--font-sm); }
+
+/* 分时图 (2026-10-02): the readout row on the price pane — 时间 / 价格 / 均价 / 量 / 相对昨结涨跌幅,
+   with the two lines' colour swatches in front of their values. */
+
+/* 分时 reads prices on its left axis (at least 74 px wide): the readout starts right of it so the
+   upper ticks stay readable (#739). */
+.fdw-timeshare .fdw-chart-pane-label { left: 82px; }
+.fdw-timeshare-readout { display: inline-flex; align-items: center; gap: var(--space-1) var(--space-1); white-space: nowrap; }
+
+.fdw-timeshare-swatch { display: inline-block; width: 9px; height: 2px; border-radius: var(--radius-sm); }
+
+.fdw-timeshare-price { background: var(--accent); }
+
+.fdw-timeshare-average { background: var(--chart-average); }

@@ -1,0 +1,15 @@
+services:
+  trader-runtime:
+    build:
+      context: ./services/trader-runtime
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ai-trader-runtime-data:/data
+    environment:
+      AI_TRADER_DB_PATH: /data/ai-trader.sqlite3
+      AI_TRADER_LOCAL_TOKEN: ${AI_TRADER_LOCAL_TOKEN:?set AI_TRADER_LOCAL_TOKEN}
+      AI_TRADER_AGENT_MODE: fake
+
+volumes:
+  ai-trader-runtime-data:

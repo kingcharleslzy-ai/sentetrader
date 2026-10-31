@@ -1,0 +1,49 @@
+/* 策略流程图 (策略编辑卡第二版, 2026-10-08): boxes top to bottom joined by short connectors. Theme tokens only;
+   long / short wear the market up / down pair, a box the form still misses is dashed. */
+.sf { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; justify-items: stretch; min-width: 0; font-size: var(--font-md); color: var(--ink); }
+.sf-stage { position: relative; display: grid; gap: var(--space-2); padding-top: var(--space-4); min-width: 0; }
+.sf-stage:first-child { padding-top: 0; }
+/* The connector: a short line and an arrow head into the stage. */
+.sf-stage + .sf-stage::before { content: ""; position: absolute; top: 2px; left: 50%; width: 1.5px; height: 12px; background: var(--line-strong); transform: translateX(-50%); }
+.sf-stage + .sf-stage::after { content: ""; position: absolute; top: 11px; left: 50%; border: 4px solid transparent; border-top-color: var(--line-strong);
+  border-bottom: 0; transform: translateX(-50%); }
+.sf-stage:first-child, .sf-stage:nth-child(3) { justify-items: center; }
+.sf-stage:first-child > .sf-box, .sf-stage:nth-child(3) > .sf-box { width: min(100%, 300px); }
+.sf-entries[data-count="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.sf-exits { display: flex; flex-wrap: wrap; justify-content: center; }
+.sf-exits > .sf-box { flex: 1 1 104px; max-width: 170px; }
+
+.sf .sf-box {
+  position: relative; display: grid; white-space: normal; max-width: 100%; gap: var(--space-0); align-content: start; min-width: 0; padding: var(--space-2) var(--space-3); border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control); background: var(--soft); color: var(--ink); font: inherit; text-align: left; line-height: 1.45; cursor: pointer;
+  transition: border-color var(--dur-1) var(--ease-out, ease), background var(--dur-1) var(--ease-out, ease);
+}
+.sf .sf-box:hover { border-color: var(--accent); }
+.sf .sf-box:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.sf-box b { font-weight: 600; overflow-wrap: anywhere; }
+.sf-box small { color: var(--muted); font-size: inherit; overflow-wrap: anywhere; }
+.sf-stage:first-child .sf-box, .sf-stage:nth-child(3) .sf-box, .sf-exits .sf-box { text-align: center; justify-items: center; }
+.sf .sf-box[data-side="long"] { border-color: color-mix(in srgb, var(--market-up) 45%, var(--line-strong)); }
+.sf .sf-box[data-side="short"] { border-color: color-mix(in srgb, var(--market-down) 45%, var(--line-strong)); }
+.sf-stage:nth-child(3) > .sf-box[data-side="long"] { background: var(--market-up-soft); }
+.sf-stage:nth-child(3) > .sf-box[data-side="long"] b { color: var(--market-up); }
+.sf-stage:nth-child(3) > .sf-box[data-side="short"] { background: var(--market-down-soft); }
+.sf-stage:nth-child(3) > .sf-box[data-side="short"] b { color: var(--market-down); }
+.sf .sf-box[data-pending] { border-style: dashed; border-color: var(--warning); background: transparent; }
+.sf-box[data-pending] small { color: var(--warning); }
+
+.sf-count { color: var(--accent); font: 600 var(--font-xs) var(--font-num); font-variant-numeric: tabular-nums; }
+.sf-entries .sf-count { position: absolute; top: 7px; right: 10px; }
+.sf-count[data-sign="up"] { color: var(--market-up); }
+.sf-count[data-sign="down"] { color: var(--market-down); }
+.sf-row { display: flex; gap: var(--space-2); justify-content: space-between; color: var(--muted); }
+.sf-row > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.sf-row-count { flex: none; font: var(--font-xs) var(--font-num); font-variant-numeric: tabular-nums; color: var(--muted); }
+.sf-entries .sf-box b { /* Reserve space for the inline entry action on the right. */ padding-right: 52px; }
+
+.sf .sf-notes { display: block; width: 100%; margin-top: var(--space-3); padding: var(--space-0) var(--space-1); border: 0; background: transparent; color: var(--muted); font: inherit;
+  text-align: center; line-height: 1.6; white-space: normal; overflow-wrap: anywhere; cursor: pointer; }
+.sf .sf-notes:hover { color: var(--ink); }
+.sf[data-layout="mobile"] .sf-entries[data-count="2"] { grid-template-columns: minmax(0, 1fr); }
+.sf[data-layout="mobile"] .sf-exits > .sf-box { flex-basis: 40%; max-width: none; }
+@media (prefers-reduced-motion: reduce) { .sf .sf-box { transition: none; } }

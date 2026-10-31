@@ -1,0 +1,45 @@
+/* 我的策略's empty state (2026-10-08, the approved mockup; 2026-10-09: what a strategy is and the four steps moved
+   behind the title's "?"): one line of title, the three ways to start, the common templates. Theme tokens only; the
+   phone (.ss-compact) stacks the starts. */
+.ss-starts-root { display: grid; gap: var(--space-3); min-width: 0; color: var(--ink); }
+.ss-head { display: flex; align-items: center; gap: var(--space-1); }
+.ss-head .ss-title { margin: 0; }
+.ss-flow { margin: var(--space-1) 0; padding-left: 0; list-style: none; }
+.ss-title { margin: var(--space-1) 0 0; font-size: var(--font-lg); }
+.ss-title small { color: var(--muted); font-size: var(--font-sm); font-weight: 400; }
+.ss-starts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-2); }
+.ss-starts-root .ss-start {
+  display: grid; gap: var(--space-1); align-content: start; min-width: 0; padding: var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-card);
+  background: var(--panel); color: var(--ink); font: inherit; text-align: left; white-space: normal; cursor: pointer;
+}
+.ss-starts-root .ss-start:hover:not(:disabled) { border-color: var(--accent); background: var(--panel); }
+.ss-starts-root .ss-start:disabled { cursor: default; opacity: 1; }
+.ss-starts-root .ss-start:disabled > b, .ss-starts-root .ss-start:disabled > span:not(.ss-note):not(.ss-progress) { color: var(--muted); }
+.ss-start > b { font-size: var(--font-lg); }
+.ss-start > span { color: var(--muted); font-size: var(--font-md); line-height: 1.5; }
+.ss-start > em { display: inline-flex; align-items: center; gap: var(--space-0); margin-top: var(--space-1); color: var(--accent); font-size: var(--font-md); font-style: normal; }
+.ss-start > em svg { width: 14px; height: 14px; }
+.ss-start .ss-note { color: var(--ink); }
+.ss-progress { display: block; height: 6px; border-radius: var(--radius-sm); background: var(--surface-hover); overflow: hidden; }
+.ss-progress > i { display: block; height: 100%; border-radius: var(--radius-sm); background: var(--accent); }
+.ss-templates { margin: 0; padding: 0; list-style: none; border: 1px solid var(--line); border-radius: var(--radius-card); overflow: hidden; }
+.ss-templates li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: var(--space-3); align-items: center; padding: var(--space-3) var(--space-3); border-top: 1px solid var(--line); }
+.ss-templates li:first-child { border-top: 0; }
+.ss-tpl-text { display: grid; gap: var(--space-0); min-width: 0; }
+.ss-tpl-text b { font-size: var(--font-md); }
+/* One line: the first sentence, cut with … when still too long (the whole description is the row's title). */
+.ss-tpl-text span { color: var(--muted); font-size: var(--font-md); line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ss-tpl-fig { color: var(--muted); font: var(--font-sm) var(--font-num); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.ss-starts-root .ss-templates button {
+  min-height: 32px; padding: 0 var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-control);
+  background: var(--soft); color: var(--ink); font: inherit; font-size: var(--font-md); white-space: nowrap; cursor: pointer;
+}
+.ss-starts-root .ss-templates button:hover { background: var(--surface-hover); }
+
+/* The phone: one start per row; a template's figure goes under its sentence, 用这个 stays on the right. */
+.ss-compact .ss-starts { grid-template-columns: minmax(0, 1fr); }
+.ss-compact .ss-start { padding: var(--space-3); }
+.ss-compact .ss-templates li { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "text go" "fig go"; row-gap: var(--space-0); }
+.ss-compact .ss-tpl-text { grid-area: text; }
+.ss-compact .ss-tpl-fig { grid-area: fig; text-align: left; }
+.ss-compact .ss-templates button { grid-area: go; min-height: 44px; }

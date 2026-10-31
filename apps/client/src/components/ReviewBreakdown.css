@@ -1,0 +1,6 @@
+/* 按打法、时段、星期 (2026-10-25): three small tables, side by side when the panel is wide. Theme tokens only. */
+.review-breakdown-tables { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-3); }
+.review-breakdown-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.review-breakdown-table th, .review-breakdown-table td { padding: var(--space-1) var(--space-2); text-align: right; border-bottom: 1px solid var(--line); }
+.review-breakdown-table th:first-child { text-align: left; font-weight: 500; overflow-wrap: anywhere; }
+.review-breakdown-table thead th { color: var(--muted); font-weight: 500; }

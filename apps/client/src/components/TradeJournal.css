@@ -1,0 +1,45 @@
+/* 交易日志 · 这笔交易 (2026-09-29). Theme tokens only. */
+.trade-journal { margin-top: var(--space-3); }
+.trade-journal-rows { margin: 0; display: grid; gap: var(--space-2); }
+.trade-journal-rows > div { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); gap: var(--space-2); align-items: baseline; }
+.trade-journal-rows dt { color: var(--muted); font-size: var(--font-md); }
+.trade-journal-rows dd { margin: 0; color: var(--ink); line-height: 1.6; overflow-wrap: anywhere; }
+.trade-journal-rows dd small { display: block; color: var(--muted); font-size: var(--font-sm); }
+.trade-journal-muted { color: var(--muted); }
+.trade-journal-note { display: grid; gap: var(--space-1); color: var(--muted); font-size: var(--font-sm); }
+.trade-journal-note > span { display: flex; gap: var(--space-2); align-items: baseline; flex-wrap: wrap; }
+.trade-journal-note small { font-size: var(--font-sm); }
+.trade-journal-note textarea {
+  width: 100%; box-sizing: border-box; min-width: 0; resize: vertical; font: inherit; font-size: var(--font-md); line-height: 1.6;
+  color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-control); padding: var(--space-2);
+}
+.trade-journal-actions { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
+.trade-journal-actions [role="status"] { color: var(--muted); font-size: var(--font-md); }
+@container trade-journal (max-width: 420px) { .trade-journal-rows > div { grid-template-columns: minmax(0, 1fr); gap: var(--space-0); } }
+.trade-journal .stat-tile b.positive { color: var(--market-up); }
+.trade-journal .stat-tile b.negative { color: var(--market-down); }
+.account-pnl-voice-review {
+  display: inline-flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-3); border-radius: var(--radius-control);
+  border: 1px solid var(--line); background: var(--panel); color: var(--ink); font: inherit; font-size: var(--font-md); cursor: pointer; white-space: nowrap;
+}
+.account-pnl-voice-review[aria-pressed="true"] { color: var(--on-primary); background: var(--primary-bg); border-color: transparent; }
+.trade-journal-actions button:disabled, .account-pnl-voice-review:disabled { opacity: 0.45; cursor: default; }
+/* 账户复盘 header: the title stays on one line; in a narrow side panel the filter and 语音复盘 wrap below it. */
+.account-pnl > header { flex-wrap: wrap; row-gap: var(--space-2); }
+.account-pnl > header h3 { white-space: nowrap; margin-right: auto; }
+/* 未关联的补充 (2026-10-04): read or delete only. */
+.trade-journal-unlinked { margin-top: var(--space-3); }
+.trade-journal-unlinked .section-card-actions button,
+.trade-journal-unlinked-list button { padding: var(--space-1) var(--space-3); font-size: var(--font-md); }
+.trade-journal-unlinked-list { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-2); }
+.trade-journal-unlinked-list > li {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-1) var(--space-3); align-items: center;
+  padding-bottom: var(--space-2); border-bottom: 1px solid var(--line);
+}
+.trade-journal-unlinked-list > li:last-child { padding-bottom: 0; border-bottom: 0; }
+.trade-journal-unlinked-list p { margin: 0; color: var(--ink); line-height: 1.6; overflow-wrap: anywhere; white-space: pre-wrap; }
+.trade-journal-unlinked-list small { grid-column: 1; color: var(--muted); font-size: var(--font-sm); }
+.trade-journal-unlinked-list button { grid-column: 2; grid-row: 1 / span 2; }
+/* 今日复盘 (2026-10-06): the 开 / 平 legs' tags. */
+.trade-journal-tags { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.trade-journal { container-type: inline-size; container-name: trade-journal; }

@@ -1,0 +1,147 @@
+/* The standalone 后台管理 page (/trader/admin): the console full-page for the owner,
+   otherwise a thin top bar plus a full-page gate. Everything comes from the shared theme tokens so both themes and
+   the font/density settings keep working. */
+
+.admin-page {
+  /* Exactly one screen: #root clips overflow (the trading app's shell), so the console's own
+     content region must be the thing that scrolls — a page taller than the screen cannot. */
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: var(--font-md);
+  line-height: 1.35;
+}
+
+/* The page has no settings drawer, so its buttons don't get that drawer's
+   cursor rule — carry it here. */
+.admin-page :where(button):not(:disabled) { cursor: pointer; }
+
+.admin-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-height: 48px;
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.admin-brand {
+  font-size: var(--font-lg);
+  font-weight: 600;
+}
+
+.admin-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/* The console sidebar's bottom block (owner view): who is signed in, which Runtime
+   answers, and the two page links. */
+.admin-account-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.admin-account {
+  color: var(--ink);
+  font-size: var(--font-md);
+  overflow-wrap: anywhere;
+}
+
+.admin-account-role { color: var(--muted); font-size: var(--font-md); }
+
+.admin-runtime {
+  color: var(--fdw-faint, var(--muted));
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--font-md);
+  overflow-wrap: anywhere;
+}
+
+.admin-account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+/* 打开交易页 and 退出登录 are one secondary-button pair: the link wears the
+   same box as the shared Button, sized with a 28px rhythm. */
+.admin-topbar .app-button,
+.admin-account-actions .app-button { min-height: 28px; }
+
+.admin-open-trader {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  color: var(--ink);
+  background: var(--panel);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.admin-open-trader:hover { background: var(--surface-hover); }
+
+.admin-gate {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+}
+
+.admin-gate-card {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  width: min(420px, 100%);
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--panel);
+  text-align: center;
+}
+
+.admin-gate-card h1 {
+  margin: 0;
+  font-size: var(--font-md);
+  font-weight: 700;
+}
+
+.admin-gate-card p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.admin-gate-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+.admin-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-body .fdw-admin-console {
+  flex: 1;
+  min-height: 0;
+}
