@@ -35,15 +35,18 @@ CHINA = ZoneInfo("Asia/Shanghai")
 
 class PriceAlertCreateRequest(BaseModel):
     """到价提醒 creation body: `direction` may be omitted — the Runtime infers it from the live
-    quote (above the last price → 涨到, below → 跌到); `via` records which surface set it."""
+    quote (above the last price → 涨到, below → 跌到); `via` records which surface set it. `drawingId` (改版
+    2026-10-31): 碰到这条线就提醒 — the contract and the price are the user's drawing's (symbol / price may be left out),
+    a sloped line is watched where it is each second, and deleting the line deletes the alert."""
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
-    symbol: str = Field(min_length=1, max_length=60)
-    price: Decimal
+    symbol: str = Field(default="", max_length=60)
+    price: Decimal | None = None
     direction: Literal["above", "below"] | None = None
     note: str = Field(default="", max_length=60)
     via: Literal["ui", "chat", "voice"] = "ui"
     session_id: str | None = Field(default=None, max_length=80, alias="sessionId")
+    drawing_id: str | None = Field(default=None, max_length=40, alias="drawingId")
 
 
 class PlaybookRequest(BaseModel):
@@ -687,7 +690,8 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
         try:
             alert = await create_alert(application, user_id=user_id, symbol=payload.symbol,
                                        price=payload.price, direction=payload.direction,
-                                       note=payload.note, via=payload.via, session_id=payload.session_id)
+                                       note=payload.note, via=payload.via, session_id=payload.session_id,
+                                       drawing_id=payload.drawing_id)
         except ValueError as error:
             raise HTTPException(status_code=422, detail=str(error)) from error
         return {"alert": alert}
@@ -823,8 +827,25 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
             style=style if payload.style is not None else None)
         if updated is None:
             raise HTTPException(status_code=404, detail="chart_drawing_not_found")
+        notice = await rearm_line_alert(user_id, drawing_id) if points is not None else None
         await drawings_changed(user_id)
-        return {"drawing": updated}
+        return {"drawing": updated, **({"alertNotice": notice} if notice else {})}
+
+    async def rearm_line_alert(user_id: str, drawing_id: str) -> str | None:
+        """A moved line takes its 碰到就提醒 along (改版 2026-10-31): the old alert is cancelled and a new one set where
+        the line is now, its side judged again against the latest price — so moving a line across the price never
+        fires it. When the new one cannot be set (the line now sits on the price, no quote) the Chinese reason."""
+        from ..price_alerts import create_alert
+        old = store.drawing_price_alert(user_id=user_id, drawing_id=drawing_id)
+        if old is None:
+            return None
+        store.cancel_price_alert(user_id=user_id, alert_id=str(old["id"]))
+        try:
+            await create_alert(application, user_id=user_id, symbol="", price=None, direction=None, note=str(old["note"]),
+                               via=str(old["via"]), session_id=old["sessionId"], drawing_id=drawing_id)
+        except ValueError as error:
+            return f"线挪了，这条线的提醒没能跟着改，已取消：{error}"
+        return None
 
     @application.delete("/api/market/drawings/{drawing_id}")
     async def delete_chart_drawing(drawing_id: str, request: Request) -> dict[str, object]:

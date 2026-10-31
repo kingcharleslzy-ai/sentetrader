@@ -1162,6 +1162,8 @@ class StoreBase:
             # named (comma-separated; empty = the whole account, as 风险度 is), a 盘中异动 claim its text.
             self._add_column("reminder_notices", "symbols TEXT NOT NULL DEFAULT ''")
             self._add_column("push_notices", "text TEXT")
+            # 碰到这条线就提醒 (改版 2026-10-31): the user's drawing an alert watches; deleting the drawing cancels it.
+            self._add_column("price_alerts", "drawing_id TEXT")
             self._add_column("sessions", "codex_thread_id TEXT")
             self._add_column("sessions", "codex_tool_protocol_version INTEGER NOT NULL DEFAULT 0")
             # #932 follow-up: how many times the session's account was switched — the shared, cross-slot token a switch

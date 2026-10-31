@@ -13,7 +13,9 @@ type Point = [number, number];
 /** Where a time / price sits on the pane (media pixels), and the pane's size. */
 export interface DrawingMapper { x(time: number): number | null; y(price: number): number | null; width: number; height: number }
 /** Theme colours the canvas cannot read as CSS variables. */
-export interface DrawingPalette { color(color: DrawingColor | undefined): string; up: string; down: string; panel: string }
+export interface DrawingPalette { color(color: DrawingColor | undefined): string; up: string; down: string; panel: string;
+  /** --price-alert: the 提醒 tag on a line an alert watches. */
+  alert?: string }
 /** A placement in progress: the tool, the clicks so far and the cursor (the rubber band). */
 export interface DrawingDraft { kind: DrawingKind; anchors: Anchor[]; cursor?: Anchor | null }
 export interface DrawingHit { drawing: ChartDrawing; handle: number | null }
@@ -284,6 +286,7 @@ export function drawingPalette(): DrawingPalette {
       return cache.get(token)!;
     },
     up: read("--market-up", "#cf291e"), down: read("--market-down", "#0a7a49"), panel: read("--panel", "#ffffff"),
+    alert: read("--price-alert", "#5b21b6"),
   };
 }
 
@@ -417,7 +420,7 @@ export class UserDrawingsPrimitive implements ISeriesPrimitive<Time> {
         context.globalAlpha = 1; context.fillStyle = labelInk(color); context.textAlign = "left";
         context.fillText(text, rect.left + padding, rect.top + boxHeight / 2);
       };
-      const paint = (item: Pick<ChartDrawing, "kind" | "points" | "label" | "style">, anchors: Anchor[], selected: boolean, ghost: boolean) => {
+      const paint = (item: Pick<ChartDrawing, "kind" | "points" | "label" | "style" | "alerted">, anchors: Anchor[], selected: boolean, ghost: boolean) => {
         const geometry = drawingGeometry(item, anchors, map, { tick: this.tick, bars: this.bars });
         if (!geometry) return;
         const style = resolveStyle(item);
@@ -483,6 +486,9 @@ export class UserDrawingsPrimitive implements ISeriesPrimitive<Time> {
             context.font = LABEL_FONT; context.fillStyle = color; context.textAlign = entry.align; context.fillText(entry.text, entry.at[0], entry.at[1]);
           }
         }
+        // 碰到这条线就提醒: a line an alert watches wears a 提醒 tag in the alert colour by its last point.
+        const end = geometry.handles.at(-1);
+        if (item.alerted && end) boxLabel("提醒", end[0] + 8, end[1], "left", this.palette.alert ?? color);
         if (selected) {
           for (const [index, [hx, hy]] of geometry.handles.entries()) {
             if (hx < -6 || hx > width + 6) continue;

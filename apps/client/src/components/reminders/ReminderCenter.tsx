@@ -1,16 +1,12 @@
-import { useState, type ReactNode } from "react";
-import { Bell, CheckCheck, ChevronDown, ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
-import { chartSymbolOf } from "../../api";
+import type { ReactNode } from "react";
+import { Bell, CheckCheck, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { HelpTip } from "../Blocks";
 import { reminderKind } from "../notifyKinds";
-import { AlertForm } from "../futures/PriceAlertsControl";
-import { alertLine, type PriceAlertsHandle } from "../../hooks/usePriceAlerts";
-import { useDisclosureSurface } from "../../uiSurfaces";
+import type { PriceAlertsHandle } from "../../hooks/usePriceAlerts";
 import { groupReminders, reminderClock, reminderState, tradingDayLabel, type ReminderFilter, type ReminderItem, type RemindersHandle } from "../../reminders";
 import "./ReminderCenter.css";
 
 const DAY_HELP = "一个交易日从前一晚 21:00 夜盘算起，到当天 15:00 收盘。当天的提醒都在这里，电脑和手机读同一份记录，已读也一起变；更早的在服务端留 30 天。点一条：交易类跳到对话里那张卡，挂单去委托，信息类打开调研或新闻。";
-const ALERT_HELP = "价格到了只提醒一次。触发后从这一栏移走，记进下面当天的提醒里。点合约名切到那个合约的图。";
 const DEST: Record<string, string> = { chat: "对话", orders: "委托", research: "调研", news: "新闻", review: "复盘" };
 
 /** What the center needs from the window: the alerts handle and the contract the form defaults to. */
@@ -81,43 +77,14 @@ function Groups({ items, by, onOpen, onBreakeven, accountName, mobile }: { items
   </div>)}</>;
 }
 
-/** 到价提醒 · 生效中: every active alert of the user's, 新建 for the shown contract, × deletes. */
-export function AlertsBlock({ alerts, contract, onSwitchContract }: Pick<ReminderCenterProps, "contract" | "onSwitchContract"> & { alerts: PriceAlertsHandle }) {
-  const [formOpen, setFormOpen] = useDisclosureSurface("reminder-alert-new", { available: alerts.available });
-  const [seq, setSeq] = useState(0);
-  return <section className="rc-alerts" aria-label="到价提醒 生效中">
-    <div className="rc-block-head">
-      <h3>到价提醒 · 生效中</h3><span className="rc-count">{alerts.active.length}</span>
-      <HelpTip helpKey="reminder-alerts" label="到价提醒 · 生效中">{ALERT_HELP}</HelpTip>
-      <span className="rc-spacer" />
-      <button type="button" className="rc-button ghost" aria-expanded={formOpen} disabled={!contract?.symbol}
-        onClick={() => { if (!formOpen) { alerts.refresh(); setSeq(value => value + 1); } setFormOpen(!formOpen); }}><Plus aria-hidden="true" />新建</button>
-    </div>
-    {formOpen && contract?.symbol ? <div className="rc-alert-form">
-      <AlertForm key={`${contract.symbol}:${seq}`} alerts={alerts} symbol={contract.symbol} priceTick={contract.priceTick} lastPrice={contract.lastPrice} />
-    </div> : null}
-    {alerts.active.length ? <ul className="rc-alert-list">
-      {alerts.active.map(alert => <li key={alert.id}>
-        <button type="button" className="rc-alert-name" title={`切到 ${alert.symbol}`} aria-label={`${alert.name} ${alert.symbol}`}
-          onClick={() => onSwitchContract?.(chartSymbolOf(alert.symbol))}>{alert.name}</button>
-        <span className="rc-alert-line"><b data-direction={alert.direction}>{alert.direction === "above" ? "涨到" : "跌到"}</b> <span className="rc-mono">{alert.price}</span>
-          {alert.note ? <i>{alert.note}</i> : null}</span>
-        <button type="button" className="rc-alert-delete" aria-label={`删除提醒：${alertLine(alert)}`} title="删除" onClick={() => alerts.cancel(alert.id)}><X aria-hidden="true" /></button>
-      </li>)}
-    </ul> : <p className="rc-quiet">没有生效中的到价提醒</p>}
-  </section>;
-}
-
-/** The filter, 全部已读, the alerts and the day's stream: the same body in the desktop popover and the phone page. */
-export function ReminderCenterBody({ reminders, alerts, contract, filter, onFilter, onOpen, onBreakeven, onSwitchContract, accountName, mobile }: ReminderCenterProps) {
+/** 提醒记录: the day's stream (the alerts the user set live on 我的提醒, MyReminders): the same body on the panel and the phone page. */
+export function ReminderCenterBody({ reminders, filter, onFilter, onOpen, onBreakeven, accountName, mobile }: ReminderCenterProps) {
   const todayShown = filter === "unread" ? reminders.today.filter(item => !item.read) : reminders.today;
   const earlierShown = filter === "unread" ? reminders.earlier.filter(item => !item.read) : reminders.earlier;
   const empty = !todayShown.length && !earlierShown.length;
   // The list stands (read, or kept after a refresh that failed — Codex r4307948008): its ways on stay, with the error above.
   const listed = reminders.status === "ready" || (reminders.status === "error" && reminders.today.length > 0);
-  const alertsBlock = alerts?.available ? <AlertsBlock alerts={alerts} contract={contract} onSwitchContract={onSwitchContract} /> : null;
   return <>
-    {mobile ? <div className="rc-mobile-alerts rc-card">{alertsBlock}</div> : alertsBlock}
     <section className="rc-day" aria-label="当天提醒">
       <div className="rc-block-head rc-day-head"><h3>{tradingDayLabel(reminders.tradingDay)}</h3>
         <HelpTip helpKey="reminder-day" label="提醒记录的交易日">{DAY_HELP}</HelpTip></div>

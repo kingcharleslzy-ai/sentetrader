@@ -78,7 +78,9 @@ export interface ChartMenuActions {
   onClearMarks: () => void;
   onPatch: (drawing: ChartDrawing, patch: DrawingPatch) => void;
   onSettings: (drawing: ChartDrawing) => void;
+  /** 这条线被碰到时提醒我 (改版 2026-10-31): sets the line's alert, or cancels it when `lineAlerted` says it has one. */
   onLineAlert: (drawing: ChartDrawing) => void;
+  lineAlerted?: (drawing: ChartDrawing) => boolean;
   onDuplicate: (drawing: ChartDrawing) => void;
   onDelete: (drawing: ChartDrawing) => void;
   onSwapPane: (from: SubPaneType, to: SubPaneType) => void;
@@ -94,8 +96,8 @@ function Item({ children, onClick, disabled, danger, title, checked }: { childre
 
 /**
  * 画线第二版 (2026-10-09, 样稿 ③): the chart's right-click menu serves the chart only — three kinds by
- * where the click lands: 主图空白处 (画线 ▸, 设到价提醒, 测量, 周期 ▸, 主图指标 ▸, 添加副图 ▸, 图表设置…,
- * the two AI questions, 清空图上标记), 一条线上 (颜色/粗细/线型 ▸, 精确设置…, 设到价提醒,
+ * where the click lands: 主图空白处 (画线 ▸, 在这里设提醒 ▸, 测量, 周期 ▸, 主图指标 ▸, 添加副图 ▸, 图表设置…,
+ * the two AI questions, 清空图上标记), 一条线上 (颜色/粗细/线型 ▸, 精确设置…, 这条线被碰到时提醒我,
  * 复制一条, 锁定, 删除 danger) and 副图上 (换成 ▸, 参数设置…, 上移/下移, 添加副图 ▸, 关闭 danger). Ordering
  * stays in the order panel and the shortcuts. Each menu and submenu is a UI command
  * (`disclosure: chart-context-menu {id}`).
@@ -161,7 +163,7 @@ export function ChartContextMenu({ menu, actions, onSub, onClose }: { menu: Char
         <button type="button" role="menuitem" {...subToggle("alert")}><Bell aria-hidden="true" /><span>在这里设提醒</span><small>{priceText}</small><ChevronRight aria-hidden="true" /></button>
         {menu.sub === "alert" ? (
           <div className="fdw-context-menu fdw-cm-sub" data-flip={place.flip} role="menu" aria-label="在这里设提醒">
-            <Item onClick={() => run(() => actions.onAlert!(price))}><span>到价提醒</span><small>{priceText}</small></Item>
+            <Item onClick={() => run(() => actions.onAlert!(price))}><span>价格到 {priceText} 时提醒我</span></Item>
             {actions.onReminder ? <>
               {actions.playbooks?.length ? <hr /> : null}
               {actions.playbooks?.map(playbook => <Item key={playbook.id} onClick={() => run(() => actions.onReminder!(playbook))}><span>按交易笔记：{playbook.name}</span></Item>)}
@@ -220,7 +222,8 @@ export function ChartContextMenu({ menu, actions, onSub, onClose }: { menu: Char
         ) : null}
       </div>
       <Item onClick={() => run(() => actions.onSettings(drawing))}><Settings2 aria-hidden="true" /><span>精确设置…</span></Item>
-      {actions.onAlert ? <Item disabled={!alertable} title={alertable ? undefined : "形状和标注不是价位，不能设提醒"} onClick={() => run(() => actions.onLineAlert(drawing))}><Bell aria-hidden="true" /><span>在这条线设到价提醒</span></Item> : null}
+      {actions.onAlert ? <Item disabled={!alertable} title={alertable ? undefined : "形状和标注不是价位，不能设提醒"} onClick={() => run(() => actions.onLineAlert(drawing))}><Bell aria-hidden="true" />
+        <span>{actions.lineAlerted?.(drawing) ? "取消这条线的提醒" : "这条线被碰到时提醒我"}</span></Item> : null}
       <Item onClick={() => run(() => actions.onDuplicate(drawing))}><Copy aria-hidden="true" /><span>复制一条</span></Item>
       <Item onClick={() => run(() => actions.onPatch(drawing, { style: { locked: !style.locked } }))}>{style.locked ? <LockOpen aria-hidden="true" /> : <Lock aria-hidden="true" />}<span>{style.locked ? "解锁" : "锁定"}</span></Item>
       <hr />

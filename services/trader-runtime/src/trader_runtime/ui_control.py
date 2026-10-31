@@ -265,8 +265,9 @@ DISCLOSURE_NAMES = Literal[
     # 到价提醒 (2026-10-02): the chart toolbar's 提醒 popover (current contract's price form + the
     # alert list). The toolbar button's aria-label carries the active-alert count for observation.
     "price-alerts",
-    # 提醒中心 (2026-10-15): the 到价提醒 · 生效中 block's 新建 form (open = the price form for the shown
-    # contract; needs the 提醒 panel's 我的提醒 tab, reminders: {tab: mine}). The alerts go through /api/market/alerts.
+    # 我的提醒's 新建提醒 (one list since 改版 2026-10-31; open = 到某个价's price form for the shown contract, with
+    # 按条件… beside it = strategyEditor {new, reminder}; needs the 提醒 panel's 我的提醒 tab, reminders: {tab: mine}).
+    # The alerts go through /api/market/alerts.
     "reminder-alert-new",
     # 交易笔记 (was 打法本, 2026-10-25; on the 复盘 page since 改版第一步 2026-10-31): its 新建笔记 form (open = an empty
     # form; needs the 复盘 page, which strategyTab playbooks opens).
@@ -1002,7 +1003,7 @@ class PreferenceChange(BaseModel):
 
 
 class RemindersNavigation(BaseModel):
-    """提醒面板（电脑右侧栏）/ 提醒页（手机）的页签（2026-10-25）：mine 我的提醒（条件提醒 + 到价提醒）/ general 通用提醒（原设置 → 提醒）/ history 提醒记录（原提醒中心）。"""
+    """提醒面板（电脑右侧栏）/ 提醒页（手机）的页签（2026-10-25）：mine 我的提醒（到价、画线、条件提醒一张表）/ general 通用提醒（原设置 → 提醒）/ history 提醒记录（原提醒中心）。"""
     model_config = ConfigDict(extra="forbid")
     tab: Literal["mine", "general", "history"] | None = None
 
@@ -1227,7 +1228,7 @@ class UiState(BaseModel):
     news: dict[str, Any] | None = None
     # 提醒面板 / 提醒页（2026-10-25）开着时回报页签 {tab: mine | general | history}。
     reminders: dict[str, Any] | None = None
-    # 我的提醒 · 条件提醒（第 6 批）while it shows: {status: loading|ready|error, items: [{id, name, status:
+    # 我的提醒's 条件提醒（第 6 批）while it shows (the price alerts are GET /api/market/alerts): {status: loading|ready|error, items: [{id, name, status:
     #  monitoring|paused|idle, symbol, runId}], error}.
     myReminders: dict[str, Any] | None = None
     # 多 AI 研讨 (2026-10-11): the 辩论 page while it shows — id, status, the running step, who is speaking, the
@@ -1420,7 +1421,7 @@ class UiChanges(BaseModel):
                        "mobilePage 打开手机版的全屏子页（只对手机布局有效）：order 下单页（当前合约，确认后才下单）、positions 持仓与委托、review 复盘摘要、briefs AI 简报推送（推送开关与订阅品种，增删调序走 PUT /api/app/brief-subscriptions）、install 安装到桌面引导（按浏览器给步骤、安卓一键安装按钮或微信等 App 内的换浏览器遮罩；快照 state.installEnvironment 是识别出的环境 installed / in-app-ios / in-app-android / ios-safari-26 / ios-safari-legacy / ios-chrome-edge / ios-other / android-prompt / android-vendor / desktop；安装本身由用户在浏览器里完成）、reminders 提醒（提醒中心的手机页，同 reminderCenter: {open: true}）、push 锁屏提醒（这台设备的开关与“发一条试试”、已开锁屏提醒的设备；提醒哪些事与锁屏上显示金额和手数在 settingsPage notify；快照 state.pushSupport＝supported / needs-install（iPhone 要先放到主屏幕）/ unsupported（安卓与 Chrome 走谷歌推送，国内收不到），state.pushSubscribed＝这台设备是否已开；打开必须用户在页面上点，AI 只能用 GET /api/app/push 查、POST /api/app/push/test 发一条试试）、lab 回测结果页（策略 → 最近的回测里最新一次；几组参数的净值、样本内 / 样本外与过拟合风险，选用一组走 POST /api/strategy-labs/{labId}/choose，“上线运行”与电脑同一校验、执行方式固定出卡确认；要看指定的一次用 mobileLab）、accounts 设置·账户（交易账户切换）、memory 设置·记忆（AI 与记忆，含我的流程）、appearance 设置·界面（外观与字号）、help 使用说明卡，null 关闭（快照 state.mobilePage）；"
                        "手机布局下 positionsTab / fillsSource / ordersHistory 落到持仓与委托页、ticketMode / selectPosition 落到下单页、reviewExpand / reviewFilter / reviewSelect / reviewCurrency 落到复盘摘要页；看盘的合约选择是 dialog: contract-drawer，周期与合约用 duration / chartView / symbol。"
                        "mobileNotifyFilter 切 AI 首页时间线的筛选（原通知页）并打开 AI 标签、滚到时间线：all 全部、fill 成交、brief AI 简报；旧值 reminder 打开提醒页（快照 state.mobileNotifyFilter；state.mobileUnread 是提醒中心的未读条数，与 state.reminderCenter.unread 相同）。"
-                       "reminders {tab} 打开提醒面板（电脑右侧栏“提醒”）/ 提醒页（手机）并切到该页签：mine 我的提醒（条件提醒：只提醒的策略，快照 state.myReminders {status, items: [{id, name, status monitoring/paused/idle（任一合约在盯即 monitoring）, symbol（在跑的各合约）, runs [{runId, status}]}]}，暂停 / 删除作用于每个实例，新建用 strategyEditor {new: true, reminder: true}、改用 strategyEditor {edit: id}，开停删走策略接口 monitor/start {signalAction: alert}、monitor/pause、DELETE /api/strategy-plans/{id}；以及到价提醒）、general 通用提醒（每类提醒的开关、桌面通知、锁屏推送；原设置 → 提醒，旧命令 settingsPage: notify 也到这里）、history 提醒记录；快照 state.reminders {tab}（面板或页面开着时）。reminderCenter {open?, filter?, more?} 打开/关闭提醒记录——电脑是提醒面板的“提醒记录”页签（K 线工具条铃铛直达），手机是提醒页的同一页签（同一份数据）：filter unread 只看未读、all 当天全部（只给 filter 也会打开）；more: true＝“继续加载当天提醒”，当天一次最多读 500 条，快照 state.reminderCenter.moreToday 为 true 时读下一批（同时打开提醒中心）：下一批读到才回 applied（moreDone 追上 moreAsked 且 moreError 为空），没有更多、刚刷新过要再点或读取失败回 rejected，原因在 state.reminderCenter.moreError；内容是到价提醒·生效中（新建表单是 disclosure: reminder-alert-new，增删走 /api/market/alerts）和当前交易日的提醒按日盘上午 / 下午 / 夜盘分组倒序，“查看更早”与已读走业务接口 GET /api/reminders?scope=earlier、POST /api/reminders/read（快照 state.reminderCenter {open, filter, unread, today, moreToday, moreAsked, moreDone, moreError, earlier}，today 是已读出的当天条数）；点一条提醒去它的卡（对话）、委托、复盘、调研或新闻；保本提醒的“移到成本 / 不用”是 POST /api/ai-execution/breakeven/{id}/{move|decline}。"
+                       "reminders {tab} 打开提醒面板（电脑右侧栏“提醒”）/ 提醒页（手机）并切到该页签：mine 我的提醒（一张表：到某个价、碰到我画的线（到价提醒，增删走 /api/market/alerts，画线的带 drawingId）和按条件（条件提醒：只提醒的策略，快照 state.myReminders {status, items: [{id, name, status monitoring/paused/idle（任一合约在盯即 monitoring）, symbol（在跑的各合约）, runs [{runId, status}]}]}，暂停 / 删除作用于每个实例，改用 strategyEditor {edit: id}，开停删走策略接口 monitor/start {signalAction: alert}、monitor/pause、DELETE /api/strategy-plans/{id}）；“新建提醒”= disclosure: reminder-alert-new（到某个价的表单，当前合约），旁边“按条件…”= strategyEditor {new: true, reminder: true}）、general 通用提醒（每类提醒的开关、桌面通知、锁屏推送；原设置 → 提醒，旧命令 settingsPage: notify 也到这里）、history 提醒记录；快照 state.reminders {tab}（面板或页面开着时）。reminderCenter {open?, filter?, more?} 打开/关闭提醒记录——电脑是提醒面板的“提醒记录”页签（K 线工具条铃铛直达），手机是提醒页的同一页签（同一份数据）：filter unread 只看未读、all 当天全部（只给 filter 也会打开）；more: true＝“继续加载当天提醒”，当天一次最多读 500 条，快照 state.reminderCenter.moreToday 为 true 时读下一批（同时打开提醒中心）：下一批读到才回 applied（moreDone 追上 moreAsked 且 moreError 为空），没有更多、刚刷新过要再点或读取失败回 rejected，原因在 state.reminderCenter.moreError；内容是当前交易日的提醒按日盘上午 / 下午 / 夜盘分组倒序，“查看更早”与已读走业务接口 GET /api/reminders?scope=earlier、POST /api/reminders/read（快照 state.reminderCenter {open, filter, unread, today, moreToday, moreAsked, moreDone, moreError, earlier}，today 是已读出的当天条数）；点一条提醒去它的卡（对话）、委托、复盘、调研或新闻；保本提醒的“移到成本 / 不用”是 POST /api/ai-execution/breakeven/{id}/{move|decline}。"
                        "mobileNotifyProduct 在 AI 首页时间线的 AI 简报下只看一个品种（“<交易所>.<品种>”如 SHFE.rb，须是订阅品种（推送范围内）或时间线里出现的品种，否则 rejected；null 看全部品种；同时切到 AI 简报筛选与 AI 标签，快照 state.mobileNotifyProduct）。"
                        "mobileLab {labId} 打开手机版回测结果页看指定的一次比较（labId 来自 GET /api/strategy-labs；快照 state.mobilePage lab、state.mobileLab {labId, chosen}——chosen 是已选用的变体，未选为 null）。"
                        "mobileStrategyTab 切手机版策略页的分页（running 正在运行：暂停 / 继续 / 停止并平仓；mine 我的策略：顶上“新建策略”，每个策略一张卡带“编辑 / 回测 / 上线…”，一条没有时是三种开始方式与常用模板），先切到策略标签（快照 state.mobileStrategyTab）。"

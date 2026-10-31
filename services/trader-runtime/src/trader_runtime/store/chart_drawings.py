@@ -96,11 +96,18 @@ class ChartDrawingStore(StoreBase):
             if row is None:
                 return None
             self.connection.execute("DELETE FROM chart_drawings WHERE id = ?", (drawing_id,))
+            # A line's 碰到就提醒 goes with the line (改版 2026-10-31).
+            self.connection.execute(
+                "UPDATE price_alerts SET status = 'cancelled' WHERE user_id = ? AND drawing_id = ? AND status = 'active'",
+                (user_id, drawing_id))
         return drawing_view(row)
 
     def clear_chart_drawings(self, *, user_id: str, symbol: str) -> int:
-        """Delete every drawing of the user's on one contract; returns how many went."""
+        """Delete every drawing of the user's on one contract (and the alerts watching them); returns how many went."""
         with self.lock, self.connection:
+            self.connection.execute(
+                """UPDATE price_alerts SET status = 'cancelled' WHERE user_id = ? AND status = 'active' AND drawing_id IN
+                (SELECT id FROM chart_drawings WHERE user_id = ? AND symbol = ?)""", (user_id, user_id, symbol))
             cursor = self.connection.execute(
                 "DELETE FROM chart_drawings WHERE user_id = ? AND symbol = ?", (user_id, symbol))
         return cursor.rowcount

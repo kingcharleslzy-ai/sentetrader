@@ -59,6 +59,8 @@ export interface ChartDrawing {
   style?: DrawingStyle;
   createdAt: string;
   updatedAt: string;
+  /** Client-side only: an active 碰到这条线就提醒 watches it (the chart tags it 提醒). Never sent to the Runtime. */
+  alerted?: boolean;
 }
 
 export interface DrawingToolSpec {
@@ -123,7 +125,7 @@ export function isDrawingGroup(value: unknown): value is DrawingGroup {
 export const TIMELESS_KINDS: ReadonlySet<DrawingKind> = new Set(["hline", "zone"]);
 /** Kinds whose line can be extended left / right (精确设置's 向左延长 / 向右延长). */
 export const EXTENDABLE_KINDS: ReadonlySet<DrawingKind> = new Set(["trendline", "ray", "extended", "hray", "channel", "rect_zone", "fib", "percent", "gann"]);
-/** Kinds that mark a price level (their right-click / style bar offer 设到价提醒). */
+/** Kinds that mark a price level (their right-click / style bar offer 这条线被碰到时提醒我; the Runtime's ALERTABLE_KINDS). */
 export const ALERTABLE_KINDS: ReadonlySet<DrawingKind> = new Set(["hline", "hray", "price_label", "trendline", "ray", "extended", "zone", "rect_zone"]);
 
 export const DRAWING_COLOR_PRESETS: ReadonlyArray<{ color: DrawingColor; label: string }> = [
@@ -283,18 +285,6 @@ export function drawingTitle(drawing: Pick<ChartDrawing, "kind" | "points" | "la
   if (drawing.kind === "text") return `${name} · ${drawing.label || "（空）"}`;
   if (anchors.length >= 2) return `${name} · ${anchorClock(anchors[0].t)} → ${anchorClock(anchors.at(-1)!.t)}`;
   return name;
-}
-
-/** The price a line's 设到价提醒 uses: a level's own price, a line's value at `time` (the latest bar),
- *  a zone's upper edge; null for a shape. */
-export function alertPrice(drawing: Pick<ChartDrawing, "kind" | "points">, time: number | undefined): number | null {
-  const anchors = anchorsOf(drawing);
-  if (!ALERTABLE_KINDS.has(drawing.kind) || !anchors.length) return null;
-  if (drawing.kind === "zone" || drawing.kind === "rect_zone") return Math.max(...anchors.map(anchor => anchor.p));
-  if (anchors.length < 2 || time === undefined) return anchors[0].p;
-  const [a, b] = anchors;
-  if (b.t === a.t) return b.p;
-  return a.p + (b.p - a.p) * (time - a.t) / (b.t - a.t);
 }
 
 /** A copy's anchors: shifted down by five ticks so it sits beside the original. */

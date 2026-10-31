@@ -394,6 +394,40 @@ def reference_price(drawing: dict[str, Any]) -> Any:
     return None
 
 
+# 碰到这条线就提醒 (改版 2026-10-31): the kinds that mark a price level (the client's ALERTABLE_KINDS). A level or a zone
+# holds one price (its reference price); a sloped line's price moves with time.
+SLOPED_KINDS = frozenset({"trendline", "ray", "extended"})
+ALERTABLE_KINDS = frozenset({"hline", "hray", "price_label", "zone", "rect_zone"}) | SLOPED_KINDS
+
+
+def line_price_at(drawing: dict[str, Any], now: int, trading_seconds: Any) -> float | None:
+    """Where the line is at `now` (seconds): a level's own price, a sloped line's value along its two points. The
+    chart lays bars side by side, so the slope runs over trading time (`trading_seconds(a, b)` in seconds, None
+    when unknown), not wall time — a night or a weekend does not move the line. None where the line is not drawn
+    (a segment that has ended and is not extended) or cannot be worked out."""
+    kind = str(drawing.get("kind"))
+    if kind not in ALERTABLE_KINDS:
+        return None
+    if kind not in SLOPED_KINDS:
+        reference = reference_price(drawing)
+        return None if reference is None else float(reference)
+    anchors = anchors_of(drawing)
+    try:
+        (t1, p1), (t2, p2) = ((int(item["t"]), float(item["p"])) for item in anchors[:2])
+    except (KeyError, TypeError, ValueError):
+        return None
+    style = drawing.get("style") or {}
+    # A ray runs on past its second point; a segment ends at its points unless its style extends it.
+    right = kind == "extended" or style.get("extendRight") or (kind == "ray" and t2 > t1)
+    left = kind == "extended" or style.get("extendLeft") or (kind == "ray" and t2 < t1)
+    if (now > max(t1, t2) and not right) or (now < min(t1, t2) and not left):
+        return None
+    span, elapsed = trading_seconds(t1, t2), trading_seconds(t1, now)
+    if not span or elapsed is None:
+        return None
+    return p1 + (p2 - p1) * elapsed / span
+
+
 def drawing_line(drawing: dict[str, Any], *, last_price: Any = None) -> str:
     """The one-line receipt the UI and the AI tools read, in the alert-line shape; with a live
     price it says where the market sits relative to the line (“现价 3112，在 3100 上方 12”)."""

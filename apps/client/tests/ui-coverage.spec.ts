@@ -341,8 +341,8 @@ test("every user-operable control is commandable or reachable, and visible to th
     ["board-columns", [{ view: "board" }, { disclosure: { name: "board-columns", open: true } }], true],
     ["", [{ disclosure: { name: "board-columns", open: false } }, { view: "trade" }], false],
     ["", [{ view: "trade" }], false],
-    // 提醒 (#932, 2026-10-15; the right rail's panel since 2026-10-25; the bell itself is on trade): 我的提醒 with 到价提醒 ·
-    // 生效中's 新建 form open (the fake account starts with no alerts), then 提醒记录 and its 未读. The phone's 设提醒 keeps
+    // 提醒 (#932, 2026-10-15; the right rail's panel since 2026-10-25; the bell itself is on trade): 我的提醒 (one list since
+    // 2026-10-31) with 新建提醒's 到某个价 form open (the fake account starts with no alerts), then 提醒记录 and its 未读. The phone's 设提醒 keeps
     // disclosure price-alerts. 继续加载当天提醒 (#932 R5, reminderCenter: {more: true}) shows only past 500 reminders a day;
     // the audit's Runtime holds none, so its rule in support/uiCoverage.ts and the command's receipt are checked by unit tests.
     ["reminders-mine", [{ reminders: { tab: "mine" } }, { disclosure: { name: "reminder-alert-new", open: true } }], true],

@@ -108,7 +108,7 @@ import { judgmentChips, notifyProducts, notifyRow, productKey, type NotifyFilter
 import { useReminders, type ReminderFilter, type ReminderItem } from "../reminders";
 import { LatestReminders, MobileReminders, ReminderBell, type ReminderCenterProps } from "./reminders/ReminderCenter";
 import { RemindersPanel, RemindersTabBody, RemindersTabs, type RemindersTab } from "./reminders/RemindersPanel";
-import { MyReminders } from "./reminders/MyReminders";
+import type { MyRemindersProps } from "./reminders/MyReminders";
 import { ReminderSettings } from "./reminders/ReminderSettings";
 import { mainContract } from "./mobile/MobileResearch";
 import { MobileBriefs } from "./mobile/MobileBriefs";
@@ -1189,8 +1189,8 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   const openReminderEditor = (change: Record<string, unknown>) => { if (!mobile) setRightDock("strategy"); applyUiSurface("strategyEditor", change); };
   const reminderEditor = !mobile || mobileEditorEnabled;
   const showMyReminders = () => { setRemindersTab("mine"); if (mobile) openMobilePage("reminders"); else setRightDock("reminders"); };
-  const conditionReminders = <MyReminders baseUrl={connectedRuntimeUrl} contract={quote?.symbol} chartTimeframe={market?.durationSeconds ?? props.duration}
-    onNew={reminderEditor ? () => openReminderEditor({ new: true, reminder: true }) : undefined} onEdit={reminderEditor ? id => openReminderEditor({ edit: id }) : undefined} />;
+  const myReminders: MyRemindersProps = { baseUrl: connectedRuntimeUrl, contract: quote?.symbol, chartTimeframe: market?.durationSeconds ?? props.duration,
+    onNew: reminderEditor ? () => openReminderEditor({ new: true, reminder: true }) : undefined, onEdit: reminderEditor ? id => openReminderEditor({ edit: id }) : undefined };
   const reminderSettings = <ReminderSettings workspace={workspace} connectedRuntimeUrl={connectedRuntimeUrl} preferences={prefs} appWorkbench={appWorkbench}
     brief={{ status: briefStatus, saving: briefSaving, error: briefError, setSaving: setBriefSaving, setError: setBriefError }}
     skills={skills} ownerStatus={ownerPlan.status} shown={remindersShown && remindersTab === "general"} />;
@@ -1380,7 +1380,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     ) : mobileSub === "push" ? (
       <MobilePush push={push} offline={!connectedRuntimeUrl} onOpenSettings={openReminderSettings} onOpenInstall={() => setMobileSub("install")} onClose={() => setMobileSub(null)} />
     ) : mobileSub === "reminders" ? (
-      <MobileReminders onClose={() => setMobileSub(null)} tabs={<RemindersTabs tab={remindersTab} onTab={setRemindersTab} />}><RemindersTabBody tab={remindersTab} center={reminderCenter} settings={reminderSettings} conditions={conditionReminders} mobile /></MobileReminders>
+      <MobileReminders onClose={() => setMobileSub(null)} tabs={<RemindersTabs tab={remindersTab} onTab={setRemindersTab} />}><RemindersTabBody tab={remindersTab} center={reminderCenter} settings={reminderSettings} mine={myReminders} mobile /></MobileReminders>
     ) : mobileSub === "lab" ? (
       <MobileLab rootUrl={connectedRuntimeUrl ? props.rootBaseUrl ?? connectedRuntimeUrl : undefined} baseUrl={connectedRuntimeUrl} labId={mobileLabId}
         instruments={props.instruments} chartTimeframe={props.duration} sessionId={props.chatSessionId}
@@ -1573,7 +1573,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
           watchProducts={flashWatchProducts} instruments={props.instruments?.items} onSelectSymbol={selectContract}
           debate={props.guest ? undefined : debate} tab={newsTab} onTab={setNewsTab} /> : null}
         {!props.guest && rightDock === "reminders" ? <RemindersPanel tab={remindersTab} onTab={setRemindersTab} onClose={() => setRightDock(null)}
-          center={reminderCenter} settings={reminderSettings} conditions={conditionReminders} /> : null}
+          center={reminderCenter} settings={reminderSettings} mine={myReminders} /> : null}
         {!props.guest && rightDock === "strategy" ? <StrategyDock workspace={workspace} quote={quote}
           onClose={() => setRightDock(null)} tab={strategyTab} onTabChange={setStrategyTab}
           onStrategySelected={focus.setActiveStrategy} autonomy={preferencesLoaded ? preferences.trade.aiAutonomy : undefined}

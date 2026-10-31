@@ -423,3 +423,43 @@ def assert_no_order_action(card: dict) -> None:
     assert card["actions"] and {action["kind"] for action in card["actions"]} <= {"ask", "ui"}
     for action in card["actions"]:
         assert set(action.get("changes") or {}) <= {"panel", "news", "positionsTab", "symbol", "view"}
+
+
+async def test_a_line_alert_goes_with_its_drawing_and_a_trend_line_runs_on_trading_time(tmp_path: Path) -> None:
+    """碰到这条线就提醒 (改版 2026-10-31): a level's alert is a price alert linked to the line — moving the line re-arms
+    it on the new side, deleting the line cancels it. A sloped line's price runs over trading time only."""
+    from trader_runtime.chart_drawings import line_price_at
+    from trader_runtime.trading_calendar import NS, trading_seconds
+    schedule = {"day": [["09:00:00", "10:15:00"], ["10:30:00", "11:30:00"], ["13:30:00", "15:00:00"]],
+                "night": [["21:00:00", "23:00:00"]]}
+
+    def at(text: str) -> int:
+        return int(datetime.fromisoformat(f"{text}+08:00").timestamp())
+
+    def seconds(start: int, end: int) -> int | None:
+        return trading_seconds(start * NS, end * NS, schedule)
+
+    trend = {"kind": "trendline", "style": {"extendRight": True},
+             "points": {"t1": at("2026-10-29T09:00:00"), "p1": 800, "t2": at("2026-10-29T10:00:00"), "p2": 810}}
+    # Thursday's day sessions (225 min) and the night (120 min) up to Friday 09:00: 345 trading minutes at 1/6 a minute.
+    assert line_price_at(trend, at("2026-10-30T09:00:00"), seconds) == 857.5
+    assert line_price_at({**trend, "style": {}}, at("2026-10-30T09:00:00"), seconds) is None  # the segment ended
+
+    app = application(tmp_path / "alerts-lines.sqlite3", Gateway(), AlertProvider())
+    app.state.data_provider.quote_datetime = quote_now()
+    http = await login(app)
+    drawn = await http.post("/api/market/drawings", json={"symbol": "SHFE.au2612", "kind": "hline", "points": {"price": 826}})
+    line = drawn.json()["drawing"]
+    made = await http.post("/api/market/alerts", json={"drawingId": line["id"]})
+    assert made.status_code == 201, made.text
+    assert {key: made.json()["alert"][key] for key in ("drawingId", "direction", "price")} == {
+        "drawingId": line["id"], "direction": "above", "price": "826"}
+    assert "已经设了" in detail(await http.post("/api/market/alerts", json={"drawingId": line["id"]}))
+    moved = await http.put(f"/api/market/drawings/{line['id']}", json={"points": {"price": 822}})
+    assert moved.status_code == 200 and "alertNotice" not in moved.json(), moved.text
+    active = (await http.get("/api/market/alerts")).json()["active"]
+    assert [(item["drawingId"], item["direction"], item["price"]) for item in active] == [(line["id"], "below", "822")]
+    assert (await http.delete(f"/api/market/drawings/{line['id']}")).status_code == 200
+    assert (await http.get("/api/market/alerts")).json()["active"] == []
+    await http.aclose()
+    app.state.store.close()

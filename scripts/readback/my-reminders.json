@@ -1,10 +1,12 @@
 {
-  "about": "第 6 批（条件提醒）：提醒面板“我的提醒”最上面有条件提醒一块；新建提醒打开策略编辑卡的提醒模式（只有条件和提醒时段）；图表右键“在这里设提醒 ▸”列出到价提醒和按条件新建。只打开和关闭界面，不保存、不开始提醒；条件真的满足时发提醒要在交易时段另做。",
+  "about": "第 6 批（条件提醒）与改版 2026-10-31（我的提醒一张表）：提醒面板“我的提醒”把到价、画线和条件提醒列在一张表里，一个“新建提醒”给出到某个价的表单和“按条件…”；按条件打开策略编辑卡的提醒模式（只有条件和提醒时段）；图表右键“在这里设提醒 ▸”列出“价格到 X 时提醒我”和按条件新建。只打开和关闭界面，不保存、不开始提醒；条件真的满足时发提醒要在交易时段另做。",
   "steps": [
     {"ui": {"view": "trade"}, "expect": {"view": "trade"}},
     {"ui": {"reminders": {"tab": "mine"}}, "expect": {"panel": "reminders", "reminders.tab": "mine", "myReminders.status": "ready",
-     "observation.text": {"includes": "条件提醒"}}},
+     "observation.text": {"includes": "新建提醒"}}},
+    {"ui": {"disclosure": {"name": "reminder-alert-new", "open": true}}, "expect": {"observation.text": {"includes": "按条件…"}}},
     {"screenshot": "01-mine"},
+    {"ui": {"disclosure": {"name": "reminder-alert-new", "open": false}}},
     {"ui": {"strategyEditor": {"new": true, "reminder": true}}, "expect": {"panel": "strategy", "strategyEditor.open": true, "strategyEditor.reminder": true,
      "observation.text": {"includes": "什么时候提醒"}}},
     {"screenshot": "02-editor-reminder"},

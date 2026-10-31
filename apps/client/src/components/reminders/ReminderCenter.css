@@ -87,19 +87,13 @@ html[data-font-scale="extra-large"] :is(.rc-mobile, .rc-latest) { --rc-name: var
 .rc-empty > svg { width: 28px; height: 28px; color: var(--accent); }
 .rc-empty strong { color: var(--ink); font-size: var(--font-lg); }
 
-/* ---- 到价提醒 · 生效中 ---- */
+/* ---- 我的提醒 (one list since 改版 2026-10-31) ---- */
 .rc-alert-list { margin: 0; padding: 0; list-style: none; }
 .rc-alert-list li { display: flex; align-items: center; gap: var(--space-2); min-height: 30px; min-width: 0; }
 .rc-alert-name { flex: none; margin-left: calc(-1 * var(--space-1)); padding: var(--space-0) var(--space-1); border: 0; border-radius: var(--radius-control); color: var(--ink); background: transparent; font-size: var(--font-md); cursor: pointer; }
 .rc-alert-name:hover { background: var(--price-alert-soft); }
-.rc-alert-line { flex: 1; min-width: 0; overflow: hidden; font-size: var(--font-md); white-space: nowrap; text-overflow: ellipsis; }
-.rc-alert-line b { font-weight: 600; }
-.rc-alert-line b[data-direction="above"] { color: var(--market-up); }
-.rc-alert-line b[data-direction="below"] { color: var(--market-down); }
+.rc-alert-line { flex: 1; min-width: 0; font-size: var(--font-md); overflow-wrap: anywhere; }
 .rc-alert-line i { margin-left: var(--space-1); color: var(--muted); font-style: normal; }
-.rc-alert-delete { flex: none; display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: var(--radius-control); color: var(--muted); background: transparent; cursor: pointer; }
-.rc-alert-delete:hover { color: var(--danger); background: var(--danger-soft); }
-.rc-alert-delete svg { width: 15px; height: 15px; }
 .rc-alert-form { margin: var(--space-1) 0 var(--space-1); padding: var(--space-2); border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--soft); }
 
 /* ---- 电脑: the bell and the 提醒 panel (2026-10-25: was a popover) ---- */
@@ -139,7 +133,6 @@ html[data-font-scale="extra-large"] :is(.rc-mobile, .rc-latest) { --rc-name: var
 :is(.rc-mobile, .rc-latest) .rc-extra { /* Align continuation text beyond the fixed row indicator and time column. */ padding-left: calc(44px + var(--space-2)); padding-bottom: var(--space-3); }
 :is(.rc-mobile, .rc-latest) .rc-button { min-height: 36px; padding: 0 var(--space-3); font-size: var(--font-md); }
 .rc-mobile .rc-alert-list li { min-height: 44px; }
-.rc-mobile .rc-alert-delete { width: 44px; height: 44px; margin-right: calc(-1 * var(--space-2)); }
 .rc-mobile .rc-more { min-height: 44px; }
 .rc-mobile .fdw-alert-form input, .rc-mobile .fdw-alert-form button { min-height: 36px; }
 .fdm-bell > .rc-badge { top: 6px; right: 4px; outline: 2px solid var(--panel); outline-offset: 0; }
@@ -148,10 +141,12 @@ html[data-font-scale="extra-large"] :is(.rc-mobile, .rc-latest) { --rc-name: var
    策略出卡与自动下单 stays on one line with its icon and "?" instead of folding into three. */
 .reminders-panel .app-setting-row { grid-template-columns: minmax(0, 1fr) auto; }
 
-/* 条件提醒 (第 6 批 2026-10-25): the 只提醒 strategies above 到价提醒, with their own small actions. */
+/* 我的提醒: each row says what it watches, then its state and its own small actions; 新建提醒 offers 到某个价 / 按条件…. */
 .rc-my-reminders { margin-bottom: var(--space-4); }
-.rc-my-reminders .rc-alert-list li { flex-wrap: wrap; }
-.rc-alert-line b[data-status="monitoring"] { color: var(--accent); }
-.rc-reminder-actions { display: inline-flex; gap: var(--space-1); }
-.rc-button.ghost.danger { color: var(--danger); }
+.rc-my-reminders .rc-alert-list li { flex-wrap: wrap; padding-block: var(--space-1); border-bottom: 1px solid var(--line); }
+.rc-my-reminders .rc-alert-list li:last-child { border-bottom: 0; }
+.rc-reminder-actions { display: inline-flex; align-items: center; gap: var(--space-1); margin-left: auto; }
+.rc-row-status { color: var(--muted); font-size: var(--font-sm); font-weight: 600; }
+.rc-row-status[data-status="monitoring"] { color: var(--accent); }
+.rc-new-head { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); font-size: var(--font-md); }.rc-button.ghost.danger { color: var(--danger); }
 .rc-button.ghost.danger:hover:not(:disabled) { color: var(--danger); background: var(--danger-soft); }

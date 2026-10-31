@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { expect, test } from "vitest";
 import {
-  DRAWING_TOOLS, alertPrice, anchorsOf, levelPrices, magnetPrice, measureText, placementPoints, pointsFor, resolveStyle,
+  DRAWING_TOOLS, anchorsOf, levelPrices, magnetPrice, measureText, placementPoints, pointsFor, resolveStyle,
   snapToTick, visibleOnPeriod, type ChartDrawing
 } from "./chartDrawingModel";
 
@@ -62,8 +62,4 @@ test("ratios, the measure readout and a line's alert price read the way the Runt
     ["0%", 840], ["23.6%", 830.56], ["38.2%", 824.72], ["50%", 820], ["61.8%", 815.28], ["100%", 800]]);
   expect(levelPrices(drawing({ kind: "gann", points: { anchors: [{ t: 1, p: 800 }, { t: 2, p: 880 }] } }))[4]).toMatchObject({ text: "4/8", price: 840 });
   expect(measureText([{ t: 100, p: 3000 }, { t: 400, p: 3012 }], [{ time: 100 }, { time: 200 }, { time: 300 }, { time: 400 }], 1)).toBe("+12（+0.40%）· 3 根");
-  const trend = drawing({ kind: "trendline", points: { t1: 0, p1: 100, t2: 10, p2: 110 } });
-  expect(alertPrice(trend, 20)).toBe(120);                       // extended to the latest bar
-  expect(alertPrice(drawing({ kind: "zone", points: { low: 820, high: 824 } }), 5)).toBe(824);
-  expect(alertPrice(drawing({ kind: "rect", points: { anchors: [{ t: 1, p: 1 }, { t: 2, p: 2 }] } }), 5)).toBeNull();
 });

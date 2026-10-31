@@ -56,7 +56,7 @@ SPECS = (
          {"target_net": "targetNet", "leg_index": "legIndex", "status": "status"}, {"symbol": "symbol"}),
     Spec("price_alerts", "price_alert", "{r}.id", "{r}.user_id", "NULL",
          {"direction": "direction", "price": "price", "name": "name", "note": "note", "status": "status"},
-         {"symbol": "symbol"}, insert_actor="NEW.created_via"),
+         {"symbol": "symbol", "drawing_id": "drawingId"}, insert_actor="NEW.created_via"),
     Spec("ai_execution_controls", "execution_controls", "{r}.user_id || ':' || {r}.trading_account_id", "{r}.user_id",
          "{r}.trading_account_id",
          {"stop_status": "stopStatus", "max_order_volume": "maxOrderVolume", "max_orders": "maxOrders"}, {}),

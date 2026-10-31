@@ -9,7 +9,7 @@ import "./PriceAlertsControl.css";
 
 /** 到价提醒 (2026-10-02): the phone's 看盘 设提醒 button and its popover — this contract's form and
  *  alerts, the rest read-mostly. On the computer the chart toolbar's bell is the 提醒中心 since
- *  2026-10-15 (its 到价提醒 · 生效中 block reuses `AlertForm`); a crossing no longer lists here — it
+ *  2026-10-15 (我的提醒's 新建提醒 reuses `AlertForm`); a crossing no longer lists here — it
  *  is a row of the day in the 提醒中心. */
 interface Props {
   alerts: PriceAlertsHandle;

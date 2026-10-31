@@ -145,11 +145,13 @@ export function useChartDrawings(baseUrl: string | undefined, enabled: boolean):
     let saved = false;
     await enqueue({ id, patch }, async () => {
       try {
-        const result = await requestJson<{ drawing: ChartDrawing }>(`${baseUrl}/api/market/drawings/${id}`, {
+        const result = await requestJson<{ drawing: ChartDrawing; alertNotice?: string }>(`${baseUrl}/api/market/drawings/${id}`, {
           method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(patch)
         });
         if (!fence.isCurrent()) return;
         if (result.drawing) owner.confirmed = owner.confirmed.map(item => item.id === id ? result.drawing : item);
+        // A moved line whose 碰到就提醒 could not follow it says why (the alert was cancelled).
+        if (result.alertNotice) publish({ notice: result.alertNotice });
         saved = true;
       } catch (error) { publish({ notice: drawingErrorText(error) }); }
     });

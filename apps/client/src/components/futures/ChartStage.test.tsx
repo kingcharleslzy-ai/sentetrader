@@ -100,10 +100,11 @@ test("three right-click menus by where the click lands: main area, a drawing, a 
   act(() => lastChart().onPriceContext(3010, 40, 40, line()));
   menu = screen.getByRole("menu", { name: "图表菜单" });
   expect(menu).toHaveTextContent(/^趋势线 · /);
-  for (const item of ["颜色 / 粗细 / 线型", "精确设置…", "在这条线设到价提醒", "复制一条", "锁定", "删除这条线"]) expect(within(menu).getByRole("menuitem", { name: item })).toBeInTheDocument();
+  for (const item of ["颜色 / 粗细 / 线型", "精确设置…", "这条线被碰到时提醒我", "复制一条", "锁定", "删除这条线"]) expect(within(menu).getByRole("menuitem", { name: item })).toBeInTheDocument();
   expect(within(menu).queryByRole("menuitem", { name: /周期|开仓/ })).toBeNull();
-  fireEvent.click(within(menu).getByRole("menuitem", { name: "在这条线设到价提醒" }));
-  expect((props.alerts as unknown as { create: ReturnType<typeof vi.fn> }).create).toHaveBeenCalledWith("SHFE.rb2610", 3020);   // the line at the latest bar
+  fireEvent.click(within(menu).getByRole("menuitem", { name: "这条线被碰到时提醒我" }));
+  // The alert watches the drawing itself: the Runtime takes the price from the line and follows it.
+  expect((props.alerts as unknown as { create: ReturnType<typeof vi.fn> }).create).toHaveBeenCalledWith("SHFE.rb2610", 0, undefined, "d1");
   act(() => lastChart().onPriceContext(3010, 40, 40, line()));
   fireEvent.click(within(screen.getByRole("menu", { name: "图表菜单" })).getByRole("menuitem", { name: "删除这条线" }));
   expect(drawings.remove).toHaveBeenCalledWith("d1");
@@ -340,7 +341,7 @@ test("在这里设提醒 ▸（第 6 批）：到价提醒按光标价；按打�
   expect(onReminder).toHaveBeenCalledWith(expect.objectContaining({ name: "开盘突破", entryRules: "突破开盘区间高点" }));
   act(() => lastChart().onPriceContext(3005, 40, 40));
   fireEvent.pointerEnter(within(screen.getByRole("menu", { name: "图表菜单" })).getByRole("menuitem", { name: /^在这里设提醒/ }));
-  fireEvent.click(within(screen.getByRole("menu", { name: "在这里设提醒" })).getByRole("menuitem", { name: /^到价提醒/ }));
+  fireEvent.click(within(screen.getByRole("menu", { name: "在这里设提醒" })).getByRole("menuitem", { name: /^价格到 .+ 时提醒我$/ }));
   expect((props as unknown as { alerts: { create: ReturnType<typeof vi.fn> } }).alerts.create).toHaveBeenCalledWith("SHFE.rb2610", 3005);
   vi.unstubAllGlobals();
 });

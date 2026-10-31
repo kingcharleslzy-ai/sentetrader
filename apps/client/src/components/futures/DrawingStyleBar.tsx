@@ -58,17 +58,19 @@ export function DrawingStyleControls({ drawing, onPatch, compact, only }: { draw
 
 /**
  * 画线第二版 (2026-10-09, 样稿 ①): the floating bar over a selected drawing — 5 preset colours and a
- * custom one, width 1–4, solid / dashed / dotted, 延长, 精确设置, 设到价提醒, 锁定 and 删除 (danger).
+ * custom one, width 1–4, solid / dashed / dotted, 延长, 精确设置, 这条线被碰到时提醒我, 锁定 and 删除 (danger).
  * Opened by a click on the drawing or `disclosure: chart-drawing-style {id}`.
  */
-export function DrawingStyleBar({ drawing, position, onPatch, onSettings, onAlert, alertBlocked, onDelete }: {
+export function DrawingStyleBar({ drawing, position, onPatch, onSettings, onAlert, alertBlocked, alerted = false, onDelete }: {
   drawing: ChartDrawing;
   position: { left: number; top: number };
   onPatch: (patch: DrawingPatch) => void;
   onSettings: () => void;
+  /** 这条线被碰到时提醒我, or 取消这条线的提醒 while it has one (`alerted`). */
   onAlert: () => void;
-  /** Why 设到价提醒 is off for this drawing (a shape, no alerts here), or null. */
+  /** Why the line alert is off for this drawing (a shape, no alerts here), or null. */
   alertBlocked: string | null;
+  alerted?: boolean;
   onDelete: () => void;
 }) {
   const style = resolveStyle(drawing);
@@ -82,7 +84,8 @@ export function DrawingStyleBar({ drawing, position, onPatch, onSettings, onAler
       {extendable ? <button type="button" className="fdw-style-btn" aria-pressed={extended} aria-label="向两端延长" title="向两端延长"
         onClick={() => onPatch({ style: { extendLeft: !extended, extendRight: !extended } })}><MoveHorizontal aria-hidden="true" /></button> : null}
       <button type="button" className="fdw-style-btn" aria-label="精确设置" title="精确设置：直接输入时间和价格" onClick={onSettings}><Settings2 aria-hidden="true" /></button>
-      <button type="button" className="fdw-style-btn" aria-label="设到价提醒" title={alertBlocked ?? "在这条线设到价提醒"} disabled={Boolean(alertBlocked)} onClick={onAlert}><Bell aria-hidden="true" /></button>
+      <button type="button" className="fdw-style-btn" aria-pressed={alerted} aria-label={alerted ? "取消这条线的提醒" : "这条线被碰到时提醒我"}
+        title={alertBlocked ?? (alerted ? "取消这条线的提醒" : "这条线被碰到时提醒我")} disabled={Boolean(alertBlocked)} onClick={onAlert}><Bell aria-hidden="true" /></button>
       <button type="button" className="fdw-style-btn" aria-pressed={style.locked} aria-label={style.locked ? "解锁" : "锁定"} title={style.locked ? "解锁：可以拖动" : "锁定：不能拖动"}
         onClick={() => onPatch({ style: { locked: !style.locked } })}>{style.locked ? <Lock aria-hidden="true" /> : <LockOpen aria-hidden="true" />}</button>
       <button type="button" className="fdw-style-btn danger" aria-label="删除这条线" title="删除这条线" onClick={onDelete}><Trash2 aria-hidden="true" /></button>

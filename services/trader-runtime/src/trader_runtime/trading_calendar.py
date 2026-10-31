@@ -434,6 +434,33 @@ def session_position(timestamp_ns: int, schedule: dict[str, Any] | None,
                            (day_end - timestamp_ns) / NS / 60, current.end_ns, day_end)
 
 
+def trading_seconds(start_ns: int, end_ns: int, schedule: dict[str, Any] | None,
+                    trading_days: Sequence[str] | None = None) -> int | None:
+    """Seconds of trading time between two moments (negative when `end_ns` is earlier): only the parts inside the
+    contract's sessions count, so a night, a weekend or a holiday adds nothing — the way the K-line chart lays bars
+    side by side. A known trading day list skips the holidays inside its span; outside it the weekday rule stands.
+    None without a usable schedule."""
+    if end_ns < start_ns:
+        back = trading_seconds(end_ns, start_ns, schedule, trading_days)
+        return None if back is None else -back
+    cme = isinstance(schedule, dict) and schedule.get("dayRule") == "cme"
+    if not cme and parse_schedule(schedule) is None:
+        return None
+    days = sorted(trading_days or ())
+    day_of = cme_trading_day if cme else (lambda ns: trading_day_of(ns, days))
+    day, last = date.fromisoformat(day_of(start_ns)), date.fromisoformat(day_of(end_ns))
+    known = set(days)
+    total = 0
+    while day <= last:
+        text = day.isoformat()
+        holiday = not cme and bool(days) and days[0] <= text <= days[-1] and text not in known
+        if day.weekday() < 5 and not holiday:
+            for session in sessions_of_day(text, schedule, days):
+                total += max(0, min(session.end_ns, end_ns) - max(session.start_ns, start_ns))
+        day += timedelta(days=1)
+    return total // NS
+
+
 def is_night(timestamp_ns: int, schedule: dict[str, Any] | None = None,
              trading_days: Sequence[str] | None = None) -> bool:
     """Night session: by the schedule when it is usable, else 18:00–06:00 local. CME's one 23-hour session has

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { requestJson } from "../api";
-import { onPriceAlert } from "../runtimeFeed";
+import { onFeedNudge, onPriceAlert } from "../runtimeFeed";
 
 /** 到价提醒 (2026-10-02): the user's own alerts on the Runtime (`GET/POST/DELETE
  * /api/market/alerts` — the price-alerts skill's catalog routes, not a private
@@ -25,6 +25,9 @@ export interface PriceAlert {
   createdAt: string;
   triggeredAt: string | null;
   triggerPrice: string | null;
+  /** 碰到这条线就提醒 (改版 2026-10-31): the user's drawing this alert watches (its price then is where the line was
+   *  when set; a sloped line is watched where it is). Absent on an older Runtime. */
+  drawingId?: string | null;
 }
 
 interface AlertsDocument { active: PriceAlert[]; triggered: PriceAlert[] }
@@ -37,6 +40,7 @@ function alertErrorText(error: unknown): string {
 }
 
 export function alertLine(alert: PriceAlert): string {
+  if (alert.drawingId) return `${alert.name} 碰到画的线 提醒${alert.note ? `，备注：${alert.note}` : ""}`;
   const verb = alert.direction === "above" ? "涨到" : "跌到";
   return `${alert.name} ${verb} ${alert.price} 提醒${alert.note ? `，备注：${alert.note}` : ""}`;
 }
@@ -51,8 +55,9 @@ export interface PriceAlertsHandle {
   createError: string;
   /** The last create/cancel receipt, shown by the market bar for ~6 s. */
   notice: string;
-  /** `direction` is deliberately not sent: the Runtime judges it against the live quote. */
-  create: (symbol: string, price: number, note?: string) => Promise<boolean>;
+  /** `direction` is deliberately not sent: the Runtime judges it against the live quote. With `drawingId` the alert
+   *  watches that drawing (碰到这条线就提醒): the Runtime takes the price from the line. */
+  create: (symbol: string, price: number, note?: string, drawingId?: string) => Promise<boolean>;
   cancel: (id: string) => void;
   refresh: () => void;
 }
@@ -74,6 +79,9 @@ export function usePriceAlerts(baseUrl: string | undefined, enabled: boolean): P
 
   const refresh = useCallback(() => setReadKey(key => key + 1), []);
   useEffect(() => (!baseUrl || !enabled) ? undefined : onPriceAlert(() => refresh()), [baseUrl, enabled, refresh]);
+  // A drawing deleted or moved (here, by the AI or on another device) takes or re-arms its line alert.
+  useEffect(() => (!baseUrl || !enabled) ? undefined : onFeedNudge(reason => { if (reason === "drawings") refresh(); }),
+    [baseUrl, enabled, refresh]);
 
   useEffect(() => {
     if (!notice) return;
@@ -81,19 +89,21 @@ export function usePriceAlerts(baseUrl: string | undefined, enabled: boolean): P
     return () => window.clearTimeout(timer);
   }, [notice]);
 
-  const create = useCallback(async (symbol: string, price: number, note?: string) => {
+  const create = useCallback(async (symbol: string, price: number, note?: string, drawingId?: string) => {
     if (!baseUrl) { setCreateError("连接后可设置"); return false; }
     try {
       const result = await requestJson<{ alert: PriceAlert }>(`${baseUrl}/api/market/alerts`, {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ symbol, price, via: "ui", ...(note ? { note } : {}) })
+        body: JSON.stringify({ symbol, via: "ui", ...(drawingId ? { drawingId } : { price }), ...(note ? { note } : {}) })
       });
       setCreateError("");
       setNotice(`已设${alertLine(result.alert)}`);
       refresh();
       return true;
     } catch (error) {
+      // The market bar says it too: a chart right-click or a line's 提醒 has no form to show the reason in.
       setCreateError(alertErrorText(error));
+      setNotice(alertErrorText(error));
       return false;
     }
   }, [baseUrl, refresh]);

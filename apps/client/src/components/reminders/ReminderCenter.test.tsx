@@ -63,13 +63,13 @@ it("the bell counts unread and opens 提醒记录, which lists the day by sessio
   expect(within(center).getByText("平仓单 已成交 771.5 ×1")).toHaveAttribute("data-tone", "ok");
   fireEvent.click(within(center).getByRole("button", { name: "移到成本" }));
   expect(onBreakeven).toHaveBeenCalledWith("b1", "move");
-  expect(within(center).queryByRole("region", { name: "到价提醒 生效中" })).toBeNull();
-  // 我的提醒: 到价提醒 · 生效中 — every active alert, 新建 opens the shown contract's form, × deletes.
+  expect(within(center).queryByRole("region", { name: "我的提醒" })).toBeNull();
+  // 我的提醒: one list of what the user set, 新建提醒 opens 到某个价's form on the shown contract.
   fireEvent.click(screen.getByRole("tab", { name: "我的提醒" }));
   expect(screen.getByRole("button", { name: "提醒记录（3 条未读）" })).toHaveAttribute("aria-expanded", "false");
   const mine = screen.getByRole("tabpanel", { name: "我的提醒" });
-  expect(within(mine).getByRole("region", { name: "到价提醒 生效中" })).toHaveTextContent("螺纹2701涨到 3100前高");
-  fireEvent.click(within(mine).getByRole("button", { name: "新建" }));
+  expect(within(mine).getByRole("region", { name: "我的提醒" })).toHaveTextContent("螺纹2701 · 价格到 3,100前高");
+  fireEvent.click(within(mine).getByRole("button", { name: "新建提醒" }));
   expect(within(mine).getByRole("spinbutton", { name: "提醒价" })).toHaveValue(3071);
   // 通用提醒: the switches that were 设置 → 提醒.
   fireEvent.click(screen.getByRole("tab", { name: "通用提醒" }));

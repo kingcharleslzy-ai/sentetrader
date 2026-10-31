@@ -1,7 +1,7 @@
 import { CircleCheck, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { sameContract, type MarketWorkbenchSnapshot } from "../../api";
-import { alertPrice, ALERTABLE_KINDS, snapToTick, toolSpec, type ChartDrawing } from "../../chartDrawingModel";
+import { ALERTABLE_KINDS, snapToTick, toolSpec, type ChartDrawing } from "../../chartDrawingModel";
 import type { ChartDrawingsHandle } from "../../hooks/useChartDrawings";
 import type { PriceAlertsHandle } from "../../hooks/usePriceAlerts";
 import { backtestMarksFor, clearChartMarks, fillVisibleAfterClear, useBacktestMarks, useChartAnnotations } from "../../aiAnnotations";
@@ -80,7 +80,7 @@ function MemberChartStage(props: Props) {
   // contract actually changed, so ticks never redraw the lines. A 外盘主连 chart shows its product's month alerts
   // (外盘到价提醒挂在 MT5 月份合约上).
   const alertLines = useMemo(() => (props.alerts?.active ?? [])
-    .filter(alert => sameContract(alert.symbol, props.market.quote?.symbol))
+    .filter(alert => !alert.drawingId && sameContract(alert.symbol, props.market.quote?.symbol))
     .map(alert => ({ id: alert.id, price: Number(alert.price) })), [props.alerts, props.market.quote?.symbol]);
   // 下单顺带保护: the displayed contract's armed stop / take rows, one dotted line per level.
   const repriceable = Boolean(props.workspace.onRepricePositionStop);
@@ -122,7 +122,9 @@ function ChartStageContent({ workspace, market, chartView, decimals, chartSettin
     ? (patch: DrawingPreferencePatch) => onChartIndicatorsChange(patch as ChartIndicatorPatch) : undefined, [onChartIndicatorsChange]);
   const desk = useDrawingDesk({ drawings, symbol: quote?.symbol, period, tick, preferences: chartPreferences, savePreferences, contextMenu: menuId(menu) });
   const indicators = useMemo(() => normalizeChartIndicators(chartPreferences), [chartPreferences]);
-  const lastBarTime = market.bars.length ? Math.floor(market.bars[market.bars.length - 1].datetime / 1_000_000_000) : undefined;
+  // 碰到这条线就提醒: the drawings an active alert watches — they wear a 提醒 tag instead of a price line of their own.
+  const alertedDrawings = useMemo(() => new Set((alerts?.active ?? []).flatMap(alert => alert.drawingId ? [alert.drawingId] : [])), [alerts]);
+  const shownDrawings = useMemo(() => desk.shown.map(item => alertedDrawings.has(item.id) ? { ...item, alerted: true } : item), [desk.shown, alertedDrawings]);
 
   // The menu closes on a click elsewhere, Esc, and a contract / period / view change.
   useEffect(() => { setMenu(undefined); }, [quote?.symbol, period, workspace.runtimeBaseUrl]);
@@ -187,10 +189,13 @@ function ChartStageContent({ workspace, market, chartView, decimals, chartSettin
     try { onChartIndicatorsChange(patch); } catch (error) { setStageNotice(error instanceof Error ? error.message : "连接后可设置"); }
   };
   const openSurface = (key: string) => { try { uiSurface(key)?.apply?.(true); } catch { /* The popover reports its own state. */ } };
+  // 这条线被碰到时提醒我 (改版 2026-10-31): the alert watches the drawing itself (the Runtime follows a sloped line and
+  // drops the alert with the line); a second press cancels it.
   const lineAlert = (drawing: ChartDrawing) => {
-    const price = alertPrice(drawing, lastBarTime);
-    if (!alerts || !quote || price === null) return;
-    void alerts.create(quote.symbol, snapToTick(price, tick));
+    if (!alerts || !ALERTABLE_KINDS.has(drawing.kind)) return;
+    const existing = alerts.active.find(alert => alert.drawingId === drawing.id);
+    if (existing) alerts.cancel(existing.id);
+    else void alerts.create(drawing.symbol, 0, undefined, drawing.id);
   };
   const menuActions: ChartMenuActions = {
     chartView, duration: market.durationSeconds, decimals, tick,
@@ -220,6 +225,7 @@ function ChartStageContent({ workspace, market, chartView, decimals, chartSettin
     onPatch: (drawing, patch) => { void desk.patch(drawing.id, patch); },
     onSettings: drawing => desk.setSettingsId(drawing.id),
     onLineAlert: lineAlert,
+    lineAlerted: drawing => alertedDrawings.has(drawing.id),
     onDuplicate: desk.duplicate,
     onDelete: drawing => desk.remove(drawing.id),
     onSwapPane: (from, to) => changeChart({ subPaneList: indicators.subPaneList.map(item => item === from ? to : item) }),
@@ -240,7 +246,7 @@ function ChartStageContent({ workspace, market, chartView, decimals, chartSettin
   };
   const paneContext = (pane: SubPaneType, x: number, y: number) => openMenu({ area: "pane", pane }, x, y);
   const chartDrawingProps = {
-    userDrawings: desk.available ? desk.shown : [],
+    userDrawings: desk.available ? shownDrawings : [],
     drawingTool: desk.available ? desk.tool : null,
     selectedDrawingId: desk.selected?.id ?? null,
     drawingsLocked: desk.locked,
@@ -301,7 +307,7 @@ function ChartStageContent({ workspace, market, chartView, decimals, chartSettin
         {desk.notice || drawings?.createError || stageNotice ? <small className="fdw-draw-notice" role="alert">{stageNotice || desk.notice || drawings?.createError}</small> : null}
         {selected && !desk.tool && !settingsDrawing && !menu ? (
           <DrawingStyleBar drawing={selected} position={stylePosition} onPatch={patch => { void desk.patch(selected.id, patch); }}
-            onSettings={() => desk.setSettingsId(selected.id)} onAlert={() => lineAlert(selected)} alertBlocked={alertBlocked}
+            onSettings={() => desk.setSettingsId(selected.id)} onAlert={() => lineAlert(selected)} alertBlocked={alertBlocked} alerted={alertedDrawings.has(selected.id)}
             onDelete={() => desk.remove(selected.id)} />
         ) : null}
         {settingsDrawing ? (

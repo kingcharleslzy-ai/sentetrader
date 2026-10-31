@@ -33,7 +33,7 @@ metadata:
 
 - 自己讲解行情、临时标支撑阻力给用户看 → 图上标注（chart-annotations）的 annotate_chart：那层是会话性的 AI 说明，不占用用户的服务端线。
 - 用户自己动手画/改（点工具栏、拖线、改样式）→ 不用工具；需要时用界面控制打开对应界面：画线工具栏（平时隐藏，选了工具才浮现）disclosure chart-drawing-toolbar，某种工具 chart-drawing-tool {id: 工具名}，某条线的样式条 chart-drawing-style {id: 线 id}，精确设置 chart-drawing-settings {id: 线 id}。
-- 到价提醒 → 到价提醒（price-alerts）；用户可以在线的右键菜单或样式条上点“设到价提醒”，那是提醒技能的事。
+- 到价提醒 → 到价提醒（price-alerts）；用户可以在线的右键菜单或样式条上点“这条线被碰到时提醒我”，那是提醒技能的事。挂了提醒的线，挪动时提醒跟着改，删掉时提醒一起删——删之前提一句。
 
 ## 步骤
 

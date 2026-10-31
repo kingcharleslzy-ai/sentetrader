@@ -37,8 +37,8 @@ interface Props {
   /** 到价提醒 (2026-10-02): the handle the workspace owns, for its receipt line under the bar; absent for a guest.
    *  A replay window (2026-10-03) has one too: its alerts are the replay child's own. */
   alerts?: PriceAlertsHandle;
-  /** 提醒中心 (#932, 2026-10-15): the bell right of the period buttons (its popover holds 到价提醒 · 生效中
-   *  and the day's reminders); absent for a guest. */
+  /** 提醒中心 (#932, 2026-10-15): the bell right of the period buttons (it opens the 提醒 panel on 提醒记录); absent
+   *  for a guest. */
   reminderBell?: ReactNode;
   /** 用户画线: the workspace's handle, only for its receipt line under the bar (清空 / 拒绝的原因);
    *  the tools themselves are the chart's left toolbar since 画线第二版 (2026-10-09). */

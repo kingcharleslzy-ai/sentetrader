@@ -102,14 +102,17 @@ export const COMMANDABLE: Rule[] = [
   { match: control => REMINDER_GROUPS.has(control.group ?? "") && /^看今天全部 \d+ 条$/.test(control.label), via: "reminderCenter: {filter: all}" },
   { match: control => REMINDER_GROUPS.has(control.group ?? "") && control.label === "继续加载当天提醒",
     via: "reminderCenter: {more: true}（当天超过一次读出的 500 条时读下一批；快照 state.reminderCenter.moreToday / today，#932 R5）" },
-  // 条件提醒 (第 6 批 2026-10-25): 只提醒 strategies on 我的提醒; made in the editor card's 提醒模式, run by the strategy routes.
-  { match: control => control.group === "reminders:conditions" && control.label === "新建提醒", via: "strategyEditor: {new: true, reminder: true}（打开策略编辑卡的提醒模式）" },
-  { match: control => control.group === "reminders:conditions" && control.label === "编辑", via: "strategyEditor: {edit: <提醒 id>}（state.myReminders.items[].id）" },
-  { match: control => control.group === "reminders:conditions" && /^(开始|继续)$/.test(control.label), via: "POST /api/strategy-plans/{id}/validate + POST /api/strategies/{runId}/monitor/start {signalAction: alert}" },
-  { match: control => control.group === "reminders:conditions" && control.label === "暂停", via: "POST /api/strategies/{runId}/monitor/pause" },
-  { match: control => control.group === "reminders:conditions" && /^删除提醒：.+$/.test(control.label), via: "（在跑的先 monitor/pause）DELETE /api/strategy-plans/{id}" },
-  { match: control => REMINDER_GROUPS.has(control.group ?? "") && control.label === "新建", via: "disclosure: reminder-alert-new（到价提醒 · 生效中的新建表单，当前合约）" },
-  { match: control => REMINDER_GROUPS.has(control.group ?? "") && / [A-Z]+\.[A-Za-z0-9]+$/.test(control.label), via: "symbol（到价提醒 · 生效中的合约名：切到该合约）" },
+  // 我的提醒 (one list since 改版 2026-10-31): 到某个价 / 碰到我画的线 (price alerts) and 按条件 (只提醒 strategies, made in the
+  // editor card's 提醒模式, run by the strategy routes), each row with its own actions.
+  { match: control => control.group === "reminders:mine" && control.label === "新建提醒", via: "disclosure: reminder-alert-new（新建提醒：到某个价的表单，当前合约）" },
+  { match: control => control.group === "reminders:mine" && control.label === "按条件…", via: "strategyEditor: {new: true, reminder: true}（打开策略编辑卡的提醒模式）" },
+  { match: control => control.group === "reminders:mine" && control.label === "编辑", via: "strategyEditor: {edit: <提醒 id>}（state.myReminders.items[].id）" },
+  { match: control => control.group === "reminders:mine" && /^(开始|继续)$/.test(control.label), via: "POST /api/strategy-plans/{id}/validate + POST /api/strategies/{runId}/monitor/start {signalAction: alert}" },
+  { match: control => control.group === "reminders:mine" && control.label === "暂停", via: "POST /api/strategies/{runId}/monitor/pause" },
+  { match: control => control.group === "reminders:mine" && /^删除提醒：.+$/.test(control.label),
+    via: "到价 / 画线：DELETE /api/market/alerts/{alert_id}；条件提醒：（在跑的先 monitor/pause）DELETE /api/strategy-plans/{id}" },
+  { match: control => control.group === "reminders:mine" && /^(添加|设置中…)$/.test(control.label), via: "POST /api/market/alerts（到某个价的表单；direction 由 Runtime 按最新价判定）" },
+  { match: control => control.group === "reminders:mine" && / [A-Z]+\.[A-Za-z0-9]+$/.test(control.label), via: "symbol（我的提醒里到价 / 画线那行的合约名：切到该合约）" },
   { match: control => control.group === "mobile-latest-reminders" && control.label === "全部提醒", via: "reminderCenter: {open: true}（AI 首页 · 最新提醒的“全部 ›”）" },
   // 手机版新结构 (2026-10-06): AI 首页's 今天概况 / 今日判断 / bell, the 策略 tab and the 回测结果页
   // (before the desktop rules: 看图表 and 上线运行 mean other things there).
@@ -191,7 +194,7 @@ export const COMMANDABLE: Rule[] = [
   { match: control => control.group === "mobile-research" && control.role === "button" && control.label === "就这份判断问 AI", via: "chat:send（以用户消息发出对当前品种今日判断的追问）" },
   { match: control => control.group === "mobile-research" && control.role === "button" && !/^(问 AI|详情)/.test(control.label), via: "symbol（调研页品种胶囊：切到该品种主力合约，调研跟随当前合约；快照 state.symbol）" },
   { match: /^选择合约：/, via: "dialog: contract-drawer（手机版看盘的合约标题，打开合约列表）" },
-  { match: /^设提醒（\d+ 条生效）$/, via: "disclosure: price-alerts（手机版看盘的设提醒：当前合约的到价提醒浮层；电脑在提醒面板“我的提醒”的到价提醒 · 生效中）" },
+  { match: /^设提醒（\d+ 条生效）$/, via: "disclosure: price-alerts（手机版看盘的设提醒：当前合约的到价提醒浮层；电脑在提醒面板“我的提醒”）" },
   { match: control => control.group === "mobile-market" && control.label === "下单", via: "mobilePage: order（手机版下单页；确认才下单，快照 state.mobilePage）" },
   { match: control => control.group === "mobile-market-list", via: "symbol（自选 · 持仓标记行：切图表合约）" },
   // 手机看盘第二批 (2026-10-09): 报价 / 多图 / 单图, the 报价 list, the 多图 cells and the 副图设置 sheet.
@@ -527,7 +530,7 @@ export const COMMANDABLE: Rule[] = [
   { match: control => control.group === "chart:context-menu" && control.label === "画线", via: "disclosure: {name: chart-context-menu, id: main/draw}" },
   { match: control => control.group === "chart:context-menu" && /^周期/.test(control.label), via: "disclosure: {name: chart-context-menu, id: main/period}" },
   { match: control => control.group === "chart:context-menu" && /^在这里设提醒/.test(control.label), via: "disclosure: {name: chart-context-menu, id: main/alert}" },
-  { match: control => control.group === "chart:context-menu" && /^到价提醒/.test(control.label), via: "POST /api/market/alerts（图表右键 · 在这里设提醒，价取自点击处并已按 tick 对齐）" },
+  { match: control => control.group === "chart:context-menu" && /^价格到 .+ 时提醒我$/.test(control.label), via: "POST /api/market/alerts（图表右键 · 在这里设提醒，价取自点击处并已按 tick 对齐）" },
   { match: control => control.group === "chart:context-menu" && /^(按打法：.+|按条件新建提醒…)$/.test(control.label), via: "strategyEditor: {new: true, reminder: true, ask?: 打法的进场规则}（提醒模式）" },
   { match: control => control.group === "chart:context-menu" && /^主图指标/.test(control.label), via: "disclosure: {name: chart-context-menu, id: main/indicator}" },
   { match: control => control.group === "chart:context-menu" && /^添加副图/.test(control.label), via: "disclosure: {name: chart-context-menu, id: main/add-pane | pane:<type>/add-pane}" },
@@ -677,8 +680,9 @@ export const CAPABILITY: Rule[] = [
     via: "PUT /api/market/drawings/{drawing_id} {points, label, style}（精确设置；存为默认样式 = preference chart.drawingDefaults）" },
   { match: control => control.group === "chart:drawing-hint" && control.label === "保留", via: "POST /api/market/drawings {kind: measure}（测量结果默认不保存，保留才存）" },
   { match: control => control.group === "chart:drawing-hint" && control.label === "清除", via: "disclosure: {name: chart-drawing-tool, id: measure, open: false}（清掉这次测量；快照 state.chartDrawings.measuring）" },
-  { match: /^(删除这条线|设到价提醒)$/, via: "DELETE /api/market/drawings/{drawing_id} / POST /api/market/alerts（样式条与右键；选中后 Delete 键同一能力）" },
-  { match: /^在这条线设到价提醒$/, via: "POST /api/market/alerts（价取这条线在最新 K 线处的价位，按 tick 对齐；direction 由 Runtime 按最新价判定）" },
+  { match: /^删除这条线$/, via: "DELETE /api/market/drawings/{drawing_id}（样式条与右键；选中后 Delete 键同一能力；这条线的提醒一起删）" },
+  { match: /^(这条线被碰到时提醒我|取消这条线的提醒)$/,
+    via: "POST /api/market/alerts {drawingId}（样式条与右键：价取这条线此刻在图上的位置，斜线由 Runtime 按交易时间跟着走）/ DELETE /api/market/alerts/{alert_id}" },
   // 下单顺带保护 (2026-10-02): the ticket's 止损/止盈 steppers ride the order body's protection; the
   // position form's 提交/撤销/桶 chips are POST /api/ai-execution/stops (+ /{id}/cancel) — the same
   // capability the AI reaches with set_simulation_stop_loss.
