@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { deletePlaybook, listPlaybooks, savePlaybook, type Playbook, type PlaybookFields } from "../../api";
+import { loadStrategies } from "../../strategyApi";
 import { useDisclosureSurface } from "../../uiSurfaces";
 import { SectionCard } from "../Blocks";
 import { Button, Select, TextInput } from "../settings/controls";
@@ -16,7 +17,7 @@ export function usePlaybooks(baseUrl: string | undefined) {
     // A Runtime from before 打法本 (or anything else answering) has no list: no setups, not a crash.
     void listPlaybooks(baseUrl).then(result => setState({ items: Array.isArray(result?.playbooks) ? result.playbooks : [],
       max: typeof result?.max === "number" ? result.max : 20, error: "", loaded: true }))
-      .catch(cause => setState(current => ({ ...current, error: cause instanceof Error ? cause.message : "打法读取失败", loaded: true })));
+      .catch(cause => setState(current => ({ ...current, error: cause instanceof Error ? cause.message : "交易笔记读取失败", loaded: true })));
   }, [baseUrl]);
   useEffect(() => {
     reload();
@@ -27,17 +28,25 @@ export function usePlaybooks(baseUrl: string | undefined) {
 }
 
 const EMPTY: PlaybookFields = { name: "", entryRules: "", exitRules: "", stopRules: "", strategyId: null };
-const HINT = "打法是你自己的一种做法：什么时候进、什么时候走、止损放哪。下单时选上它，复盘就能按打法看胜率，验尸时也拿它对照你有没有照做。可以关联一个策略，让程序替你核对规则。";
+const HINT = "交易笔记写你自己手动做单的一种做法：什么时候进、什么时候走、止损放哪。下单时选上它，复盘就能按笔记看胜率，验尸时也拿它对照你有没有照做。它不会自动下单；想让程序盯信号，用策略。可以关联一个策略，让程序替你核对规则。";
 
 function Rules({ label, value, onChange, max }: { label: string; value: string; onChange: (value: string) => void; max: number }) {
   return <label className="playbook-field"><span>{label}</span>
     <textarea className="app-text-input" aria-label={label} value={value} maxLength={max} rows={2} onChange={event => onChange(event.target.value)} /></label>;
 }
 
-/** The 策略 panel's 打法 tab: one block per setup with its three rule lines; 新建打法 / 改 open the editor
- *  (`disclosure: playbook-editor`); 删 asks once more. */
-export function PlaybookPage({ baseUrl, strategies }: { baseUrl: string; strategies: { strategyId: string; name: string }[] }) {
+/** 交易笔记 (was the 策略 panel's 打法 tab; on 复盘 since 改版第一步 2026-10-31): one block per setup with its three rule
+ *  lines; 新建笔记 / 改 open the editor (`disclosure: playbook-editor`); 删 asks once more. */
+export function PlaybookPage({ baseUrl }: { baseUrl: string }) {
   const { items, max, error, loaded } = usePlaybooks(baseUrl);
+  // 关联策略: the user's strategies, not the 只提醒 ones; a failed read only leaves the choice at 不关联.
+  const [strategies, setStrategies] = useState<{ strategyId: string; name: string }[]>([]);
+  useEffect(() => {
+    let live = true;
+    void loadStrategies(baseUrl).then(result => { if (live) setStrategies((result.items ?? []).filter(item => !item.definition.plan?.reminderOnly)
+      .map(item => ({ strategyId: item.strategyId, name: item.name }))); }).catch(() => undefined);
+    return () => { live = false; };
+  }, [baseUrl]);
   const [editorOpen, setEditorOpen] = useDisclosureSurface("playbook-editor");
   const [editing, setEditing] = useState<string | null>(null);
   const [fields, setFields] = useState<PlaybookFields>(EMPTY);
@@ -66,16 +75,16 @@ export function PlaybookPage({ baseUrl, strategies }: { baseUrl: string; strateg
     catch (cause) { setProblem(cause instanceof Error ? cause.message : "没有删掉，请重试"); }
   };
   const set = (key: keyof PlaybookFields) => (value: string) => setFields(current => ({ ...current, [key]: value }));
-  return <div className="playbook-page" data-agent-target="strategy-playbooks">
-    <SectionCard title="打法本" hint={HINT} helpKey="playbooks"
-      actions={editorOpen ? undefined : <Button primary disabled={items.length >= max} onClick={() => open()}>新建打法</Button>}>
+  return <div className="playbook-page" data-agent-target="review-playbooks">
+    <SectionCard title="交易笔记" hint={HINT} helpKey="playbooks"
+      actions={editorOpen ? undefined : <Button primary disabled={items.length >= max} onClick={() => open()}>新建笔记</Button>}>
       {error ? <p role="alert">{error}</p> : null}
-      {loaded && !items.length && !editorOpen ? <p className="playbook-quiet">还没有打法，先写下你最常用的一种</p> : null}
-      {items.length >= max ? <p className="playbook-quiet">打法最多 {max} 个，删掉一个才能再加</p> : null}
+      {loaded && !items.length && !editorOpen ? <p className="playbook-quiet">还没有交易笔记，先写下你最常用的一种做法</p> : null}
+      {items.length >= max ? <p className="playbook-quiet">交易笔记最多 {max} 条，删掉一条才能再加</p> : null}
     </SectionCard>
-    {editorOpen ? <SectionCard title={editing ? "改打法" : "新建打法"}>
+    {editorOpen ? <SectionCard title={editing ? "改笔记" : "新建笔记"}>
       <div className="playbook-editor">
-        <label className="playbook-field"><span>名字</span><TextInput label="打法名字" value={fields.name} maxLength={20} onChange={set("name")} /></label>
+        <label className="playbook-field"><span>名字</span><TextInput label="笔记名字" value={fields.name} maxLength={20} onChange={set("name")} /></label>
         <Rules label="入场规则" value={fields.entryRules} max={300} onChange={set("entryRules")} />
         <Rules label="出场规则" value={fields.exitRules} max={300} onChange={set("exitRules")} />
         <Rules label="止损规则" value={fields.stopRules} max={200} onChange={set("stopRules")} />

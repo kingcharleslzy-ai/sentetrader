@@ -57,6 +57,8 @@ export function matches(state: unknown, changes: unknown): boolean {
       if (reset && !(current.dockSide === "right" && current.positionsBar === "collapsed")) return false;
       return matches(current, rest);
     }
+    // 2026-10-31: 交易笔记 (the 打法 tab) is on the 复盘 page; same rule as the Runtime's changes_match.
+    if (key === "strategyTab" && value === "playbooks") return current.view === "review";
     // 2026-10-08: the retired 实验室 tab opens the 结果页 (detail); an older client reports lab.
     if (key === "strategyTab") return (current.strategyTab === "lab" ? "detail" : current.strategyTab) === (value === "lab" ? "detail" : value);
     // 1.6.6: 持仓 is a side panel again (1.4.8–1.6.5 mapped it onto the bottom bar).

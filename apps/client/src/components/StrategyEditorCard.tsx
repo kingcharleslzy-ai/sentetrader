@@ -216,6 +216,9 @@ function GroupEditor({ state, gkey, entry, onOpenRow }: { state: EditorState; gk
   const changed = state.changed.includes(gkey);
   const long = gkey === "entryLong" || gkey === "exitLong";
   const aligned = entry && group.alignment.length > 0;
+  // 提醒 (改版第一步 2026-10-31): one group, no 做多 / 做空 words; 常用 lists both the up and the down form.
+  const single = state.reminder && entry && usedEntryGroups(state.form).length === 1;
+  const quick = state.reminder ? [true, false].flatMap(up => QUICK_ADDS.map(item => ({ item, up }))) : QUICK_ADDS.map(item => ({ item, up: long }));
   const spread = Boolean(state.base?.spread);
   const rowsOf = (list: RowList, hitsOf: (number | null)[] = []) => group[list].map((row, index) => {
     const remove = () => edit(current => ({ ...current, [list]: current[list].filter(item => item.id !== row.id) }));
@@ -231,7 +234,7 @@ function GroupEditor({ state, gkey, entry, onOpenRow }: { state: EditorState; gk
   };
   return <div className="se-group" data-changed={changed || undefined} aria-label={`${side}条件`} role="group" data-focus={gkey}>
     <div className="se-group-h">
-      <span className="se-dir" data-side={long ? "long" : "short"}>{side}</span>
+      {single ? null : <span className="se-dir" data-side={long ? "long" : "short"}>{side}</span>}
       {group.locked ? <span className="se-hint">用了条件组合 / 先后顺序，卡片里改不了，原样保留</span>
         : <Seg label={`${side}条件怎么合并`} value={group.join} options={[{ value: "all", label: "全部满足" },
           { value: "any", label: "任一满足", reason: aligned ? "有方向确认时条件要全部满足" : null }]} onChange={join => edit(current => ({ ...current, join }))}/>}
@@ -241,12 +244,12 @@ function GroupEditor({ state, gkey, entry, onOpenRow }: { state: EditorState; gk
       : rowsOf("rows", hits)}
     {group.locked ? null : <div className="se-add">
       <button type="button" className="se-link" onClick={() => add("rows")}><Plus size={12}/>加一条</button>
-      {entry ? <><span className="se-hint">常用：</span>{QUICK_ADDS.map(item => <button type="button" key={item.id} className="se-link"
-        aria-label={`加一条：${quickAddLabel(item.label, long)}`}
-        onClick={() => edit(current => ({ ...current, rows: [...current.rows.filter(row => row.left.indicator || row.locked), ...quickRows(item.id, long)] }))}>
-        {quickAddLabel(item.label, long)}</button>)}</> : null}
+      {entry ? <><span className="se-hint">常用：</span>{quick.map(({ item, up }) => <button type="button" key={`${item.id}-${up}`} className="se-link"
+        aria-label={`加一条：${quickAddLabel(item.label, up)}`}
+        onClick={() => edit(current => ({ ...current, rows: [...current.rows.filter(row => row.left.indicator || row.locked), ...quickRows(item.id, up)] }))}>
+        {quickAddLabel(item.label, up)}</button>)}</> : null}
     </div>}
-    {entry && !group.locked ? <div className="se-sublists">{(["alignment", "rearm"] as const).map(list => {
+    {entry && !group.locked ? <div className="se-sublists">{(["alignment", "rearm"] as const).filter(list => !state.reminder || group[list].length).map(list => {
       const addButton = group[list].length < (list === "rearm" ? 4 : 12) ? <button type="button" className="se-link" aria-label={`加一条${side}${LIST_WORDS[list]}`}
         onClick={() => add(list)}><Plus size={12}/>{group[list].length ? `加一条${LIST_WORDS[list]}` : LIST_WORDS[list]}</button> : null;
       const help = <HelpTip helpKey={`strategy-editor:${list}`} label={LIST_WORDS[list]}>{EDITOR_HELP[list]}</HelpTip>;
@@ -304,11 +307,11 @@ export function BasicsFields({ state, chartTimeframe, instruments }: { state: Ed
       <span data-changed={changed("timeframe") || undefined} className="se-mark"><Seg label="周期" value={form.timeframe || null} options={TIMEFRAMES.map(item => ({ ...item, label: item.label.replace("1小时", "1时").replace("日线", "日") }))} onChange={value => edit("timeframe", value)}/></span>
       {timeframeNote ? <span className="se-hint">{timeframeNote}</span> : null}
     </Row>
-    <Row label="方向">
+    {state.reminder ? null : <Row label="方向">
       <span data-ai={ai("direction") || undefined} data-changed={changed("direction") || undefined} className="se-mark">
         <Seg label="方向" value={form.direction} options={DIRECTIONS} onChange={value => edit("direction", value)}/>{ai("direction") ? <AiTag/> : null}</span>
       <Basis state={state} field="direction"/>
-    </Row>
+    </Row>}
   </div>;
 }
 
@@ -316,8 +319,8 @@ export function BasicsFields({ state, chartTimeframe, instruments }: { state: Ed
 export function EntryFields({ state, onOpenRow }: { state: EditorState; onOpenRow?: OpenRow }) {
   const used = usedEntryGroups(state.form);
   return <>
-    {used.includes("entryLong") ? <GroupEditor state={state} gkey="entryLong" entry onOpenRow={onOpenRow}/> : <p className="se-folded">做多条件（当前只做空，已收起）</p>}
-    {used.includes("entryShort") ? <GroupEditor state={state} gkey="entryShort" entry onOpenRow={onOpenRow}/> : <p className="se-folded">做空条件（当前只做多，已收起）</p>}
+    {used.includes("entryLong") ? <GroupEditor state={state} gkey="entryLong" entry onOpenRow={onOpenRow}/> : state.reminder ? null : <p className="se-folded">做多条件（当前只做空，已收起）</p>}
+    {used.includes("entryShort") ? <GroupEditor state={state} gkey="entryShort" entry onOpenRow={onOpenRow}/> : state.reminder ? null : <p className="se-folded">做空条件（当前只做多，已收起）</p>}
   </>;
 }
 
@@ -715,7 +718,7 @@ export function StrategyEditorCard({ state, chartTimeframe, instruments, onBack,
         </table> : null}
 
         <div data-section="basics" data-focus="basics trigger">
-          <SectionCard title={<><span className="se-num">1</span>品种、周期与方向</>} label="品种与周期" hint={EDITOR_HELP.basics} helpKey="strategy-editor:section-basics">
+          <SectionCard title={<><span className="se-num">1</span>{reminder ? "盯哪个品种" : "品种、周期与方向"}</>} label="品种与周期" hint={EDITOR_HELP.basics} helpKey="strategy-editor:section-basics">
             <div className="section-card-body"><BasicsFields state={state} chartTimeframe={chartTimeframe} instruments={instruments}/></div>
           </SectionCard>
         </div>

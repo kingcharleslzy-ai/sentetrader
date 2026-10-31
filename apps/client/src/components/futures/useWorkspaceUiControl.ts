@@ -435,7 +435,13 @@ export function useWorkspaceUiControl({ workspace, connectedRuntimeUrl, market, 
     // Retired commands, still accepted: the AI dock has no inner page (1.6.6) and no flow filter
     // (2026-09-25); both open the 对话面板.
     if (changes.aiFilter != null || changes.aiPage != null) setRightDock("ai");
-    if (changes.strategyTab != null) {
+    // 交易笔记 (was the 策略 panel's 打法 tab, 改版第一步 2026-10-31) lives on 复盘; the old tab id opens it there.
+    if (changes.strategyTab === "playbooks") {
+      if (workspace.replayActive) throw new Error("回放中没有账户复盘页");
+      if (workspace.access?.reason("review-summary")) throw new Error(workspace.access.reason("review-summary"));
+      setView("review");
+      if (rightDock !== "ai") setRightDock(null);
+    } else if (changes.strategyTab != null) {
       if (!workspace.strategyPanel) throw new Error("当前环境没有策略面板");
       if (workspace.replayEnded) throw new Error("回放已结束");
       setView("trade");

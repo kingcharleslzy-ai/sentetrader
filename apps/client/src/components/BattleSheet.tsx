@@ -66,7 +66,7 @@ export function BattleSheet({ baseUrl, visible, compact = false, onOpen, onState
   const notes = [report?.over ? `只排前 12 个自选，另有 ${report.over} 个没排` : "", report?.foreign.length ? `外盘 ${report.foreign.length} 个不排` : ""].filter(Boolean);
   return <SectionCard title="今日作战表" className="battle-sheet" testId="battle-sheet"
     note={report ? `${clock(report.generatedAt)} 更新${notes.length ? ` · ${notes.join("，")}` : ""}` : undefined}
-    hint={<>每个自选品种一行（最多 12 个，外盘不排），按优先级排好。关键价位由程序从主力合约行情算：昨高、昨低取上一交易日日线；开盘区间是本交易日开盘后 15 分钟（夜盘品种从夜盘开盘算）；均价是本交易日分时均价；百分比是现价离它多远。消息取调研 · 快讯近 24 小时的事件：有重要事件为强，只有其他事件为中。优先级：消息强 2 分、中 1 分；离最近的关键价位 0.3% 以内 2 分、1% 以内 1 分；3 分以上为高、2 分为中、其余为低。打法：你打法本里名字或进场规则提到某个价位（昨高低、开盘区间、均价，或突破、回踩）且现价离它 1% 以内，或提到消息且今天有消息。这张表不给多空方向。</>}>
+    hint={<>每个自选品种一行（最多 12 个，外盘不排），按优先级排好。关键价位由程序从主力合约行情算：昨高、昨低取上一交易日日线；开盘区间是本交易日开盘后 15 分钟（夜盘品种从夜盘开盘算）；均价是本交易日分时均价；百分比是现价离它多远。消息取调研 · 快讯近 24 小时的事件：有重要事件为强，只有其他事件为中。优先级：消息强 2 分、中 1 分；离最近的关键价位 0.3% 以内 2 分、1% 以内 1 分；3 分以上为高、2 分为中、其余为低。交易笔记：你交易笔记里名字或进场规则提到某个价位（昨高低、开盘区间、均价，或突破、回踩）且现价离它 1% 以内，或提到消息且今天有消息。这张表不给多空方向。</>}>
     <div className="section-card-body">
       {error ? <p role="alert" className="sheet-note">作战表读取失败（{error}）{report ? "，下面是上次的内容" : ""}</p> : null}
       {!report && !error ? <p role="status" className="sheet-note">正在排作战表…</p> : null}
@@ -86,9 +86,9 @@ export function BattleSheet({ baseUrl, visible, compact = false, onOpen, onState
           <dd>{row.news.items.length ? <><span className="sheet-strength" data-strength={row.news.strength}>{row.news.strength}</span>
             {row.news.items.map(item => <span key={item.id}>{item.title}<small>{clock(item.at)}{item.reports > 1 ? ` · ${item.reports} 家` : ""}</small></span>)}</>
             : <span className="sheet-none">{row.news.minor ? `近 24 小时只有 ${row.news.minor} 条次要消息` : "近 24 小时没有相关快讯"}</span>}</dd>
-          <dt>打法</dt>
+          <dt>交易笔记</dt>
           <dd>{row.playbooks.length ? row.playbooks.map(playbook => <span key={playbook.id}>{playbook.name}<small>{playbook.why}</small></span>)
-            : <span className="sheet-none">{report?.playbookCount ? "价位附近没有对得上的打法" : "打法本还是空的"}</span>}</dd>
+            : <span className="sheet-none">{report?.playbookCount ? "价位附近没有对得上的交易笔记" : "还没有交易笔记"}</span>}</dd>
         </dl>
       </li>)}</ol> : null}
     </div>

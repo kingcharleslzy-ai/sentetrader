@@ -1604,7 +1604,8 @@ test("新闻入口独立于策略且保留图表，可切研究数据", () => {
   fireEvent.click(screen.getByRole("button", {name:"打开调研面板"}));
   expect(screen.getByRole("region", {name:"调研面板"})).toBeVisible();
   expect(screen.queryByText("策略运行状态")).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("tab", {name:"研究数据"}));
+  fireEvent.click(screen.getByRole("tab", {name:"品种"}));
+  fireEvent.click(screen.getByRole("button", {name:"研究数据 ›"}));
   expect(uiSurface("news")?.state).toMatchObject({tab:"data", pinnedSymbol:null});
   fireEvent.click(screen.getByRole("button", {name:"关闭调研面板"}));
   expect(screen.getByTestId("futures-decision-workspace")).toHaveAttribute("data-right-dock", "closed");

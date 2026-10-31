@@ -1,7 +1,8 @@
-import { ListTree, PanelRightClose } from "lucide-react";
+import { Bell, ListTree, PanelRightClose } from "lucide-react";
 import { cloneElement, isValidElement } from "react";
 import type { ReactElement } from "react";
 import type { MarketQuoteSnapshot } from "../../api";
+import { useStrategyEditor } from "../../strategyEditorStore";
 import type { AskAi } from "../AiMenu";
 import type { FuturesDecisionWorkspaceProps } from "./props";
 import type { StrategyTab } from "./support";
@@ -39,12 +40,15 @@ export function StrategyDock({ workspace, quote, onClose, tab, onTabChange, onSt
       // 上线运行: reminders and strategy cards go to the conversation the instance was started from.
       sessionId: workspace.chatSessionId })
     : workspace.strategyPanel;
+  // 新建 / 编辑提醒 (改版第一步 2026-10-31) borrow this panel's editor card; the panel then reads as 提醒.
+  const editor = useStrategyEditor();
+  const reminder = editor.open && editor.reminder;
   return (
-    <section className="fdw-ai open fdw-strategy-dock" aria-label="策略面板" data-agent-target="panel:strategy">
+    <section className="fdw-ai open fdw-strategy-dock" aria-label={reminder ? "提醒面板" : "策略面板"} data-agent-target="panel:strategy">
       <header>
-        <div><ListTree /><span><strong>策略</strong><small>{quote?.symbol ?? "未选择合约"}</small></span></div>
+        <div>{reminder ? <Bell /> : <ListTree />}<span><strong>{reminder ? "提醒" : "策略"}</strong><small>{quote?.symbol ?? "未选择合约"}</small></span></div>
         <div className="fdw-ai-head-actions">
-          <button type="button" aria-label="收起策略" onClick={() => onClose()}><PanelRightClose /></button>
+          <button type="button" aria-label={reminder ? "收起提醒" : "收起策略"} onClick={() => onClose()}><PanelRightClose /></button>
         </div>
       </header>
       <div className="fdw-ai-scroll">

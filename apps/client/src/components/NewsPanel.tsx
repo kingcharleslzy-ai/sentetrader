@@ -23,9 +23,11 @@ type News = { symbol: string; status: "ok" | "stale" | "unavailable"; error?: st
 export type NewsTab = "sheet" | "desk" | "debate" | "flash" | "news" | "data";
 type Tab = NewsTab;
 const NEWS_PENDING_REFRESH_MS = 15_000;
-/** 调研 (was 新闻, 2026-10-25): 辩论 moved in from its own rail button, between 品种调研 and 快讯;
- *  今日作战表 (第 5 批) is the first page — the 自选 ranked, for members (guests have no 自选). */
-const TABS: [Tab, string][] = [["sheet", "今日作战表"], ["desk", "品种调研"], ["debate", "辩论"], ["flash", "快讯"], ["news", "资讯"], ["data", "研究数据"]];
+/** 调研 (改版第一步 2026-10-31, owner-approved mockup): three tabs — 今天 (the 今日作战表, members only), 品种 and 快讯.
+ *  相关报道 (was 资讯), 研究数据 and 辩论 open as pages under 品种 from its 更多 row, with a back link; their tab ids stay. */
+const TABS: [Tab, string][] = [["sheet", "今天"], ["desk", "品种"], ["flash", "快讯"]];
+const SUBPAGES: [Tab, string][] = [["news", "相关报道"], ["data", "研究数据"], ["debate", "辩论"]];
+const LABELS = new Map<Tab, string>([...TABS, ...SUBPAGES]);
 function newsSource(item: NewsResult) {
   let url: URL | undefined;
   try { const parsed = new URL(item.link); if (["https:", "http:"].includes(parsed.protocol)) url = parsed; } catch { /* Missing or invalid source URL. */ }
@@ -84,6 +86,8 @@ export function NewsPanel({ baseUrl, symbol, guest = false, replay = false, onGu
   const debates = guest || replay ? undefined : debate;
   const offered = (value: Tab) => !(guest && (value === "flash" || value === "sheet")) && (value !== "debate" || Boolean(debates));
   const tabs = TABS.filter(([value]) => offered(value));
+  const underDesk = SUBPAGES.some(([value]) => value === tab);
+  const back = (value: Tab) => <button type="button" className="news-panel-back" onClick={() => setTab("desk")}>‹ 品种 · {LABELS.get(value)}</button>;
   const [flashFilter, setFlashFilter] = useState<FlashFilter>("product");
   const [flashSort, setFlashSort] = useState<FlashSort>("time");
   const [flash, setFlash] = useState<FlashState>();
@@ -142,8 +146,8 @@ export function NewsPanel({ baseUrl, symbol, guest = false, replay = false, onGu
   return <section className="fdw-ai open news-panel" aria-label="调研面板" data-agent-target="panel:news">
     <header><div><BookOpenText /><span><strong>调研</strong></span></div><button type="button" aria-label="关闭调研面板" onClick={onClose}><PanelRightClose /></button></header>
     <div className="news-panel-toolbar"><strong>{readingSymbol ?? "未选择合约"}</strong><button type="button" disabled={!readingSymbol} aria-pressed={Boolean(pinnedSymbol)} onClick={() => setPinnedSymbol(pinnedSymbol ? null : readingSymbol ?? null)}>{pinnedSymbol ? "跟随当前品种" : "固定阅读品种"}</button></div>
-    <div role="tablist" aria-label="调研内容">{tabs.map(([value, label]) => <button type="button" role="tab" key={value} aria-selected={tab === value} onClick={() => setTab(value)}>{label}</button>)}</div>
-    <div className="news-panel-content" role="tabpanel" aria-label={TABS.find(([value]) => value === tab)?.[1]}>
+    <div role="tablist" aria-label="调研内容">{tabs.map(([value, label]) => <button type="button" role="tab" key={value} aria-selected={tab === value || (value === "desk" && underDesk)} onClick={() => setTab(value)}>{label}</button>)}</div>
+    <div className="news-panel-content" role="tabpanel" aria-label={LABELS.get(tab)}>
       {replay ? <p role="status">回放中不显示新闻和研究数据：它们是今天的，会提前透露回放那天之后的行情。</p> : <>
         {seen.has("sheet") && !guest ? <div className="news-panel-tab" hidden={tab !== "sheet"} data-agent-target="news:sheet">
           <BattleSheet baseUrl={baseUrl} visible={tab === "sheet"} onState={onSheetState}
@@ -153,9 +157,13 @@ export function NewsPanel({ baseUrl, symbol, guest = false, replay = false, onGu
           {readingSymbol ? <ResearchDesk key={readingSymbol} baseUrl={baseUrl} symbol={readingSymbol} guest={guest} onGuestExpired={onGuestExpired} onState={onDeskState}
             command={deskCommand} onOpenFlash={guest ? undefined : () => { setFlashFilter("product"); setTab("flash"); }}
             onDebate={debates ? () => debates.start({ origin: "desk" }) : undefined} /> : <p>请先选择合约</p>}
+          <nav className="news-panel-more" aria-label="更多调研"><span>更多</span>
+            {SUBPAGES.filter(([value]) => offered(value)).map(([value, label]) => <button type="button" key={value} onClick={() => setTab(value)}>
+              {value === "debate" ? "以前的辩论" : label} ›</button>)}
+          </nav>
         </div>
         {seen.has("debate") && debates ? <div className="news-panel-tab" hidden={tab !== "debate"} data-agent-target="news:debate">
-          <DebateTab host={debates} />
+          {back("debate")}<DebateTab host={debates} />
         </div> : null}
         {seen.has("flash") && !guest ? <div className="news-panel-tab" hidden={tab !== "flash"} data-agent-target="news:flash">
           <FlashFeed baseUrl={baseUrl} symbol={readingSymbol} visible={tab === "flash"} filter={flashFilter} onFilterChange={setFlashFilter}
@@ -164,9 +172,10 @@ export function NewsPanel({ baseUrl, symbol, guest = false, replay = false, onGu
             debate={debates ? { onStart: startEvent, onOpen: id => debates.openDebate(id, "flash") } : undefined} />
         </div> : null}
         {seen.has("data") ? <div className="news-panel-tab" hidden={tab !== "data"}>
-          <ResearchCard baseUrl={baseUrl} symbol={readingSymbol} replay={false} guest={guest} onGuestExpired={onGuestExpired} />
+          {back("data")}<ResearchCard baseUrl={baseUrl} symbol={readingSymbol} replay={false} guest={guest} onGuestExpired={onGuestExpired} />
         </div> : null}
         {newsSeen ? <div className="news-panel-tab" hidden={tab !== "news"}>
+          {back("news")}
           {technicalError ? <p role="alert">{technicalError === "zhipu_mcp_unconfigured" ? "未配置新闻来源" : "新闻暂不可用"}{news?.results.length ? ` · 显示旧值 ${news.searchedAt || news.fetchedAt || "日期未知"}` : ""}</p> : null}
           {!readingSymbol ? <p>请先选择合约</p> : !news && !error ? <p role="status">加载中…</p> : null}
           <ScreenNote screen={news?.screen} />

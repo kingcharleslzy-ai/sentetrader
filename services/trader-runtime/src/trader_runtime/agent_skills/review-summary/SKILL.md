@@ -22,7 +22,7 @@ metadata:
 
 ## 何时用
 
-- "这笔算开盘突破""给这几笔补标打法""我哪个时段最亏""周五是不是做得最差"（打法本 2026-10-25：补标走 `PUT /api/account/trade-playbooks/{roundId}`，打法 id 从 `GET /api/playbooks` 读；分组读 `GET /api/account/pnl` 的 `breakdown`，数字照原样说，不自己另算）。
+- "这笔算开盘突破""给这几笔补标交易笔记""我哪个时段最亏""周五是不是做得最差"（交易笔记，2026-10-25 叫打法本：补标走 `PUT /api/account/trade-playbooks/{roundId}`，笔记 id 从 `GET /api/playbooks` 读；分组读 `GET /api/account/pnl` 的 `breakdown`，数字照原样说，不自己另算）。
 - "我手里有什么""持仓亏了多少"。
 - "账户还有多少钱""保证金占了多少"。
 - "今天成交了几笔""帮我复盘一下今天"。

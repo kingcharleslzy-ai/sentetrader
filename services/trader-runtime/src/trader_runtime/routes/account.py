@@ -62,7 +62,7 @@ class PlaybookRequest(BaseModel):
     def _name(cls, value: str) -> str:
         value = value.strip()
         if not value:
-            raise ValueError("打法要有名字")
+            raise ValueError("交易笔记要有名字")
         return value
 
 

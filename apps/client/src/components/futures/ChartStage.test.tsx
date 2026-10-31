@@ -335,8 +335,8 @@ test("在这里设提醒 ▸（第 6 批）：到价提醒按光标价；按打�
   const menu = screen.getByRole("menu", { name: "图表菜单" });
   fireEvent.pointerEnter(within(menu).getByRole("menuitem", { name: /^在这里设提醒/ }));
   const sub = screen.getByRole("menu", { name: "在这里设提醒" });
-  expect(await within(sub).findByRole("menuitem", { name: "按打法：开盘突破" })).toBeInTheDocument();
-  fireEvent.click(within(sub).getByRole("menuitem", { name: "按打法：开盘突破" }));
+  expect(await within(sub).findByRole("menuitem", { name: "按交易笔记：开盘突破" })).toBeInTheDocument();
+  fireEvent.click(within(sub).getByRole("menuitem", { name: "按交易笔记：开盘突破" }));
   expect(onReminder).toHaveBeenCalledWith(expect.objectContaining({ name: "开盘突破", entryRules: "突破开盘区间高点" }));
   act(() => lastChart().onPriceContext(3005, 40, 40));
   fireEvent.pointerEnter(within(screen.getByRole("menu", { name: "图表菜单" })).getByRole("menuitem", { name: /^在这里设提醒/ }));

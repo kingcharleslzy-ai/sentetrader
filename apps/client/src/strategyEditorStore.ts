@@ -153,8 +153,9 @@ export function newDraft(start?: EditorStart, reminder?: { name?: string; ask?: 
   cancelAsk(); clearTimeout(timer); clearTimeout(fundsTimer);
   generation += 1;
   const blank = emptyForm(context.chartSymbol, context.chartTimeframe);
-  // A 提醒 asks no stop: the plan keeps the default ticks, which an alert-only run never uses.
-  state = fresh("new", reminder ? { ...blank, name: reminder.name ?? "", stop: { ...blank.stop, value: DEFAULTS.stopLossTicks } } : blank, { reminder: Boolean(reminder) });
+  // A 提醒 asks no stop: the plan keeps the default ticks, which an alert-only run never uses. It asks no 方向 either
+  // (改版第一步): one condition group, kept on the long side, and 常用 offers the down forms too.
+  state = fresh("new", reminder ? { ...blank, name: reminder.name ?? "", direction: "long", stop: { ...blank.stop, value: DEFAULTS.stopLossTicks } } : blank, { reminder: Boolean(reminder) });
   notify();
   if (!reminder) { void chooseStart(start ?? "default"); return; }
   schedule();

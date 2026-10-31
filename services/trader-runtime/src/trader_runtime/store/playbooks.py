@@ -35,10 +35,10 @@ class PlaybookStore(StoreBase):
         with self.lock, self.connection:
             held = self.connection.execute("SELECT COUNT(*) FROM playbooks WHERE user_id = ?", (user_id,)).fetchone()[0]
             if held >= max_count:
-                return f"打法最多 {max_count} 个，先删掉一个再加"
+                return f"交易笔记最多 {max_count} 条，先删掉一条再加"
             if self.connection.execute("SELECT 1 FROM playbooks WHERE user_id = ? AND name = ?",
                                        (user_id, fields["name"])).fetchone():
-                return f"已经有叫“{fields['name']}”的打法了"
+                return f"已经有叫“{fields['name']}”的交易笔记了"
             self.connection.execute(
                 """INSERT INTO playbooks (id, user_id, name, entry_rules, exit_rules, stop_rules, strategy_id, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
@@ -55,7 +55,7 @@ class PlaybookStore(StoreBase):
                 return None
             if self.connection.execute("SELECT 1 FROM playbooks WHERE user_id = ? AND name = ? AND id != ?",
                                        (user_id, fields["name"], playbook_id)).fetchone():
-                return f"已经有叫“{fields['name']}”的打法了"
+                return f"已经有叫“{fields['name']}”的交易笔记了"
             self.connection.execute(
                 """UPDATE playbooks SET name = ?, entry_rules = ?, exit_rules = ?, stop_rules = ?, strategy_id = ?, updated_at = ?
                 WHERE id = ? AND user_id = ?""",

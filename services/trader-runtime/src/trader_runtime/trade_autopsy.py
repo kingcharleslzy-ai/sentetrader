@@ -23,23 +23,23 @@ NS = 1_000_000_000
 USER_SOURCES = frozenset({"manual", "card"})
 # The order a tie between two checks is broken in (the more costly habit first).
 CODES = ("stop_beyond", "no_stop", "early_exit", "after_losses", "entry_miss", "untagged")
-LABELS = {"early_exit": "提前离场", "after_losses": "连亏后再开", "untagged": "没标打法",
+LABELS = {"early_exit": "提前离场", "after_losses": "连亏后再开", "untagged": "没标交易笔记",
           "stop_beyond": "亏过止损", "no_stop": "没设止损", "entry_miss": "不合入场规则"}
 QUESTIONS = {
     "early_exit": "止损和目标都没到，当时为什么先平了？",
     "after_losses": "连亏之后又开了这笔，当时是怎么想的？",
-    "untagged": "这笔用的是哪个打法？",
+    "untagged": "这笔用的是哪条交易笔记？",
     "stop_beyond": "价格过了止损还没走，当时在等什么？",
     "no_stop": "这笔没设止损，当时为什么没设？",
-    "entry_miss": "入场不合打法的规则，当时看到了什么？",
+    "entry_miss": "入场不合交易笔记的规则，当时看到了什么？",
 }
 LESSONS = {
     "early_exit": "止损和目标都没到时，不凭感觉先手动平仓",
     "after_losses": "连亏两笔后先停一停，不马上开新仓",
-    "untagged": "每次开仓先标上用的是哪个打法",
+    "untagged": "每次开仓先标上用的是哪条交易笔记",
     "stop_beyond": "到了计划的止损就走，不让亏损超过计划",
     "no_stop": "开仓就设好止损",
-    "entry_miss": "只在符合打法入场规则时开仓",
+    "entry_miss": "只在符合交易笔记入场规则时开仓",
 }
 
 
@@ -164,7 +164,7 @@ def check_legs(legs: list[dict[str, Any]], *, rounds: list[dict[str, Any]], sour
                 if losses >= 2:
                     checks.append({"code": "after_losses", "text": f"连亏 {losses} 笔之后又开了这笔"})
                 if keeps_playbooks and not leg["playbookName"]:
-                    checks.append({"code": "untagged", "text": "开仓时没标打法"})
+                    checks.append({"code": "untagged", "text": "开仓时没标交易笔记"})
         leg["checks"] = [{**item, "label": LABELS[item["code"]]} for item in checks]
         leg["question"] = QUESTIONS[checks[0]["code"]] if checks and leg["roundId"] else None
 

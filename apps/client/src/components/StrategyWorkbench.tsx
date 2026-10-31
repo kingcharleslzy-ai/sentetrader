@@ -30,7 +30,6 @@ import { ParamHelp } from "./ParamHelp";
 import { chooseLabVariant, getLab } from "../strategyLab/labApi";
 import { loadCompare, startCompare, useCompare } from "../strategyCompare";
 import { DrawdownStatus, FundsLines } from "./StrategyRiskBlocks";
-import { PlaybookPage } from "./playbooks/PlaybookPage";
 import { AskAiInput, ClashLine, CompareBlock, ResultHead, ResultSummary, RuleRows, SignalRows, StrategyCard,
   useInstanceMonitor, type CardState } from "./StrategyHome";
 import { ScaleOutFields } from "./ScaleOutFields";
@@ -505,9 +504,8 @@ type WorkbenchProps = {
   onShowChart?: (symbol: string, durationSeconds: number) => void;
 };
 
-// 打法 (2026-10-25) comes first: the user's own setups, the ones the trade review groups and checks by.
-const TABS: { value: "playbooks" | "library" | "running"; label: string }[] = [{ value: "playbooks", label: "打法" },
-  { value: "library", label: "我的策略" }, { value: "running", label: "正在运行" }];
+// 打法 moved to 复盘 as 交易笔记 (改版第一步 2026-10-31): the panel is 我的策略 and 正在运行 again.
+const TABS: { value: "library" | "running"; label: string }[] = [{ value: "library", label: "我的策略" }, { value: "running", label: "正在运行" }];
 const FAILED_ATTEMPTS = ["FAILED", "REJECTED", "NOT_DISPATCHED", "SKIPPED", "BLOCKED"];
 const isRunning = (item: SavedStrategy) => item.status === "monitoring" || item.status === "paused";
 const ORDER = ["running", "paused", "idle", "draft"];
@@ -1099,7 +1097,7 @@ function StrategyWorkbenchContent({ rootUrl, baseUrl, symbol, chartTimeframe = 6
   const launchDialog = <StrategyLaunchDialog open={launchOpen} item={current} chartSymbol={symbol} instruments={instruments} autonomy={autonomy}
     busy={busy} stage={stage} error={launchError} onRequestOpen={openLaunch} onClose={() => { if (!operation.current) setLaunchOpen(false); }}
     onSubmit={(launchSymbol, signalAction) => void start(current, { symbol: launchSymbol, signalAction, fromDialog: true })}/>;
-  const count = (value: "playbooks" | "library" | "running") => value === "running" ? instances.length : value === "library" ? library.length : 0;
+  const count = (value: "library" | "running") => value === "running" ? instances.length : library.length;
   if (editor.open) return <section data-help="strategy" data-popover-bounds className="strategy-workbench strategy-panel strategy-panel-editing">{launchDialog}
     <StrategyEditorCard key={editor.draftId} state={editor} chartTimeframe={chartTimeframe} instruments={instruments} onBack={() => { const reminder = editor.reminder; hideDraft(); if (reminder) onShowReminders?.(); }}
       onDiscard={() => { const reminder = editor.reminder; discardDraft(); if (reminder) onShowReminders?.(); }}
@@ -1116,8 +1114,7 @@ function StrategyWorkbenchContent({ rootUrl, baseUrl, symbol, chartTimeframe = 6
       })}
     </nav>
     <div className="strategy-scroll">
-      {tab === "playbooks" ? <PlaybookPage baseUrl={baseUrl} strategies={library.map(item => ({ strategyId: item.strategyId, name: item.name }))} />
-        : tab === "library" ? home : tab === "detail" ? detailTab : runningTab}
+      {tab === "library" ? home : tab === "detail" ? detailTab : runningTab}
       {tab === "library" && error && <p role="status" className="strategy-feedback">{error}</p>}
     </div>
   </section>;

@@ -151,7 +151,7 @@ def test_the_breakdown_groups_by_setup_trading_block_and_weekday() -> None:
     ]
     result = review_breakdown(rounds)
     assert [(row["label"], row["trades"], row["wins"], row["net"]) for row in result["byPlaybook"]] == [
-        ("开盘突破", 2, 1, 200), ("均线回踩", 1, 1, 50), ("未标打法", 3, 1, -140)]
+        ("开盘突破", 2, 1, 200), ("均线回踩", 1, 1, 50), ("未标笔记", 3, 1, -140)]
     assert [(row["label"], row["trades"]) for row in result["byTimeBlock"]] == [
         ("夜盘 21–22 点", 1), ("夜盘 23 点后", 1), ("9:00–10:15", 2), ("13:30–15:00", 1)]
     assert [(row["label"], row["trades"], row["winRate"]) for row in result["byWeekday"]] == [("周三", 2, 50), ("周五", 4, 50)]
@@ -187,7 +187,7 @@ async def test_a_closed_round_trip_is_tagged_afterwards_and_the_breakdown_follow
             round_id = review["trades"][0]["id"]
             assert "playbookName" not in review["trades"][0]
             assert review["breakdown"]["byPlaybook"] == [
-                {"label": "未标打法", "trades": 1, "wins": 1, "winRate": 100, "net": 10000.0, "average": 10000.0}]
+                {"label": "未标笔记", "trades": 1, "wins": 1, "winRate": 100, "net": 10000.0, "average": 10000.0}]
             playbook = (await http.post("/api/playbooks", json={"name": "开盘突破", **RULES})).json()["playbook"]
 
             assert (await http.put(f"/api/account/trade-playbooks/{round_id}", json={"playbookId": "nope"})).status_code == 422

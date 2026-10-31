@@ -24,7 +24,7 @@ metadata:
 
 ## 何时用
 
-- "把我的开盘突破写成一个打法""我的打法有哪些""删掉那个打法"（打法本，2026-10-25：策略面板第一页 `strategyTab: playbooks`；增删改走 `/api/playbooks`，字段 name / entryRules / exitRules / stopRules / strategyId；规则用用户自己的话，不替用户编）。
+- "把我的开盘突破写成一条交易笔记""我的交易笔记有哪些""删掉那条笔记"（交易笔记，2026-10-25 叫打法本，2026-10-31 搬到复盘页：`strategyTab: playbooks` 打开复盘页；增删改走 `/api/playbooks`，字段 name / entryRules / exitRules / stopRules / strategyId；规则用用户自己的话，不替用户编）。
 - "帮我设计一个策略""新建策略""根据我的交易生成策略"（打开策略编辑卡）、"止损改成 20 跳"（编辑卡开着时的补一句）、"把这个想法存成策略""我有哪些策略"。
 - "放量突破开盘区间高点就提醒我""5 分钟 KD 金叉提醒一下"（条件提醒，2026-10-25 第 6 批）：打开编辑卡的提醒模式 `strategyEditor: {new: true, reminder: true, ask: 用户原话}`，只有条件和提醒时段，开始提醒由用户点；它存成 `plan.reminderOnly` 的策略，只能“只提醒”（confirm / auto 回 409 strategy_reminder_only），列在提醒面板“我的提醒”，不在我的策略。只问到价的（“到 3200 提醒我”）仍用到价提醒。
 - "评估一下这个策略回测表现""验证跑得怎么样"。

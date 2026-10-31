@@ -284,11 +284,7 @@ test("every user-operable control is commandable or reachable, and visible to th
     // 存为草稿 → its 结果页 (saved, backtested on the fake history).
     ["ai-strategy-result", [{ strategyEditor: { save: true } }, { disclosure: { name: "strategy-ask-ai", open: true } }], true],
     ["ai-strategy-detail", [{ strategyTab: "detail" }], true], ["ai-strategy-running", [{ strategyTab: "running" }], true],
-    // 打法本 (2026-10-25): the 打法 tab and its 新建 form.
-    ["ai-strategy-playbooks", [{ strategyTab: "playbooks" }], true],
-    ["ai-strategy-playbook-editor", [{ disclosure: { name: "playbook-editor", open: true } }], true],
-    ["", [{ disclosure: { name: "playbook-editor", open: false } }], false],
-    ["", [{ strategyTab: "library" }], false],
+    // 交易笔记 (2026-10-31: on 复盘; the old 打法 tab id opens it there) is covered with the review page.
     ["ai-positions", [{ panel: "positions" }], true], ["ai-positions-fills", [{ fillsSource: "all" }], true],
     ["positions-bar", [{ panel: null }, { positionsBar: "expanded" }], true], ["orders-tab", [{ positionsTab: "orders" }], true],
     ["orders-history", [{ ordersHistory: true }], true], ["fills-tab", [{ positionsTab: "fills" }], true],
@@ -302,6 +298,10 @@ test("every user-operable control is commandable or reachable, and visible to th
     // 未关联的补充 (2026-10-04): the fold appears only with such 补充; the audit injects one (see the route below).
     ["review-unlinked-notes", [{ disclosure: { name: "unlinked-notes", open: true } }], true],
     ["", [{ disclosure: { name: "unlinked-notes", open: false } }], false],
+    // 交易笔记 (was the 策略 panel's 打法, on 复盘 since 2026-10-31): the old tab id lands here; its 新建笔记 form.
+    ["review-playbooks", [{ strategyTab: "playbooks" }], true],
+    ["review-playbook-editor", [{ disclosure: { name: "playbook-editor", open: true } }], true],
+    ["", [{ disclosure: { name: "playbook-editor", open: false } }], false],
     ["dialog-account-detail", [{ dialog: { name: "account-detail", open: true } }], true], ["", [{ dialog: { name: "account-detail", open: false } }], false],
     ["dialog-fee-hint", [{ dialog: { name: "fee-hint", open: true } }], true], ["", [{ dialog: { name: "fee-hint", open: false } }], false],
     ["", [{ view: "trade" }], false],

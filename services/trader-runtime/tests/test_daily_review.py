@@ -433,7 +433,7 @@ async def test_the_review_carries_each_legs_checks_its_question_and_the_weeks_le
         legs = payload["legs"]
         assert [[check["code"] for check in item["checks"]] for item in legs] == [["untagged"], ["early_exit"], ["early_exit"]]
         assert [item["question"] for item in legs] == [
-            "这笔用的是哪个打法？", "止损和目标都没到，当时为什么先平了？", "止损和目标都没到，当时为什么先平了？"]
+            "这笔用的是哪条交易笔记？", "止损和目标都没到，当时为什么先平了？", "止损和目标都没到，当时为什么先平了？"]
         assert all(item["roundId"] for item in legs)
         # The model is shown the checks to put them in plain words.
         assert model.calls[0]["input"]["legs"][1]["checks"] == ["止损 3,100 都还没到，就手动平了"]
@@ -463,7 +463,7 @@ async def test_a_setup_in_words_is_judged_by_the_model_and_checked(tmp_path, fit
         if judged:
             assert first["entryFit"] == {"fits": False, "basis": "model", "text": why}
             assert [check["code"] for check in first["checks"]] == ["entry_miss"]
-            assert first["question"] == "入场不合打法的规则，当时看到了什么？"
+            assert first["question"] == "入场不合交易笔记的规则，当时看到了什么？"
     finally:
         app.state.store.close()
 

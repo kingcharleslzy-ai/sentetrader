@@ -1279,6 +1279,9 @@ class StrategyMonitorService:
             return {"strategyId": strategy_id, "status": "duplicate", "detail": "该已完成K线已提醒。"}
         label = signal_action_label(intent, action)
         act = "加仓" if (intent["signalSnapshot"] or {}).get("add") else label
+        # 提醒页的提醒 (改版第一步 2026-10-31) asks no 做多 / 做空: its message names no side.
+        if ((strategy.get("definition") or {}).get("plan") or {}).get("reminderOnly"):
+            act = "提醒"
         signal = self._signal_text(intent)
         subject = self._contract_label(strategy, turn_id)
         legs_text = None
@@ -2142,6 +2145,8 @@ class StrategyMonitorService:
         except (TypeError, ValueError):
             bar_seconds = None
         price = market.get("price") if isinstance(market, dict) else None
+        if ((strategy.get("definition") or {}).get("plan") or {}).get("reminderOnly"):
+            label = "提醒"
         spoken = f"策略提醒：{strategy['name']} 刚满足{label}条件"
         trigger = (intent.get("signalSnapshot") or {}).get("entryTrigger")
         if trigger and not trigger.get("reached"):

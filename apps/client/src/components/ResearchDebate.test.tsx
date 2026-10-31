@@ -88,7 +88,7 @@ function Host({ baseUrl = "https://test", onAsk }: { baseUrl?: string; onAsk?: (
   // The panel's own tabs (NewsPanel) without its other pages, which read their own routes.
   return <>
     {dock === "news" ? <div role="tablist">{(["desk", "debate"] as const).map(value =>
-      <button type="button" role="tab" key={value} aria-selected={tab === value} onClick={() => setTab(value)}>{value === "desk" ? "品种调研" : "辩论"}</button>)}</div> : null}
+      <button type="button" role="tab" key={value} aria-selected={tab === value} onClick={() => setTab(value)}>{value === "desk" ? "品种" : "辩论"}</button>)}</div> : null}
     {dock === "news" && tab === "debate" ? <div role="tabpanel" aria-label="辩论"><DebateTab host={host} /></div> : <p>closed</p>}
     <ToolsRail rightDock={dock} setRightDock={setDock} onTrade={() => undefined} onSettings={() => undefined} />
   </>;
@@ -213,7 +213,7 @@ test("进行中：一次发言一边写一边出现（光标、正在说…）�
   current = DONE;
   act(() => { applyFeedEvent("s1", { schemaVersion: 1, id: "n2", sessionId: "s1", kind: "result", name: "feed.ui", timestamp: "", payload: { reason: "research-debate" } } as never); });
   expect(await verdictBlock()).toBeVisible();
-  fireEvent.click(screen.getByRole("tab", { name: "品种调研" }));
+  fireEvent.click(screen.getByRole("tab", { name: "品种" }));
   expect(screen.getByText("closed")).toBeVisible();
 });
 
@@ -394,7 +394,7 @@ test("“讨论一下这条”查最新重要快讯时用户先关了辩论页�
   vi.stubGlobal("fetch", fetcher);
   render(<Host />);
   act(() => applyUiSurface("researchDebate", { start: "event" }));
-  fireEvent.click(await screen.findByRole("tab", { name: "品种调研" }));
+  fireEvent.click(await screen.findByRole("tab", { name: "品种" }));
   await act(async () => { release(new Response(JSON.stringify({ events: [{ id: "e0123456789ab", tier: "major", title: "x", text: "x" }] }))); });
   expect(screen.getByText("closed")).toBeVisible();
   expect(fetcher.mock.calls.some(([url]) => String(url).endsWith("/api/research/debates"))).toBe(false);
@@ -508,7 +508,7 @@ test("关了辩论页后 rerun 命令不再发起（不白花当天额度）", a
   render(<Host />);
   act(() => applyUiSurface("researchDebate", { open: DONE.id }));
   await verdictBlock();
-  fireEvent.click(screen.getByRole("tab", { name: "品种调研" }));
+  fireEvent.click(screen.getByRole("tab", { name: "品种" }));
   expect(() => applyUiSurface("researchDebate", { rerun: true })).toThrow("没有打开的辩论");
   expect(fetcher.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
 });

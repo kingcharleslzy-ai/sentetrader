@@ -13,7 +13,7 @@ test("引用编号不冒充媒体，首页不冒充原文，非法链接不可�
   ];
   vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(news))));
   render(<NewsPanel baseUrl="https://test" symbol="SHFE.au2612" onClose={() => {}} />);
-  fireEvent.click(screen.getByRole("tab", {name: "资讯"}));
+  fireEvent.click(screen.getByRole("button", {name: "相关报道 ›"}));
   expect(await screen.findByText("发布时间未提供 · example.com")).toBeVisible();
   expect(screen.queryByText(/ref[_-]\d/)).toBeNull();
   expect(screen.getByRole("link", {name: "查看来源网站"})).toHaveAttribute("href", "https://example.com/");
@@ -38,7 +38,7 @@ test("资讯：相关报道与快讯同样分层合并——重要带原因与�
         dropReason: "苹果公司新品与财报", droppedBy: "keyword" }] } } };
   vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(news))));
   render(<NewsPanel baseUrl="https://test" symbol="CZCE.AP701" onClose={() => {}} />);
-  fireEvent.click(screen.getByRole("tab", {name: "资讯"}));
+  fireEvent.click(screen.getByRole("button", {name: "相关报道 ›"}));
   const major = await screen.findByRole("region", { name: "重要" });
   const row = within(major).getByRole("listitem");
   expect(row).toHaveTextContent("栖霞冷库苹果出库偏慢");
@@ -62,7 +62,7 @@ test("切品种不接收迟到的旧结果，固定品种和命令切页共用�
   const fetcher = vi.fn((url: string) => url.includes("rb2701") ? new Promise<Response>(resolve => {finishOld = resolve;}) : Promise.resolve(new Response(JSON.stringify(payload("DCE.i2701")))));
   vi.stubGlobal("fetch", fetcher);
   const view = render(<NewsPanel baseUrl="https://test" symbol="SHFE.rb2701" onClose={() => {}} />);
-  fireEvent.click(screen.getByRole("tab", {name: "资讯"}));
+  fireEvent.click(screen.getByRole("button", {name: "相关报道 ›"}));
   view.rerender(<NewsPanel baseUrl="https://test" symbol="DCE.i2701" onClose={() => {}} />);
   expect(await screen.findByText("DCE.i2701新闻")).toBeVisible();
   await act(async () => finishOld(new Response(JSON.stringify(payload("SHFE.rb2701")))));
@@ -71,18 +71,21 @@ test("切品种不接收迟到的旧结果，固定品种和命令切页共用�
   view.rerender(<NewsPanel baseUrl="https://test" symbol="SHFE.rb2705" onClose={() => {}} />);
   expect(screen.getByText("DCE.i2701新闻")).toBeVisible();
   act(() => applyUiSurface("news", {tab: "data"}));
-  expect(screen.getByRole("tab", {name: "研究数据"})).toHaveAttribute("aria-selected", "true");
+  // 研究数据 is a page under 品种 (改版第一步): the 品种 tab stays selected and the page shows its back link.
+  expect(screen.getByRole("tab", {name: "品种"})).toHaveAttribute("aria-selected", "true");
+  expect(screen.getByRole("button", {name: "‹ 品种 · 研究数据"})).toBeVisible();
   expect(uiSurface("news")?.state).toMatchObject({tab:"data", pinnedSymbol:"DCE.i2701"});
 });
 test("游客新闻与研究数据只走游客cookie接口，失败显示真实错误", async () => {
   const fetcher = vi.fn(async (url: string) => new Response(JSON.stringify(url.includes("/summary") ? {symbol:"SHFE.rb2701", product:"rb", datasets:{}} : {...payload("SHFE.rb2701"), status:"stale", error:"upstream_timeout", searchedAt:"2026-09-25"})));
   vi.stubGlobal("fetch", fetcher);
   render(<NewsPanel baseUrl="https://test" symbol="SHFE.rb2701" guest onClose={() => {}} />);
-  fireEvent.click(screen.getByRole("tab", {name: "资讯"}));
+  fireEvent.click(screen.getByRole("button", {name: "相关报道 ›"}));
   expect(await screen.findByRole("alert")).toHaveTextContent("新闻暂不可用 · 显示旧值 2026-09-25");
   expect(screen.queryByText("upstream_timeout")).toBeNull();
   expect(screen.getByRole("link", {name:"阅读原文"})).toHaveAttribute("rel", "noopener noreferrer");
-  fireEvent.click(screen.getByRole("tab", {name:"研究数据"}));
+  fireEvent.click(screen.getByRole("button", {name: "‹ 品种 · 相关报道"}));
+  fireEvent.click(screen.getByRole("button", {name: "研究数据 ›"}));
   await waitFor(() => expect(fetcher.mock.calls.some(([url]) => String(url).includes("/summary"))).toBe(true));
   expect(fetcher.mock.calls.map(([url]) => String(url).split("?")[0].replace("https://test", ""))).toEqual(
     expect.arrayContaining(["/api/guest/research/desk", "/api/guest/research/news", "/api/guest/research/summary"]));
@@ -96,7 +99,7 @@ test("回放中不取也不显示今天的新闻和研究数据", async () => {
   vi.stubGlobal("fetch", fetcher);
   render(<NewsPanel baseUrl="https://test" symbol="SHFE.rb2701" replay onClose={() => {}} />);
   expect(screen.getByRole("status")).toHaveTextContent("回放中不显示新闻和研究数据");
-  fireEvent.click(screen.getByRole("tab", {name: "研究数据"}));
+  act(() => applyUiSurface("news", {tab: "data"}));
   expect(screen.getByRole("status")).toHaveTextContent("回放中不显示新闻和研究数据");
   await act(async () => {});
   expect(fetcher).not.toHaveBeenCalled();
@@ -108,7 +111,7 @@ test("游客会话过期时新闻与研究数据交给工作区显示重连提�
   render(<NewsPanel baseUrl="https://test" symbol="SHFE.rb2701" guest onGuestExpired={expired} onClose={() => {}} />);
   await waitFor(() => expect(expired).toHaveBeenCalledTimes(1));
   expect(screen.queryByRole("alert")).toBeNull();
-  fireEvent.click(screen.getByRole("tab", {name: "研究数据"}));
+  fireEvent.click(screen.getByRole("button", {name: "研究数据 ›"}));
   await waitFor(() => expect(expired).toHaveBeenCalledTimes(2));
 });
 
@@ -397,14 +400,14 @@ test("调研与资讯来回切换不重新加载：切回资讯直接显示已�
   const fetcher = vi.fn(async (url: string) => new Response(JSON.stringify(url.includes("/news") ? payload("SHFE.rb2701") : {})));
   vi.stubGlobal("fetch", fetcher);
   render(<NewsPanel baseUrl="https://test" symbol="SHFE.rb2701" onClose={() => {}} />);
-  fireEvent.click(screen.getByRole("tab", {name: "资讯"}));
+  fireEvent.click(screen.getByRole("button", {name: "相关报道 ›"}));
   expect(await screen.findByText("SHFE.rb2701新闻")).toBeVisible();
   const newsCalls = () => fetcher.mock.calls.filter(([url]) => String(url).includes("/news")).length;
   const deskCalls = () => fetcher.mock.calls.filter(([url]) => String(url).includes("/desk")).length;
   const [news, desk] = [newsCalls(), deskCalls()];
-  fireEvent.click(screen.getByRole("tab", {name: "品种调研"}));
+  fireEvent.click(screen.getByRole("button", {name: "‹ 品种 · 相关报道"}));
   expect(screen.getByText("SHFE.rb2701新闻")).not.toBeVisible();
-  fireEvent.click(screen.getByRole("tab", {name: "资讯"}));
+  fireEvent.click(screen.getByRole("button", {name: "相关报道 ›"}));
   expect(screen.getByText("SHFE.rb2701新闻")).toBeVisible();
   expect([newsCalls(), deskCalls()]).toEqual([news, desk]);
 });
@@ -452,7 +455,7 @@ test("今日作战表（第 5 批）：第一页按优先级一行一个自选�
   vi.stubGlobal("fetch", fetcher);
   const onSelectSymbol = vi.fn();
   render(<NewsPanel baseUrl="https://test" symbol="SHFE.rb2701" onClose={() => {}} tab="sheet" onSelectSymbol={onSelectSymbol} />);
-  expect(screen.getByRole("tab", {name: "今日作战表"})).toHaveAttribute("aria-selected", "true");
+  expect(screen.getByRole("tab", {name: "今天"})).toHaveAttribute("aria-selected", "true");
   const card = await screen.findByTestId("battle-sheet");
   const rows = await within(card).findAllByRole("listitem");
   expect(rows[0]).toHaveTextContent("高螺纹钢rb27013215看调研");
@@ -470,5 +473,5 @@ test("今日作战表（第 5 批）：第一页按优先级一行一个自选�
 test("游客没有今日作战表页签", () => {
   vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({symbol: "SHFE.rb2610", facts: [], sections: [], judgment: {status: "signin_required"}}))));
   render(<NewsPanel baseUrl="https://test" symbol="SHFE.rb2610" guest onClose={() => {}} />);
-  expect(screen.queryByRole("tab", {name: "今日作战表"})).toBeNull();
+  expect(screen.queryByRole("tab", {name: "今天"})).toBeNull();
 });

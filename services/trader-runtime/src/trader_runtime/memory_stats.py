@@ -113,8 +113,8 @@ def review_breakdown(rounds: list[dict[str, Any]]) -> dict[str, list[dict[str, A
     打法组含“未标打法”；时段只算国内合约；星期按平仓交易日。只列有成交的组，顺序固定。"""
     by_playbook: dict[str, list[dict[str, Any]]] = {}
     for trade in rounds:
-        by_playbook.setdefault(str(trade.get("playbookName") or "未标打法"), []).append(trade)
-    playbooks = sorted(by_playbook, key=lambda name: (name == "未标打法", -len(by_playbook[name]), name))
+        by_playbook.setdefault(str(trade.get("playbookName") or "未标笔记"), []).append(trade)
+    playbooks = sorted(by_playbook, key=lambda name: (name == "未标笔记", -len(by_playbook[name]), name))
     blocks = {label: [t for t in rounds if time_block(t) == label] for label in TIME_BLOCKS}
     days = {label: [t for t in rounds if weekday(t) == label] for label in WEEKDAYS}
     return {"byPlaybook": [_row(name, by_playbook[name]) for name in playbooks],
@@ -232,7 +232,7 @@ def trade_stats(rounds: list[dict[str, Any]], *, names: dict[str, str], now_ns: 
                   [t for t in domestic if not _is_night(int(t["openTime"]))], overall_rate, None, out)
     # 打法本 (第 2 批后半)：按打法、交易小节、星期，同样的门槛（≥5 笔且明显偏离总体胜率）。
     for name in sorted({str(t["playbookName"]) for t in trades if t.get("playbookName")}):
-        _lesson_entry(f"stat:playbook:{name}", f"打法「{name}」的单",
+        _lesson_entry(f"stat:playbook:{name}", f"交易笔记「{name}」的单",
                       [t for t in trades if t.get("playbookName") == name], overall_rate, None, out)
     for label in TIME_BLOCKS:
         _lesson_entry(f"stat:block:{label}", f"{label}开的仓", [t for t in trades if time_block(t) == label],

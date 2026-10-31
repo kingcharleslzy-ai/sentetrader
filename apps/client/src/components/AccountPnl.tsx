@@ -17,6 +17,7 @@ import { useDailyReview } from "../dailyReview";
 import { DailyReviewBlock, RoundTags } from "./DailyReview";
 import { HabitCompareBlock, habitState, useHabitCompare } from "./HabitCompare";
 import { ReviewBreakdownBlock } from "./ReviewBreakdown";
+import { PlaybookPage } from "./playbooks/PlaybookPage";
 import "./AccountPnl.css";
 
 const time = (value: number) => new Date(value / 1_000_000).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false, month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
@@ -196,6 +197,7 @@ export function AccountPnl({ baseUrl, rootUrl, symbol, chartSymbols, chartAvaila
       notes={noteTexts} onQuestion={answerQuestion} />
     <HabitCompareBlock data={habits} onSelect={id => setHabitNotice(selectById(id) ? "" : "这笔已不在近 366 天的平仓记录里")} />
     <ReviewBreakdownBlock data={pnl?.breakdown} />
+    <PlaybookPage baseUrl={baseUrl} />
     {habitNotice && <p className="account-pnl-status" role="status">{habitNotice}</p>}
     {pnl && <>
       <SectionCard title="账户" className="account-pnl-account" note={`总盈亏按账户权益算，含持仓浮动与手续费；本月平仓和按月、按日只算已平仓的交易${hasUsd ? "。人民币账记国内合约，美元账记外盘合约，两边不换汇、不相加" : ""}`}>

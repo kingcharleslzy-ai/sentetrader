@@ -267,7 +267,7 @@ test("页签显示时每 60 秒刷新、新到的条目短暂高亮，切走后�
   expect(flashCalls(fetcher)).toHaveLength(2);
   expect(screen.getByText(/新到一条 正文/).closest("li")).toHaveAttribute("data-fresh");
   expect(screen.getByText(/沪金走高 正文/).closest("li")).not.toHaveAttribute("data-fresh");
-  fireEvent.click(screen.getByRole("tab", { name: "资讯" }));
+  fireEvent.click(screen.getByRole("tab", { name: "品种" }));
   const before = flashCalls(fetcher).length;
   await act(async () => { vi.advanceTimersByTime(FLASH_REFRESH_MS * 3); });
   expect(flashCalls(fetcher)).toHaveLength(before);
@@ -370,7 +370,7 @@ test("界面命令切到快讯页并切筛选，快照带筛选与条数；游�
   render(<NewsPanel baseUrl="https://test" symbol="SHFE.rb2701" guest onClose={() => {}} />);
   expect(screen.queryByRole("tab", { name: "快讯" })).toBeNull();
   act(() => applyUiSurface("news", { tab: "flash" }));
-  expect(screen.getByRole("tab", { name: "品种调研" })).toHaveAttribute("aria-selected", "true");
+  expect(screen.getByRole("tab", { name: "品种" })).toHaveAttribute("aria-selected", "true");
 });
 
 

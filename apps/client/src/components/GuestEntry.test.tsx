@@ -198,16 +198,17 @@ it("受限入口可点击并提示登录，不挂载私人能力或下单",async
 });
 it("真实新闻和研究数据仅请求公共数据",async()=>{
   await enter(); fireEvent.click(screen.getByRole("button",{name:"打开调研面板"}));
-  fireEvent.click(screen.getByRole("tab",{name:"资讯"}));
+  fireEvent.click(screen.getByRole("button",{name:"相关报道 ›"}));
   expect(await screen.findByText("公共行情新闻")).toBeVisible();
-  fireEvent.click(screen.getByRole("tab",{name:"研究数据"}));
+  fireEvent.click(screen.getByRole("button",{name:"‹ 品种 · 相关报道"}));
+  fireEvent.click(screen.getByRole("button",{name:"研究数据 ›"}));
   await waitFor(()=>expect(requests.some(url=>url.includes("/summary"))).toBe(true));
   assertPublicOnly();
 });
 it("同窗口命令驱动共享控件并回执，其他窗口和私人面板不应用",async()=>{
   await enter();
   frame("ui",{windowId:"other",revision:1,changes:{panel:"news"}});
-  expect(screen.queryByRole("tab",{name:"研究数据"})).toBeNull();
+  expect(screen.queryByRole("tab",{name:"品种"})).toBeNull();
   frame("ui",{windowId:"w1",revision:1,changes:{theme:"light",fontScale:"large",dockSide:"left",dockWidth:420,chartOption:{name:"kd",visible:false},settingsPage:"ui",settingsOpen:true}});
   await waitFor(()=>expect(posts().length).toBeGreaterThan(0));
   await waitFor(()=>expect(latestSnapshot()).toMatchObject({appliedRevision:1,theme:"light",dockSide:"left",dockWidth:420,settingsPage:"ui",settingsOpen:true,chart:{kd:false}}));
@@ -329,7 +330,7 @@ it("过期重连保留周期布局、更换令牌并隔离旧SSE",async()=>{
   fireEvent.click(within(screen.getByRole("group",{name:"K线周期"})).getByRole("button",{name:"15分"}));
   frame("snapshot",{workbench:{...market,durationSeconds:900}});
   frame("ui",{windowId:"w1",revision:1,changes:{dockSide:"left",panel:"news"}});
-  fireEvent.click(await screen.findByRole("tab",{name:"资讯"}));
+  fireEvent.click(await screen.findByRole("button",{name:"相关报道 ›"}));
   await screen.findByText("公共行情新闻");
   const old=mocks.frames;
   vi.mocked(fetch).mockResolvedValueOnce(new Response("",{status:401}));

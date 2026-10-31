@@ -268,7 +268,8 @@ DISCLOSURE_NAMES = Literal[
     # 提醒中心 (2026-10-15): the 到价提醒 · 生效中 block's 新建 form (open = the price form for the shown
     # contract; needs the 提醒 panel's 我的提醒 tab, reminders: {tab: mine}). The alerts go through /api/market/alerts.
     "reminder-alert-new",
-    # 打法本 (2026-10-25): the 策略 panel's 打法 tab's 新建 form (open = an empty form; needs strategyTab playbooks).
+    # 交易笔记 (was 打法本, 2026-10-25; on the 复盘 page since 改版第一步 2026-10-31): its 新建笔记 form (open = an empty
+    # form; needs the 复盘 page, which strategyTab playbooks opens).
     # Saving, editing and deleting a setup go through /api/playbooks.
     "playbook-editor",
     # 到价提醒浮层内的“其他合约 N 条”折叠 (needs the price-alerts popover open; a row's contract
@@ -989,8 +990,9 @@ class RemindersNavigation(BaseModel):
 
 class NewsNavigation(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    # 调研面板（2026-10-25 前叫新闻面板）的页签：sheet 今日作战表（第 5 批，第一页；游客没有）/ desk 品种调研 /
-    # debate 辩论（原右侧栏的辩论页）/ flash 快讯 / news 资讯 / data 研究数据。
+    # 调研面板（2026-10-25 前叫新闻面板）的页签（改版第一步 2026-10-31 起页签只有三个）：sheet 今天（今日作战表，第一页；
+    # 游客没有）/ desk 品种 / flash 快讯；news 相关报道（原资讯）、data 研究数据、debate 辩论是“品种”下面的子页，
+    # 从品种页底部“更多”一行打开，顶上“‹ 品种”返回。
     tab: Literal["sheet", "desk", "debate", "flash", "news", "data"] | None = None
     # 快讯页签的筛选（2026-10-03）：当前品种 / 持仓与自选 / 宏观 / 全部；只给筛选不给 tab 时客户端顺带切到快讯页。
     flashFilter: Literal["product", "watch", "macro", "all"] | None = None
@@ -1363,7 +1365,7 @@ class UiChanges(BaseModel):
                        "reviewDay 打开复盘（电脑是复盘页、手机是复盘摘要页）并把“今日复盘”块切到那个交易日（只能是 GET /api/account/daily-review 的 days 里的一天，否则 rejected；快照 state.review.dailyReview）；“今日复盘”块的“怎么算的”折叠是 disclosure: review-how；“习惯对照”块（实际 vs 只做计划内，GET /api/account/habits）的“怎么算的”折叠是 disclosure: habits-how，快照 state.review.habits（status、actual、planned、gap、picks 的成交 id，选中一笔用 review select）；重新生成、记住“本周最该改的一件事”是业务接口 POST /api/account/daily-review/regenerate 与 /observation；reviewCurrency CNY / USD 把账户复盘切到人民币账或外盘美元账（本站模拟合成一个账户：外盘合约在美元子账户撮合记账，顶栏权益、成交与账户明细都两边一起显示；只有有美元子账户时能切 USD，快照 state.review.currency / currencies）；"
                        "highlight 高亮一个界面目标并配说明气泡，chartAnnotations 在主图画 AI 标注（set/add/clear），"
                        "chartFocus 把图表滚到某时间段（null 回到最新）；selectedPrice 设置候选价并打开下单台、填入手动价格且切到限价（只填价，不改方向、不下单；快照 ticketPrice / ticketPriceMode），null 只清除候选价标记（图上左键选价已移除，五档和此命令共用入口）；"
-                       "panel 打开右侧栏面板（ai 对话 / strategy 策略 / news 调研（2026-10-25 前叫新闻；页签 sheet 今日作战表（第一页：自选品种按优先级一行一个，关键价位、消息、可能出现的打法，快照 state.news.sheet 回报 status / rows / high / mid / low / top；GET /api/research/sheet）/ desk 品种调研 / debate 辩论 / flash 快讯 / news 资讯 / data 研究数据）/ debate 辩论：打开调研面板的辩论页签（原右侧栏单独的辩论页），按 panel news、news.tab debate 回报 / reminders 提醒（2026-10-25 新增；页签用 reminders {tab: mine 我的提醒 | general 通用提醒（原设置 → 提醒）| history 提醒记录（原提醒中心）}）/ order 下单：五档 + 下单票 + 本合约持仓 / positions 持仓，null 收起）；旧值 depth（原价格阶梯，已并入下单面板）仍接受，按 order 打开并按 order 回报；"
+                       "panel 打开右侧栏面板（ai 对话 / strategy 策略 / news 调研（2026-10-25 前叫新闻；页签 sheet 今天（今日作战表，第一页：自选品种按优先级一行一个，关键价位、消息、可能用上的交易笔记，快照 state.news.sheet 回报 status / rows / high / mid / low / top；GET /api/research/sheet）/ desk 品种 / flash 快讯；news 相关报道（原资讯）、data 研究数据、debate 辩论是“品种”下的子页（2026-10-31 改版第一步），仍可直接用 tab 打开）/ debate 辩论：打开调研面板的辩论页签（原右侧栏单独的辩论页），按 panel news、news.tab debate 回报 / reminders 提醒（2026-10-25 新增；页签用 reminders {tab: mine 我的提醒 | general 通用提醒（原设置 → 提醒）| history 提醒记录（原提醒中心）}）/ order 下单：五档 + 下单票 + 本合约持仓 / positions 持仓，null 收起）；旧值 depth（原价格阶梯，已并入下单面板）仍接受，按 order 打开并按 order 回报；"
                        "chartMarks:\"clear\" 清空当前合约图上标记（AI 标注、回测买卖点一并清除，并把成交标记的清除时间记为现在，此前的成交标记不再显示、新成交仍显示）；"
                        "画线（2026-10-09 第二版，K 线与分时）：disclosure chart-drawing-toolbar 显示/收起画线工具栏（平时隐藏，浮在图表左侧；选了工具会自己出来，回十字光标就收起；手机单图上是 ✎ 底部面板；旧名 chart-drawing-tools 同义），"
                        "chart-drawing-group {id: lines|levels|fib|shapes|notes|measure} 显示工具栏并展开一组工具，chart-drawing-tool {id: 工具名如 trendline/hline/fib} open 开始画（在图上点）、false 回十字光标，"
@@ -1376,7 +1378,7 @@ class UiChanges(BaseModel):
                        "preference 从设置页改一项账号偏好（key 点分路径 + value；agent 直接用 update_preferences 更省事；"
                        "trade.aiAutonomy 与 trade.voiceOrderConfirm 不经界面命令改，只用 update_preferences）；"
                        "tradingAccount 把当前会话换到目录里的另一个账户（PUT /api/sessions/{id}/account，观察见 runtime.status.account 与 UiState.tradingAccount）；"
-                       "strategyTab 打开策略面板并切到 playbooks 打法（2026-10-25，第一页：打法本，新建 / 改的表单是 disclosure: playbook-editor，增删改走 /api/playbooks）/ library 我的策略（“新建策略”按钮 + 每个策略一张卡）/ running 正在运行 / detail 选中策略的结果页（从卡片打开；旧值 lab＝原实验室，打开结果页的“试几组参数比一比”，回报 detail）；positionsTab 的 fills 是持仓面板与底栏的「成交」页（旧值 trades 仍接受），fillsSource 按来源筛选成交（all 全部 / manual 手动 / card AI 建议（对话里 AI 出卡、你确认的）/ ai AI 自主 / strategy 策略 / stop 止损）；"
+                       "strategyTab 打开策略面板并切到 library 我的策略（策略面板只有我的策略 / 正在运行两页；旧值 playbooks＝原打法页，2026-10-31 起打法改名交易笔记、搬到复盘页，按 playbooks 打开复盘页并按 view: review 回报，新建 / 改的表单是 disclosure: playbook-editor，增删改走 /api/playbooks）/ library 我的策略（“新建策略”按钮 + 每个策略一张卡）/ running 正在运行 / detail 选中策略的结果页（从卡片打开；旧值 lab＝原实验室，打开结果页的“试几组参数比一比”，回报 detail）；positionsTab 的 fills 是持仓面板与底栏的「成交」页（旧值 trades 仍接受），fillsSource 按来源筛选成交（all 全部 / manual 手动 / card AI 建议（对话里 AI 出卡、你确认的）/ ai AI 自主 / strategy 策略 / stop 止损）；"
                        "aiFilter 已退役（对话面板只放对话），仍接受但只打开对话面板；"
                        "strategyLaunch 填上线对话框的合约与执行方式（先 dialog: strategy-launch 打开；验证并上线由用户点）；"
                        "strategyInstance 已退役：运行中实例的执行方式（alert / confirm / auto）只用 start_strategy_monitoring 改，快照 state.strategyInstances 照常；"
@@ -1404,7 +1406,7 @@ class UiChanges(BaseModel):
                        "mobileLab {labId} 打开手机版回测结果页看指定的一次比较（labId 来自 GET /api/strategy-labs；快照 state.mobilePage lab、state.mobileLab {labId, chosen}——chosen 是已选用的变体，未选为 null）。"
                        "mobileStrategyTab 切手机版策略页的分页（running 正在运行：暂停 / 继续 / 停止并平仓；mine 我的策略：顶上“新建策略”，每个策略一张卡带“编辑 / 回测 / 上线…”，一条没有时是三种开始方式与常用模板），先切到策略标签（快照 state.mobileStrategyTab）。"
                        "mobileMarket 改手机版看盘（只对手机布局有效，先切到看盘标签；一次一项）：view quotes 报价列表 / multi 多图 / single 单图；board 报价板块 watchlist 自选 / main 主力 / SHFE 上期所 / DCE 大商所 / CZCE 郑商所 / CFFEX 中金所 / GFEX 广期所 / INE 能源中心 / FOREIGN 外盘（点一行打开它的单图；切到报价）；columns 报价的数值列 1–4 个（last 最新 / changePercent 涨跌幅 / change 涨跌 / openInterest 持仓量 / bid 买价 / ask 卖价 / volume 成交量 / openInterestChange 日增仓）；layout 多图布局 four 4 合约 / periods 同合约 4 周期 / six 6 图（切到多图）；cell {index, symbol?, duration?} 改多图当前布局的一格（symbol null＝自动补位；同合约 4 周期里 symbol 切当前合约）；subPane 单图下面显示哪个副图（kd / macd / rsi / oi 持仓量 / cci / volume 成交量，未选的替换正在显示的那个）；subPanes true/false 开关副图设置面板（选 0–3 个副图、主图指标 均线 / 布林 / SAR、各指标参数，快照 disclosures.mobile-subpanes）。都记在账号偏好 ui.mobileMarket 与 chart.subPaneList，快照 state.preferences。"
-                       "researchDebate 操作“多 AI 辩论”页（电脑是调研面板的“辩论”页签，同 panel: debate；手机是调研页上的整屏子页；一次一项）：start 发起或打开辩论——start: \"desk\" 等于今日判断旁的“让 AI 们辩一轮”（今日议题），start: \"event\" 辩当前品种最新一条重要快讯，start: <事件 id>（快讯接口 events[].id）等于快讯行的“研讨”；同一事件同一品种当天只辩一次、今日议题资料没变时直接打开已有结果；open: <研讨 id> 打开一次辩论（也是“以前的辩论”里的一格）；rerun: true 是结果页的“再辩一轮”（新跑一次，计入当日次数）；close: true 收起辩论页。辩论本身走 POST /api/research/debates（技术面、供需基本面、资金持仓、新闻宏观四位分析师先同时写报告，再多方开场、空方回应、多方反驳、空方反驳，一句一句流式出现，最后裁判匿名裁决，约 2 到 3 分钟；写完的报告卡片用 disclosure: debate-analyst-technical / supply / flow / news 展开收起），写进今日判断走 POST /api/research/debates/{id}/adopt，停止走 POST /api/research/debates/{id}/cancel（快照 state.researchDebate：id、status queued/running/done/review 需复核/failed/cancelled、step（collect / analysts / turn1…turn4 / judge）、analysts（四份报告写完几份，没写成也算）、lesson（上次复盘）、speaking（正在说的一方）、topic、stance、confidence、canAdopt、adopted、request）。游客不能发起。",
+                       "researchDebate 操作“多 AI 辩论”页（电脑是调研面板“品种”下的辩论子页，同 panel: debate；手机是调研页上的整屏子页；一次一项）：start 发起或打开辩论——start: \"desk\" 等于今日判断旁的“让 AI 们辩一轮”（今日议题），start: \"event\" 辩当前品种最新一条重要快讯，start: <事件 id>（快讯接口 events[].id）等于快讯行的“研讨”；同一事件同一品种当天只辩一次、今日议题资料没变时直接打开已有结果；open: <研讨 id> 打开一次辩论（也是“以前的辩论”里的一格）；rerun: true 是结果页的“再辩一轮”（新跑一次，计入当日次数）；close: true 收起辩论页。辩论本身走 POST /api/research/debates（技术面、供需基本面、资金持仓、新闻宏观四位分析师先同时写报告，再多方开场、空方回应、多方反驳、空方反驳，一句一句流式出现，最后裁判匿名裁决，约 2 到 3 分钟；写完的报告卡片用 disclosure: debate-analyst-technical / supply / flow / news 展开收起），写进今日判断走 POST /api/research/debates/{id}/adopt，停止走 POST /api/research/debates/{id}/cancel（快照 state.researchDebate：id、status queued/running/done/review 需复核/failed/cancelled、step（collect / analysts / turn1…turn4 / judge）、analysts（四份报告写完几份，没写成也算）、lesson（上次复盘）、speaking（正在说的一方）、topic、stance、confidence、canAdopt、adopted、request）。游客不能发起。",
     })
     symbol: str | None = Field(default=None, pattern=SYMBOL_PATTERN, max_length=40)
     duration: Literal[60, 180, 300, 900, 1800, 3600, 86400, 604800] | None = None
@@ -1638,7 +1640,7 @@ _DENSITY_WORDS = {"compact": "紧凑", "standard": "标准", "comfortable": "宽
 _POSITIONS_TAB_WORDS = {"positions": "持仓", "orders": "委托", "fills": "成交", "trades": "成交"}
 _FILLS_SOURCE_WORDS = {"all": "全部", "manual": "手动下的", "card": "确认卡下的", "ai": "AI 下的",
                        "strategy": "策略下的", "stop": "止损止盈触发的", "liquidation": "本站模拟盘强平的"}
-_STRATEGY_TAB_WORDS = {"playbooks": "打法", "library": "我的策略", "running": "正在运行", "detail": "结果页", "lab": "结果页"}
+_STRATEGY_TAB_WORDS = {"playbooks": "交易笔记", "library": "我的策略", "running": "正在运行", "detail": "结果页", "lab": "结果页"}
 _REMINDER_TAB_WORDS = {"mine": "我的提醒", "general": "通用提醒", "history": "提醒记录"}
 _SETTINGS_PAGE_WORDS = {"account": "账户", "ai": "AI 与对话", "memory": "AI 与记忆", "voice": "语音", "chart": "图表",
                         "trade": "交易", "notify": "提醒", "ui": "界面", "shortcuts": "快捷键", "data": "数据与隐私",
@@ -1680,6 +1682,8 @@ def describe_ui_change(changes: dict[str, Any]) -> str:
     if key == "fillsSource":
         return f"成交只看{_FILLS_SOURCE_WORDS.get(value, value)}" if value != "all" else "成交显示全部来源"
     if key == "strategyTab":
+        if value == "playbooks":
+            return "打开复盘页的交易笔记"
         return f"策略面板切到「{_STRATEGY_TAB_WORDS.get(value, value)}」"
     if key == "reviewDay":
         return f"复盘切到 {value} 这一天"
@@ -2092,6 +2096,10 @@ def changes_match(state, changes):
         elif key == "mobileTab":
             # 2026-10-06: the retired 通知 tab is AI 首页 now; an older client still reports notify.
             if MOBILE_TAB_ALIASES.get(state.get("mobileTab"), state.get("mobileTab")) != MOBILE_TAB_ALIASES.get(value, value):
+                return False
+        elif key == "strategyTab" and value == "playbooks":
+            # 2026-10-31: 交易笔记 is on the 复盘 page; a client from before still reports its 打法 tab.
+            if state.get("view") != "review" and state.get("strategyTab") != "playbooks":
                 return False
         elif key == "strategyTab":
             # 2026-10-08: the retired 实验室 tab opens the 结果页; an older client still reports lab.

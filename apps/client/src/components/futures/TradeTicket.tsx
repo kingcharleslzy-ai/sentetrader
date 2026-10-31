@@ -367,8 +367,8 @@ export function TradeTicket({
     </label>
     {stopPrice !== undefined ? <StopMotionFields value={stopMotion} onChange={setStopMotion} atrTimeframe={atrTimeframe} /> : null}
     {playbooks.items.length ? <label className="fdw-ticket-playbook">
-      <span>打法</span>
-      <select aria-label="打法" data-testid="ticket-playbook" value={playbookChosen} onChange={event => setPlaybookId(event.target.value)}>
+      <span>交易笔记</span>
+      <select aria-label="交易笔记" data-testid="ticket-playbook" value={playbookChosen} onChange={event => setPlaybookId(event.target.value)}>
         <option value="">不选</option>
         {playbooks.items.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
       </select>

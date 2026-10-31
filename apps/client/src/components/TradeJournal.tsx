@@ -72,8 +72,8 @@ export function TradeJournalCard({ trade, baseUrl, accountId, note, onNoteSaved,
     setTagged({ id: trade.id, playbookId }); setStatus("");
     try {
       await requestJson(tagUrl, playbookId ? { method: "PUT", headers, body: JSON.stringify({ playbookId }) } : { method: "DELETE", headers });
-      if (fence.isCurrent()) setStatus("打法已记下");
-    } catch { if (fence.isCurrent()) { setTagged(null); setStatus("打法没有记下，请重试"); } }
+      if (fence.isCurrent()) setStatus("交易笔记已记下");
+    } catch { if (fence.isCurrent()) { setTagged(null); setStatus("交易笔记没有记下，请重试"); } }
   };
   const value = realized(trade);
   const desk = trade.deskView;
@@ -93,12 +93,12 @@ export function TradeJournalCard({ trade, baseUrl, accountId, note, onNoteSaved,
         {trade.openTag && trade.closeTag ? <div><dt>标签</dt><dd className="trade-journal-tags">
           <TagChip tag={trade.openTag} label={`开 · ${TAG_LABELS[trade.openTag]}`} />
           <TagChip tag={trade.closeTag} label={`平 · ${TAG_LABELS[trade.closeTag]}`} /></dd></div> : null}
-        {playbooks.items.length ? <div><dt>打法</dt><dd>
-          <select className="app-select" aria-label="这笔的打法" value={playbookShown} onChange={event => void tagPlaybook(event.target.value)}>
+        {playbooks.items.length ? <div><dt>交易笔记</dt><dd>
+          <select className="app-select" aria-label="这笔的交易笔记" value={playbookShown} onChange={event => void tagPlaybook(event.target.value)}>
             <option value="">不标</option>
             {playbooks.items.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
           </select></dd></div>
-          : trade.playbookName ? <div><dt>打法</dt><dd>{trade.playbookName}</dd></div> : null}
+          : trade.playbookName ? <div><dt>交易笔记</dt><dd>{trade.playbookName}</dd></div> : null}
         <div><dt>理由</dt><dd>{trade.reason || (trade.source === "strategy" ? `策略「${source}」的信号` : "—")}</dd></div>
         <div><dt>当时的调研判断</dt><dd>{desk?.headline ?? <span className="trade-journal-muted">没有留档</span>}</dd></div>
       </dl>

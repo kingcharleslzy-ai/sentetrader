@@ -1550,7 +1550,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
                   onSelectDuration={selectDuration} onSelectChartView={selectChartView}
                   openFills={openFills} openChat={openChat} setPrompt={setPrompt}
                   onReminder={mobile || props.guest ? undefined : playbook => openReminderEditor({ new: true, reminder: true,
-                    ...(playbook ? { ask: `按我的打法「${playbook.name}」设提醒：${playbook.entryRules.trim() || playbook.name}`.slice(0, 500) } : {}) })} />}
+                    ...(playbook ? { ask: `按我的交易笔记「${playbook.name}」设提醒：${playbook.entryRules.trim() || playbook.name}`.slice(0, 500) } : {}) })} />}
                 {aiOrb}
                 </div>)}
                 {!props.guest && view === "review" ? <aside className="fdw-market-side">{props.runtimeBaseUrl !== undefined ? props.replayActive ? <TradeReview baseUrl={props.runtimeBaseUrl} symbol={props.selectedSymbol ?? ""} onFocus={setTradeFocus}/> : <AccountPnl baseUrl={props.runtimeBaseUrl} rootUrl={props.rootBaseUrl ?? props.runtimeBaseUrl} symbol={quote?.symbol ?? props.selectedSymbol ?? ""} chartSymbols={(props.instruments?.items ?? []).map(item => item.symbol)} chartAvailable={Boolean(quote)} accountId={reviewAccountId} foreignAccountId={foreignReviewAccountId} snapshots={ledgerSnapshots} onFocus={setTradeFocus} onSelectSymbol={props.onSelectSymbol} initialBalance={initialBalance} onInitialBalanceChange={setInitialBalance} onVoiceReview={call.available ? call.review : undefined} voiceReviewing={Boolean(call.status.review)} /> : <ActivityPanel account={props.account} simulationOrders={props.simulationOrders} busy={props.tradeBusy} onOrderAction={handleOrderAction} />}</aside> : null}

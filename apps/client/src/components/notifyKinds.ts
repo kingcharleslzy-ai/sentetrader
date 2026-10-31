@@ -88,7 +88,7 @@ export const TRADE_REMINDERS: NotifyKind[] = [
 
 /** 信息 · 只进提醒记录: no conversation message, only the 提醒记录 and the lock screen. */
 export const INFO_REMINDERS: NotifyKind[] = [
-  simple("morning_desk", "今日作战表", "notify.morningDesk", "开盘前把你的自选品种按优先级排好：关键价位、消息和可能出现的打法。"),
+  simple("morning_desk", "今日作战表", "notify.morningDesk", "开盘前把你的自选品种按优先级排好：关键价位、消息和可能用上的交易笔记。"),
   simple("research_debate", "研讨完成", "notify.researchDebate", "多 AI 研讨跑完，给出结论。"),
   simple("brief", "AI 简讯", "notify.desktop.briefs", "订阅品种的重要消息。", false),
 ];

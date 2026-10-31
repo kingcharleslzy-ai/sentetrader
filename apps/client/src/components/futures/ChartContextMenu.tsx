@@ -164,7 +164,7 @@ export function ChartContextMenu({ menu, actions, onSub, onClose }: { menu: Char
             <Item onClick={() => run(() => actions.onAlert!(price))}><span>到价提醒</span><small>{priceText}</small></Item>
             {actions.onReminder ? <>
               {actions.playbooks?.length ? <hr /> : null}
-              {actions.playbooks?.map(playbook => <Item key={playbook.id} onClick={() => run(() => actions.onReminder!(playbook))}><span>按打法：{playbook.name}</span></Item>)}
+              {actions.playbooks?.map(playbook => <Item key={playbook.id} onClick={() => run(() => actions.onReminder!(playbook))}><span>按交易笔记：{playbook.name}</span></Item>)}
               <hr />
               <Item onClick={() => run(() => actions.onReminder!(null))}><span>按条件新建提醒…</span></Item>
             </> : null}

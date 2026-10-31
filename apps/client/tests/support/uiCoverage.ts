@@ -173,6 +173,9 @@ export const COMMANDABLE: Rule[] = [
   { match: control => (control.group === "panel:news" || control.group === "mobile-research") && /^(展开|收起)(基本面|宏观|相关报道|资料来源)$/.test(control.label),
     via: "disclosure: desk-fundamental / desk-macro / desk-reports / desk-sources（调研页底部四个折叠；快照 disclosures.desk-*，数据同 GET /api/research/desk 的 facts[]）" },
   { match: control => control.group === "panel:news" && control.label === "去快讯看 →", via: "news: {tab: flash, flashFilter: product}（新闻面一行链到快讯页当前品种）" },
+  // 调研改版第一步 (2026-10-31): 品种's 更多 row opens its pages; each page's back link returns to 品种.
+  { match: control => /^(相关报道|研究数据|以前的辩论) ›$/.test(control.label), via: "news: {tab: news | data | debate}（品种页底部“更多”打开相关报道 / 研究数据 / 以前的辩论子页）" },
+  { match: /^‹ 品种 · (相关报道|研究数据|辩论)$/, via: "news: {tab: desk}（子页顶上返回品种）" },
   // 手机版第二期 (2026-10-04): the four tab pages and the full-screen pages (before the desktop rules,
   // whose labels — 成交, 下单 — the phone reuses for other things).
   { match: control => control.group === "mobile-research" && control.role === "button" && control.label === "添加自选品种", via: "dialog: contract-drawer（调研页“+ 自选”：合约列表里点星标加自选，自选清单是 preference: watchlist.products）" },
@@ -305,13 +308,13 @@ export const COMMANDABLE: Rule[] = [
   { match: control => control.role === "button" && /是什么$/.test(control.label) && /^ai-strategy|strategy-template/.test(`${control.surface} ${control.group ?? ""}`),
     via: "disclosure: {name: strategy-param-help, id: 参数key}（参数旁的“?”说明）" },
   // 策略页改版第八批 (2026-10-08): two tabs, the strategy cards and the 结果页.
-  { match: control => /^(打法|我的策略|正在运行)( · \d+)?$/.test(control.label) && control.group === "strategy-tabs", via: "strategyTab: playbooks | library | running（结果页是 detail；旧值 lab 打开结果页）" },
-  // 打法本 (2026-10-25): the 策略 panel's 打法 tab — its 新建 form (disclosure playbook-editor) and every setup's 改 / 删.
+  { match: control => /^(我的策略|正在运行)( · \d+)?$/.test(control.label) && control.group === "strategy-tabs", via: "strategyTab: library | running（结果页是 detail；旧值 lab 打开结果页；旧值 playbooks 打开复盘页的交易笔记）" },
+  // 交易笔记 (was 打法本, on 复盘 since 2026-10-31) — its 新建 form (disclosure playbook-editor) and every note's 改 / 删.
   ...((): Rule[] => {
-    const inPlaybooks = (control: Control) => control.group === "strategy-playbooks" || (control.group ?? "").startsWith("playbook:");
+    const inPlaybooks = (control: Control) => control.group === "review-playbooks" || (control.group ?? "").startsWith("playbook:");
     return [
-      { match: control => inPlaybooks(control) && control.label === "新建打法", via: "disclosure: {name: playbook-editor, open: true}（空白表单；保存走 POST /api/playbooks）" },
-      { match: control => inPlaybooks(control) && /^(打法名字|入场规则|出场规则|止损规则|关联策略)$/.test(control.label),
+      { match: control => inPlaybooks(control) && control.label === "新建笔记", via: "disclosure: {name: playbook-editor, open: true}（空白表单；保存走 POST /api/playbooks）" },
+      { match: control => inPlaybooks(control) && /^(笔记名字|入场规则|出场规则|止损规则|关联策略)$/.test(control.label),
         via: "POST /api/playbooks | PUT /api/playbooks/{id} 的 name / entryRules / exitRules / stopRules / strategyId" },
       { match: control => inPlaybooks(control) && control.label === "保存", via: "POST /api/playbooks（新建）| PUT /api/playbooks/{id}（改）" },
       { match: control => inPlaybooks(control) && control.label === "取消", via: "disclosure: {name: playbook-editor, open: false}" },

@@ -17,7 +17,7 @@ export type CloseBucket = "auto" | "today" | "historical";
 export type RightDock = "ai" | "strategy" | "news" | "reminders" | "order" | "positions" | null;
 /** The 策略面板's tabs (策略库/详情/运行中 2026-09-25; 实验室 2026-09-30). */
 /** 策略面板 (2026-10-08): 我的策略, 正在运行, and the selected strategy's 结果页 (the retired lab = detail). */
-export type StrategyTab = "playbooks" | "library" | "detail" | "running";
+export type StrategyTab = "library" | "detail" | "running";
 export type DockSide = "left" | "right";
 /** 设置 → 界面 → AI 形象: K 线音柱 / 灵动双眼 / 像素小牛. */
 export type AiAvatar = "kline" | "eyes" | "pixel";

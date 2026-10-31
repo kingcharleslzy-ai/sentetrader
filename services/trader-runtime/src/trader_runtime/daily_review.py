@@ -96,7 +96,7 @@ FORECAST = re.compile(r"预计|预期|有望|将会|目标价|会涨|会跌|能�
 INSTRUCTIONS = """你在为一位期货交易者写今天的收盘复盘（交易验尸）。输入是这个交易日按委托聚合的成交 legs（每笔有 id、时间、动作、标签 计划内/提醒后/临时、理由、平仓盈亏、程序查出的问题 checks，开仓笔可能带他的打法 playbook）、当时的 Sente 提醒 reminders、他给 AI 定的约定 rules，以及当天的统计 stats。
 summary：两三句中文、不超过 120 个字，说几笔在计划内、哪笔不在计划里（提醒后或临时）以及当时的理由、checks 里查出的问题（提前离场、连亏后再开、亏过止损等）、有没有违背他的约定；只用输入里的事实，数字必须原样出现在输入里，不要自己计算新的数字（不要算合计、比例、百分比）。写给人看：不要出现输入里的英文字段名（planned、wins、stats、checks 等）和成交编号（L1、L2），提到某笔就说时间和动作，如“13:44 买开 2 手螺纹”。
 不写收益预测，不给任何交易建议：不说以后、明天、下次应该怎么买卖、开平仓、加减仓或设止损止盈。
-entryFits（可选）：只对带 playbook 的开仓笔，按打法的入场规则 entryRules 判断这笔入场合不合规则：leg 是这笔的 id，fits 是 true/false，why 一句话（不超过 40 个字）引用这笔的理由、时间或提醒说明依据，数字只能用输入里的；看不出来就不要写这笔。"""
+entryFits（可选）：只对带 playbook 的开仓笔，按交易笔记的入场规则 entryRules 判断这笔入场合不合规则：leg 是这笔的 id，fits 是 true/false，why 一句话（不超过 40 个字）引用这笔的理由、时间或提醒说明依据，数字只能用输入里的；看不出来就不要写这笔。"""
 
 
 # -- reading the account -----------------------------------------------------------------------------
@@ -504,7 +504,7 @@ class DailyReviewService:
             side = "做多" if long else "做空"
             trade_autopsy.add_entry_fit(leg, fits=fits, basis="strategy", text=(
                 f"入场时策略「{strategy['name']}」给出了{side}信号" if fits
-                else f"入场时打法「{playbook['name']}」关联的策略「{strategy['name']}」没有{side}信号"))
+                else f"入场时交易笔记「{playbook['name']}」关联的策略「{strategy['name']}」没有{side}信号"))
 
     # -- building
 
@@ -866,7 +866,7 @@ def register(application: FastAPI, ctx: Any) -> None:
     async def get_daily_review(request: Request, tradingDay: str | None = Query(default=None, pattern=DAY)) -> dict[str, Any]:
         """今日复盘（交易验尸）：这个账户某个交易日（省略＝最近一份）的复盘——每笔成交（时间、动作、来源、理由、标签
         计划内 / 提醒后 / 临时、平仓盈亏），每笔程序查出的问题 checks（code：early_exit 提前离场、after_losses 连亏后再开、
-        untagged 没标打法、stop_beyond 亏过止损、no_stop 没设止损、entry_miss 不合入场规则）、开仓笔的打法 playbookName
+        untagged 没标交易笔记、stop_beyond 亏过止损、no_stop 没设止损、entry_miss 不合入场规则）、开仓笔的交易笔记 playbookName
         与入场判断 entryFit（basis strategy 按关联策略的规则算 / model 由模型按打法文字判断）、这笔所属的平仓记录
         roundId 和要回答的一句 question（回答写进 PUT /api/account/trade-notes/{roundId} 的补充）；四格统计、总结和
         标签规则原话；一周最后一个交易日的 observation 是“本周最该改的一件事”（kind weekly、code、count、status

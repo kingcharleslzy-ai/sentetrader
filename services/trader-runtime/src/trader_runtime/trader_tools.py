@@ -1835,7 +1835,7 @@ class TraderReadOnlyTools:
                  "inputSchema": TOOL_ARGUMENT_MODELS["get_review_picks"].model_json_schema()},
                 {"type": "function", "name": "get_daily_review",
                  "description": "读取今日复盘（每个交易日 15:15 有成交才生成；外盘美元子账户在美东 17:15 CME 收盘后生成、金额是美元）：每笔成交的时间、动作、来源、理由、标签（计划内 / 提醒后 / 临时，"
-                                "按成交来源和提醒时间判定）、平仓盈亏，每笔程序查出的问题 checks（提前离场、连亏后再开、没标打法、亏过止损、没设止损、不合入场规则）和要问他的一句 question（他回答后用 set_trade_note 记到这笔的 roundId），四格统计、两三句总结；一周最后一个交易日还有“本周最该改的一件事” observation（status pending 待用户答）。"
+                                "按成交来源和提醒时间判定）、平仓盈亏，每笔程序查出的问题 checks（提前离场、连亏后再开、没标交易笔记、亏过止损、没设止损、不合入场规则）和要问他的一句 question（他回答后用 set_trade_note 记到这笔的 roundId），四格统计、两三句总结；一周最后一个交易日还有“本周最该改的一件事” observation（status pending 待用户答）。"
                                 "用户问“今天复盘”“今天怎么样”时先读它，照它讲，不自己算数字、不自己加问题。只读。",
                  "inputSchema": TOOL_ARGUMENT_MODELS["get_daily_review"].model_json_schema()},
                 {"type": "function", "name": "regenerate_daily_review",

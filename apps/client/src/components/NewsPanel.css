@@ -16,6 +16,8 @@
 .news-panel-content > * { flex-shrink: 0; }
 .news-panel-tab { display: flex; flex-direction: column; gap: var(--space-3); }
 .news-panel-tab[hidden] { display: none; }
+.news-panel-more { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-4); font-size: var(--font-md); color: var(--muted); }
+.news-panel-more button, .news-panel-back { align-self: flex-start; padding: 0; border: 0; background: none; color: var(--accent); font-size: var(--font-md); cursor: pointer; }
 .news-panel-content p { margin: var(--space-2) 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .news-panel-content a { color: var(--ink); text-decoration: underline; }
 .news-panel .section-card-hint { overflow-wrap: anywhere; }
