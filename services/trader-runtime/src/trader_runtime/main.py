@@ -463,6 +463,12 @@ def _build_runtime(
     from .reminders import bind_store, register_reminders
     register_reminders(application, ctx.current_user)
     bind_store(application)
+    web_root = os.getenv("AI_TRADER_WEB_ROOT", "").strip()
+    if web_root and replay_provider is None:
+        # 自建版 (owner 2026-10-31, deploy/self-host): the Runtime serves the built web client on its own
+        # origin, so a home install needs no web server. Mounted last: every API route matches first.
+        from .web_client import WebClientFiles
+        application.mount("/", WebClientFiles(directory=web_root, html=True), name="web-client")
     return application
 
 

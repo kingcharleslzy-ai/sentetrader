@@ -39,7 +39,8 @@ export default defineConfig(({ mode }) => {
         // The web page opens its Runtime connection (DNS + TLS, ~50 ms each from China) while
         // the script is still downloading, instead of after the app has started.
         name: "ai-trader-runtime-preconnect",
-        transformIndexHtml: () => env.VITE_CLOUD_RUNTIME_URL
+        // A same-origin (自建版) page is already connected to its Runtime.
+        transformIndexHtml: () => env.VITE_CLOUD_RUNTIME_URL && env.VITE_CLOUD_RUNTIME_URL !== "same-origin"
           ? [{ tag: "link", attrs: { rel: "preconnect", href: new URL(env.VITE_CLOUD_RUNTIME_URL).origin, crossorigin: "use-credentials" }, injectTo: "head" }]
           : [],
       },

@@ -54,17 +54,33 @@
 
 首次登录填写邀请码 **`sente`**。
 
-## 从源码运行
+## 自建版：装在自己电脑上，不连我们的服务器
 
-需要 Node 22、npm 10、Python 3.12 和 [uv](https://docs.astral.sh/uv/)；桌面版另需 Rust 和 Tauri 2 的平台工具链。
+和官方云同一套服务（行情、本站模拟成交、AI 与策略），装成后台服务，用浏览器打开。行情和模拟成交用你自己的快期账号（[免费注册](https://account.shinnytech.com/)），AI 用你自己的 DeepSeek 密钥（可先不填，用离线演示 AI）；账号、密钥和数据都只存在你自己的电脑上。实盘交易始终关闭。
+
+先装 [uv](https://docs.astral.sh/uv/getting-started/installation/) 和 [Node 22](https://nodejs.org/)，下载本仓库，在仓库目录里运行：
 
 ```bash
-npm ci
-uv sync --frozen --python 3.12 --project services/trader-runtime
-npm run dev
+sh deploy/self-host/install.sh
 ```
 
-浏览器打开 `http://127.0.0.1:5173`，本机服务在 `http://127.0.0.1:8000`，用内置演示数据运行；设 `AI_TRADER_AGENT_MODE=fake` 可不配模型离线体验。用你自己的模型密钥和快期账号、完全不连我们服务器的本机版正在做。实盘交易始终关闭。
+Windows 用 PowerShell：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File deploy\self-host\install.ps1
+```
+
+安装会问登录用户名和密码、快期账号和 DeepSeek 密钥，然后登记开机自启的后台服务，并打开 `http://127.0.0.1:8787/`。用刚设的用户名和密码登录后，到“设置 → 账户”点“开通本站模拟”，再在“交易账户”里选“本站模拟”（100 万模拟资金）；快期账号只负责行情。之后：
+
+- 更新：`git pull` 后再运行一次安装命令。
+- 改账号或密钥：`services/trader-runtime/.venv/bin/python deploy/self-host/sente.py setup`（Windows 为 `.venv\Scripts\python.exe`），再运行一次安装命令。
+- 看状态：同一个 Python 运行 `deploy/self-host/sente.py status`；停用并删除后台服务：`deploy/self-host/sente.py service uninstall`。
+- 数据、密钥和日志都在 `~/.sente`（Windows 为 `%USERPROFILE%\.sente`）。
+- 国内网络慢时，先设 `UV_DEFAULT_INDEX` 为 PyPI 镜像、npm 镜像后再安装。
+
+## 开发
+
+需要 Node 22、npm 10、Python 3.12 和 uv；桌面版另需 Rust 和 Tauri 2 的平台工具链。`npm ci`、`uv sync --frozen --python 3.12 --project services/trader-runtime` 后 `npm run dev`，用内置演示数据在 `http://127.0.0.1:5173` 运行。
 
 ```text
 apps/client/                 网页与桌面共用的界面（React + Vite）

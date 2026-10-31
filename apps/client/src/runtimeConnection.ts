@@ -34,6 +34,11 @@ export function configuredRuntimeUrl(mode: RuntimeMode): string | undefined {
   if (mode === "local") {
     return normalizeUrl(import.meta.env.VITE_LOCAL_RUNTIME_URL || "http://127.0.0.1:8000");
   }
+  // 自建版 (deploy/self-host): the Runtime serves this page, so the page's own origin is the Runtime,
+  // whatever address the user opened it on; http there is the page's own scheme, not a downgrade.
+  if (import.meta.env.VITE_CLOUD_RUNTIME_URL === "same-origin" && typeof window !== "undefined") {
+    return normalizeUrl(window.location.origin);
+  }
   return validateCloudRuntimeUrl(
     import.meta.env.VITE_CLOUD_RUNTIME_URL || (isTauriRuntime() ? OWNER_RUNTIME_URL : undefined),
     import.meta.env.VITE_ALLOW_INSECURE_LOCAL_CLOUD === "1"
