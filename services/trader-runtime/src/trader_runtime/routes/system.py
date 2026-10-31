@@ -160,10 +160,11 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
         }
 
     async def provision_paper_account(user_id: str) -> None:
-        """Register-time provisioning, failure-tolerant: the account exists the
-        moment the user does and is their default. An engine hiccup must not fail
-        a registration — the 403 backfill in the account context provisions on
-        their next request instead."""
+        """Register- and password-login-time provisioning, failure-tolerant: the account exists the
+        moment the user does and is their default. 快期只管行情 (owner 2026-10-31): the administrator
+        and share-code accounts land on their own 本站模拟 at every login too, like a 快期 login. An
+        engine hiccup must not fail a registration or login — the 403 backfill in the account context
+        (members) or the next login (the administrator) provisions instead."""
         if ctx.paper_accounts is None:
             return
         try:
@@ -182,6 +183,7 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
             auth.login, request, response,
             username=body.username, password=body.password,
         )
+        await provision_paper_account(str(result["userId"]))
         return {**result, "bindings": owner_binding_status()}
 
     @application.get("/api/auth/owner/status")
@@ -266,7 +268,10 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
             pool_available=pool is not None, verify=verify, bind=bind,
         )
         # The administrator (or a share-code account) logged in through the same form.
-        return {**result, "bindings": owner_binding_status()} if result.get("status") == "authenticated" else result
+        if result.get("status") != "authenticated":
+            return result
+        await provision_paper_account(str(result["userId"]))
+        return {**result, "bindings": owner_binding_status()}
 
     @application.post("/api/auth/owner/logout")
     async def owner_logout(request: Request, response: Response,

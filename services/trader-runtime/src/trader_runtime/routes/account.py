@@ -269,6 +269,10 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
                 # An on-demand account's spec is an assembly detail (a sidecar
                 # URL); what the directory names is how the account is managed.
                 provider_kind = services_for_account.spec.provider_kind
+            if paper is not None and provider_kind == "tqkq-sidecar" and account_id != current:
+                # 快期只管行情 (owner 2026-10-31): with 本站模拟 on, the static 快期 main account is a
+                # market source, not a trading account; a session still sitting on it lists it as current.
+                continue
             items.append({
                 **account_status_payload(
                     account_id=account_id, record=record, role=role,

@@ -44,6 +44,7 @@ from trader_runtime.routes.account import bind_tqkq_account, store_tqkq_pool_acc
 from trader_runtime.store import RuntimeStore
 from trader_runtime.store.trading_accounts import market_source_owner_id
 from trader_runtime.tqkq_retirement import retire_tqkq_trading
+from trader_runtime.wiring.accounts import ACCOUNT_HEADER
 
 ENGINE_URL = "http://paper-engine.test"
 TRADING_DAY = "2026-10-03"
@@ -540,10 +541,10 @@ async def test_registration_provisions_one_paper_account_per_user(
             paper_id = str(record["id"])
             assert paper_id.startswith("paper:")
             assert store.get_user_default_account(user_id=friend_id) == paper_id
-            assert engine.creates == [(paper_id, PAPER_INITIAL_BALANCE)]
+            assert [c for c in engine.creates if c[0] == paper_id] == [(paper_id, PAPER_INITIAL_BALANCE)]  # the inviting admin opens one too
             # 幂等：再次补开户拿到同一份账户，不向引擎重复建户。
             assert str((await manager.ensure_paper_account(friend_id))["id"]) == paper_id
-            assert engine.creates == [(paper_id, PAPER_INITIAL_BALANCE)]
+            assert [c for c in engine.creates if c[0] == paper_id] == [(paper_id, PAPER_INITIAL_BALANCE)]
             # 新会话落在自己的本站模拟账户上；目录行说明它是谁、由谁执行。
             session_id = await open_session(friend)
             assert store.get_session(session_id)["tradingAccountId"] == paper_id
@@ -1032,12 +1033,12 @@ async def test_a_card_stays_on_the_account_it_was_planned_on_when_the_conversati
         await close_paper_app(application)
 
 
-async def test_owner_opens_a_paper_account_without_changing_the_default(
+async def test_owner_login_lands_on_the_own_paper_account(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """开通本站模拟账户 (2026-10-03): the owner — never auto-provisioned — opens one
-    from settings; the default account stays where it was, a second call returns
-    the same account, and the account shows in the owner's directory."""
+    """快期只管行情 (owner 2026-10-31): the administrator's login opens their 本站模拟 account and makes
+    it the default, like a 快期 login; the static 快期 main account is a market source and leaves the
+    account directory unless a session still sits on it. Opening again returns the same account."""
     application, engine = paper_app(tmp_path, monkeypatch, "open-paper.sqlite3")
     try:
         store = application.state.store
@@ -1046,25 +1047,25 @@ async def test_owner_opens_a_paper_account_without_changing_the_default(
                                      headers={"Origin": ORIGIN}) as owner:
             assert (await owner.post("/api/auth/owner", json={"username": "charles", "password": PASSWORD})).status_code == 200
             owner_id = str((await owner.get("/api/auth/owner/status")).json()["userId"])
-            default_before = store.get_user_default_account(user_id=owner_id)
-            first = await owner.post("/api/accounts/open-paper")
-            assert first.status_code == 200, first.text[:200]
-            opened = first.json()
-            assert opened["providerKind"] == "paper" and opened["accountId"].startswith("paper:")
-            assert store.get_user_default_account(user_id=owner_id) == default_before
-            assert opened["isDefault"] is False
-            # 快期模拟停用交易 (#1205): without a chosen default, the owner's own paper account comes
-            # before the static main account — a new session lands there; a chosen default still wins.
+            paper_id = store.get_user_default_account(user_id=owner_id)
+            assert paper_id is not None and paper_id.startswith("paper:")
             session_id = await open_session(owner)
-            assert str(store.get_session(session_id)["tradingAccountId"]) == opened["accountId"]
-            store.set_user_default_account(user_id=owner_id, account_id=application.state.accounts.default.account_id)
-            session_id = await open_session(owner)
-            assert str(store.get_session(session_id)["tradingAccountId"]) == application.state.accounts.default.account_id
-            again = await owner.post("/api/accounts/open-paper")
-            assert again.json()["accountId"] == opened["accountId"]
-            assert engine.creates == [(opened["accountId"], PAPER_INITIAL_BALANCE)]
+            assert str(store.get_session(session_id)["tradingAccountId"]) == paper_id
+            main_id = application.state.accounts.default.account_id
             listed = {item["id"] for item in (await owner.get("/api/accounts")).json()["accounts"]}
-            assert opened["accountId"] in listed
+            assert paper_id in listed and main_id not in listed
+            # A session still on the main account (an old conversation) lists it as where it is.
+            store.set_user_default_account(user_id=owner_id, account_id=main_id)
+            session_id = await open_session(owner)
+            assert str(store.get_session(session_id)["tradingAccountId"]) == main_id
+            directory = (await owner.get("/api/accounts", headers={ACCOUNT_HEADER: main_id})).json()
+            assert directory["current"] == main_id and main_id in {item["id"] for item in directory["accounts"]}
+            again = await owner.post("/api/accounts/open-paper")
+            assert again.json()["accountId"] == paper_id
+            assert engine.creates == [(paper_id, PAPER_INITIAL_BALANCE)]
+            # Logging in again puts the default back on 本站模拟.
+            assert (await owner.post("/api/auth/owner", json={"username": "charles", "password": PASSWORD})).status_code == 200
+            assert store.get_user_default_account(user_id=owner_id) == paper_id
         anonymous = httpx.AsyncClient(transport=transport, base_url="http://test", headers={"Origin": ORIGIN})
         try:
             assert (await anonymous.post("/api/accounts/open-paper")).status_code in (401, 403)
@@ -1317,7 +1318,7 @@ async def test_legacy_user_without_accounts_is_backfilled_on_first_request(
             session_id = await open_session(friend)
             account_id = str(store.get_session(session_id)["tradingAccountId"])
             assert account_id.startswith("paper:")
-            assert engine.creates == [(account_id, PAPER_INITIAL_BALANCE)]
+            assert [c for c in engine.creates if c[0] == account_id] == [(account_id, PAPER_INITIAL_BALANCE)]
         finally:
             await friend.aclose()
     finally:

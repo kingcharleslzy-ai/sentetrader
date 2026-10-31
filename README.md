@@ -70,7 +70,7 @@ Windows 用 PowerShell：
 powershell -ExecutionPolicy Bypass -File deploy\self-host\install.ps1
 ```
 
-安装会问登录用户名和密码、快期账号和 DeepSeek 密钥，然后登记开机自启的后台服务，并打开 `http://127.0.0.1:8787/`。用刚设的用户名和密码登录后，到“设置 → 账户”点“开通本站模拟”，再在“交易账户”里选“本站模拟”（100 万模拟资金）；快期账号只负责行情。之后：
+安装会问登录用户名和密码、快期账号和 DeepSeek 密钥，然后登记开机自启的后台服务，并打开 `http://127.0.0.1:8787/`。用刚设的用户名和密码登录，就落在你自己的本站模拟账户上（100 万模拟资金）；快期账号只负责行情。之后：
 
 - 更新：`git pull` 后再运行一次安装命令。
 - 改账号或密钥：`services/trader-runtime/.venv/bin/python deploy/self-host/sente.py setup`（Windows 为 `.venv\Scripts\python.exe`），再运行一次安装命令。

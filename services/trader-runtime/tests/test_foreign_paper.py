@@ -233,7 +233,9 @@ async def test_without_the_foreign_engine_nothing_changes(tmp_path: Path, monkey
         try:
             paper_id = str(store.find_user_paper_account(user_id=friend_id)["id"])
             assert store.get_trading_account(paper_id.replace("paper:", "paperusd:")) is None
-            assert [account for account, _ in engine.creates] == [paper_id]
+            # The inviting administrator's login opens their own paper account too (2026-10-31); no USD one.
+            created = [account for account, _ in engine.creates]
+            assert paper_id in created and not any(account.startswith("paperusd:") for account in created)
         finally:
             await friend.aclose()
     finally:
