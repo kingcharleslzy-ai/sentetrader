@@ -1322,7 +1322,7 @@ button:active {
 .sheet {
   width: min(440px, 100%);
   padding: var(--space-5);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-card);
   background: var(--panel);
   border: 1px solid var(--line);
   box-shadow: var(--shadow-3);
