@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor, cleanup, within } from "@testi
 import { vi } from "vitest";
 import { GuestEntry } from "./GuestEntry";
 import { setGuestAccessToken, guestAccessTokenFor, type GuestSession } from "../guestApi";
-import { registerUiSurface, resetUiSurfaces } from "../uiSurfaces";
+import { applyUiSurface, registerUiSurface, resetUiSurfaces } from "../uiSurfaces";
 import { resetShortcutStore } from "../shortcuts";
 import { setOwnerSessionToken } from "../api";
 import { MOBILE_LAYOUT_QUERY } from "../hooks/useMobileLayout";
@@ -200,8 +200,7 @@ it("真实新闻和研究数据仅请求公共数据",async()=>{
   await enter(); fireEvent.click(screen.getByRole("button",{name:"打开调研面板"}));
   fireEvent.click(screen.getByRole("button",{name:"相关报道 ›"}));
   expect(await screen.findByText("公共行情新闻")).toBeVisible();
-  fireEvent.click(screen.getByRole("button",{name:"‹ 品种 · 相关报道"}));
-  fireEvent.click(screen.getByRole("button",{name:"研究数据 ›"}));
+  act(()=>applyUiSurface("news",{tab:"data"}));
   await waitFor(()=>expect(requests.some(url=>url.includes("/summary"))).toBe(true));
   assertPublicOnly();
 });

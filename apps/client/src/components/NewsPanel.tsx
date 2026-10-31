@@ -24,7 +24,9 @@ export type NewsTab = "sheet" | "desk" | "debate" | "flash" | "news" | "data";
 type Tab = NewsTab;
 const NEWS_PENDING_REFRESH_MS = 15_000;
 /** 调研 (改版第一步 2026-10-31, owner-approved mockup): three tabs — 今天 (the 今日作战表, members only), 品种 and 快讯.
- *  相关报道 (was 资讯), 研究数据 and 辩论 open as pages under 品种 from its 更多 row, with a back link; their tab ids stay. */
+ *  相关报道 (was 资讯) and 辩论 open as pages under 品种 from its 更多 row, with a back link; their tab ids stay. 研究数据 is
+ *  not offered there: 基本面 already lists its basis, receipts, ranking and term structure, 合约信息 its margin and fee;
+ *  `news: {tab: data}` (and `monitorCard: research`) still open it for commands. */
 const TABS: [Tab, string][] = [["sheet", "今天"], ["desk", "品种"], ["flash", "快讯"]];
 const SUBPAGES: [Tab, string][] = [["news", "相关报道"], ["data", "研究数据"], ["debate", "辩论"]];
 const LABELS = new Map<Tab, string>([...TABS, ...SUBPAGES]);
@@ -158,7 +160,7 @@ export function NewsPanel({ baseUrl, symbol, guest = false, replay = false, onGu
             command={deskCommand} onOpenFlash={guest ? undefined : () => { setFlashFilter("product"); setTab("flash"); }}
             onDebate={debates ? () => debates.start({ origin: "desk" }) : undefined} /> : <p>请先选择合约</p>}
           <nav className="news-panel-more" aria-label="更多调研"><span>更多</span>
-            {SUBPAGES.filter(([value]) => offered(value)).map(([value, label]) => <button type="button" key={value} onClick={() => setTab(value)}>
+            {SUBPAGES.filter(([value]) => value !== "data" && offered(value)).map(([value, label]) => <button type="button" key={value} onClick={() => setTab(value)}>
               {value === "debate" ? "以前的辩论" : label} ›</button>)}
           </nav>
         </div>

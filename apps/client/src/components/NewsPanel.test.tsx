@@ -84,8 +84,7 @@ test("游客新闻与研究数据只走游客cookie接口，失败显示真实�
   expect(await screen.findByRole("alert")).toHaveTextContent("新闻暂不可用 · 显示旧值 2026-09-25");
   expect(screen.queryByText("upstream_timeout")).toBeNull();
   expect(screen.getByRole("link", {name:"阅读原文"})).toHaveAttribute("rel", "noopener noreferrer");
-  fireEvent.click(screen.getByRole("button", {name: "‹ 品种 · 相关报道"}));
-  fireEvent.click(screen.getByRole("button", {name: "研究数据 ›"}));
+  act(() => applyUiSurface("news", {tab: "data"}));
   await waitFor(() => expect(fetcher.mock.calls.some(([url]) => String(url).includes("/summary"))).toBe(true));
   expect(fetcher.mock.calls.map(([url]) => String(url).split("?")[0].replace("https://test", ""))).toEqual(
     expect.arrayContaining(["/api/guest/research/desk", "/api/guest/research/news", "/api/guest/research/summary"]));
@@ -111,7 +110,8 @@ test("游客会话过期时新闻与研究数据交给工作区显示重连提�
   render(<NewsPanel baseUrl="https://test" symbol="SHFE.rb2701" guest onGuestExpired={expired} onClose={() => {}} />);
   await waitFor(() => expect(expired).toHaveBeenCalledTimes(1));
   expect(screen.queryByRole("alert")).toBeNull();
-  fireEvent.click(screen.getByRole("button", {name: "研究数据 ›"}));
+  expect(screen.queryByRole("button", {name: "研究数据 ›"})).toBeNull();
+  act(() => applyUiSurface("news", {tab: "data"}));
   await waitFor(() => expect(expired).toHaveBeenCalledTimes(2));
 });
 
