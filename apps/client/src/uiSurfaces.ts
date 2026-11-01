@@ -1,4 +1,33 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type Dispatch, type RefObject, type SetStateAction } from "react";
+import surfaceTable from "../../../services/trader-runtime/src/trader_runtime/ui_surfaces.json";
+
+/**
+ * 界面表面一张表 (owner 2026-11-01): every view, panel, page, tab, dialog and disclosure id a UI command can name,
+ * with its old aliases, labels and guest flag, is the Runtime's ui_surfaces.json (its "about" says what each field
+ * means) — read here and by the Runtime, so a surface is added in that one file.
+ */
+type SurfaceTable = typeof surfaceTable;
+export type SurfaceFamily = Exclude<keyof SurfaceTable, "about" | "guest">;
+interface SurfaceEntry { label?: string; aliasOf?: string; stateOnly?: boolean; guest?: boolean; closeOnly?: boolean;
+  card?: boolean; sparse?: boolean; idRequired?: string; uncapped?: boolean }
+const families = surfaceTable as unknown as Record<SurfaceFamily, Record<string, SurfaceEntry>>;
+/** A family's ids a command may name now (no old alias, nothing only an older client reports), as a type. */
+export type CurrentSurfaceId<F extends SurfaceFamily> = { [K in keyof SurfaceTable[F]]:
+  SurfaceTable[F][K] extends { aliasOf: string } | { stateOnly: boolean } ? never : K }[keyof SurfaceTable[F]] & string;
+export const currentSurfaceIds = <F extends SurfaceFamily>(family: F) =>
+  Object.keys(families[family]).filter(name => !families[family][name].aliasOf && !families[family][name].stateOnly) as CurrentSurfaceId<F>[];
+/** The ids whose entry sets `flag` (guest, card, sparse …). */
+export const surfacesWith = (family: SurfaceFamily, flag: keyof SurfaceEntry) =>
+  new Set(Object.keys(families[family]).filter(name => families[family][name][flag]));
+/** Old id → the id it stands for now. */
+export const surfaceAliases = (family: SurfaceFamily): Record<string, string> =>
+  Object.fromEntries(Object.entries(families[family]).flatMap(([name, entry]) => entry.aliasOf ? [[name, entry.aliasOf]] : []));
+/** The id an old alias stands for now (any other value as it is). */
+export const currentSurface = <F extends SurfaceFamily, T extends string>(family: F, value: T) =>
+  (families[family][value]?.aliasOf ?? value) as Extract<T, CurrentSurfaceId<F>>;
+export const surfaceLabel = (family: SurfaceFamily, id: string) => families[family][id]?.label ?? id;
+/** What a visitor's window may be told to change (the Runtime's guest.py checks the same). */
+export const GUEST_SURFACES = surfaceTable.guest;
 
 /**
  * Registry of user-operable surfaces (dialogs, cards, collapsibles, tabs) so the
@@ -77,62 +106,21 @@ export function useUiSurfaceVersion(): number {
 export function resetUiSurfaces() { surfaces.clear(); pending.clear(); firstSeen.clear(); notify(); }
 
 /** Disclosures that live inside conversation cards; a command without `id` applies to the most recent card. */
-export const CARD_DISCLOSURES = new Set(["progress-steps", "advice-sources", "tool-card", "diff-card", "card-details",
-  // 2026-09-25: per object — a running card's 运行日志 / 执行方式 menu / 停止 confirmation (instance id) and "AI ▾" menus.
-  "strategy-run-log", "strategy-signal-action", "strategy-stop-confirm", "ai-menu",
-  "strategy-actions", "strategy-delete-confirm",
-  // 规则回测 (2026-09-25): the 逐笔清单 fold of a conversation's rule-backtest card.
-  "strategy-backtest-trades",
-  // 说人话 (2026-09-25): a parameter's “?” note (id = parameter key) and a template card's 详情 (id = template id).
-  "strategy-param-help", "strategy-template-details",
-  // 图表指标可配置 (2026-10-02): a chart sub-pane's label popover (id = pane type).
-  "chart-pane-editor",
-  // 下单顺带保护 (2026-10-02): a position row's 保护 form (`id` = position:<symbol>:<long|short>).
-  "position-protection",
-  // 我的流程 (2026-10-06): a routine row's 删 confirmation in 设置 → 记忆 (`id` = routine id).
-  "routine-delete",
-  // 新闻改版 (2026-10-07): a merged news event's “N 家报道 · 展开” on the 快讯 / 资讯 tabs (`id` = event id).
-  "flash-event", "news-event",
-  // 英文原文折叠 (2026-10-11): a translated headline's 原文 fold — a raw feed row, a screened event's
-  // headline or one of its reports (`id` = the item's / report's — on the phone, the event's — id).
-  "flash-orig", "news-orig",
-  // 手机编辑卡 (2026-10-08): one of the four sections or the 策略流程 (`id` = basics / entry / exit / sizing / flow; one open
-  // at a time) and a condition's bottom sheet (`id` = <entryLong|entryShort|exitLong|exitShort>:<第几条, from 1>).
-  "strategy-editor-section", "strategy-editor-condition",
-  // 策略编辑卡第二版 (2026-10-08): a condition side's 指标选择器 (`id` = <group>:<第几条>:<left|right>) and every "?" (`id` = its key).
-  "strategy-editor-picker", "help-tip",
-  // 手机看盘 (2026-10-09): one 多图 cell's contract / period sheet (`id` = the cell's index 0–5).
-  "mobile-chart-cell"]);
+export const CARD_DISCLOSURES = surfacesWith("disclosures", "card");
 /**
- * 画线第二版 (2026-10-09): disclosures with one entry per drawing, tool, tool group or right-click menu (and 手机画线's
- * style row: color / width / dash).
- * Each is one registered family (`family:<name>`) whose state is the list of open ids; the snapshot
- * reports only the open ones (`name:id`), so a missing entry is closed — the Runtime judges it so too.
+ * Disclosures with one entry per drawing, tool, tool group or right-click menu: each is one registered family
+ * (`family:<name>`) whose state is the list of open ids; the snapshot reports only the open ones (`name:id`), so a
+ * missing entry is closed — the Runtime judges it so too.
  */
-export const SPARSE_DISCLOSURES = new Set(["chart-drawing-group", "chart-drawing-tool", "chart-drawing-style", "chart-drawing-settings", "chart-context-menu",
-  "mobile-drawing-style-row"]);
-/** Card disclosures a command must name by `id` (there is no "most recent" one to fall back on). */
-export const ID_REQUIRED_DISCLOSURES: Record<string, string> = {
-  "chart-drawing-group": "要带 id：lines / levels / fib / shapes / notes / measure",
-  "chart-drawing-tool": "要带 id：工具名，如 trendline、hline、fib（state.chartDrawings.tool 是当前工具）",
-  "chart-drawing-style": "要带 id：线的 id（state.chartDrawings.items）",
-  "chart-drawing-settings": "要带 id：线的 id（state.chartDrawings.items）",
-  "chart-context-menu": "要带 id：main / drawing:<线 id> / pane:<kd|macd|rsi|oi>，可加 /draw 等子菜单",
-  "strategy-editor-section": "要带 id：basics / entry / exit / sizing / flow",
-  "strategy-editor-condition": "要带 id：<entryLong|entryShort|exitLong|exitShort>:<第几条>",
-  "strategy-editor-picker": "要带 id：<entryLong|entryShort|exitLong|exitShort>:<第几条>:<left|right>",
-  "help-tip": "要带 id：说明的 key（state.disclosures 里 help-tip:<key>）",
-  "mobile-chart-cell": "要带 id：多图格子序号 0–5",
-  "mobile-drawing-style-row": "要带 id：color / width / dash",
-};
-/** Disclosures with many instances on one screen (every "?", every condition side, every translated
- * row's / report's 原文 fold — a 24-title batch already exceeds the cap): all reported, not only the last 20. */
-const UNCAPPED_DISCLOSURES = new Set(["help-tip", "strategy-editor-picker", "strategy-actions", "strategy-delete-confirm",
-  "flash-orig", "news-orig"]);
-/** Old disclosure names a command may still use: the designer's 查看完整规则 became its 高级 fold. */
-export const DISCLOSURE_ALIASES: Record<string, string> = { "strategy-full-rules": "strategy-advanced",
-  // 画线第二版 (2026-10-09): the first version's 画线 popover is the left toolbar now.
-  "chart-drawing-tools": "chart-drawing-toolbar" };
+export const SPARSE_DISCLOSURES = surfacesWith("disclosures", "sparse");
+/** Card disclosures a command must name by `id` (there is no "most recent" one to fall back on), with the hint. */
+export const ID_REQUIRED_DISCLOSURES: Record<string, string> = Object.fromEntries(Object.entries(families.disclosures)
+  .flatMap(([name, entry]) => entry.idRequired ? [[name, entry.idRequired]] : []));
+/** Disclosures with many instances on one screen (every "?", every condition side, every translated row's 原文
+ * fold): all reported, not only the last 20. */
+const UNCAPPED_DISCLOSURES = surfacesWith("disclosures", "uncapped");
+/** Old disclosure names a command may still use, and the surface the client opens for them. */
+export const DISCLOSURE_ALIASES = surfaceAliases("disclosures");
 const CARD_STATES_PER_NAME = 20;
 
 /** Registry key of the most recently mounted card disclosure with this name, if any. */

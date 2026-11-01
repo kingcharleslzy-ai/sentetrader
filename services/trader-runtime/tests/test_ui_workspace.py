@@ -887,7 +887,7 @@ def test_trading_account_command_names_a_directory_id_and_old_clients_are_not_co
 
 def test_strategy_editor_command_and_its_receipt():
     """策略编辑卡 (2026-10-08): the command's shape, and the receipt judged by the card the window reports —
-    the same table as the client's useUiControl.matches (a mismatch either way locks or flips receipts)."""
+    the Runtime is the only judge of a receipt (the window reports only that it ran the command)."""
     from pydantic import ValidationError
 
     from trader_runtime.ui_control import ChartOptions, UiChanges, UiState, changes_match

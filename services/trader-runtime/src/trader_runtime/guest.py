@@ -20,12 +20,23 @@ from .plans import plan_for_user
 from .shared_market import DURATIONS, SharedMarketService, event
 from .skill_registry import skill_allowed, skill_by_id
 from .ui_control import ChartOptionChange, MobileMarketChange, PinnedSymbolsChange
+from .ui_surfaces import SURFACES
 from .voice_intents import match_intent
 
 COOKIE = "ai_trader_guest"
 # Guests see one product only: the current 螺纹 main contract. The main follows the market
 # source's main-contract flag (TqSdk query_cont_quotes, by volume/open interest), never a fixed code.
 GUEST_PRODUCT = ("SHFE", "rb")
+GUEST_CHANGES = frozenset(SURFACES["guest"]["changes"])
+GUEST_MARKET_KEYS = frozenset(SURFACES["guest"]["mobileMarketKeys"])
+
+
+def _guest_ids(family: str) -> tuple[str, ...]:
+    return tuple(name for name, entry in SURFACES[family].items() if entry.get("guest"))
+
+
+GUEST_PANELS, GUEST_SETTINGS_PAGES, GUEST_MOBILE_TABS, GUEST_MOBILE_PAGES, GUEST_DIALOGS, GUEST_DISCLOSURES = (
+    _guest_ids(family) for family in ("panels", "settingsPages", "mobileTabs", "mobilePages", "dialogs", "disclosures"))
 DESKTOP_ORIGINS = {"tauri://localhost", "http://tauri.localhost", "https://tauri.localhost"}
 
 
@@ -210,15 +221,9 @@ class GuestService:
     async def change(self, guest, window, changes):
         if window != guest.window:
             raise HTTPException(403, "guest_foreign_window")
-        # Not here on purpose: researchDebate (多 AI 研讨, 2026-10-11) — a visitor reads the desk's facts but may
-        # not start a debate (model calls on the platform's tokens) or open one.
-        # Nor reminderCenter / mobilePage reminders (提醒中心, 2026-10-15): reminders are a member's own record.
-        allowed = {"symbol", "duration", "theme", "newsOpen", "loginOpen", "kd", "macd", "volume", "news", "paneSizes", "researchExpanded",
-                   "panel", "settingsOpen", "settingsPage", "dockSide", "dockWidth", "fontScale", "density",
-                   "chartSizes", "chartOption", "pinnedSymbols", "dialog", "disclosure", "presentation", "mobileTab", "mobilePage", "mobileMarket",
-                   "contractCatalogRetry"}
-        # 手机版: of the full-screen pages a visitor may open only the 安装到桌面 guide (and close it).
-        if set(changes) - allowed or ("mobilePage" in changes and changes["mobilePage"] not in (None, "install")):
+        # What a visitor may change, and which pages, tabs, dialogs and disclosures: the guest column of the interface
+        # surface table (ui_surfaces.json; its guest.desc says what is left out on purpose and why).
+        if set(changes) - GUEST_CHANGES or ("mobilePage" in changes and changes["mobilePage"] not in (None, *GUEST_MOBILE_PAGES)):
             raise HTTPException(403, "guest_ui_action_forbidden")
         if "theme" in changes and changes["theme"] not in ("light", "dark", "system"):
             raise HTTPException(422, "guest_invalid_theme")
@@ -247,13 +252,13 @@ class GuestService:
         for key, values in (
             # The 价格阶梯 ("depth") was removed 2026-10-07; its 五档 live in the 下单面板, which needs a login. The
             # 辩论 page (debate, 2026-10-24) needs one too: guests do not run or open debates.
-            ("panel", (None, "news")),
-            ("settingsPage", ("chart", "ui", "chart-advanced", "about", "feedback")),
+            ("panel", (None, *GUEST_PANELS)),
+            ("settingsPage", GUEST_SETTINGS_PAGES),
             ("dockSide", ("left", "right")),
             ("fontScale", ("standard", "large", "extra-large")),
             ("density", ("compact", "standard", "comfortable")),
             # 手机版: a visitor's tabs; AI 对话 (chat) needs a login. notify is the retired 通知 tab (= ai).
-            ("mobileTab", ("ai", "research", "market", "strategy", "me", "notify")),
+            ("mobileTab", GUEST_MOBILE_TABS),
         ):
             if key in changes and changes[key] not in values:
                 raise HTTPException(422, "guest_invalid_ui_value")
@@ -263,7 +268,7 @@ class GuestService:
         # chart's sub pane and its sheet; the 报价 / 多图 settings are a member's account preferences.
         if "mobileMarket" in changes:
             market = changes["mobileMarket"]
-            if not isinstance(market, dict) or set(market) - {"view", "subPane", "subPanes"}:
+            if not isinstance(market, dict) or set(market) - GUEST_MARKET_KEYS:
                 raise HTTPException(403, "guest_ui_action_forbidden")
             try:
                 MobileMarketChange.model_validate(market, strict=True)
@@ -282,12 +287,12 @@ class GuestService:
         if "dialog" in changes:
             dialog = changes["dialog"]
             if (not isinstance(dialog, dict) or set(dialog) != {"name", "open"}
-                or dialog["name"] not in ("contract-drawer", "market-session") or type(dialog["open"]) is not bool):
+                or dialog["name"] not in GUEST_DIALOGS or type(dialog["open"]) is not bool):
                 raise HTTPException(422, "guest_invalid_ui_value")
         if "disclosure" in changes:
             disclosure = changes["disclosure"]
             if (not isinstance(disclosure, dict) or set(disclosure) != {"name", "open"}
-                or disclosure["name"] != "feedback-diagnostics" or type(disclosure["open"]) is not bool):
+                or disclosure["name"] not in GUEST_DISCLOSURES or type(disclosure["open"]) is not bool):
                 raise HTTPException(422, "guest_invalid_ui_value")
         if "presentation" in changes:
             presentation = changes["presentation"]
@@ -540,14 +545,14 @@ def guest_manifest(app, operation=None):
     selected = [operation] if operation else list(operations)
     return {"role": "guest", "readOnly": True,
             "uiControls": {"windowId": "own session window only", "changes": {"symbol": "the 螺纹 main contract from GET /api/guest/instruments (the only guest symbol)", "duration": sorted(DURATIONS), "theme": ["light", "dark", "system"], "newsOpen": "boolean", "loginOpen": "boolean", "kd": "boolean", "macd": "boolean", "volume": "boolean", "researchExpanded": "boolean", "news": {"tab": ["desk", "news", "data"], "pinnedSymbol": "guest symbol or null"}, "paneSizes": {"main": "34..76", "kd": "12..36", "macd": "12..36"},
-                "panel": [None, "news"], "settingsOpen": "boolean", "settingsPage": ["chart", "ui", "chart-advanced", "about", "feedback"],
+                "panel": [None, *GUEST_PANELS], "settingsOpen": "boolean", "settingsPage": list(GUEST_SETTINGS_PAGES),
                 "dockSide": ["left", "right"], "dockWidth": "integer 280..1600", "fontScale": ["standard", "large", "extra-large"],
                 "density": ["compact", "standard", "comfortable"], "chartSizes": {"main": "34..76", "kd": "12..36", "macd": "12..36"},
                 "chartOption": {"name": ["kd", "macd", "volume", "crosshair", "lastPriceLine", "ma5", "ma10", "ma25", "ma60", "ma200"], "visible": "boolean"},
                 "pinnedSymbols": {"add": "guest symbol; exactly one of add/remove", "remove": "catalog symbol; exactly one of add/remove"},
-                "dialog": {"name": ["contract-drawer", "market-session"], "open": "boolean"},
+                "dialog": {"name": list(GUEST_DIALOGS), "open": "boolean"},
                 "contractCatalogRetry": "true: the contract drawer's 重试 after a failed or timed-out GET /api/guest/instruments (status error) or an empty public catalog (status empty); needs the drawer open and snapshot contractCatalog.canRetry (status loading|error|ready|empty|expired; rejected while loading, once read, or when the guest session expired — use 重新连接 then); re-reads the catalog only, never creates a guest session",
-                "disclosure": {"name": ["feedback-diagnostics"], "open": "boolean"}, "presentation": {"reset": True},
+                "disclosure": {"name": list(GUEST_DISCLOSURES), "open": "boolean"}, "presentation": {"reset": True},
                 "mobileTab": "phone-layout windows only: market 看盘 / research 调研 (read-only); ai / strategy / me show the 登录后使用 page (the retired notify = ai; snapshot mobileLayout, mobileTab)",
                 "mobilePage": "phone-layout windows only: install opens the 安装到桌面 guide, null closes it (snapshot mobilePage, installEnvironment); other pages need a login",
                 "mobileMarket": "phone-layout windows only, one key: view quotes / multi / single (报价 and 多图 show 登录后使用), subPane kd / macd / rsi / oi / cci / volume (the pane under the single chart), subPanes boolean (副图设置 sheet; disclosures.mobile-subpanes)"}, "receipt": "POST snapshot with appliedRevision after applying GET changes/revision"},

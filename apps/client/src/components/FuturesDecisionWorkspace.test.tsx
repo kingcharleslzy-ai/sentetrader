@@ -672,7 +672,6 @@ test("dockWidth 界面命令：在窗口上限内照设并回报，超过这个�
     expect(state()).toMatchObject({ panel: "ai", dockWidth: 480 });
     act(() => { apply({ dockWidth: 900 }); });
     expect(state()).toMatchObject({ dockWidth: 900 });
-    expect(uiControl.matches(state(), { dockWidth: 900 })).toBe(true);
     expect(() => apply({ dockWidth: 1200 })).toThrow("这个窗口里辅助区最宽 960px");
     expect(() => apply({ presentation: { dockWidth: 1200, theme: "light" } })).toThrow("这个窗口里辅助区最宽 960px");
     expect(state()).toMatchObject({ dockWidth: 900 });
@@ -745,7 +744,6 @@ test("AI 与下单面板互斥；旧 panel: depth（价格阶梯已并入下单�
     expect(screen.queryByLabelText("AI 对话")).not.toBeInTheDocument();
     expect(within(screen.getByLabelText("固定下单面板")).getByRole("region", { name: "五档" })).toBeVisible();
     expect(state()).toMatchObject({ panel: "order", view: "trade" });
-    expect(uiControl.matches(state(), { panel: "depth" })).toBe(true);
   } finally {
     view.unmount(); control.mockRestore();
   }
@@ -763,7 +761,6 @@ test("合约抽屉空目录：快照报 contractCatalog，contractCatalogRetry �
     expect(state()).toMatchObject({ dialog: "contract-drawer", contractCatalog: { status: "empty", canRetry: true } });
     act(() => { apply({ contractCatalogRetry: true }); });
     expect(values.onRetryInstruments).toHaveBeenCalledOnce();
-    expect(uiControl.matches(state(), { contractCatalogRetry: true })).toBe(true);
     view.rerender(<FuturesDecisionWorkspace {...{ ...values, instrumentsLoading: true } as any} />);
     expect(state()).toMatchObject({ contractCatalog: { status: "loading", canRetry: false } });
     expect(() => apply({ contractCatalogRetry: true })).toThrow("合约目录正在读取，不用重试");
@@ -825,7 +822,6 @@ test("点档位和 selectedPrice 共用只填价入口：对手价切限价，�
     expect(screen.getByLabelText("模拟委托价")).toHaveValue(824.06);
     const state = control.mock.calls.at(-1)?.[2] as any;
     expect(state).toMatchObject({selectedPrice:824.06,ticketPrice:824.06,ticketPriceMode:"limit"});
-    expect(uiControl.matches(state,{selectedPrice:824.06})).toBe(true);
     expect(screen.queryByTestId("ticket-draft")).not.toBeInTheDocument();
     expect(screen.queryByRole("dialog", {name:"确认快捷下单"})).not.toBeInTheDocument();
     expect(values.onManualSubmit).not.toHaveBeenCalled();
@@ -2829,7 +2825,6 @@ test("手机版标签与界面命令 mobileTab：对话即 panel: ai，侧边面
     apply({ mobileTab: "notify" });
     expect(screen.getByTestId("mobile-feed")).toBeVisible();
     expect(state()).toMatchObject({ mobileTab: "ai", mobileNotifyFilter: "fill" });
-    expect(uiControl.matches(state(), { mobileTab: "notify" })).toBe(true);
     // 回测结果页: one comparison by command; the snapshot names it while the page shows.
     apply({ mobileLab: { labId: "lab-1" } });
     expect(screen.getByTestId("mobile-lab")).toBeVisible();
@@ -3124,13 +3119,11 @@ test("手机版策略编辑卡：strategyEditor 命令在手机布局打开整�
     // 线上验收 (2026-10-08): while the trades load, `new` is not applied yet — the state is still about to change, and
     // a command sent on an early receipt was refused as stale. Once loaded, the next command lands at once.
     await waitFor(() => expect(state()).toMatchObject({ strategyEditor: { open: true, loading: "正在读你的成交…" } }));
-    expect(uiControl.matches(state() as any, { strategyEditor: { new: true } })).toBe(false);
     await act(async () => { readTrades(); });
     await waitFor(() => expect(state()).toMatchObject({ mobileLayout: true, strategyEditor: { open: true, mode: "new", start: "blank", loading: null } }));
-    expect(uiControl.matches(state() as any, { strategyEditor: { new: true } })).toBe(true);
     const settled = JSON.stringify(state());
     apply({ disclosure: { name: "strategy-editor-section", id: "entry", open: true } });
-    expect(uiControl.matches(state() as any, { disclosure: { name: "strategy-editor-section", id: "entry", open: true } })).toBe(true);
+    expect((state() as any).disclosures["strategy-editor-section:entry"]).toBe(true);
     // Nothing else moved the window's state after `new` was applied (no stale-revision refusal for the next command).
     expect(JSON.stringify({ ...state(), disclosures: undefined })).toBe(JSON.stringify({ ...JSON.parse(settled), disclosures: undefined }));
     apply({ disclosure: { name: "strategy-editor-section", id: "exit", open: true } });
@@ -3205,19 +3198,19 @@ test("手机看盘：mobileMarket 命令先切到看盘再改报价 / 单图，�
     expect(state()).toMatchObject({ mobileTab: "ai" });
     apply({ mobileMarket: { view: "quotes" } });
     expect(state()).toMatchObject({ mobileTab: "market" });
-    await waitFor(() => expect(uiControl.matches(state() as any, { mobileMarket: { view: "quotes" } } as any)).toBe(true));
+    await waitFor(() => expect((state() as any).preferences.ui.mobileMarket).toMatchObject({ view: "quotes" }));
     apply({ mobileMarket: { board: "main" } });
-    await waitFor(() => expect(uiControl.matches(state() as any, { mobileMarket: { board: "main" } } as any)).toBe(true));
+    await waitFor(() => expect((state() as any).preferences.ui.mobileMarket).toMatchObject({ view: "quotes", board: "main" }));
     const row = await screen.findByRole("button", { name: "看 螺纹钢2610 单图" });
     expect(row).toHaveTextContent("-0.77%");
     fireEvent.click(row);
     expect(values.onSelectSymbol).toHaveBeenCalledWith("SHFE.rb2610");
-    await waitFor(() => expect(uiControl.matches(state() as any, { mobileMarket: { view: "single" } } as any)).toBe(true));
+    await waitFor(() => expect((state() as any).preferences.ui.mobileMarket).toMatchObject({ view: "single" }));
     expect(screen.getByRole("group", { name: "周期" })).toBeVisible();
     // The 副图设置 sheet: a command opens it on the single chart, reported as its disclosure.
     apply({ mobileMarket: { subPanes: true } });
     expect(screen.getByRole("dialog", { name: "副图设置" })).toBeVisible();
-    expect(uiControl.matches(state() as any, { mobileMarket: { subPanes: true } } as any)).toBe(true);
+    expect((state() as any).disclosures["mobile-subpanes"]).toBe(true);
   } finally {
     view.unmount(); control.mockRestore(); vi.unstubAllGlobals();
   }

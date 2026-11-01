@@ -17,6 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from .app_help import HELP_GROUPS, resolve_topic
 from .instruments import PRODUCT_KEY_PATTERN, SYMBOL_PATTERN, foreign_display_name
 from .ui_captures import ONLINE_SECONDS, CaptureReceipt, CaptureRequest, register_ui_captures
+from .ui_surfaces import surface_aliases, surface_ids, surface_labels, surfaces_with
 from .user_preferences import (
     CATEGORIES,
     MOBILE_CHART_DURATIONS,
@@ -148,24 +149,11 @@ class PresentationChanges(BaseModel):
         return self
 
 
-DIALOG_NAMES = Literal[
-    "account-detail", "fee-hint", "market-session", "help", "contract-drawer", "positions-drawer",
-    # strategy-designer (the retired 策略设计窗, 2026-10-08) opens / closes the 策略编辑卡 on the selected strategy.
-    "replay-setup", "resume-execution", "emergency-stop", "quick-order-confirm", "abandon-order", "strategy-designer",
-    "proposal-confirm", "update-dialog",
-    # 策略详情 · 上线运行 (2026-09-25): the launch dialog (contract, 执行方式, 验证并上线) of the
-    # selected strategy; its fields are the `strategyLaunch` command, 验证并上线 stays a user click.
-    "strategy-launch",
-    # 设置 → 账户 → 修改密码 (2026-10-21): open / close only (先 settingsPage: account); the inputs never reach the
-    # snapshot and no command fills them — changing the password stays the person's own action.
-    "change-password",
-    # 图上拖线改价 (2026-10-24): the chart's confirm card for a dragged stop / take; close only (closing keeps the old level).
-    "protection-reprice-confirm",
-]
+# Interface surface ids (dialogs, disclosures, pages, panels, tabs) and their old aliases come from the one table
+# in ui_surfaces.json (see ui_surfaces.py); what each one is lives there as its desc.
+DIALOG_NAMES = Literal[surface_ids("dialogs")]
 # Dialogs that only a user action may open: they carry a trading intent.
-# `proposal-confirm` is the AI trade/risk-rule confirmation dialog of the 1.8.0 desktop client only (the web client
-# submits from the card itself since 2026-10-19); closing it cancels the candidate. Drop it with the next desktop version.
-CLOSE_ONLY_DIALOGS = {"quick-order-confirm", "abandon-order", "proposal-confirm", "protection-reprice-confirm"}
+CLOSE_ONLY_DIALOGS = surfaces_with("dialogs", "closeOnly")
 STRATEGY_DETAIL_SECTIONS = Literal["rules", "scope", "executions", "idea"]
 # Round twelve: `<details>` sections and boolean toggles without a command of their own.
 # Settings categories (设置重做 step 1, 1.6.6; split again 2026-09-30): the pages plus the
@@ -174,12 +162,9 @@ STRATEGY_DETAIL_SECTIONS = Literal["rules", "scope", "executions", "idea"]
 # second-level detail pages (no nav entry; their parent page links to them).
 # The 用户管理 page ("admin") left with the 后台管理 split (2026-09-30): only the
 # heartbeat still accepts it, commands reject it (see UiState.settingsPage).
-SETTINGS_PAGE = Literal[
-    "account", "ai", "memory", "voice", "chart", "trade", "notify", "ui", "shortcuts", "data", "about",
-    "remote-keys", "remote-diagnostics", "trade-advanced", "voice-advanced", "chart-advanced", "memory-advanced", "feedback",
-    "connection", "appearance", "simulation", "fees",
-]
-LEGACY_SETTINGS_PAGES = {"connection": "account", "appearance": "ui", "simulation": "trade", "fees": "trade-advanced"}
+SETTINGS_PAGE = Literal[surface_ids("settingsPages")]
+SETTINGS_PAGE_STATE_ONLY = Literal[surface_ids("settingsPages", state=True)]
+LEGACY_SETTINGS_PAGES = surface_aliases("settingsPages")
 
 
 def settings_page(value):
@@ -190,226 +175,42 @@ def settings_page(value):
 # and tour steps still accept `panel: depth` (older agents, skills and saved tours) and normalize it
 # to "order", so the forwarded command and its receipt check are the 下单面板's. Older desktop
 # clients that still have the panel may report it in their heartbeat (UiState keeps the value).
-LEGACY_PANELS = {"depth": "order"}
+LEGACY_PANELS = surface_aliases("panels")
+PANEL = Literal[surface_ids("panels")]
 
 
 def legacy_panel(value):
     return LEGACY_PANELS.get(value, value)
 
 
-DISCLOSURE_NAMES = Literal[
-    "feedback-diagnostics",
-    "activity-more", "activity-history", "timeline-history", "timeline-expanded", "attempt-history",
-    # designer-expanded (the retired 策略设计窗's 展开) stays accepted; the client rejects it.
-    "designer-expanded", "replay-fees", "replay-design", "protection-status", "strategy-idea",
-    "fee-overrides", "progress-steps", "advice-sources", "tool-card", "diff-card",
-    # Every conversation card's folded 详情 (identifiers, provenance, explanations).
-    "card-details",
-    # Real-time voice: the floating orb's call (open = in a call), its mute, and its long-press menu.
-    "voice-call", "voice-mute", "voice-menu",
-    # 复盘页“语音复盘” (2026-09-29): open = the call is (or opens) walking through the day's notable trades.
-    "voice-review",
-    # 复盘页末尾“未关联的补充（N）” (2026-10-04): open = the list of 补充 whose fill a real report
-    # replaced is shown; only while there are any (`review.unlinkedNotes` carries the count).
-    "unlinked-notes",
-    # 今日复盘 (2026-10-06): the block's 怎么算的 fold (the tag rule in the owner's words).
-    "review-how",
-    # 习惯对照 (2026-10-25): the block's 怎么算的 fold (how 只做计划内 and the two holding estimates are computed).
-    "habits-how",
-    # The AI dock's 历史对话 list (open = the list is shown; `chatHistory` in the state carries it).
-    "chat-history",
-    # AI 指令栏 (改版第二步 2026-11-01): the header bar's result drop-down — what the AI did for the last line
-    # sent there (each action with 撤销 where it can be undone) and the answer's first lines; available once a
-    # line was sent from the bar in this window.
-    "ai-command-result",
-    # AI 动态卡 “清空显示”: open = hide the finished records (state true = nothing left to clear).
-    "activity-clear",
-    # 策略面板: a 运行中 card's 运行日志 (per strategy, `id` = its id). strategy-new opens the 策略编辑卡
-    # on a new strategy (open) or closes it (= strategyEditor {new} / {close}). strategy-guide (the AI 引导
-    # 设计卡) was retired 2026-10-08 with the guided design: the value stays accepted for older agents,
-    # the client rejects it.
-    "strategy-guide", "strategy-new", "strategy-run-log",
-    # 策略页改版第八批 (2026-10-08): the 结果页's 跟 AI 说怎么改 input (open = the input is shown;
-    # sending is chat:send with the strategy as focus).
-    "strategy-ask-ai",
-    # 策略编辑卡 (2026-10-08): its folds — the trades the AI prefill is based on (查看这 N 笔), ③ 怎么平仓's
-    # 更多 (保本、分批止盈、按时间止盈、最长持仓、按条件平仓), the read-only 高级规则 a card cannot edit, and
-    # the 回测明细 under the result bar. Each needs the card open (strategyEditor {open}).
-    "strategy-editor-trades", "strategy-editor-more", "strategy-editor-advanced", "strategy-editor-backtest",
-    # 手机编辑卡 (2026-10-08): the phone page's four sections and its 策略流程 block, one open at a time (`id` = basics /
-    # entry / exit / sizing / flow), and a condition's bottom sheet (`id` = <entryLong|entryShort|exitLong|exitShort>:<第几条, from 1>).
-    "strategy-editor-section", "strategy-editor-condition",
-    # 策略编辑卡第二版 (2026-10-08): a condition side's 指标选择器 (`id` = <组>:<第几条>:<left|right>, e.g. entryLong:1:left;
-    # the desktop shows it under the row, the phone opens that condition's sheet on that side) and ④ 仓位与时段's 更多
-    # (浮盈加仓、冷却、每个方向次数、当日亏损上限 — its title since the funds work;
-    # 开仓手数三选一 fixed/equity_percent/ATR and 回撤停机 live in ④'s body, not here).
-    "strategy-editor-picker", "strategy-editor-sizing-more",
-    # 说明收进“?” (2026-10-08): one shared "?" popover per explanation (`id` = the explanation's key, e.g.
-    # strategy-editor:section-entry; open = the popover shows). The keys on screen are in state.disclosures as help-tip:<key>.
-    "help-tip",
-    # 侧栏重设计第三期 (2026-09-25), all per object (`id`): a running card's 执行方式 menu and its
-    # 停止 confirmation (`id` = instance id), and an "AI ▾" object menu (`id` = strategy:<id>,
-    # instance:<id>, position:<symbol>:<long|short>, order:<clientOrderId>).
-    "strategy-signal-action", "strategy-stop-confirm", "ai-menu", "strategy-actions", "strategy-delete-confirm",
-    # 规则回测 (2026-09-25): the 逐笔清单 fold of a conversation's rule-backtest card (`id` = card id);
-    # the 详情 card's own fold is `strategyBacktest: {trades}`.
-    "strategy-backtest-trades",
-    # 说人话 (2026-09-25): a parameter's “?” (`id` = parameter key; on the template parameter page and
-    # 详情), a gallery card's 详情 fold (`id` = template id), and the designer's 高级 fold (it replaced
-    # 查看完整规则: 常用 blocks show in the open; it opens by itself when the plan uses a 高级 block).
-    # `strategy-full-rules` stays accepted as the old name of that fold (older agents and clients send it).
-    "strategy-param-help", "strategy-template-details", "strategy-advanced", "strategy-full-rules",
-    # 图表指标就地编辑 (2026-10-02): the chart label popovers — 均线与布林带 on the price pane, the per-pane
-    # indicator editor (`id` = pane type kd/macd/rsi/oi), and the ＋副图 chooser. They save through the
-    # account preferences (chart.maLines / chart.boll / chart.subPaneList / chart.*Params).
-    "chart-ma-editor", "chart-pane-editor", "chart-pane-add",
-    # 报价总表列设置 (2026-10-02): the board's 列 popover (also mirrored in 设置 → 界面 → 报价总表).
-    # Checkbox / 上移 / 下移 save through the account preferences (marketBoard.columns).
-    "board-columns",
-    # 到价提醒 (2026-10-02): the chart toolbar's 提醒 popover (current contract's price form + the
-    # alert list). The toolbar button's aria-label carries the active-alert count for observation.
-    "price-alerts",
-    # 我的提醒's 新建提醒 (one list since 改版 2026-10-31; open = 到某个价's price form for the shown contract, with
-    # 按条件… beside it = strategyEditor {new, reminder}; needs the 提醒 panel's 我的提醒 tab, reminders: {tab: mine}).
-    # The alerts go through /api/market/alerts.
-    "reminder-alert-new",
-    # 交易笔记 (was 打法本, 2026-10-25; on the 复盘 page since 改版第一步 2026-10-31): its 新建笔记 form (open = an empty
-    # form; needs the 复盘 page, which strategyTab playbooks opens).
-    # Saving, editing and deleting a setup go through /api/playbooks.
-    "playbook-editor",
-    # 到价提醒浮层内的“其他合约 N 条”折叠 (needs the price-alerts popover open; a row's contract
-    # name switches the chart to that contract, which is the `symbol` command's target).
-    "price-alerts-others",
-    # 持仓面板 · 下单顺带保护 (2026-10-02): a position row's 保护 form (`id` = symbol:direction;
-    # open = the inline 止损/止盈 form is shown instead of the armed summary).
-    "position-protection",
-    # 合约信息卡 (2026-10-02): the contract header's ⓘ popover — 一手/资金/时间/交割四个分块。
-    "contract-info",
-    # 新闻面板 · 快讯页签 (2026-10-03): 本周重要数据 block's 展开全部 (open = every event of the week,
-    # closed = the nearest five). Needs the 快讯 tab mounted (news: {tab: "flash"}).
-    "flash-calendar",
-    # 新闻 AI 筛选 (2026-10-07): the 快讯 tab's and the 资讯 tab's folded “AI 筛掉了 N 条” row (open = the
-    # dropped items listed under their group names). Needs that tab mounted.
-    "flash-dropped", "news-dropped",
-    # 新闻改版 (2026-10-07 第六批): the folded 次要消息 row of the 快讯 / 资讯 tabs (open = the weak, direction-less
-    # events listed; the phone's 调研 page uses flash-minor too) and one merged event's “N 家报道 · 展开”
-    # (`id` = the event id from `events[].id`; open = every outlet's report with its own link).
-    "flash-minor", "news-minor", "flash-event", "news-event",
-    # 英文原文折叠 (2026-10-11): a translated headline's 原文 fold — a raw 快讯 row (`id` = the item id),
-    # a screened event's headline or one of its reports (`id` = the report id; on the phone the event id).
-    "flash-orig", "news-orig",
-    # 调研页改版 (2026-10-07 第七批): the 调研 tab's four folds at the bottom — 基本面 (fundamentals, industry data and
-    # related products), 宏观 (only the product category's), 相关报道 (the last 7 days, newest first) and 资料来源
-    # (every fact and report with its source, quoted text and date). The phone's 调研 page has the same four.
-    "desk-fundamental", "desk-macro", "desk-reports", "desk-sources",
-    # 用户画线 (2026-10-02): the first version's 画线 popover. 画线第二版 (2026-10-09) replaced it with the
-    # drawing toolbar; the old name stays accepted and means the toolbar (open = shown).
-    "chart-drawing-tools",
-    # 画线第二版 (2026-10-09), the chart's drawing toolbar and what hangs off it (all K 线 and 分时):
-    # chart-drawing-toolbar (open = the toolbar floats over the chart's left edge; it is hidden by default and shows
-    # by itself while a tool is armed, owner 2026-10-14; closed = hidden and back to the crosshair); chart-drawing-group (`id` =
-    # lines | levels | fib | shapes | notes | measure; open = the toolbar shows with that group's tool list);
-    # chart-drawing-tool (`id` = a tool kind, e.g. trendline; open = armed and the toolbar shows — the next chart
-    # clicks place it — closed = back to the crosshair, the toolbar hides); the switches chart-drawing-magnet (磁吸: clicks snap to the bar's
-    # open/high/low/close), chart-drawing-lock-all (全部锁定) and chart-drawings-hidden (全部隐藏), saved in
-    # preferences chart.drawingMagnet / drawingsLocked / drawingsHidden; chart-drawing-clear (open = the
-    # 全部删除 second confirmation shows; deleting is DELETE /api/market/drawings?symbol=…);
-    # chart-drawing-style (`id` = drawing id; open = that drawing selected with its floating style bar);
-    # chart-drawing-settings (`id` = drawing id; open = its 精确设置 dialog); chart-context-menu (`id` = main |
-    # drawing:<drawing id> | pane:<kd|macd|rsi|oi>, optionally with a submenu after "/": main/draw,
-    # main/period, main/indicator, main/add-pane, drawing:<id>/style, pane:<type>/swap, pane:<type>/add-pane;
-    # open = that right-click menu shows over its area). Drawing changes themselves go through
-    # /api/market/drawings; the snapshot's state.chartDrawings carries the toolbar and selection.
-    "chart-drawing-toolbar", "chart-drawing-group", "chart-drawing-tool", "chart-drawing-magnet",
-    "chart-drawing-lock-all", "chart-drawings-hidden", "chart-drawing-clear", "chart-drawing-style",
-    "chart-drawing-settings", "chart-context-menu",
-    # 周期收起 (2026-10-03): the period row's 更多 popover (3分 / 30分 / 1小时 / 周线). Available only
-    # while the bar is too narrow for the full row; picking one is still the `duration` command.
-    "chart-periods-more",
-    # 下单面板 · 五档 (2026-10-03): the order panel's five-level fold above the ticket (open by default,
-    # remembered on the machine; folded it keeps 买一 / 卖一 on the title line).
-    "order-depth",
-    # 手机版下单页 (2026-10-04): the ticket's folded 止损 / 止盈 row (open = the two price fields show).
-    "ticket-protection",
-    # AI 简报订阅 (2026-10-05): 设置 → 通知's 订阅品种 block (open = shown under 简讯提醒; needs
-    # settingsPage notify) and its 添加品种 picker (also on the phone's mobilePage briefs). The list
-    # itself saves through PUT /api/app/brief-subscriptions.
-    "brief-subscriptions", "brief-add",
-    # 锁屏提醒 (2026-10-06): 设置 → 通知 → 锁屏提醒's 已开的设备 list (open = each device with 移除
-    # and 发一条试试; needs settingsPage notify). Removing / testing go through /api/app/push.
-    "push-devices",
-    # 我的流程 (2026-10-06): 设置 → 记忆 → 我的流程's per-routine 删 confirmation (`id` = routine id;
-    # open = 确认删除 / 取消 shown; the delete itself is DELETE /api/routines/{routine_id}).
-    "routine-delete",
-    # 设置 → 账户 (2026-10-08): the 档位 row's fold (open = the tier's 每日 token / 每日语音 with today's
-    # use) and the 实盘 switch. No futures company is connected, so the switch stays off: `open: true`
-    # is rejected with LIVE_TRADING_UNAVAILABLE (snapshot state.liveTrading); `open: false` is a no-op.
-    "plan-quota", "live-trading",
-    # 手机看盘 (2026-10-09): the single chart's 副图设置 sheet (also `mobileMarket: {subPanes}`) and its 均线 / 布林 / SAR
-    # parameter fold, the 报价 list's 列 sheet, and one 多图 cell's contract / period sheet (`id` = the cell's index 0–5).
-    "mobile-subpanes", "mobile-subpanes-overlays", "mobile-quote-columns", "mobile-chart-cell",
-    # 手机画线 (2026-10-09): the selected line's bar under the single chart unfolds one style row at a time (`id` =
-    # color | width | dash; open = that row shows). Only while a line is selected (chart-drawing-style).
-    "mobile-drawing-style-row",
-    # 多 AI 研讨 (2026-10-11): the result page's folds — 五份底稿 (the phone's 底稿与来源), 资料来源, 研讨战绩, 研讨记录
-    # and 裁判怎么取舍 (folded on both layouts since 2026-10-24). Need the 辩论 page open (researchDebate {open}).
-    "debate-sheets", "debate-sources", "debate-stats", "debate-log", "debate-judge",
-    # 分析师 (2026-10-24): one written analyst report's card (open = its reasoning, key points and the pages it found on
-    # the web; closed = its conclusion). Only a finished report folds; needs the 辩论 page open.
-    "debate-analyst-technical", "debate-analyst-supply", "debate-analyst-flow", "debate-analyst-news",
-]
+DISCLOSURE_NAMES = Literal[surface_ids("disclosures")]
 # 实盘 is not connected to any futures company: the 设置 → 账户 switch and its command say so.
 LIVE_TRADING_UNAVAILABLE = "暂无期货公司接入，实盘暂不可开启"
 # Disclosures inside cards: the command applies to the most recent card unless `id` names one.
-CARD_DISCLOSURES = {"progress-steps", "advice-sources", "tool-card", "diff-card", "card-details", "strategy-run-log",
-                    "strategy-signal-action", "strategy-stop-confirm", "ai-menu", "strategy-actions", "strategy-delete-confirm", "strategy-backtest-trades",
-                    "strategy-param-help", "strategy-template-details",
-                    # The chart's per-pane editor names its pane by type (`id` = kd/macd/rsi/oi).
-                    "chart-pane-editor",
-                    # A position row's 保护 form (`id` = position:<symbol>:<long|short>, like ai-menu).
-                    "position-protection",
-                    # 我的流程's 删 confirmation (`id` = routine id).
-                    "routine-delete",
-                    # A merged news event's reports (`id` = event id; without it the newest event),
-                    # and a translated headline's 原文 fold (`id` = the item / report / event id).
-                    "flash-event", "news-event", "flash-orig", "news-orig",
-                    # 手机编辑卡 (2026-10-08): a section (`id` = basics/entry/exit/sizing/flow) and a condition's sheet
-                    # (`id` = <group>:<n>); the client refuses either without an id. 第二版: a condition side's picker
-                    # (`id` = <group>:<n>:<left|right>) and a "?" (`id` = its key), also refused without an id.
-                    "strategy-editor-section", "strategy-editor-condition", "strategy-editor-picker", "help-tip",
-                    # 画线第二版 (2026-10-09): the toolbar's groups and tools, a drawing's style bar and
-                    # 精确设置, and the three right-click menus — each names its object by `id`.
-                    "chart-drawing-group", "chart-drawing-tool", "chart-drawing-style", "chart-drawing-settings",
-                    "chart-context-menu",
-                    # 手机看盘 (2026-10-09): one 多图 cell's sheet (`id` = 0–5), refused without an id.
-                    "mobile-chart-cell",
-                    # 手机画线 (2026-10-09): the selected line's style row (`id` = color / width / dash).
-                    "mobile-drawing-style-row"}
-# 画线第二版 (2026-10-09): disclosures with one entry per drawing / tool / menu. The client reports
-# only the open ones (two hundred drawings would swamp the snapshot), so a missing `name:id` is closed.
-SPARSE_DISCLOSURES = {"chart-drawing-group", "chart-drawing-tool", "chart-drawing-style", "chart-drawing-settings",
-                      "chart-context-menu", "mobile-drawing-style-row"}
-# Old disclosure names a command may still use, and the surface the client opens (and reports) for them;
-# the client's DISCLOSURE_ALIASES (uiSurfaces.ts) is the same table.
-DISCLOSURE_ALIASES = {"strategy-full-rules": "strategy-advanced", "chart-drawing-tools": "chart-drawing-toolbar"}
+CARD_DISCLOSURES = surfaces_with("disclosures", "card")
+# Disclosures with one entry per drawing / tool / menu: the client reports only the open ones, so a missing
+# `name:id` is closed.
+SPARSE_DISCLOSURES = surfaces_with("disclosures", "sparse")
+# Old disclosure names a command may still use, and the surface the client opens (and reports) for them.
+DISCLOSURE_ALIASES = surface_aliases("disclosures")
 # 持仓面板 · 成交 (2026-09-25): positionsTab `fills` replaced `trades` (平仓记录); the old value is an alias.
-POSITIONS_TAB = Literal["positions", "orders", "fills", "trades"]
-POSITIONS_TAB_ALIASES = {"trades": "fills"}
+POSITIONS_TAB = Literal[surface_ids("positionsTabs")]
+POSITIONS_TAB_ALIASES = surface_aliases("positionsTabs")
 # 成交 list's 来源 filter and the 策略面板's three tabs.
 FILLS_SOURCE = Literal["all", "manual", "card", "ai", "strategy", "stop", "liquidation"]
 # 策略页改版第八批 (2026-10-08): two tabs — library 我的策略 (the 新建策略 button and one card per strategy)
 # and running 正在运行 — plus detail, the selected strategy's 结果页 (opened from a card). The
 # retired 实验室 tab's lab is still accepted: it opens the 结果页 at its 试几组参数比一比 (reported detail).
-STRATEGY_TAB = Literal["playbooks", "library", "detail", "running", "lab"]
-STRATEGY_TAB_ALIASES = {"lab": "detail"}
+STRATEGY_TAB = Literal[surface_ids("strategyTabs")]
+STRATEGY_TAB_ALIASES = surface_aliases("strategyTabs")
 # 手机版 策略 (2026-10-08): its two tabs — running 正在运行 / mine 我的策略.
-MOBILE_STRATEGY_TAB = Literal["running", "mine"]
+MOBILE_STRATEGY_TAB = Literal[surface_ids("mobileStrategyTabs")]
 # 手机版 (2026-10-04): the phone layout's bottom tabs — ai = AI 首页 (home), chat = AI 对话 (the
 # conversation, the same state as `panel: ai`), research 调研 / market 看盘 / strategy 策略 / me 我的.
 # 2026-10-06 (手机版新结构): 通知 merged into AI 首页's timeline and its tab became 策略; the old value
 # notify is still accepted and opens AI 首页 (its filter kept) — a newer client reports mobileTab ai.
-MOBILE_TAB = Literal["ai", "chat", "research", "market", "strategy", "me", "notify"]
-MOBILE_TAB_ALIASES = {"notify": "ai"}
+MOBILE_TAB = Literal[surface_ids("mobileTabs")]
+MOBILE_TAB_ALIASES = surface_aliases("mobileTabs")
 # 手机版第二期 (2026-10-04): the full-screen pages over the tabs — order 下单页, positions 持仓与委托,
 # review 复盘摘要, and the 我的 rows that open an existing surface in its phone form: accounts = 设置 →
 # 账户, memory = 设置 → 记忆, appearance = 设置 → 界面, help = 使用说明卡. 2026-10-05: briefs = 我的 →
@@ -419,7 +220,7 @@ MOBILE_TAB_ALIASES = {"notify": "ai"}
 # 2026-10-06 (手机版新结构): lab = 回测结果页 (策略 → 最近的回测, the latest comparison; `mobileLab` opens one).
 # 2026-10-15 (统一提醒 #932): reminders = 提醒 (the 提醒中心 the AI 首页 bell opens; `reminderCenter` opens it
 # on either layout); push keeps this device's switch and the devices — the kinds moved to 设置 → 提醒.
-MOBILE_PAGE = Literal["order", "positions", "review", "briefs", "install", "push", "lab", "reminders", "accounts", "memory", "appearance", "help"]
+MOBILE_PAGE = Literal[surface_ids("mobilePages")]
 # 锁屏提醒 (2026-10-06): what this browser can do about lock-screen push, reported while mobilePage is push —
 # supported (a home-screen iPhone, Safari, Edge, Firefox), needs-install (iPhone in a Safari tab or an app)
 # or unsupported (Android, Chrome and the browsers on Google's push service, which is unreachable here).
@@ -1009,7 +810,7 @@ class PreferenceChange(BaseModel):
 class RemindersNavigation(BaseModel):
     """提醒面板（电脑右侧栏）/ 提醒页（手机）的页签（2026-10-25）：mine 我的提醒（到价、画线、条件提醒一张表）/ general 通用提醒（原设置 → 提醒）/ history 提醒记录（原提醒中心）。"""
     model_config = ConfigDict(extra="forbid")
-    tab: Literal["mine", "general", "history"] | None = None
+    tab: Literal[surface_ids("reminderTabs")] | None = None
 
 
 class NewsNavigation(BaseModel):
@@ -1059,7 +860,7 @@ class TourFocus(BaseModel):
     """What a tour step opens before it highlights: a subset of UiChanges, applied in order."""
     model_config = ConfigDict(extra="forbid")
     view: Literal["trade", "review"] | None = None
-    panel: Literal["ai", "depth", "order", "strategy", "positions", "news", "debate", "reminders"] | None = None
+    panel: PANEL | None = None
     aiPage: Literal["monitor", "chat"] | None = None
     aiFilter: Literal["all", "chat", "trading"] | None = None
     positionsBar: Literal["expanded", "collapsed"] | None = None
@@ -1069,7 +870,7 @@ class TourFocus(BaseModel):
     ticketMode: Literal["open", "close", "target"] | None = None
     # Legacy "admin" only reaches here as a heartbeat echo: a tour an older Runtime
     # started could focus the old 用户管理 page. Commands cannot target it any more.
-    settingsPage: SETTINGS_PAGE | Literal["admin"] | None = None
+    settingsPage: SETTINGS_PAGE | SETTINGS_PAGE_STATE_ONLY | None = None
     settingsOpen: bool | None = None
     dialog: DialogChange | None = None
     disclosure: DisclosureChange | None = None
@@ -1196,9 +997,9 @@ class UiState(BaseModel):
     chartView: Literal["kline", "timeshare"] | None = None
     # view "admin" is the 后台管理 console 1.6.12 and earlier desktop clients still
     # report (the console moved to /trader/admin, 2026-09-30); 桌面升级后可删.
-    view: Literal["watch", "trade", "review", "admin", "board"]
+    view: Literal[surface_ids("views", state=None)]
     # "depth" (the 价格阶梯, removed 2026-10-07) is only reported by older desktop clients that still have it.
-    panel: Literal["ai", "depth", "order", "positions", "strategy", "news", "debate", "reminders"] | None
+    panel: PANEL | None
     settingsOpen: bool
     theme: Literal["dark", "light", "system"]
     dockSide: Literal["left", "right"]
@@ -1206,7 +1007,7 @@ class UiState(BaseModel):
     replay: bool
     # settingsPage "admin" (用户管理) is still reported by 1.6.12 and earlier desktop
     # clients (后台管理 moved to /trader/admin, 2026-09-30); commands reject it. 桌面升级后可删.
-    settingsPage: SETTINGS_PAGE | Literal["admin"]
+    settingsPage: SETTINGS_PAGE | SETTINGS_PAGE_STATE_ONLY
     fontScale: Literal["standard", "large", "extra-large"]
     density: Literal["compact", "standard", "comfortable"]
     chart: ChartOptions
@@ -1437,8 +1238,8 @@ class UiChanges(BaseModel):
     # 分时图 (2026-10-02): "timeshare" opens the 分时图 (数据周期钉在 60 秒), "kline" returns to the
     # K 线; a plain `duration` pick also returns to the K 线 view.
     chartView: Literal["kline", "timeshare"] | None = None
-    view: Literal["trade", "review", "board"] | None = None
-    panel: Literal["ai", "depth", "order", "positions", "strategy", "news", "debate", "reminders"] | None = None
+    view: Literal[surface_ids("views")] | None = None
+    panel: PANEL | None = None
     settingsOpen: bool | None = None
     theme: Literal["dark", "light", "system"] | None = None
     dockSide: Literal["left", "right"] | None = None
@@ -1647,6 +1448,8 @@ class Command:
     status: str = "queued"
     state: dict | None = None
     observed_revision: int | None = None
+    # When the window reported it ran the command (an "applied" receipt): the Runtime then judges it.
+    claimed: float | None = None
 
     def result(self):
         return {**self.request.model_dump(mode="json", exclude_unset=True),
@@ -1656,22 +1459,17 @@ class Command:
 
 # What an applied command changed, in the user's words (AI audit 2026-10-13): a multi-step interface
 # request is answered with each applied step and where it is, not "已有 N 步界面操作确认生效".
-_VIEW_WORDS = {"trade": "交易台", "review": "复盘页", "board": "报价总表"}
-_PANEL_WORDS = {"ai": "对话面板", "order": "下单面板", "positions": "持仓面板", "strategy": "策略面板", "news": "调研面板", "debate": "调研面板的辩论页", "reminders": "提醒面板"}
+_VIEW_WORDS = surface_labels("views")
+_PANEL_WORDS = surface_labels("panels")
 _THEME_WORDS = {"dark": "深色", "light": "浅色", "system": "跟随系统"}
 _FONT_WORDS = {"standard": "标准", "large": "大", "extra-large": "特大"}
 _DENSITY_WORDS = {"compact": "紧凑", "standard": "标准", "comfortable": "宽松"}
-_POSITIONS_TAB_WORDS = {"positions": "持仓", "orders": "委托", "fills": "成交", "trades": "成交"}
+_POSITIONS_TAB_WORDS = surface_labels("positionsTabs")
 _FILLS_SOURCE_WORDS = {"all": "全部", "manual": "手动下的", "card": "确认卡下的", "ai": "AI 下的",
                        "strategy": "策略下的", "stop": "止损止盈触发的", "liquidation": "本站模拟盘强平的"}
-_STRATEGY_TAB_WORDS = {"playbooks": "交易笔记", "library": "我的策略", "running": "正在运行", "detail": "结果页", "lab": "结果页"}
-_REMINDER_TAB_WORDS = {"mine": "我的提醒", "general": "通用提醒", "history": "提醒记录"}
-_SETTINGS_PAGE_WORDS = {"account": "账户", "ai": "AI 与对话", "memory": "AI 与记忆", "voice": "语音", "chart": "图表",
-                        "trade": "交易", "notify": "提醒", "ui": "界面", "shortcuts": "快捷键", "data": "数据与隐私",
-                        "about": "关于", "feedback": "问题与建议", "trade-advanced": "高级交易设置",
-                        "remote-keys": "遥控器按键设置", "remote-diagnostics": "遥控器测试与诊断",
-                        "voice-advanced": "高级语音设置", "chart-advanced": "图表高级设置",
-                        "memory-advanced": "高级记忆设置"}
+_STRATEGY_TAB_WORDS = surface_labels("strategyTabs")
+_REMINDER_TAB_WORDS = surface_labels("reminderTabs")
+_SETTINGS_PAGE_WORDS = surface_labels("settingsPages")
 _DURATION_WORDS = {60: "1 分钟", 180: "3 分钟", 300: "5 分钟", 900: "15 分钟", 1800: "30 分钟", 3600: "1 小时",
                    86400: "日线", 604800: "周线"}
 VOICE_CALL_TAP_HINT = "要是没接通或听不到声音，点一下右下角的 AI 球（浏览器要你亲手点一下才放开麦克风和声音）"
@@ -1742,8 +1540,21 @@ def describe_ui_change(changes: dict[str, Any]) -> str:
 # once when a command, capture or receipt is pending: ONLINE_SECONDS lives in ui_captures.
 
 
-# Round-eleven surface commands are judged by the state they change (the client's
-# `matches()` in useUiControl.ts uses the same table). A client too old to report a
+# How long a command the window ran may take to show in its state before the receipt is unknown.
+RECEIPT_SECONDS = 7
+
+
+def refused(state, changes) -> bool:
+    """A command whose work finished without doing it: rejected at once, its reason in the snapshot — today only
+    reminderCenter {more: true} whose read loaded nothing (state.reminderCenter.moreError, #932 R5)."""
+    wanted = changes.get("reminderCenter")
+    center = state.get("reminderCenter")
+    return bool(isinstance(wanted, dict) and wanted.get("more") and isinstance(center, dict)
+                and int(center.get("moreAsked") or 0) > 0 and center.get("moreDone") == center.get("moreAsked")
+                and center.get("moreError"))
+
+
+# Round-eleven surface commands are judged by the state they change. A client too old to report a
 # field is not contradicted: a missing key counts as matched.
 _SURFACE_COMMANDS = {"pinnedSymbols", "reviewExpand", "reviewFilter", "reviewSelect", "reviewDay", "reviewCurrency", "dialog",
                      "strategyDetails", "monitorCard", "selectPosition", "disclosure",
@@ -1912,7 +1723,7 @@ def _surface_matches(state, key, value) -> bool:
             return showing if value["open"] else not showing
         if value["name"] == "strategy-designer" and isinstance(state.get("strategyEditor"), dict):
             # 2026-10-08: the retired 策略设计窗's name opens / closes the 策略编辑卡, which is no dialog —
-            # judged by the card (the client's useUiControl.matches has the same rule).
+            # judged by the card.
             return bool(state["strategyEditor"].get("open")) == value["open"]
         if "dialog" not in state:
             return True
@@ -2314,9 +2125,33 @@ def register_ui_control(app, current_user):
             (monotonic() - command.created) * 1000,
         )
 
+    def judge(command, pulse, *, final=False):
+        """回执只在这里判 (owner 2026-11-01): a command the window says it ran is applied once the state it reports
+        shows the change (changes_match), rejected when its work finished without doing it, and — `final`, after
+        RECEIPT_SECONDS — unknown otherwise. A state change pulses at once, so the judgement follows it."""
+        changes = command.request.changes.model_dump(exclude_unset=True)
+        state = pulse.state.model_dump()
+        if refused(state, changes):
+            command.status = "rejected"
+        elif changes_match(state, changes):
+            command.status = "applied"
+        elif final:
+            command.status = "unknown"
+        else:
+            return
+        command.state, command.observed_revision = state, pulse.revision
+        log_result(command)
+
     def prune():
         now = monotonic()
         for key, command in list(commands.items()):
+            if command.status == "dispatched" and command.claimed is not None and now - command.claimed > RECEIPT_SECONDS:
+                window = windows.get(command.request.windowId)
+                if window is not None:
+                    judge(command, window.pulse, final=True)
+                else:
+                    command.status = "unknown"
+                    log_result(command)
             if now - command.created > 15 and command.status in {"queued", "dispatched"}:
                 command.status = "expired" if command.status == "queued" else "unknown"
                 log_result(command)
@@ -2430,14 +2265,18 @@ def register_ui_control(app, current_user):
                         authorized = True
                     except HTTPException:
                         authorized = False
-                    changes = command.request.changes.model_dump(exclude_unset=True)
-                    state = body.state.model_dump()
-                    command.status = body.receipt.status if authorized else "unknown"
-                    if command.status == "applied" and not changes_match(state, changes):
-                        command.status = "rejected"
-                    command.state = state
-                    command.observed_revision = body.revision
-                    log_result(command)
+                    if authorized and body.receipt.status == "applied":
+                        # The window ran it; judge() decides whether it took effect, on this and later heartbeats.
+                        command.status, command.claimed = "dispatched", monotonic()
+                    else:
+                        command.status = body.receipt.status if authorized else "unknown"
+                        command.state = body.state.model_dump()
+                        command.observed_revision = body.revision
+                        log_result(command)
+            for command in list(commands.values()):
+                if command.user == user and command.request.windowId == body.windowId and command.status == "dispatched" \
+                        and command.claimed is not None:
+                    judge(command, body)
             await accept_capture(body, user)
             for command in commands.values():
                 if command.user != user or command.request.windowId != body.windowId or command.status != "queued":

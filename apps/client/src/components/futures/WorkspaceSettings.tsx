@@ -16,6 +16,7 @@ import { VoiceSettings } from "./VoiceSettings";
 import { openAppHelp } from "../AppHelp";
 import { PasswordDialog } from "../PasswordDialog";
 import { GUEST_SETTINGS_PAGES } from "../../guestApi";
+import { currentSurfaceIds, surfaceAliases, type CurrentSurfaceId } from "../../uiSurfaces";
 import { FeeEditor } from "../StrategyWorkbench";
 import type { TradingChartSettings } from "../TradingCharts";
 import { AddPaneChooser, MaLinesEditor, SubPaneEditor, type ChartIndicatorPatch } from "../chartIndicatorEditor";
@@ -36,16 +37,16 @@ import { CLIENT_BUILD, shortCommit, useClientCompat } from "../../clientBuild";
 import { isTauriRuntime } from "../../runtimeConnection";
 import type { RoutineRef } from "../../routines";
 
-/** The settings pages (设置重做 step 1; 设置拆页 2026-09-30: 账户与模型拆开、AI/记忆/语音
- *  各成一页，详细与高级设置进 *-advanced 二级页; 关于 → 问题与建议 is `feedback`, 2026-10-06). */
-export const SETTINGS_PAGES = ["account", "ai", "memory", "voice", "chart", "trade", "ui", "shortcuts", "data", "about",
-  "remote-keys", "remote-diagnostics", "trade-advanced", "voice-advanced", "chart-advanced", "memory-advanced", "feedback"] as const;
-export type SettingsPage = (typeof SETTINGS_PAGES)[number];
 /** 设置 → 提醒 moved to the 提醒 panel's 通用提醒 tab (2026-10-25): callers turn this old page id into that tab
  *  before normalizing (a command, the open-settings event, an older client's saved page). */
 export const REMINDER_SETTINGS_PAGE = "notify";
+export type SettingsPage = Exclude<CurrentSurfaceId<"settingsPages">, typeof REMINDER_SETTINGS_PAGE>;
+/** The settings pages (设置重做 step 1; 设置拆页 2026-09-30: 账户与模型拆开、AI/记忆/语音各成一页，详细与高级设置进
+ *  *-advanced 二级页; 关于 → 问题与建议 is `feedback`, 2026-10-06): the interface surface table's settingsPages, less
+ *  the one that became a 提醒 tab. */
+export const SETTINGS_PAGES = currentSurfaceIds("settingsPages").filter((page): page is SettingsPage => page !== REMINDER_SETTINGS_PAGE);
 /** Pages of 1.6.5 and earlier (commands, saved state, the fee-editor event) map onto the new categories. */
-const LEGACY_SETTINGS_PAGES: Record<string, SettingsPage> = { connection: "account", appearance: "ui", simulation: "trade", fees: "trade-advanced" };
+const LEGACY_SETTINGS_PAGES = surfaceAliases("settingsPages") as Record<string, SettingsPage>;
 export function normalizeSettingsPage(page: string | null | undefined): SettingsPage {
   if (page && (SETTINGS_PAGES as readonly string[]).includes(page)) return page as SettingsPage;
   return LEGACY_SETTINGS_PAGES[page ?? ""] ?? "account";

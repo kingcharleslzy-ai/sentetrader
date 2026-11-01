@@ -161,35 +161,3 @@ export function toggleSubPane(panes: readonly SubPaneType[], type: SubPaneType):
 }
 
 export const subPaneName = (type: SubPaneType) => type === "kd" ? "KDJ" : SUB_PANE_NAMES[type];
-
-/** The receipt rule (mirrors ui_control.py `_mobile_market_matches`): the 看盘 tab, and the account document
- *  the window reports holds the value; a window without the document (a visitor) keeps its own receipt. */
-export function mobileMarketMatches(state: Record<string, unknown>, value: MobileMarketChange): boolean {
-  if (state.mobileTab !== "market") return false;
-  if (value.subPanes !== undefined) {
-    const disclosures = state.disclosures as Record<string, boolean> | null | undefined;
-    return disclosures == null || Boolean(disclosures["mobile-subpanes"]) === value.subPanes;
-  }
-  const preferences = state.preferences as { ui?: { mobileMarket?: Partial<MobileMarketPreferences> }; chart?: { subPaneList?: string[] } } | null | undefined;
-  const market = preferences?.ui?.mobileMarket;
-  if (!market) return true;
-  const key = Object.keys(value)[0] as keyof MobileMarketChange;
-  const views: Partial<Record<keyof MobileMarketChange, MarketView>> = { board: "quotes", columns: "quotes", layout: "multi", cell: "multi", subPane: "single" };
-  if (market.view !== (views[key] ?? value.view)) return false;
-  if (key === "board" || key === "layout" || key === "subPane") {
-    if (market[key] !== value[key]) return false;
-  }
-  if (key === "columns" && JSON.stringify(market.columns) !== JSON.stringify(value.columns)) return false;
-  if (key === "subPane") return (preferences?.chart?.subPaneList ?? []).includes(value.subPane as string);
-  if (key === "cell" && value.cell) {
-    const { index, symbol, duration } = value.cell;
-    if (market.layout === "periods") {
-      if (duration != null && market.periods?.[index] !== duration) return false;
-      return !symbol || String(state.symbol ?? "").toUpperCase() === symbol.toUpperCase();
-    }
-    const cell = market.cells?.[index];
-    if ("symbol" in value.cell && String(cell?.symbol ?? "").toUpperCase() !== String(symbol ?? "").toUpperCase()) return false;
-    return duration == null || cell?.duration === duration;
-  }
-  return true;
-}

@@ -184,7 +184,7 @@ macOS 已安装客户端的命令行入口：
 
 `GET /api/app/ui/windows` 列出当前用户在该 Runtime/回放环境中的在线窗口和已回报状态。`POST /api/app/ui/commands` 指定窗口、预期 revision、新 UUID commandId 与单个字段的 changes。可控制合约、图表周期（1/3/5/15/30 分、1 小时、日线、周线）与图表形态（`chartView`：timeshare 分时图 / kline，快照 `state.chartView`）、交易台/复盘/报价总表/后台管理（仅主账号）页面与后台管理分区、辅助面板、设置开关、主题及辅助区位置/宽度。多窗口必须指定目标；回放合约固定。周期切换复用原图表周期接口，保留跟随图表策略的行为。正式构建的 `device.build` 与页面快照 `observation.context.connection.build` 回报源码提交；先筛选在线目标窗口再与发布 SHA 对照，旧客户端缺省、空值或 `dev` 不证明来源，版本兼容状态也不替代提交核对。
 
-命令先返回 queued，通过 `GET /api/app/ui/commands/{command_id}` 查询到 applied 后才算完成；applied 是 React 已提交状态的回执，不保证行情请求已经完成。前端每次只处理一个命令，并检查身份、环境与界面版本。未送达的命令过期标记 expired，已送达但缺少回执标记 unknown，不自动重放；未知命令在保留期内阻止同窗口继续接单。记录保留五分钟，Runtime 重启即清空。身份失效的排队命令不派发。
+命令先返回 queued，通过 `GET /api/app/ui/commands/{command_id}` 查询到 applied 后才算完成；窗口只回报“已执行”或“执行不了”，applied 由 Runtime 判定：窗口回报已执行后，Runtime 按这次及之后心跳里 React 已提交的状态核对所改字段（`ui_control.changes_match`，全系统唯一一处回执规则），7 秒内没对上记 unknown；applied 不保证行情请求已经完成。界面表面的 id、旧名、游客可用与否统一在 `services/trader-runtime/src/trader_runtime/ui_surfaces.json` 一张表里，Runtime 与客户端都读它。前端每次只处理一个命令，并检查身份、环境与界面版本。未送达的命令过期标记 expired，已送达但缺少回执标记 unknown，不自动重放；未知命令在保留期内阻止同窗口继续接单。记录保留五分钟，Runtime 重启即清空。身份失效的排队命令不派发。
 
 浏览器心跳/回执接口不在 Agent 能力白名单中。MCP 没有提供任意 JS、Shell、鼠标或 DOM 执行工具；业务行为仍通过原鉴权、风险检查和回放串行调度。
 

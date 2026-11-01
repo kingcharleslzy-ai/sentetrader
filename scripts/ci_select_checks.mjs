@@ -37,12 +37,14 @@ import { fileURLToPath } from "node:url";
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
 
 // Source files another area's tests read across the service boundary: editing one also selects
-// that area. Client tests import two Runtime modules with `?raw`; the sidecar's TqSdk parity test
+// that area. Client tests import two Runtime modules with `?raw` and the client imports the interface surface
+// table (ui_surfaces.json); the sidecar's TqSdk parity test
 // imports the Runtime indicators; Runtime tests import sidecar constants and run the paper engine
 // (with the sidecar's test_paper_book helpers) in a subprocess.
 const CROSS_AREA_INPUTS = new Map([
   ["services/trader-runtime/src/trader_runtime/strategy_rules.py", "client"],
   ["services/trader-runtime/src/trader_runtime/simulation_orders.py", "client"],
+  ["services/trader-runtime/src/trader_runtime/ui_surfaces.json", "client"],
   ["services/trader-runtime/src/trader_runtime/indicators.py", "sidecar"],
   ["services/tqkq-sidecar/src/tqkq_readonly_sidecar/main.py", "runtime"],
   ["services/tqkq-sidecar/src/tqkq_readonly_sidecar/paper.py", "runtime"],

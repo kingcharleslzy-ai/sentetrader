@@ -4,11 +4,14 @@ import type { UiChanges, UiState } from "./useUiControl";
 import { GUEST_SETTINGS_PAGES, guestRequest } from "../guestApi";
 import { observeUi } from "../uiObservation";
 import { usePushToTalkStatus } from "../pushToTalk";
-import { applyUiSurface, useUiSurfaceVersion } from "../uiSurfaces";
+import { GUEST_SURFACES, applyUiSurface, surfacesWith, useUiSurfaceVersion } from "../uiSurfaces";
 
-const PUBLIC_CHANGES = new Set("symbol duration theme newsOpen loginOpen kd macd volume news paneSizes researchExpanded panel settingsOpen settingsPage dockSide dockWidth fontScale density chartSizes chartOption pinnedSymbols dialog disclosure presentation mobileTab mobilePage mobileMarket contractCatalogRetry".split(" "));
-/** 手机看盘 (2026-10-09): a visitor switches 报价 / 多图 / 单图 and the single chart's sub pane and sheet only. */
-const PUBLIC_MARKET_KEYS = new Set(["view", "subPane", "subPanes"]);
+/** What a visitor may change, and which panels, dialogs, disclosures and pages: the interface surface table's guest
+ *  column (the Runtime's guest.py checks the same). 手机看盘: 报价 / 多图 / 单图 and the single chart's sub pane and sheet. */
+const PUBLIC_CHANGES = new Set(GUEST_SURFACES.changes);
+const PUBLIC_MARKET_KEYS = new Set(GUEST_SURFACES.mobileMarketKeys);
+const [PUBLIC_PANELS, PUBLIC_DIALOGS, PUBLIC_DISCLOSURES, PUBLIC_PAGES] = (["panels", "dialogs", "disclosures", "mobilePages"] as const)
+  .map(family => surfacesWith(family, "guest"));
 
 /** The guest channel drives the normal UI command handler; private UI registration
  * stays off. Quote ticks never trigger HTTP observation or per-reader UI polling. `extra` joins the snapshot
@@ -23,13 +26,12 @@ export function useGuestUiControl(guest: GuestAccountController | undefined, sta
   if (guest) guest.applyChanges.current = changes => {
     const disclosure = changes.disclosure;
     if (Object.keys(changes).some(key => !PUBLIC_CHANGES.has(key))
-      || (changes.panel != null && changes.panel !== "news")
+      || (changes.panel != null && !PUBLIC_PANELS.has(changes.panel))
       || (changes.settingsPage != null && !GUEST_SETTINGS_PAGES.includes(changes.settingsPage))
-      || (changes.dialog && !["contract-drawer", "market-session"].includes(changes.dialog.name))
+      || (changes.dialog && !PUBLIC_DIALOGS.has(changes.dialog.name))
       || ("disclosure" in changes && (!disclosure || typeof disclosure !== "object"
-        || Object.keys(disclosure).length !== 2 || disclosure.name !== "feedback-diagnostics" || typeof disclosure.open !== "boolean"))
-      // A visitor's only full-screen page is the 安装到桌面 guide.
-      || ("mobilePage" in changes && changes.mobilePage != null && changes.mobilePage !== "install")
+        || Object.keys(disclosure).length !== 2 || !PUBLIC_DISCLOSURES.has(String(disclosure.name)) || typeof disclosure.open !== "boolean"))
+      || ("mobilePage" in changes && changes.mobilePage != null && !PUBLIC_PAGES.has(String(changes.mobilePage)))
       || (changes.mobileMarket != null && Object.keys(changes.mobileMarket).some(key => !PUBLIC_MARKET_KEYS.has(key)))) {
       throw new Error("游客不可执行此界面操作");
     }

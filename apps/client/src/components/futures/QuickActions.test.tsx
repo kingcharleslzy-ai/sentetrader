@@ -3,7 +3,6 @@ import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-li
 import type { AccountPosition, MarketQuoteSnapshot, SimulationOrder } from "../../api";
 import { resetShortcutStore, setShortcut } from "../../shortcuts";
 import { noteAccountRevision, resetAccountRevisions } from "../../accountRevision";
-import { matches } from "../../hooks/useUiControl";
 import { applyUiSurface } from "../../uiSurfaces";
 import { QuickActions, quickCloseRequests, useTicketQuickActions, QUICK_VOLUME_KEY } from "./QuickActions";
 import { useQuickOrders } from "./useQuickOrders";
@@ -110,8 +109,6 @@ test("scope switch discards a pending action, UI command changes only local lots
   const view = render(<Harness />);
   applyUiSurface("quickVolume", 5);
   await waitFor(() => expect(screen.getByRole("button", { name: "快捷手数 5" })).toHaveAttribute("aria-pressed", "true"));
-  expect(matches({ quickVolume: 5 }, { quickVolume: 5 })).toBe(true);
-  expect(matches({ quickVolume: 2 }, { quickVolume: 5 })).toBe(false);
   fireEvent.click(screen.getByRole("button", { name: "一键平仓" }));
   view.rerender(<Harness contextKey="b" />);
   expect(screen.getByTestId("quick-order-dialog")).not.toHaveAttribute("open");

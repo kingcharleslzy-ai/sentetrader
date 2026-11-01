@@ -1,7 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { Segmented, Stepper, Switch } from "./controls";
 import { normalizeSettingsPage } from "../futures/WorkspaceSettings";
-import { matches } from "../../hooks/useUiControl";
 
 test("the five settings controls expose their state through roles the snapshot records", () => {
   const onSwitch = vi.fn(); const onSegment = vi.fn(); const onStep = vi.fn();
@@ -30,15 +29,11 @@ test("the five settings controls expose their state through roles the snapshot r
   expect(screen.getByText("手")).toBeInTheDocument();
 });
 
-test("1.6.5 settings page names map onto the split pages, in commands and receipts alike", () => {
+test("1.6.5 settings page names map onto the split pages", () => {
   expect(normalizeSettingsPage("connection")).toBe("account");
   expect(normalizeSettingsPage("appearance")).toBe("ui");
   expect(normalizeSettingsPage("simulation")).toBe("trade");
   expect(normalizeSettingsPage("fees")).toBe("trade-advanced");
   expect(normalizeSettingsPage("voice")).toBe("voice");
   expect(normalizeSettingsPage(undefined)).toBe("account");
-  expect(matches({ settingsPage: "trade-advanced" }, { settingsPage: "fees" })).toBe(true);
-  expect(matches({ settingsPage: "trade" }, { settingsPage: "trade" })).toBe(true);
-  expect(matches({ settingsPage: "trade" }, { settingsPage: "fees" })).toBe(false);
-  expect(matches({ settingsPage: "ui" }, { settingsPage: "chart" })).toBe(false);
 });

@@ -6,7 +6,7 @@ import { useUiControl } from "../../hooks/useUiControl";
 import { applyChartAnnotations, clearChartMarks, clearHighlights, showHighlight, useChartAnnotations, useChartMarksClearedAt, useHighlights } from "../../aiAnnotations";
 import { nextTourStep, prevTourStep, registerTourFocus, startTour, stopTour, useTour, type TourFocus } from "../../uiTour";
 import { useEffect, useSyncExternalStore } from "react";
-import { CARD_DISCLOSURES, DISCLOSURE_ALIASES, ID_REQUIRED_DISCLOSURES, SPARSE_DISCLOSURES, applyUiSurface, disclosureStates, latestCardDisclosure, uiSurface, uiSurfaceStates, useUiSurfaceVersion } from "../../uiSurfaces";
+import { CARD_DISCLOSURES, DISCLOSURE_ALIASES, currentSurface, ID_REQUIRED_DISCLOSURES, SPARSE_DISCLOSURES, applyUiSurface, disclosureStates, latestCardDisclosure, uiSurface, uiSurfaceStates, useUiSurfaceVersion } from "../../uiSurfaces";
 import type { StrategyNavigation, StrategyNavigationState } from "../../uiNavigation";
 import type { useAppWorkbench } from "../AiActivity";
 import { ACCOUNT_STATE_LOADING, type TradingAccountsView } from "../../hooks/useTradingAccounts";
@@ -266,7 +266,7 @@ export function useWorkspaceUiControl({ workspace, connectedRuntimeUrl, market, 
     // they land on its 持仓与委托 / 下单 / 复盘摘要 pages (opened first, with the same access checks).
     if (mobile && (changes.positionsTab != null || changes.fillsSource != null || changes.ordersHistory != null)) {
       mobile.openPage("positions");
-      if (changes.positionsTab != null) surfaces.setPositionsTab(changes.positionsTab === "trades" ? "fills" : changes.positionsTab);
+      if (changes.positionsTab != null) surfaces.setPositionsTab(currentSurface("positionsTabs", changes.positionsTab));
       if (changes.fillsSource != null) { surfaces.setPositionsTab("fills"); surfaces.setFillsSource(changes.fillsSource); }
       if (changes.ordersHistory != null) { surfaces.setPositionsTab("orders"); surfaces.setOrdersHistory(changes.ordersHistory); }
       return;
@@ -314,7 +314,7 @@ export function useWorkspaceUiControl({ workspace, connectedRuntimeUrl, market, 
     if ("panel" in changes) {
       // The 价格阶梯 panel was removed 2026-10-07: an older Runtime, AI or saved command's
       // `panel: depth` opens the 下单面板, whose 五档 replaced it.
-      const panel = changes.panel === "depth" ? "order" : changes.panel ?? null;
+      const panel = changes.panel == null ? null : currentSurface("panels", changes.panel);
       const capability = panel === "ai" ? "ai-chat" : panel === "strategy" ? "strategy-management" : panel === "order" ? "order-proposal" : panel === "positions" ? "account" : undefined;
       if (capability && workspace.access?.reason(capability)) throw new Error(workspace.access.reason(capability));
       if (panel === "strategy" && !workspace.strategyPanel) throw new Error("当前环境没有策略面板");
@@ -447,7 +447,7 @@ export function useWorkspaceUiControl({ workspace, connectedRuntimeUrl, market, 
       setView("trade");
       setRightDock("strategy");
       // 2026-10-08: the retired 实验室 tab is the 结果页's 试几组参数比一比.
-      surfaces.setStrategyTab(changes.strategyTab === "lab" ? "detail" : changes.strategyTab);
+      surfaces.setStrategyTab(currentSurface("strategyTabs", changes.strategyTab));
     }
     if (changes.aiActivityCard != null) registry("aiActivityCard")(changes.aiActivityCard);
     // The tab and the 历史 switch are shared by the bottom bar and the 持仓面板. Expand the bar only
@@ -455,7 +455,7 @@ export function useWorkspaceUiControl({ workspace, connectedRuntimeUrl, market, 
     // pushed open under the chart.
     const showRecords = () => { if (rightDock !== "positions") setPositionsBar("expanded"); };
     // `trades` (平仓记录) is the 成交 tab's old name.
-    if (changes.positionsTab != null) { showRecords(); surfaces.setPositionsTab(changes.positionsTab === "trades" ? "fills" : changes.positionsTab); }
+    if (changes.positionsTab != null) { showRecords(); surfaces.setPositionsTab(currentSurface("positionsTabs", changes.positionsTab)); }
     // The 来源 chips live in the 持仓面板's 成交 tab.
     if (changes.fillsSource != null) { setRightDock("positions"); surfaces.setPositionsTab("fills"); surfaces.setFillsSource(changes.fillsSource); }
     if (changes.ordersHistory != null) { showRecords(); surfaces.setPositionsTab("orders"); surfaces.setOrdersHistory(changes.ordersHistory); }

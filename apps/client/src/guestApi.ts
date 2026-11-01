@@ -1,8 +1,9 @@
 import type { UiChanges } from "./hooks/useUiControl";
 import { withRequestTimeout, type RequestTimeoutOption } from "./requestTimeout";
-/** The settings pages a visitor may open (the Runtime's guest whitelist, guest.py, says the same):
- * one list for the settings drawer, the open-settings event and the visitor's UI commands (AI 审计 2026-10-13). */
-export const GUEST_SETTINGS_PAGES: readonly string[] = ["chart", "ui", "chart-advanced", "about", "feedback"];
+import { surfacesWith } from "./uiSurfaces";
+/** The settings pages a visitor may open (the guest column of the interface surface table, which the Runtime's
+ * guest.py reads too): one list for the settings drawer, the open-settings event and the visitor's UI commands. */
+export const GUEST_SETTINGS_PAGES: readonly string[] = [...surfacesWith("settingsPages", "guest")];
 /** Guest credentials are memory-only and never enter the owner's token/account registry. */
 const guestTokens = new Map<string, string>();
 const normalize = (baseUrl: string) => baseUrl.replace(/\/$/, "");

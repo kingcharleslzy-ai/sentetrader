@@ -8,6 +8,8 @@ COPY packages/ui-events/package.json packages/ui-events/package.json
 RUN npm ci
 COPY apps/client apps/client
 COPY packages packages
+# The interface surface table is the Runtime's file; the client imports it (uiSurfaces.ts).
+COPY services/trader-runtime/src/trader_runtime/ui_surfaces.json services/trader-runtime/src/trader_runtime/ui_surfaces.json
 ARG VITE_CLOUD_RUNTIME_URL
 ARG VITE_ALLOW_INSECURE_LOCAL_CLOUD=0
 ARG VITE_DEFAULT_RUNTIME_MODE=cloud

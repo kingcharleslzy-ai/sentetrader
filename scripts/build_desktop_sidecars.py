@@ -42,6 +42,7 @@ def project_sources(project: Path) -> list[Path]:
             item.suffix in {".py", ".toml", ".lock"}
             or (item.suffix == ".md" and "agent_skills" in item.parts)
             or (item.suffix == ".json" and ("strategy_templates" in item.parts or "help" in item.parts))
+            or item.name == "ui_surfaces.json"
         )
         and ".venv" not in item.parts and "tests" not in item.parts
     ]
@@ -179,6 +180,9 @@ def main() -> int:
             # 帮助目录: app_help.py loads help/catalog.json at import.
             (ROOT / "services" / "trader-runtime" / "src" / "trader_runtime" / "help",
              "trader_runtime/help"),
+            # 界面表面表: ui_surfaces.py loads ui_surfaces.json at import.
+            (ROOT / "services" / "trader-runtime" / "src" / "trader_runtime" / "ui_surfaces.json",
+             "trader_runtime"),
         ),
     )
     for stale in (BINARIES / "tqkq-runtime", *BINARIES.glob("ai-trader-tqkq-sidecar-*"), *BINARIES.glob(".ai-trader-tqkq-sidecar-*")):

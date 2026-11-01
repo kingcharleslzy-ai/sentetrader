@@ -6,7 +6,7 @@ import { useMarketBoard } from "../../hooks/useMarketBoard";
 import { MobileQuotes } from "./MobileQuotes";
 import { MobileMultiChart } from "./MobileMultiChart";
 import { MobileSubPaneSheet } from "./MobileSubPaneSheet";
-import { DEFAULT_MOBILE_MARKET, mobileMarketMatches, normalizeMobileMarket, planMobileMarketChange, resolveCells } from "./mobileMarketPrefs";
+import { DEFAULT_MOBILE_MARKET, normalizeMobileMarket, planMobileMarketChange, resolveCells } from "./mobileMarketPrefs";
 
 const boardRow = (symbol: string, exchangeId: string, productId: string, name: string, last: number, changePercent: number) => ({
   symbol, exchangeId, productId, instrumentId: symbol.split(".")[1], instrumentName: name, productName: name.replace(/\d+$/, ""),
@@ -165,7 +165,7 @@ test("多图格子：自动补位跳过已选的合约；同合约 4 周期跟�
     .toEqual(["SHFE.rb2701@300", "SHFE.rb2701@900", "SHFE.rb2701@3600", "SHFE.rb2701@86400"]);
 });
 
-test("副图：命令里没选的副图替换正在显示的那个（满 3 个时）；回执看账号文档（与 Runtime 同一规则）", () => {
+test("副图：命令里没选的副图替换正在显示的那个（满 3 个时）", () => {
   const resolve = (symbol: string) => symbol.toUpperCase() === "SHFE.RB2701" ? "SHFE.rb2701" : undefined;
   const market = { ...DEFAULT_MOBILE_MARKET, subPane: "macd" as const };
   expect(planMobileMarketChange({ subPane: "cci" }, market, ["kd", "macd", "rsi"], resolve))
@@ -175,11 +175,6 @@ test("副图：命令里没选的副图替换正在显示的那个（满 3 个�
   expect(() => planMobileMarketChange({ cell: { index: 0, symbol: "SHFE.xx" } }, market, [], resolve)).toThrow("合约不在合约列表里");
   expect(planMobileMarketChange({ cell: { index: 0, symbol: "shfe.rb2701" } }, market, [], resolve).market?.cells?.[0])
     .toEqual({ symbol: "SHFE.rb2701", duration: 300 });
-  const state = { mobileTab: "market", preferences: { ui: { mobileMarket: { ...market, view: "single" } }, chart: { subPaneList: ["kd", "macd"] } } };
-  expect(mobileMarketMatches(state, { subPane: "macd" })).toBe(true);
-  expect(mobileMarketMatches(state, { view: "multi" })).toBe(false);
-  expect(mobileMarketMatches({ ...state, mobileTab: "ai" }, { view: "single" })).toBe(false);
-  expect(mobileMarketMatches({ mobileTab: "market", disclosures: { "mobile-subpanes": true } }, { subPanes: true })).toBe(true);
 });
 
 test("副图设置的“均线”总开关：关掉再打开，原先单独打开的几条均线恢复原样（记在同一份图表设置的 maMuted）", () => {

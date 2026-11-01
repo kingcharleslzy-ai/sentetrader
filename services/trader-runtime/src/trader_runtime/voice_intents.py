@@ -11,6 +11,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
+from .ui_surfaces import SURFACES
+
 
 @dataclass(frozen=True)
 class Intent:
@@ -42,15 +44,9 @@ def _rx(core: str) -> re.Pattern[str]:
     return re.compile(rf"^{_PREFIX}{core}{_SUFFIX}$")
 
 
-_SETTINGS_PAGES = {
-    "account": r"账户|账号", "ai": r"AI与对话|AI和对话|模型|AI模型|对话(?=设置)", "memory": r"记忆|画像|我的流程|AI与记忆|AI和记忆", "about": r"关于|版本|更新",
-    "remote-keys": r"遥控器按键|遥控器按键设置", "remote-diagnostics": r"遥控器测试|遥控器诊断|测试与诊断",
-    "voice": r"语音|遥控器", "chart": r"图表", "trade": r"交易",
-    "notify": r"提醒|通知", "ui": r"界面|外观", "shortcuts": r"快捷键", "data": r"数据与隐私|数据和隐私|数据|隐私",
-    "feedback": r"问题与建议|问题和建议|反馈",
-}
-_PAGE_LABELS = {"remote-keys": "遥控器按键", "remote-diagnostics": "遥控器测试与诊断", "account": "账户", "ai": "AI 与对话", "memory": "记忆", "about": "关于", "voice": "语音", "chart": "图表",
-                "trade": "交易", "notify": "提醒", "ui": "界面", "shortcuts": "快捷键", "data": "数据与隐私", "feedback": "问题与建议"}
+# 设置页的说法和念出来的名字在界面表面表里（ui_surfaces.json 的 settingsPages：words / say，没有 say 用 label）。
+_SETTINGS_PAGES = {page: entry["words"] for page, entry in SURFACES["settingsPages"].items() if "words" in entry}
+_PAGE_LABELS = {page: entry.get("say", entry["label"]) for page, entry in SURFACES["settingsPages"].items() if "words" in entry}
 _DURATIONS = [(r"(?:1|一)分(?:钟)?", 60, "一分钟"), (r"(?:3|三)分(?:钟)?", 180, "三分钟"), (r"(?:5|五)分(?:钟)?", 300, "五分钟"),
               (r"(?:15|十五)分(?:钟)?", 900, "十五分钟"), (r"(?:30|三十)分(?:钟)?", 1800, "三十分钟"), (r"(?:1|一)小时", 3600, "一小时"),
               (r"日线|日K|天线", 86400, "日线"), (r"周线|周K", 604800, "周线")]

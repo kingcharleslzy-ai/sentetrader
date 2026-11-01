@@ -2,7 +2,6 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { vi } from "vitest";
 import { StrategyWorkbench } from "./StrategyWorkbench";
 import { disclosureStates, resetUiSurfaces, uiSurface } from "../uiSurfaces";
-import { matches } from "../hooks/useUiControl";
 import { resetStrategyBacktests } from "../strategyBacktests";
 import { BACKTEST_DEBOUNCE_MS, editDraft, editorState, resetStrategyEditor } from "../strategyEditorStore";
 import type { SavedStrategy, StrategyPlan } from "../strategyApi";
@@ -221,8 +220,10 @@ test("放弃之后，迟到的补一句结果不写进任何表单", async () =>
   expect(snapshot()).toMatchObject({ open: true, ask: null, changed: [], fields: { entryLong: null, stop: { value: null } } });
 });
 
-// 第二版 (2026-10-08): the receipt each new command gets, judged the way the Runtime and useUiControl judge it.
-const applied = (change: Record<string, unknown>) => matches({ disclosures: disclosureStates(), strategyEditor: snapshot() }, change);
+// 第二版 (2026-10-08): what each new command leaves in the state the window reports (the Runtime judges the receipt from it).
+type Shown = { disclosure?: { name: string; id: string; open: boolean }; strategyEditor?: { focus: string } };
+const applied = ({ disclosure, strategyEditor }: Shown) => disclosure
+  ? disclosureStates()[`${disclosure.name}:${disclosure.id}`] === disclosure.open : snapshot().focus === strategyEditor?.focus;
 
 test("指标选择器（电脑）：命令打开某条条件一侧，分类里选到 SuperTrend 填倍数写回；持仓四象限只能配“等于”，其余比较禁选", async () => {
   mount();
@@ -300,7 +301,7 @@ test("刚由接口建的策略马上能编辑：列表里还没有就读一次�
     if (url.endsWith("/api/strategy-backtests")) return new Promise(() => undefined);
     return {};
   });
-  const receipt = () => matches({ strategyEditor: snapshot() }, { strategyEditor: { edit: "s-new" } });
+  const receipt = () => Boolean(snapshot().open && !snapshot().loading && snapshot().strategyId === "s-new");
   expect(() => editor().apply!({ edit: "s-new" })).not.toThrow();
   expect(receipt()).toBe(false);
   await act(async () => { release({ items: [made], executions: [] }); });

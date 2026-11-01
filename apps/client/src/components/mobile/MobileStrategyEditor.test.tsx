@@ -3,7 +3,6 @@ import { vi } from "vitest";
 import { MobileStrategyEditor, useMobileStrategyEditor } from "./MobileStrategyEditor";
 import { useMobileStrategies } from "./MobileStrategy";
 import { disclosureStates, resetUiSurfaces, uiSurface } from "../../uiSurfaces";
-import { matches } from "../../hooks/useUiControl";
 import { resetStrategyBacktests } from "../../strategyBacktests";
 import { editDraft, editFields, editorState, hideDraft, openDraft, resetStrategyEditor } from "../../strategyEditorStore";
 import { resetStrategyTemplates } from "../../strategyTemplates";
@@ -128,7 +127,9 @@ test("第二版命令在手机上同样 applied：选择器打开该条的底部
   command({ new: true });
   const page = await screen.findByTestId("mobile-strategy-editor");
   await waitFor(() => expect(editorState().start).toBe("blank"));
-  const applied = (change: Record<string, unknown>) => matches({ disclosures: disclosureStates(), strategyEditor: uiSurface("strategyEditor")!.state }, change);
+  const applied = ({ disclosure, strategyEditor }: { disclosure?: { name: string; id: string; open: boolean }; strategyEditor?: { focus: string } }) => disclosure
+    ? disclosureStates()[`${disclosure.name}:${disclosure.id}`] === disclosure.open
+    : (uiSurface("strategyEditor")!.state as { focus?: string }).focus === strategyEditor?.focus;
   disclosure("strategy-editor-section", "entry", true);
   fireEvent.click(within(page).getByRole("button", { name: "加一条：均线金叉" }));
   disclosure("strategy-editor-picker", "entryLong:1:right", true);
@@ -216,7 +217,8 @@ test("刚由接口建的策略马上能编辑：列表里还没有就读一次�
     if (url.endsWith("/api/strategy-backtests")) return new Promise(() => undefined);
     return {};
   });
-  const receipt = () => matches({ strategyEditor: uiSurface("strategyEditor")!.state }, { strategyEditor: { edit: "s-new" } });
+  const receipt = () => { const card = uiSurface("strategyEditor")!.state as { open?: boolean; loading?: string | null; strategyId?: string | null };
+    return Boolean(card.open && !card.loading && card.strategyId === "s-new"); };
   expect(() => command({ edit: "s-new" })).not.toThrow();
   expect(receipt()).toBe(false);
   await act(async () => { release({ items: [made], executions: [] }); });

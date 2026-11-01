@@ -2,11 +2,12 @@ import type { ReactNode } from "react";
 import { Bell, PanelRightClose } from "lucide-react";
 import { FilterBar, ReminderCenterBody, type ReminderCenterProps } from "./ReminderCenter";
 import { MyReminders, type MyRemindersProps } from "./MyReminders";
+import { currentSurfaceIds, surfaceLabel, type CurrentSurfaceId } from "../../uiSurfaces";
 
 /** 提醒 (2026-10-25): 我的提醒 (the ones you set, one list since 改版 2026-10-31: 到某个价, 碰到我画的线 and 按条件), 通用提醒
  *  (the switches that were 设置 → 提醒) and 提醒记录 (the 提醒中心 the bell opened as a popover). */
-export type RemindersTab = "mine" | "general" | "history";
-export const REMINDER_TABS: [RemindersTab, string][] = [["mine", "我的提醒"], ["general", "通用提醒"], ["history", "提醒记录"]];
+export type RemindersTab = CurrentSurfaceId<"reminderTabs">;
+export const REMINDER_TABS: [RemindersTab, string][] = currentSurfaceIds("reminderTabs").map(tab => [tab, surfaceLabel("reminderTabs", tab)]);
 
 function Tabs({ tab, onTab }: { tab: RemindersTab; onTab: (tab: RemindersTab) => void }) {
   return <div role="tablist" aria-label="提醒内容">{REMINDER_TABS.map(([value, label]) =>
