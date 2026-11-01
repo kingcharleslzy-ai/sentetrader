@@ -13,7 +13,7 @@ metadata:
   ai-trader-ui-entries: settings
   ai-trader-quick-action: ""
   ai-trader-default-tiers: ""
-  ai-trader-mount-words: 记住 记得 记一下 忘掉 忘了 别记 记忆 习惯 你知道我 以后 别再
+  ai-trader-mount-words: 记住 记得 记一下 忘掉 忘了 别记 记忆 习惯 你知道我 以后 别再 保本提醒
 ---
 
 # 偏好设置（preferences）

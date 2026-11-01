@@ -447,8 +447,8 @@ class FakeResponsesServer:
         if "挂上那个技能" in text:
             # 按技能延迟挂载 (2026-10-14): the model mounts a skill whose tools this turn does not carry yet.
             if not outputs:
-                return self._tool_stream([("activate_skill", {"skillId": "price-alerts"})])
-            return self._text_stream("提醒技能已挂上。")
+                return self._tool_stream([("activate_skill", {"skillId": "chart-drawings"})])
+            return self._text_stream("画线技能已挂上。")
         if "可取消回测" in text:
             if not outputs:
                 return self._tool_stream([("run_reproducible_backtest", {})])

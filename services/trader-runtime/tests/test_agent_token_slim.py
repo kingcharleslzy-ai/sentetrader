@@ -46,18 +46,21 @@ async def test_deferred_tools_mount_by_the_sentences_words_and_unmount_after_idl
         return responses_server.requests[-1]
 
     plain = await turn("只做只读策略分析")
-    assert "create_price_alert" not in _tool_names(plain) and "get_positions" in _tool_names(plain)
-    assert '<skill_content name="price-alerts">' not in plain["instructions"]
-    assert "*- price-alerts:" in plain["instructions"]  # marked: it has tools to mount
-    mounted = await turn("螺纹到了3150帮我提醒一下")
-    assert {"create_price_alert", "list_price_alerts", "cancel_price_alert"} <= _tool_names(mounted)
-    assert '<skill_content name="price-alerts">' in mounted["instructions"]
-    assert "*- price-alerts:" not in mounted["instructions"]
+    assert "create_chart_drawing" not in _tool_names(plain) and "get_positions" in _tool_names(plain)
+    # Reminders, order cards and strategies are always carried (owner 2026-11-02); only their manuals mount.
+    assert {"create_price_alert", "estimate_order", "create_strategy_draft"} <= _tool_names(plain)
+    assert '<skill_content name="chart-drawings">' not in plain["instructions"]
+    assert "*- chart-drawings:" in plain["instructions"]  # marked: it has tools to mount
+    assert "负责：到价提醒；提醒面板" in plain["instructions"]  # the help topics it answers for (catalog.json `skill`)
+    mounted = await turn("帮我在3150画一条线")
+    assert {"create_chart_drawing", "list_chart_drawings", "delete_chart_drawing"} <= _tool_names(mounted)
+    assert '<skill_content name="chart-drawings">' in mounted["instructions"]
+    assert "*- chart-drawings:" not in mounted["instructions"]
     kept = [await turn("随便聊聊") for _ in range(SKILL_MOUNT_IDLE_TURNS)]
-    assert all("create_price_alert" in _tool_names(request) for request in kept)
+    assert all("create_chart_drawing" in _tool_names(request) for request in kept)
     gone = await turn("随便聊聊")
-    assert "create_price_alert" not in _tool_names(gone)
-    assert '<skill_content name="price-alerts">' not in gone["instructions"]
+    assert "create_chart_drawing" not in _tool_names(gone)
+    assert '<skill_content name="chart-drawings">' not in gone["instructions"]
 
 
 async def test_activate_skill_mounts_its_tools_for_the_next_round_of_the_same_turn(
@@ -67,12 +70,12 @@ async def test_activate_skill_mounts_its_tools_for_the_next_round_of_the_same_tu
     run_id = await start_run(native_client, session_id, "挂上那个技能")
     assert (await wait_for_run(native_application, run_id))["status"] == "completed"
     first, second = responses_server.requests[-2:]
-    assert "create_price_alert" not in _tool_names(first)
-    assert "create_price_alert" in _tool_names(second)
-    assert '<skill_content name="price-alerts">' in second["instructions"]
+    assert "create_chart_drawing" not in _tool_names(first)
+    assert "create_chart_drawing" in _tool_names(second)
+    assert '<skill_content name="chart-drawings">' in second["instructions"]
     output = next(item["output"] for item in second["input"] if item.get("type") == "function_call_output")
     # The manual rides the instructions; the tool output only says what was mounted (no second copy).
-    assert "已挂上" in output and "create_price_alert" in output and "<skill_content" not in output
+    assert "已挂上" in output and "create_chart_drawing" in output and "<skill_content" not in output
 
 
 async def test_calling_any_tool_of_a_skill_mounts_its_manual_for_the_next_round(

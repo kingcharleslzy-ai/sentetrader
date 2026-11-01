@@ -49,6 +49,10 @@
     "guest": {
       "title": "先浏览，再登录",
       "group": "start",
+      "skill": "help",
+      "words": [
+        "游客"
+      ],
       "summary": "游客和登录账户共用同一工作区；游客免密看最近3个交易日内的行情，个人功能点击后提示登录。",
       "steps": [
         "首次访问在报价栏选择品种，在图表上方点选周期",
@@ -84,6 +88,10 @@
     "tour": {
       "title": "五分钟上手",
       "group": "start",
+      "skill": "ui-control",
+      "words": [
+        "新手引导"
+      ],
       "summary": "Sente 是你的 AI 私人交易助理：登录后就能看行情、问 AI、下模拟单；跟着新手引导走一遍，七步认全界面。",
       "steps": [
         "开放游客浏览时可以先看行情；使用个人功能时登录 Sente 账号",
@@ -175,6 +183,10 @@
     "mobile": {
       "title": "手机版",
       "group": "start",
+      "skill": "help",
+      "words": [
+        "手机版"
+      ],
       "summary": "手机上以 AI 为中心：AI 首页、调研、看盘（含画线）、管策略、按住说话；回放在电脑上做。",
       "steps": [
         "用手机浏览器打开网页版，竖屏自动进入手机布局；没登录也能看盘和调研",
@@ -227,6 +239,11 @@
     "install": {
       "title": "添加到手机桌面",
       "group": "start",
+      "skill": "help",
+      "words": [
+        "添加到桌面",
+        "主屏幕"
+      ],
       "summary": "把网页版放到手机桌面，像 App 一样全屏打开；按你用的浏览器给步骤。",
       "steps": [
         "手机浏览器打开网页版，在“我的 → 设置”点添加到手机桌面",
@@ -264,6 +281,7 @@
     "chart": {
       "title": "看 K 线图",
       "group": "market",
+      "skill": "chart-analysis",
       "summary": "主图看 K 线、均线（可加布林带）和成交标记，下方最多 3 格副图；行首“分时”切分时图，十字线显价格和北京时间。",
       "steps": [
         "行情栏右边切周期，1 分钟到周线都有；行首“分时”看当日分时图",
@@ -312,6 +330,15 @@
     "chart-ai": {
       "title": "让 AI 在图上讲解",
       "group": "market",
+      "skill": "chart-annotations",
+      "words": [
+        "标注",
+        "标出",
+        "标一下",
+        "压力位",
+        "支撑位",
+        "买卖点"
+      ],
       "summary": "让 AI 讲行情时，它先在图上画出点位和压力支撑，再按编号 ①②③ 逐条讲。",
       "steps": [
         "右键图表，选“让 AI 讲讲这一段”",
@@ -348,6 +375,7 @@
     "board": {
       "title": "报价总表",
       "group": "market",
+      "skill": "market-lookup",
       "summary": "一张表看全部品种的主力合约：最新价、涨跌幅、成交量和增仓，点行直接切过去。",
       "steps": [
         "顶栏“报价”打开总表，默认按涨跌幅从高到低",
@@ -386,6 +414,7 @@
     "price-alerts": {
       "title": "到价提醒",
       "group": "market",
+      "skill": "price-alerts",
       "summary": "合约涨到或跌到你定的价位就提醒你：软件里、桌面通知、通话里都会说。",
       "steps": [
         "点右侧栏“提醒” → “我的提醒” → 新建提醒（手机点设提醒）",
@@ -422,6 +451,12 @@
     "contract-info": {
       "title": "合约信息卡",
       "group": "market",
+      "skill": "market-lookup",
+      "words": [
+        "合约信息",
+        "一手多大",
+        "交易时间"
+      ],
       "summary": "合约名旁的 ⓘ：一手多大、跳一下多少钱、保证金手续费、交易时间与交割。",
       "steps": [
         "图表左上角，合约名旁点 ⓘ 打开",
@@ -458,6 +493,7 @@
     "chart-drawings": {
       "title": "自己画线",
       "group": "market",
+      "skill": "chart-drawings",
       "summary": "电脑图表右键 → 画线、手机单图的 ✎：20 种线和图形，可改样式、拖动、锁定；电脑手机同一份，AI 也能看、能替你画。",
       "steps": [
         "右键 → 画线 ▸ 选工具或按快捷键，工具栏随之出来；在图上点放，Esc 收起",
@@ -498,6 +534,14 @@
     "research": {
       "title": "调研：今天、品种、快讯",
       "group": "market",
+      "skill": "web-research",
+      "words": [
+        "新闻",
+        "快讯",
+        "消息面",
+        "公告",
+        "调研"
+      ],
       "summary": "今天看自选品种排序，品种看这个品种的判断和数据，快讯看新闻；只读、免费。",
       "steps": [
         "点右侧栏“调研”：今天、品种、快讯三个页签",
@@ -558,6 +602,11 @@
     "research-debate": {
       "title": "多 AI 辩论",
       "group": "market",
+      "skill": "web-research",
+      "words": [
+        "辩论",
+        "分析师"
+      ],
       "summary": "四位分析师先各写一份报告，多方、空方两个 AI 再拿着报告当面辩，调研员匿名裁决；结论要你手动写进今日判断。",
       "steps": [
         "点右侧栏“调研”，切到“辩论”页签，再点“辩今日议题”",
@@ -598,6 +647,11 @@
     "briefs": {
       "title": "行情提醒与新闻简讯",
       "group": "market",
+      "skill": "market-briefs",
+      "words": [
+        "简讯",
+        "异动"
+      ],
       "summary": "AI 盯着你订阅的品种（默认自选）：异动发行情提醒，官方公告发新闻简讯，按时间排在对话里。",
       "steps": [
         "通用提醒里 AI 简讯行点订阅品种；手机在 我的 → AI 简报推送",
@@ -638,6 +692,7 @@
     "order": {
       "title": "下单：开仓、平仓与目标持仓",
       "group": "trade",
+      "skill": "order-proposal",
       "summary": "右侧“下单”面板从上到下是五档、下单票和本合约持仓，一屏看全；价格和手数核对后点确认才提交。",
       "steps": [
         "点右侧栏“下单”，选开仓、平仓或目标持仓",
@@ -688,6 +743,7 @@
     "positions": {
       "title": "看持仓、委托和成交",
       "group": "trade",
+      "skill": "review-summary",
       "summary": "右侧“持仓”面板和底栏都能看持仓、委托和成交；每笔成交标着来自手动、AI 建议、AI 自主、策略还是止损。",
       "steps": [
         "点右侧栏“持仓”，顶部六格看权益、盈亏和可用资金",
@@ -730,6 +786,14 @@
     "protection": {
       "title": "止损止盈保护与停止 AI",
       "group": "trade",
+      "skill": "order-ops",
+      "words": [
+        "止盈",
+        "挂止损",
+        "补挂",
+        "撤销止损",
+        "停手"
+      ],
       "summary": "开仓就能把止损止盈一起定好、成交自动挂上；已有持仓随时补挂或撤销；需要时可让 AI 停手（三档）。",
       "steps": [
         "开仓卡的止损/止盈里各填一个价（不填就是不设），实时显示约亏/约赚",
@@ -778,6 +842,11 @@
     "delivery": {
       "title": "交割月与到期",
       "group": "trade",
+      "skill": "market-lookup",
+      "words": [
+        "交割",
+        "到期"
+      ],
       "summary": "个人账户不能把持仓带进交割月：快到月软件提前提醒，别等强平。",
       "steps": [
         "交割月前 10 个交易日起，合约名旁出现黄色提醒标",
@@ -814,6 +883,11 @@
     "reminders": {
       "title": "收盘前与风险度提醒",
       "group": "trade",
+      "skill": "preferences",
+      "words": [
+        "收盘前",
+        "风险度"
+      ],
       "summary": "快收盘还有持仓、或风险度到 80%，主动提醒一次；只提醒，不动你的仓。",
       "steps": [
         "提醒面板 → 通用提醒打开收盘前持仓（风险度提醒默认开）",
@@ -850,6 +924,7 @@
     "reminder-center": {
       "title": "提醒面板：我的提醒、通用提醒与提醒记录",
       "group": "trade",
+      "skill": "price-alerts",
       "summary": "右侧栏“提醒”分三页：我的提醒、通用提醒（原设置 → 提醒）、提醒记录（原提醒中心）。",
       "steps": [
         "电脑点右侧栏“提醒”，或点图上铃铛直达提醒记录；手机点首页铃铛",
@@ -898,6 +973,13 @@
     "breakeven": {
       "title": "保本提醒",
       "group": "trade",
+      "skill": "order-ops",
+      "words": [
+        "保本",
+        "挪到成本",
+        "移到成本",
+        "成本价"
+      ],
       "summary": "挂了止损的持仓浮盈够了，主动问你要不要把止损移到成本；你点了才移。",
       "steps": [
         "持仓挂着止损、止损还在成本之外时才会问",
@@ -934,6 +1016,7 @@
     "strategy": {
       "title": "策略是什么",
       "group": "strategy",
+      "skill": "strategy-management",
       "summary": "策略是写好的开仓、平仓和止损规则；在策略编辑卡里填好就自动回测，觉得行再上线。",
       "steps": [
         "点右侧栏“策略”，打开策略面板（我的策略 / 正在运行两个分页）",
@@ -979,6 +1062,11 @@
     "playbooks": {
       "title": "交易笔记：把你手动做单的做法写下来",
       "group": "strategy",
+      "skill": "strategy-management",
+      "words": [
+        "交易笔记",
+        "打法"
+      ],
       "summary": "交易笔记写你自己手动做单的一种做法：怎么进、怎么走、止损放哪；下单时选上它，复盘就按笔记看。它不会自动下单。",
       "steps": [
         "点顶上“复盘”，在“按交易笔记、时段、星期”下面就是“交易笔记”",
@@ -1013,6 +1101,7 @@
     "strategy-templates": {
       "title": "从模板开始",
       "group": "strategy",
+      "skill": "strategy-management",
       "summary": "22 个经典策略是策略编辑卡的一个起点：选一个，按默认参数填进表单再改。",
       "steps": [
         "我的策略点“新建策略”打开策略编辑卡",
@@ -1045,6 +1134,7 @@
     "strategy-editor": {
       "title": "新建与修改策略（策略编辑卡）",
       "group": "strategy",
+      "skill": "strategy-management",
       "summary": "新建或修改策略都在同一张卡里：起点、四段表单、策略流程图、补一句，改完自动回测。",
       "steps": [
         "点“新建策略”，或在结果页点“编辑”（电脑上策略面板放宽到约四分之三窗口）",
@@ -1090,6 +1180,7 @@
     "strategy-backtest": {
       "title": "回测怎么看",
       "group": "strategy",
+      "skill": "strategy-backtests",
       "summary": "按策略自己的规则跑最近 6 个月：赚多少、最多亏多少、赢几成，再听 AI 一句话。",
       "steps": [
         "新做的策略会自动回测；没回测过的卡片点“回测”",
@@ -1132,6 +1223,7 @@
     "strategy-lab": {
       "title": "试几组参数比一比",
       "group": "strategy",
+      "skill": "strategy-backtests",
       "summary": "最关键的参数跑三组：前 7 成行情挑、后 3 成单独检验，看是不是只会考过去。",
       "steps": [
         "打开一条策略的结果页（先回测过）",
@@ -1164,6 +1256,7 @@
     "strategy-launch": {
       "title": "上线运行与执行方式",
       "group": "strategy",
+      "skill": "strategy-management",
       "summary": "选好合约和执行方式让策略跑起来：只提醒、出卡确认或自动下单，运行中随时暂停或停止。",
       "steps": [
         "在策略的结果页点“上线运行”",
@@ -1207,6 +1300,11 @@
     "strategy-funds": {
       "title": "资金比例与回撤停机",
       "group": "strategy",
+      "skill": "strategy-management",
+      "words": [
+        "回撤停机",
+        "资金比例"
+      ],
       "summary": "手数按权益的百分比预算定，净值回撤超线自动停机平仓，重置后才能再开。",
       "steps": [
         "编辑策略时在仓位里选按资金比例定手数",
@@ -1243,6 +1341,7 @@
     "strategy-glossary": {
       "title": "策略术语表",
       "group": "strategy",
+      "skill": "strategy-management",
       "summary": "用大白话解释策略里常见的词，每个词一行，并写明你会在哪里碰到它。",
       "steps": [
         "在下面的术语表里找到不认识的词",
@@ -1506,6 +1605,7 @@
     "chat": {
       "title": "和 AI 对话",
       "group": "ai",
+      "skill": "help",
       "summary": "在右侧对话面板打字问 AI 行情、持仓和策略；它读实时数据后回答，要交易时出确认卡。",
       "steps": [
         "点右侧栏“对话”，在输入框打字发送",
@@ -1550,6 +1650,10 @@
     "ai-command-bar": {
       "title": "AI 指令栏：说一句，它直接做",
       "group": "ai",
+      "skill": "help",
+      "words": [
+        "指令栏"
+      ],
       "summary": "顶部输入框打字或按住说话，AI 直接做；结果在 AI 球旁冒一句，能撤的点撤销。",
       "steps": [
         "点顶部输入框（窄窗口里是 ✦ 按钮），或按 ⌘K / Ctrl+K",
@@ -1580,6 +1684,7 @@
     "conversation-cards": {
       "title": "对话里的卡片",
       "group": "ai",
+      "skill": "help",
       "summary": "对话里有回答卡、数据卡、判断卡、提醒卡、执行回报卡、快讯卡和“需要确认”卡；卡上按钮不下单。",
       "steps": [
         "问“沪金夜盘咋样”出回答卡：结论、关键数字、理由和风险",
@@ -1623,6 +1728,11 @@
     "voice-realtime": {
       "title": "实时语音通话",
       "group": "ai",
+      "skill": "voice-call",
+      "words": [
+        "通话",
+        "打电话"
+      ],
       "summary": "点一下 AI 球或对话面板标题栏的“通话”，就能边说边听：问行情、下单、改界面都行。",
       "steps": [
         "点 AI 球，或对话面板标题栏绿色的“通话”",
@@ -1669,6 +1779,10 @@
     "voice-ptt": {
       "title": "按住说话",
       "group": "ai",
+      "skill": "voice-call",
+      "words": [
+        "按住说话"
+      ],
       "summary": "按住麦克风或快捷键说一句，松开发给 AI，AI 回答后会把要点读出来。",
       "steps": [
         "按住麦克风，或按住右 Alt（Mac 是右 Option）",
@@ -1706,6 +1820,12 @@
     "ai-actions": {
       "title": "AI 能替我做什么",
       "group": "ai",
+      "skill": "app-catalog",
+      "words": [
+        "能力",
+        "能做什么",
+        "会做什么"
+      ],
       "summary": "AI 能查行情和账户、解读策略、控制回放、改设置；你让它下单时，它出确认卡由你点确认。",
       "steps": [
         "直接说要做的事，比如“把螺纹调到三手多单”",
@@ -1749,6 +1869,7 @@
     "routines": {
       "title": "我的流程",
       "group": "ai",
+      "skill": "routines",
       "summary": "把常做的一串事起个名字存起来，以后说名字，AI 按顺序做完；要下单的地方出卡等你确认。",
       "steps": [
         "说一遍：“以后我说『老规矩』就帮我……”",
@@ -1788,6 +1909,11 @@
     "activity": {
       "title": "AI 动态：它刚做了什么",
       "group": "ai",
+      "skill": "ui-control",
+      "words": [
+        "AI动态",
+        "AI 动态"
+      ],
       "summary": "AI 球上方的动态卡汇总 AI 的委托、成交、保护退出和策略等待原因，有新内容会自动弹出。",
       "steps": [
         "有新动态时，卡片从 AI 球上方弹出约 8 秒",
@@ -1822,6 +1948,7 @@
     "replay": {
       "title": "历史回放",
       "group": "replay",
+      "skill": "market-replay",
       "summary": "挑一段历史行情重放，用独立的模拟资金练手或检验策略，不碰当前模拟账户。",
       "steps": [
         "打开“回放设置”，创建一次回放",
@@ -1864,6 +1991,7 @@
     "review": {
       "title": "复盘：回看每一笔",
       "group": "replay",
+      "skill": "review-summary",
       "summary": "顶栏“复盘”先看账户总盈亏和权益曲线，再按月、按日回看平仓；选中一笔，图表定位到它，并显示来源、理由和当时的调研判断。",
       "steps": [
         "点顶栏“复盘”进入复盘页",
@@ -1907,6 +2035,10 @@
     "daily-review": {
       "title": "今日复盘",
       "group": "replay",
+      "skill": "review-summary",
+      "words": [
+        "今日复盘"
+      ],
       "summary": "收盘后 15:15 把今天每一笔对照你的计划查一遍：哪笔提前离场、亏过止损、没标交易笔记，再问你当时怎么想。",
       "steps": [
         "收盘后打开复盘页（手机：我的 → 复盘摘要）",
@@ -1950,6 +2082,7 @@
     "settings": {
       "title": "外观与设置",
       "group": "settings",
+      "skill": "ui-control",
       "summary": "设置按左侧四组排列：账户与交易、AI 助手、界面与提醒、其他；详细和高级设置放在各页的二级页里。",
       "steps": [
         "点右侧栏的“设置”打开设置",
@@ -1993,6 +2126,12 @@
     "preferences": {
       "title": "账号偏好：语速、默认手数这些",
       "group": "settings",
+      "skill": "preferences",
+      "words": [
+        "默认手数",
+        "语速",
+        "音色"
+      ],
       "summary": "语速、默认手数、回答风格这类偏好按账号保存，网页、桌面和 AI 读到的是同一份。",
       "steps": [
         "在设置的语音、图表、交易、通知等页直接改",
@@ -2030,6 +2169,11 @@
     "push": {
       "title": "锁屏提醒",
       "group": "settings",
+      "skill": "preferences",
+      "words": [
+        "锁屏",
+        "推送"
+      ],
       "summary": "Sente 没开着、手机锁着，也能在锁屏上收到异动、到价、收盘前持仓、成交和策略信号；点开直接到那张卡。",
       "steps": [
         "iPhone 先把 Sente 放到主屏幕，从桌面图标打开",
@@ -2069,6 +2213,11 @@
     "ai-model": {
       "title": "账号、模型与额度",
       "group": "settings",
+      "skill": "preferences",
+      "words": [
+        "模型",
+        "额度"
+      ],
       "summary": "所有账号都在同一个登录框登录，按档位选 AI 模型；每天的 token 和语音时长有额度。",
       "steps": [
         "登录框填账号和密码；没有账号点“注册”（需邀请码），快期账号首次登录也要填邀请码",
@@ -2106,6 +2255,11 @@
     "paper-account": {
       "title": "本站模拟账户",
       "group": "settings",
+      "skill": "app-catalog",
+      "words": [
+        "本站模拟",
+        "站内模拟"
+      ],
       "summary": "开通本站模拟盘后，新账号只有一个站内模拟账户（初始资金 100 万）。",
       "steps": [
         "点登录框底部“注册”，填账号、密码和邀请码，注册即开户",
@@ -2153,6 +2307,12 @@
     "accounts": {
       "title": "切换交易账户与权限",
       "group": "settings",
+      "skill": "app-catalog",
+      "words": [
+        "交易账户",
+        "切换账户",
+        "换账户"
+      ],
       "summary": "已有多个交易账户的老账号在“设置 → 账户”里切换；新账号只有本站模拟一个账户。",
       "steps": [
         "打开设置 → 账户的“交易账户”下拉（分“模拟盘”“实盘”两组）",
@@ -2189,6 +2349,12 @@
     "connection": {
       "title": "连不上 / 数据不动怎么办",
       "group": "settings",
+      "skill": "help",
+      "words": [
+        "连不上",
+        "断线",
+        "数据不动"
+      ],
       "summary": "应用服务、快期账户、行情和 AI 分别显示状态；多数卡顿会自动恢复，不用反复改账号。",
       "steps": [
         "先看顶栏状态：休市、正在连接还是排队中",
@@ -2228,6 +2394,7 @@
     "memory": {
       "title": "AI 记住你",
       "group": "settings",
+      "skill": "preferences",
       "summary": "每个账号一份私人记忆，分画像、约定、经验三层；对话和语音会带上，只作参考不构成授权。",
       "steps": [
         "对 AI 说“记住我只做螺纹”“以后先说止损位”",
@@ -2270,6 +2437,10 @@
     "xiaomi-remote": {
       "title": "米家遥控器 2 Pro",
       "group": "settings",
+      "skill": "voice-call",
+      "words": [
+        "遥控器"
+      ],
       "summary": "设置 → 语音连接本机遥控器；按键与诊断在二级页。",
       "detail": [
         "在设置 → 语音启用遥控器并点击连接。首次须亲自在系统或浏览器中选择设备；仅按键配置保存在本机，启用与连接须在当前窗口明确开启。",
@@ -2299,6 +2470,13 @@
     "admin": {
       "title": "后台管理",
       "group": "admin",
+      "skill": "admin-console",
+      "words": [
+        "后台",
+        "成员",
+        "邀请码",
+        "档位"
+      ],
       "summary": "主账号在后台管理成员、档位、技能开关、邀请码和行情源，查看服务器状态与用户体验，改动即时生效。",
       "steps": [
         "用浏览器打开 qilinshuzhi.com/trader/admin",
@@ -2339,6 +2517,7 @@
     "agent": {
       "title": "内置 AI 与外部 Agent",
       "group": "developer",
+      "skill": "app-catalog",
       "summary": "给开发者和外部 AI 看：能力目录、窗口快照、截图，以及外部 Agent 怎么连接。",
       "steps": [
         "在本机启动并登录 Sente",
@@ -2371,6 +2550,7 @@
     "ui-commands": {
       "title": "界面命令总表",
       "group": "developer",
+      "skill": "ui-control",
       "summary": "界面上能点开的每个地方都有一条对应的界面命令，AI 用它打开界面、看到界面。",
       "steps": [
         "先读在线窗口和页面版本",
@@ -2409,6 +2589,7 @@
     "skills": {
       "title": "内置技能目录",
       "group": "developer",
+      "skill": "app-catalog",
       "summary": "内置 AI 的每项能力都是一个技能；这里按类别列出全部技能和它们的典型说法。",
       "steps": [
         "按类别找到想用的技能",

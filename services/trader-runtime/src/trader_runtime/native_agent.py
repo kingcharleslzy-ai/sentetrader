@@ -41,6 +41,7 @@ from .answer_cards import (
     has_numeric_claim,
     tool_data,
 )
+from .app_help import skill_catalog_line, skill_mount_words
 from .autonomy import AutonomousSimulationService
 from .backtests import BacktestService
 from .broker import EventBroker
@@ -898,7 +899,7 @@ class NativeAgentAdapter:
             instructions += ("\n可用技能目录（标 * 的有专用工具，没挂上时先调 activate_skill 挂上；需要详细步骤时也先挂上）：\n"
                              + "\n".join(("*" if skill.skill_id not in mounted
                                            and any(tool in deferred for tool in skill.tools) else "")
-                                          + skill.catalog_line() for skill in available))
+                                          + skill_catalog_line(skill) for skill in available))
         for skill_id in sorted(mounted):
             skill = skill_by_id(skill_id)
             if skill is not None and skill in available:
@@ -971,7 +972,7 @@ class NativeAgentAdapter:
         available = allowed_skills(self.store, user_id) if user_id else all_skills()
         named: set[str] = set()
         for skill in available:
-            if skill.mount_words and any(word in text for word in skill.mount_words):
+            if any(word in text for word in skill_mount_words(skill)):
                 if skill.skill_id not in mounted:
                     log.info("agent_skill_mounted session=%s skill=%s by=words", session_id, skill.skill_id)
                 mounted[skill.skill_id] = turn_no

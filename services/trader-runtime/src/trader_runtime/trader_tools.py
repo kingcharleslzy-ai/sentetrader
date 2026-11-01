@@ -1339,18 +1339,17 @@ class TraderReadOnlyTools:
     # owning skill is mounted for the session — activate_skill, the sentence's own words (the skill's
     # mount-words) or an earlier call; native_agent unmounts a skill two turns after its last use. Every
     # definition carries the flag from here (`deferLoading`); routed turns keep their fixed subsets.
+    # Reminders, order cards and strategies are always carried (owner 2026-11-02: an everyday request must not
+    # depend on the sentence happening to name its skill); only the rarely used tools below wait to be mounted.
     DEFERRED_TOOL_NAMES = frozenset({
         "get_settlement_prices", "get_main_contract_history", "get_symbol_ranking", "get_market_board",
         "get_foreign_markets", "get_economic_calendar", "get_interest_rates",
-        "run_reproducible_backtest", "run_tqsdk_historical_backtest", "create_strategy_draft", "list_strategy_drafts",
-        "get_strategy_draft", "evaluate_strategy_draft", "explain_strategy_signal", "prepare_strategy_validation",
-        "run_strategy_validation", "preview_strategy_intent", "get_strategy_monitor_status",
-        "start_strategy_monitoring", "pause_strategy_monitoring", "run_strategy_backtest", "list_strategy_templates",
-        "preview_strategy_template", "create_strategy_from_template", "create_strategy_lab", "get_strategy_lab",
-        "choose_strategy_lab_variant", "estimate_order", "remember", "forget", "recall_memory",
+        "run_reproducible_backtest", "run_tqsdk_historical_backtest", "run_strategy_backtest",
+        "preview_strategy_template", "create_strategy_lab", "get_strategy_lab", "choose_strategy_lab_variant",
+        "remember", "forget", "recall_memory",
         "propose_routine", "list_routines", "run_routine", "get_trade_journal", "get_review_picks",
         "get_daily_review", "regenerate_daily_review", "answer_review_observation", "set_trade_note",
-        "create_price_alert", "list_price_alerts", "cancel_price_alert", "list_chart_drawings",
+        "list_chart_drawings",
         "create_chart_drawing", "update_chart_drawing", "delete_chart_drawing", "clear_chart_drawings",
         "start_tour", "control_replay", "execute_simulation_trade", "query_simulation_order",
         "get_ai_execution_status", "resume_simulation_execution",

@@ -5,7 +5,10 @@ The text lives in `help/catalog.json` next to this module (edit it there; keep i
 validates and expands it once at import. Two layers per topic: the plain-language layer
 people read first — `summary` (one sentence), `steps` (how to use it, in order) and `faq` —
 and `detail`, the facts behind it. The plain layer never names routes, fields or UI commands.
-Topics are listed group by group (`groups`; `ownerOnly` groups show only in the owner's
+Every topic names the skill that answers for it (`skill`, an id from the skill registry) and may list
+the words people use for it (`words`): the embedded AI's skill catalog and mount words are drawn from
+these (`skill_catalog_line`, `skill_mount_words`), so a new feature is added here once and the AI's map
+follows. Topics are listed group by group (`groups`; `ownerOnly` groups show only in the owner's
 window, `collapsed` groups start folded — the agent and the API still read them in full).
 Old topic ids keep working: most are still the ids of the topics that took over their
 content, the rest resolve through `aliases` (`workspace`: an older `dialog: help` without a
@@ -24,7 +27,7 @@ from pathlib import Path
 from typing import Any
 
 from .review_tags import TAG_RULES
-from .skill_registry import all_skills
+from .skill_registry import Skill, all_skills
 
 CATALOG = Path(__file__).resolve().parent / "help" / "catalog.json"
 
@@ -55,8 +58,8 @@ def _skills_paragraphs() -> list[str]:
 GENERATED_PARAGRAPHS: dict[str, Callable[[], list[str]]] = {"skills": _skills_paragraphs}
 GENERATED_TEXT: dict[str, Callable[[], str]] = {"review_tags": lambda: "；".join(TAG_RULES)}
 
-_TOPIC_FIELDS = {"title": str, "group": str, "summary": str, "steps": list, "faq": list, "detail": list}
-_OPTIONAL_FIELDS = {"terms": list, "tour": list}
+_TOPIC_FIELDS = {"title": str, "group": str, "skill": str, "summary": str, "steps": list, "faq": list, "detail": list}
+_OPTIONAL_FIELDS = {"words": list, "terms": list, "tour": list}
 
 
 class HelpCatalogError(ValueError):
@@ -103,6 +106,7 @@ def _validate(groups: Any, aliases: Any, topics: Any) -> None:
     if not isinstance(groups, list) or not all(isinstance(g, dict) and g.get("id") and g.get("title") for g in groups):
         raise HelpCatalogError("groups: every group needs an id and a title")
     group_ids = [group["id"] for group in groups]
+    skill_ids = {skill.skill_id for skill in all_skills()}
     if len(set(group_ids)) != len(group_ids):
         raise HelpCatalogError(f"groups: duplicate id in {group_ids}")
     if not isinstance(topics, dict) or not topics:
@@ -122,6 +126,10 @@ def _validate(groups: Any, aliases: Any, topics: Any) -> None:
                 raise HelpCatalogError(f"topics.{topic}.{field}: must be a {kind.__name__}")
         if item["group"] not in group_ids:
             raise HelpCatalogError(f"topics.{topic}.group: unknown group {item['group']!r}")
+        if item["skill"] not in skill_ids:
+            raise HelpCatalogError(f"topics.{topic}.skill: unknown skill {item['skill']!r}")
+        if not all(isinstance(word, str) and word.strip() == word and word for word in item.get("words", [])):
+            raise HelpCatalogError(f"topics.{topic}.words: every word is a non-empty string without edge spaces")
         if not all(isinstance(step, str) and step for step in item["steps"]):
             raise HelpCatalogError(f"topics.{topic}.steps: every step is a non-empty string")
         if not all(isinstance(entry, dict) and set(entry) == {"q", "a"} for entry in item["faq"]):
@@ -151,6 +159,28 @@ HELP_GROUPS: list[dict[str, Any]]
 HELP: dict[str, dict[str, Any]]
 HELP_ALIASES: dict[str, str]
 HELP_GROUPS, HELP, HELP_ALIASES = load_catalog()
+
+
+def _skill_topics() -> dict[str, list[str]]:
+    owned: dict[str, list[str]] = {}
+    for key, item in HELP.items():
+        owned.setdefault(item["skill"], []).append(key)
+    return owned
+
+
+SKILL_TOPICS: dict[str, list[str]] = _skill_topics()
+
+
+def skill_catalog_line(skill: Skill) -> str:
+    """The skill's line in the embedded AI's catalog: its own description plus the help topics it answers
+    for, so the AI's map lists every feature people see (2026-11-02: the catalog had lagged the redesign)."""
+    titles = "；".join(HELP[key]["title"] for key in SKILL_TOPICS.get(skill.skill_id, ()))
+    return skill.catalog_line() + (f" 负责：{titles}" if titles else "")
+
+
+def skill_mount_words(skill: Skill) -> tuple[str, ...]:
+    """The words that mount the skill for a turn: its own (SKILL.md) plus its help topics' `words`."""
+    return skill.mount_words + tuple(word for key in SKILL_TOPICS.get(skill.skill_id, ()) for word in HELP[key].get("words", ()))
 
 
 def resolve_topic(topic: str) -> str | None:

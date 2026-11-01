@@ -20,7 +20,7 @@ from fastapi import HTTPException, Query, Request
 from fastapi.routing import APIRoute
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from .app_help import HELP, topic_text
+from .app_help import HELP, SKILL_TOPICS, topic_text
 from .auth import LOCAL_USER_ID, OWNER_CALL_FACTS_SCOPE, LocalAuth, OwnerAuth
 from .broker import session_is_live
 from .market_briefs import MarketBriefs
@@ -837,7 +837,8 @@ def register_agent_api(app, ctx, root, origin):
     async def agent_skills_list(request: Request) -> dict[str, object]:
         """The whole registry for the current user: every skill with its
         availability and, when unavailable, the machine-readable reason
-        (disabled / not_in_plan / owner_only) the UI and external agents read."""
+        (disabled / not_in_plan / owner_only) the UI and external agents read; `helpTopics` are the help
+        topics (GET /api/app/help) the skill answers for."""
         user = await current_user(request)
         return {"items": [
             {
@@ -847,6 +848,7 @@ def register_agent_api(app, ctx, root, origin):
                 "available": (reason := skill_block_reason(app.state.store, user, skill)) is None,
                 "unavailableReason": reason,
                 "phrases": list(skill.phrases),
+                "helpTopics": SKILL_TOPICS.get(skill.skill_id, []),
                 "uiEntries": list(skill.ui_entries),
                 "quickAction": skill.quick_action or None,
                 # Switched off but not an AI feature: hidden from the AI only; the user's own screens keep it.
