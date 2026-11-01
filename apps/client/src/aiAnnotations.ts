@@ -153,11 +153,9 @@ export function setChartMarksScope(scope: string | undefined) {
   clearedScope = scope; clearedStamps.clear();
   try {
     const own = scope ? `${CHART_MARKS_CLEARED_PREFIX}${scope}:` : undefined;
-    for (let index = localStorage.length - 1; index >= 0; index -= 1) {
+    for (let index = 0; own && index < localStorage.length; index += 1) {
       const key = localStorage.key(index);
-      if (!key?.startsWith(CHART_MARKS_CLEARED_PREFIX)) continue;
-      if (own && key.startsWith(own)) clearedStamps.set(key.slice(own.length), localStorage.getItem(key) ?? "");
-      else if (!key.slice(CHART_MARKS_CLEARED_PREFIX.length).includes(":")) localStorage.removeItem(key);
+      if (key?.startsWith(own)) clearedStamps.set(key.slice(own.length), localStorage.getItem(key) ?? "");
     }
   } catch { /* Storage unavailable. */ }
   notify();

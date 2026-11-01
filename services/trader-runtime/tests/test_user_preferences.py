@@ -75,25 +75,6 @@ async def test_put_is_partial_and_returns_the_whole_document_with_a_version(tmp_
     app.state.store.close()
 
 
-def test_the_legacy_voice_table_migrates_into_the_document(tmp_path):
-    path = tmp_path / "legacy.sqlite3"
-    connection = sqlite3.connect(path)
-    connection.execute("CREATE TABLE user_voice_prefs (user_id TEXT PRIMARY KEY, voice TEXT NOT NULL)")
-    connection.execute("INSERT INTO user_voice_prefs VALUES ('alice', 'zh_male_xiaotian_jupiter_bigtts')")
-    connection.commit()
-    connection.close()
-    store = RuntimeStore(path)
-    assert store.user_preferences("alice").voice.voice == "zh_male_xiaotian_jupiter_bigtts"
-    assert store.user_preferences("alice").voice.speed == "normal"
-    assert store.get_preferences("bob") == {"version": 0, "preferences": UserPreferences().model_dump()}
-    assert store.connection.execute("SELECT 1 FROM sqlite_master WHERE name = 'user_voice_prefs'").fetchone() is None
-    # A document from a newer Runtime (unknown key) reads as defaults instead of failing every consumer.
-    store.connection.execute("UPDATE user_preferences SET preferences_json = ? WHERE user_id = 'alice'", (json.dumps({"future": 1}),))
-    store.connection.commit()
-    assert store.user_preferences("alice") == UserPreferences()
-    store.close()
-
-
 OLD_DEFAULT_PINS = ["strategy-signals", "strategy-guided-design"]
 
 
@@ -107,40 +88,6 @@ def _seed_preferences_row(path, user_id: str, document: dict, version: int = 3) 
                        (user_id, version, json.dumps(document, ensure_ascii=False)))
     connection.commit()
     connection.close()
-
-
-def test_startup_migration_clears_the_old_default_pins_once(tmp_path):
-    """快捷技能默认不置顶 (owner 2026-10-05): the first store start clears rows still carrying
-    exactly the old default pins (same order); user-modified lists are untouched, and the
-    quick_skills_default_cleared marker keeps a re-pinned list from being cleared again."""
-    path = tmp_path / "quick-skills-migration.sqlite3"
-    _seed_preferences_row(path, "untouched-hand-me-down", {"trade": {"defaultVolume": 3},
-                                                          "ui": {"quickSkills": OLD_DEFAULT_PINS}})
-    _seed_preferences_row(path, "reordered", {"ui": {"quickSkills": list(reversed(OLD_DEFAULT_PINS))}})
-    _seed_preferences_row(path, "added-one", {"ui": {"quickSkills": ["help", *OLD_DEFAULT_PINS]}})
-    _seed_preferences_row(path, "dropped-one", {"ui": {"quickSkills": OLD_DEFAULT_PINS[:1]}})
-    _seed_preferences_row(path, "no-ui", {"trade": {"defaultVolume": 2}})
-
-    store = RuntimeStore(path)
-    cleared = store.connection.execute(
-        "SELECT version, preferences_json, updated_at FROM user_preferences WHERE user_id = 'untouched-hand-me-down'"
-    ).fetchone()
-    document = json.loads(cleared["preferences_json"])
-    # The old default becomes [] with version + 1 and a fresh updated_at; other keys in the
-    # document survive the rewrite.
-    assert document["ui"]["quickSkills"] == [] and document["trade"]["defaultVolume"] == 3
-    assert cleared["version"] == 4 and cleared["updated_at"] > "2026-10-04"
-    for user, expected in (("reordered", list(reversed(OLD_DEFAULT_PINS))),
-                           ("added-one", ["help", *OLD_DEFAULT_PINS]),
-                           ("dropped-one", OLD_DEFAULT_PINS[:1])):
-        row = store.connection.execute(
-            "SELECT version, preferences_json FROM user_preferences WHERE user_id = ?", (user,)).fetchone()
-        assert json.loads(row["preferences_json"])["ui"]["quickSkills"] == expected and row["version"] == 3
-    # A fresh user reads the new default: no pins.
-    assert store.get_preferences("newcomer")["preferences"]["ui"]["quickSkills"] == []
-    assert store.connection.execute(
-        "SELECT 1 FROM quick_skills_default_cleared WHERE id = 1").fetchone() is not None
-    store.close()
 
 
 def test_a_pin_of_a_retired_skill_never_resets_the_other_preferences(tmp_path):

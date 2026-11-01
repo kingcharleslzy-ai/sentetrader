@@ -14,7 +14,6 @@
     "dev:client": "npm --workspace @ai-trader/client run dev",
     "dev:desktop": "npm --workspace @ai-trader/desktop run dev",
     "dev:runtime": "AI_TRADER_RELOAD_ENABLED=1 uv run --project services/trader-runtime uvicorn trader_runtime.main:app --reload --reload-dir services/trader-runtime/src --timeout-graceful-shutdown 2 --host 127.0.0.1 --port 8000",
-    "start:runtime": "uv run --project services/trader-runtime uvicorn trader_runtime.main:app --timeout-graceful-shutdown 2 --host 127.0.0.1 --port 8000",
     "build": "npm run build --workspaces --if-present",
     "lint": "npm run lint:web && npm run lint:python",
     "lint:web": "eslint apps/client packages/ui-events",

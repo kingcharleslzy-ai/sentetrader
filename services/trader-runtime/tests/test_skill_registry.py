@@ -50,7 +50,6 @@ from trader_runtime.skill_registry import (
     tool_owner_map,
     unavailable_line,
 )
-from trader_runtime.store import RuntimeStore
 from trader_runtime.store.trading_accounts import scoped_owner_user_id
 from trader_runtime.strategy_editor import RETIRED_GUIDE_ROUTES
 from trader_runtime.trader_tools import CARD_ACTION_TOOLS, TOOL_ARGUMENT_MODELS
@@ -606,56 +605,6 @@ def test_migration_converts_every_legacy_shape_to_the_same_availability():
     modern = {"models": None, "dailyTokens": None, "voiceSecondsPerDay": None,
               "skills": ["voice-call"]}
     assert migrate_config_features(modern) is None
-
-
-def test_store_startup_migrates_tier_rows_once(tmp_path: Path):
-    database = tmp_path / "legacy.sqlite3"
-    store = RuntimeStore(database)
-    legacy_configs = {
-        "basic": ["market_briefs", "strategies", "backtests", "replays", "voice"],
-        "pro": ["ai_execution", "web_research", "market_briefs", "strategies",
-                "backtests", "replays", "voice"],
-        "test": {"ai_execution": True, "web_research": False, "market_briefs": True,
-                 "strategies": True, "backtests": True, "replays": False, "voice": True},
-    }
-    expected = {}
-    for tier, features in legacy_configs.items():
-        enabled = ({str(key) for key, on in features.items() if on}
-                   if isinstance(features, dict) else set(features))
-        expected[tier] = sorted({
-            skill_id for key in enabled for skill_id in FEATURE_TO_SKILLS.get(key, frozenset())
-        })
-        assert store.update_plan_tier(tier, config={
-            "models": None, "dailyTokens": None, "voiceSecondsPerDay": None, "features": features,
-        }) is not None
-    store.close()
-
-    # Startup rewrites the rows; per tier the open skills — and therefore the
-    # derived legacy feature view — are exactly the pre-migration ones.
-    reopened = RuntimeStore(database)
-    try:
-        for tier, skills in expected.items():
-            config = reopened.get_plan_tier(tier)["config"]
-            assert config["skills"] == skills, tier
-            assert "features" not in config, tier
-            plan = plan_from_config(tier, tier, config)
-            enabled = set(legacy_configs[tier]) if isinstance(legacy_configs[tier], list) else {
-                key for key, on in legacy_configs[tier].items() if on}
-            for feature in FEATURES:
-                assert plan.has_skill_in_group(feature.key) == (feature.key in enabled), tier
-        snapshot = {tier["name"]: tier["config"] for tier in reopened.list_plan_tiers()}
-    finally:
-        reopened.close()
-
-    # The second startup is a no-op (idempotent), byte-identical rows.
-    again = RuntimeStore(database)
-    try:
-        assert {tier["name"]: tier["config"] for tier in again.list_plan_tiers()} == snapshot
-    finally:
-        again.close()
-
-
-# -- 5. the availability truth table -------------------------------------------
 
 
 async def test_availability_truth_table(skill_app, member_and_owner):

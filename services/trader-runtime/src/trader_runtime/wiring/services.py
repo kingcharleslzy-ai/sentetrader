@@ -60,7 +60,7 @@ from .accounts import (
     build_account_provider,
     load_account_specs,
 )
-from .config import REPO_ROOT, RuntimeSettings, _migrate_legacy_database
+from .config import RuntimeSettings
 
 log = logging.getLogger("uvicorn.error.account_assembly")
 
@@ -316,8 +316,6 @@ def build_services(
     execution_owner_user_id: str,
     account_providers: Mapping[str, ReadOnlyDataProvider] | None = None,
 ) -> RuntimeServices:
-    if settings.migrate_legacy_database:
-        _migrate_legacy_database(REPO_ROOT / ".runtime" / "ai-trader.sqlite3", settings.database_path)
     specs = load_account_specs(
         settings, execution_owner_user_id=execution_owner_user_id, replay_provider=replay_provider,
     )

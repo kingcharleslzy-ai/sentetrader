@@ -44,8 +44,6 @@ export interface ReminderItem {
 }
 export interface ReminderPage {
   items: ReminderItem[]; unread: number; tradingDay: string | null; nextCursor: string | null;
-  /** The Runtime knows reminderCenter {more} and its snapshot fields (#932 R5); false from an older one. */
-  moreCommand: boolean;
 }
 
 export async function listReminders(baseUrl: string, query: { scope: "today" | "earlier"; before?: string | null; unread?: boolean }) {
@@ -54,7 +52,7 @@ export async function listReminders(baseUrl: string, query: { scope: "today" | "
   if (query.unread) params.set("unread", "1");
   const page = await requestJson<Partial<ReminderPage>>(`${baseUrl}/api/reminders?${params}`);
   return { items: Array.isArray(page.items) ? page.items : [], unread: Number(page.unread) || 0,
-    tradingDay: page.tradingDay ?? null, nextCursor: page.nextCursor ?? null, moreCommand: page.moreCommand === true } satisfies ReminderPage;
+    tradingDay: page.tradingDay ?? null, nextCursor: page.nextCursor ?? null } satisfies ReminderPage;
 }
 
 /** 今天的提醒全部读出 (#932 P2): the Runtime pages 50 at a time; a busy day's rows past the first page used to
@@ -148,8 +146,6 @@ export interface RemindersHandle {
   today: ReminderItem[];
   /** 当天还有没读出来的 (#932 R5): a busy day past TODAY_MAX_PAGES pages; `loadMoreToday` reads on from there. */
   hasMoreToday: boolean;
-  /** The Runtime declared reminderCenter {more} (GET /api/reminders moreCommand): only then the snapshot carries its fields. */
-  moreCommand: boolean;
   /** Why the last 继续加载当天提醒 / 查看更早 failed (shown beside that control, which stays to retry); "" when it did not. */
   moreError: string;
   earlierError: string;
@@ -197,7 +193,6 @@ export function useReminders(baseUrl: string | undefined, enabled: boolean): Rem
   const [earlierShown, setEarlierShown] = useState(false);
   const [unread, setUnread] = useState(0);
   const [tradingDay, setTradingDay] = useState<string | null>(null);
-  const [moreCommand, setMoreCommand] = useState(false);
   const [status, setStatus] = useState<RemindersHandle["status"]>("idle");
   const [error, setError] = useState("");
   const [moreError, setMoreError] = useState("");
@@ -246,7 +241,7 @@ export function useReminders(baseUrl: string | undefined, enabled: boolean): Rem
     if (!available || !baseUrl) {
       day.current = null;
       setMoreError(""); setEarlierError("");
-      setToday([]); setTodayCursor(null); setEarlier([]); setEarlierShown(false); setCursor(null); setUnread(0); setTradingDay(null); setMoreCommand(false); setStatus("idle");
+      setToday([]); setTodayCursor(null); setEarlier([]); setEarlierShown(false); setCursor(null); setUnread(0); setTradingDay(null); setStatus("idle");
       return;
     }
     const gen = generation.current;
@@ -256,7 +251,7 @@ export function useReminders(baseUrl: string | undefined, enabled: boolean): Rem
       .then(page => {
         if (gen !== generation.current) return;
         todayAt.current = page.nextCursor;
-        setToday(overlay(page.items, since)); setTodayCursor(page.nextCursor); setTradingDay(page.tradingDay); setMoreCommand(page.moreCommand); setStatus("ready"); setError(""); setMoreError("");
+        setToday(overlay(page.items, since)); setTodayCursor(page.nextCursor); setTradingDay(page.tradingDay); setStatus("ready"); setError(""); setMoreError("");
         if (since === ticket.current) setUnread(page.unread);
         if (page.tradingDay && day.current && page.tradingDay !== day.current) {
           // A new trading day: yesterday's list is history now — 查看更早 reads from the top again.
@@ -356,7 +351,7 @@ export function useReminders(baseUrl: string | undefined, enabled: boolean): Rem
     mark({ all: true });
   }, [baseUrl, mark]);
 
-  return { available, status, error, tradingDay, today, hasMoreToday: Boolean(todayCursor), moreCommand, moreError, earlierError, earlier, earlierShown,
+  return { available, status, error, tradingDay, today, hasMoreToday: Boolean(todayCursor), moreError, earlierError, earlier, earlierShown,
     hasMoreEarlier: !earlierShown || Boolean(cursor), unread: available ? unread : 0,
     loadMoreToday, loadEarlier, markRead, markAllRead, refresh };
 }

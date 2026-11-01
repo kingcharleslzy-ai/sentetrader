@@ -22,7 +22,7 @@ import { AppHelp, openAppHelp } from "./AppHelp";
 import { marketClosedNow, marketSessionDisplay } from "../marketSession";
 import "./FuturesDecisionWorkspace.css";
 import "./futures/DockPanels.css";
-import { consumeLegacyMaVisible, decimalsForTick, formatNumber, formatSigned, isProtectionActive, maxSharedDockWidth, EDITOR_CHART_MIN, isForeignSymbol, ownPositions, positionKey, WIDE_PANELS,
+import { decimalsForTick, formatNumber, formatSigned, isProtectionActive, maxSharedDockWidth, EDITOR_CHART_MIN, isForeignSymbol, ownPositions, positionKey, WIDE_PANELS,
   FOREIGN_BOARD, isForeignProductKey, normalizeBoardColumns, normalizeBoardExchange, normalizeBoardSort, normalizeWatchlist, watchlistKey, WATCHLIST_MAX,
   type BoardColumn, type BoardExchange, type BoardSort, type FuturesWorkspaceView, type ManualSimulationRequest,
   type RecentWorkspaceAction, type RightDock, type StrategyTab, type TicketDraft } from "./futures/support";
@@ -484,14 +484,6 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preferencesLoaded, defaultDuration, defaultView]);
-  // 均线开关的旧本机存储 → chart.maLines, once: an account document without `maLines` adopts the
-  // locally stored switches the first time; the local key is consumed either way, never re-read.
-  useEffect(() => {
-    if (isGuest || !preferencesLoaded || preferenceDocument?.preferences?.chart?.maLines) return;
-    const lines = consumeLegacyMaVisible();
-    if (lines) void prefs.update({ chart: { maLines: lines } }).catch(() => undefined);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isGuest, preferencesLoaded, preferenceDocument]);
   useEffect(() => { setVolume(preferences.trade.defaultVolume); }, [preferences.trade.defaultVolume]);
   // AI 标注自动清除: a fresh set of drawings on the current contract clears itself after the configured minutes.
   const symbolAnnotations = useChartAnnotations(props.selectedSymbol);
@@ -907,7 +899,6 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   reminderApply.current = value => {
     const change = (value ?? {}) as { open?: boolean; filter?: ReminderFilter; more?: boolean };
     // 继续加载当天提醒 (#932 R5): the same read the button makes; nothing left to read is refused, not faked.
-    if (change.more && !reminders.moreCommand) throw new Error("这个服务端版本还不支持继续加载当天提醒的命令");
     if (change.more && !reminders.hasMoreToday) throw new Error("当天的提醒已经全部读出，没有更多可加载");
     if (change.filter) setReminderFilter(change.filter);
     showReminderCenter(change.open ?? true);
@@ -923,12 +914,10 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   const moreAsk = useRef(0);
   const [moreCommand, setMoreCommand] = useState({ asked: 0, done: 0, error: "" });
   const reminderAvailable = reminders.available || (!mobile && alerts.available);
-  // The #932 R5 fields ride only once the Runtime declared them (GET /api/reminders moreCommand, Codex r4308078551): a
-  // Runtime before them forbids unknown fields, so with one the snapshot keeps its old shape and its pulses stay
-  // accepted — and even then moreToday only past 500 a day, more* only after a `more` command.
+  // moreToday only past 500 a day, more* only after a `more` command (#932 R5).
   useUiSurface("reminderCenter", { state: { open: reminderShown, filter: reminderFilter, unread: reminders.unread,
-    today: reminders.today.length, ...(reminders.moreCommand && reminders.hasMoreToday ? { moreToday: true } : {}),
-    ...(reminders.moreCommand && moreCommand.asked ? { moreAsked: moreCommand.asked, moreDone: moreCommand.done, moreError: moreCommand.error } : {}),
+    today: reminders.today.length, ...(reminders.hasMoreToday ? { moreToday: true } : {}),
+    ...(moreCommand.asked ? { moreAsked: moreCommand.asked, moreDone: moreCommand.done, moreError: moreCommand.error } : {}),
     earlier: reminders.earlierShown }, apply: value => reminderApply.current(value) },
   [reminderShown, reminderFilter, reminders.unread, reminders.today.length, reminders.hasMoreToday, moreCommand, reminders.earlierShown], reminderAvailable);
   // 安装到桌面引导 (2026-10-06): the browser this page runs in (Android's install offer and the

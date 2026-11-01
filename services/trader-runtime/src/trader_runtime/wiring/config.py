@@ -3,13 +3,10 @@ from __future__ import annotations
 
 import logging
 import os
-import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
-from uuid import uuid4
 
 from ..auth import allowed_origins
-from ..broker import utc_now
 from ..data_providers import FakeReadOnlyDataProvider, ReadOnlyDataProvider
 from ..simulation_orders import SimulationGateway
 
@@ -26,7 +23,6 @@ class RuntimeSettings:
     origins: set[str]
     state_root: Path
     database_path: Path
-    migrate_legacy_database: bool
 
 
 def _state_root(explicit_path: Path | None = None, database_path: Path | None = None) -> Path:
@@ -50,107 +46,6 @@ def _database_path(explicit_path: Path | None = None, state_root: Path | None = 
         return path if path.is_absolute() else REPO_ROOT / path
     return (state_root or _state_root()) / "ai-trader.sqlite3"
 
-
-def _migrate_legacy_database(source: Path, destination: Path) -> bool:
-    """Atomically copy/merge Phase 1.2 state while retaining the source database."""
-    if not source.is_file() or source.resolve() == destination.resolve():
-        return False
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    temporary = destination.with_name(f".{destination.name}.{uuid4().hex}.migration")
-    source_connection: sqlite3.Connection | None = None
-    destination_connection: sqlite3.Connection | None = None
-    try:
-        source_connection = sqlite3.connect(f"file:{source.resolve()}?mode=ro", uri=True)
-        source_check = source_connection.execute("PRAGMA integrity_check").fetchone()
-        if source_check is None or source_check[0] != "ok":
-            raise RuntimeError("legacy_database_integrity_failed")
-        if destination.exists():
-            current = sqlite3.connect(f"file:{destination.resolve()}?mode=ro", uri=True)
-            try:
-                marker_exists = current.execute(
-                    """SELECT 1 FROM sqlite_master WHERE type = 'table'
-                    AND name = 'ai_trader_runtime_migrations'"""
-                ).fetchone()
-                if marker_exists and current.execute(
-                    "SELECT 1 FROM ai_trader_runtime_migrations WHERE migration_id = ?",
-                    ("phase-1.2-default-database",),
-                ).fetchone():
-                    return False
-                current_check = current.execute("PRAGMA integrity_check").fetchone()
-                if current_check is None or current_check[0] != "ok":
-                    raise RuntimeError("current_database_integrity_failed")
-                destination_connection = sqlite3.connect(temporary)
-                current.backup(destination_connection)
-            finally:
-                current.close()
-        else:
-            destination_connection = sqlite3.connect(temporary)
-            source_connection.backup(destination_connection)
-        if destination.exists():
-            destination_connection.execute("PRAGMA foreign_keys = OFF")
-            destination_connection.execute("ATTACH DATABASE ? AS legacy", (str(source.resolve()),))
-            merge_order = (
-                "sessions", "events", "outbox_events", "agent_runs", "artifacts",
-                "proposals", "proposal_audit", "idempotency_keys", "codex_approvals",
-            )
-            for table in merge_order:
-                source_table = destination_connection.execute(
-                    "SELECT 1 FROM legacy.sqlite_master WHERE type = 'table' AND name = ?",
-                    (table,),
-                ).fetchone()
-                target_table = destination_connection.execute(
-                    "SELECT 1 FROM main.sqlite_master WHERE type = 'table' AND name = ?",
-                    (table,),
-                ).fetchone()
-                if source_table is None or target_table is None:
-                    continue
-                source_columns = {
-                    row[1] for row in destination_connection.execute(
-                        f"PRAGMA legacy.table_info('{table}')"
-                    ).fetchall()
-                }
-                target_columns = [
-                    row[1] for row in destination_connection.execute(
-                        f"PRAGMA main.table_info('{table}')"
-                    ).fetchall()
-                ]
-                columns = [
-                    column for column in target_columns
-                    if column in source_columns and not (table == "events" and column == "sequence")
-                ]
-                quoted = ", ".join(f'"{column}"' for column in columns)
-                destination_connection.execute(
-                    f"INSERT OR IGNORE INTO main.\"{table}\" ({quoted}) "
-                    f"SELECT {quoted} FROM legacy.\"{table}\""
-                )
-            destination_connection.commit()
-            destination_connection.execute("DETACH DATABASE legacy")
-        destination_connection.execute(
-            """CREATE TABLE IF NOT EXISTS ai_trader_runtime_migrations (
-            migration_id TEXT PRIMARY KEY, source_path TEXT NOT NULL,
-            migrated_at TEXT NOT NULL, source_retained INTEGER NOT NULL CHECK(source_retained = 1)
-            )"""
-        )
-        destination_connection.execute(
-            "INSERT OR REPLACE INTO ai_trader_runtime_migrations VALUES (?, ?, ?, 1)",
-            ("phase-1.2-default-database", str(source.resolve()), utc_now()),
-        )
-        destination_connection.commit()
-        destination_connection.execute("PRAGMA foreign_keys = ON")
-        destination_check = destination_connection.execute("PRAGMA integrity_check").fetchone()
-        if destination_check is None or destination_check[0] != "ok":
-            raise RuntimeError("migrated_database_integrity_failed")
-        destination_connection.close()
-        destination_connection = None
-        os.replace(temporary, destination)
-        return True
-    finally:
-        if destination_connection is not None:
-            destination_connection.close()
-        if source_connection is not None:
-            source_connection.close()
-        if temporary.exists():
-            temporary.unlink()
 
 def resolve_settings(
     *, database_path: Path | None, engineering_root: Path | None, runtime_state_root: Path | None,
@@ -211,5 +106,4 @@ def resolve_settings(
         engineering_root=configured_root, data_mode=resolved_data_mode, auth_mode=resolved_auth_mode,
         agent_mode=resolved_agent_mode, agent_provider=resolved_agent_provider, origins=resolved_origins,
         state_root=state_root, database_path=resolved_database_path,
-        migrate_legacy_database=database_path is None and not os.getenv("AI_TRADER_DB_PATH"),
     )

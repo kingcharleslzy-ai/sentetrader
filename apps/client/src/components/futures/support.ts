@@ -1,6 +1,5 @@
 import type { AccountPosition, FuturesWorkspacePromptContext, InstrumentCatalog, MarketWorkbenchSnapshot, SimulationOrder } from "../../api";
 import type { TradingChartSettings } from "../TradingCharts";
-import { DEFAULT_MA_PERIODS } from "../chartIndicators";
 import { tickDecimals } from "../../chartDrawingModel";
 import { CHART_SETTINGS_STORAGE_KEY } from "../../theme";
 
@@ -217,8 +216,7 @@ export function readChartSettings(): TradingChartSettings {
   if (typeof window === "undefined") return fallback;
   try {
     const saved = JSON.parse(window.localStorage.getItem(CHART_SETTINGS_STORAGE_KEY) ?? "null") as Partial<TradingChartSettings> & {
-      /** The pre-configuration shape (kd / macd / maVisible booleans and per-named-pane sizes). */
-      kd?: boolean; macd?: boolean; maVisible?: Record<string, boolean>;
+      /** The pre-configuration shape (per-named-pane sizes). */
       paneSizes?: { main?: number; panes?: number[]; kd?: number; macd?: number };
     } | null;
     return {
@@ -236,27 +234,6 @@ export function readChartSettings(): TradingChartSettings {
     };
   } catch {
     return fallback;
-  }
-}
-
-/**
- * 均线开关的旧本机存储 → 账号的 chart.maLines (2026-10-02), once: when the account document has no
- * `maLines` yet, the locally stored `maVisible` switches become the account's lines; the local key
- * is then dropped so it is never read again. Null when there is nothing to migrate (no stored
- * switches, or they equal the default five-on, or storage is unavailable).
- */
-export function consumeLegacyMaVisible(): Array<{ period: number; enabled: boolean }> | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const saved = JSON.parse(window.localStorage.getItem(CHART_SETTINGS_STORAGE_KEY) ?? "null") as { maVisible?: Record<string, boolean> } | null;
-    const maVisible = saved?.maVisible;
-    if (!maVisible || typeof maVisible !== "object") return null;
-    const lines = DEFAULT_MA_PERIODS.map(period => ({ period, enabled: maVisible[String(period)] !== false }));
-    delete saved.maVisible;
-    window.localStorage.setItem(CHART_SETTINGS_STORAGE_KEY, JSON.stringify(saved));
-    return lines.some(line => !line.enabled) ? lines : null;
-  } catch {
-    return null;
   }
 }
 

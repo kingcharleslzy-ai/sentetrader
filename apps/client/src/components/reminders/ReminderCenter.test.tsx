@@ -21,7 +21,7 @@ const today: ReminderItem[] = [
 ];
 
 const handle = (over: Partial<RemindersHandle> = {}): RemindersHandle => ({
-  available: true, status: "ready", error: "", tradingDay: "2026-10-15", today, hasMoreToday: false, moreCommand: true, moreError: "", earlierError: "", earlier: [], earlierShown: false, hasMoreEarlier: true,
+  available: true, status: "ready", error: "", tradingDay: "2026-10-15", today, hasMoreToday: false, moreError: "", earlierError: "", earlier: [], earlierShown: false, hasMoreEarlier: true,
   unread: 3, loadMoreToday: vi.fn(async () => ""), loadEarlier: vi.fn(async () => undefined), markRead: vi.fn(), markAllRead: vi.fn(), refresh: vi.fn(), ...over });
 
 const alerts = (over: Partial<PriceAlertsHandle> = {}): PriceAlertsHandle => ({

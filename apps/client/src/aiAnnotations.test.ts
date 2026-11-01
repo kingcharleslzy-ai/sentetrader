@@ -36,11 +36,9 @@ it("chart annotations are per contract: set replaces, add merges by id, clear em
   expect(chartAnnotationsFor(undefined)).toEqual([]);
 });
 
-it("trade-marker clear stamps are per user: another scope neither inherits nor loses them, no scope keeps memory only, the old global key is deleted", () => {
+it("trade-marker clear stamps are per user: another scope neither inherits nor loses them, no scope keeps memory only", () => {
   const prefix = "ai-trader:chart-marks-cleared:";
-  localStorage.setItem(`${prefix}SHFE.AU2612`, "2026-01-01T00:00:00.000Z");
   setChartMarksScope("scope-a");
-  expect(localStorage.getItem(`${prefix}SHFE.AU2612`)).toBeNull();
   expect(chartMarksClearedAt("SHFE.au2612")).toBeNull();
   clearChartMarks("SHFE.au2612");
   expect(localStorage.getItem(`${prefix}scope-a:SHFE.AU2612`)).toBeTruthy();

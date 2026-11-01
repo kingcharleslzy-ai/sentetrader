@@ -17,7 +17,6 @@ from trader_runtime import reminders
 from trader_runtime.broker import EventBroker
 from trader_runtime.reminders import ReminderSpec, deliver_reminder, update_state
 from trader_runtime.store import RuntimeStore
-from trader_runtime.trading_calendar import trading_day_at
 from trader_runtime.web_push import PushMessage
 
 
@@ -164,37 +163,6 @@ async def test_a_claim_the_previous_build_already_made_keeps_it_quiet(tmp_path: 
     result = await deliver_reminder(store, broker, spec(legacy=legacy))
     assert result.reminder is None and messages(store, session_id) == []
     assert not store.reminder_claimed(user_id=USER, kind="market_close", dedupe_key="acct:2026-10-15:day")
-    store.close()
-
-
-def test_the_older_ledgers_become_read_reminders_once(tmp_path: Path):
-    path = tmp_path / "migrate.sqlite3"
-    store = RuntimeStore(path)
-    now = datetime.now(UTC).isoformat()
-    day = trading_day_at(now)   # 18:00 and later (and nights) belong to the next trading day
-    with store.lock, store.connection:
-        store.connection.execute("DELETE FROM reminder_meta")
-        store.connection.execute(
-            "INSERT INTO reminder_notices (user_id, account_id, trade_day, kind, text, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-            (USER, "acct", day, "risk_ratio", "风险度提醒：现在风险度 85%", now))
-        store.connection.execute(
-            "INSERT INTO push_notices (user_id, key, created_at, text) VALUES (?, ?, ?, ?)",
-            (USER, "market:SHFE.rb2701:1:上涨", now, "盘中异动：螺纹"))
-        store.connection.execute(
-            "INSERT INTO delivery_notices (user_id, symbol, trade_day, kind, level, text, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (USER, "CZCE.CF611", day, "delivery_month", "warning", "交割提醒", now))
-    store.close()
-    store = RuntimeStore(path)   # the migration runs on open, once
-    assert store.reminder_claimed(user_id=USER, kind="risk_ratio", dedupe_key=f"acct:{day}")
-    assert store.reminder_claimed(user_id=USER, kind="market_movement", dedupe_key="market:SHFE.rb2701:1:上涨")
-    assert store.reminder_claimed(user_id=USER, kind="delivery", dedupe_key=f"CZCE.CF611:{day}")
-    items, _ = store.reminders_page(USER, trading_day=day, scope="today")
-    assert len(items) == 3 and all(item["read"] for item in items)
-    assert store.unread_reminder_count(USER, trading_day=day) == 0
-    assert store.reminders_epoch()
-    store.close()
-    store = RuntimeStore(path)
-    assert len(store.reminders_page(USER, trading_day=day, scope="today")[0]) == 3
     store.close()
 
 

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import logging
 import sqlite3
 import threading
@@ -11,7 +10,6 @@ from functools import wraps
 from pathlib import Path
 from types import TracebackType
 from typing import Any, Literal
-from uuid import uuid4
 
 from .state_changes import install as install_state_changes
 
@@ -134,9 +132,7 @@ class StoreBase:
 
     # Composed into `RuntimeStore` by PlanTierStore; the migration seeds the rows.
     seed_plan_tiers: Callable[[], None]
-    migrate_plan_configs_to_skills: Callable[[], int]
-    migrate_plan_brief_products: Callable[[], int]
-    migrate_legacy_reminders: Callable[[], int]
+    migrate_reminders_schema: Callable[[], None]
 
     def __init__(self, database_path: Path, *, max_events_per_session: int = 500) -> None:
         self.database_path = database_path
@@ -890,13 +886,6 @@ class StoreBase:
                     id INTEGER PRIMARY KEY CHECK (id = 1),
                     seeded_at TEXT NOT NULL
                 );
-                -- 快捷技能默认置顶退场 (2026-10-05): the marker row (id = 1) says the
-                -- one-time clear of the old default pins already ran — a user who re-pins
-                -- the same two skills is never cleared again.
-                CREATE TABLE IF NOT EXISTS quick_skills_default_cleared (
-                    id INTEGER PRIMARY KEY CHECK (id = 1),
-                    cleared_at TEXT NOT NULL
-                );
                 -- 用户画线 (2026-10-02): per user × contract (not per account or period), one row
                 -- per drawn line; `points` is the JSON coordinates the client wrote, `label` ≤12 chars
                 -- (a 文字 drawing's words ≤60). 画线第二版 (2026-10-09): the kind is checked by the
@@ -1245,19 +1234,8 @@ class StoreBase:
                 trading_account_id TEXT NOT NULL DEFAULT 'tqkq-sim:default',
                 PRIMARY KEY(user_id, trading_account_id, event_id)
             )""")
-            strategy_table = self.connection.execute(
-                "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'strategy_drafts'"
-            ).fetchone()
-            if strategy_table is not None and "backtest_required" in str(strategy_table["sql"]):
-                self.connection.commit()
-                self._backup_legacy_strategy_database()
-                self._migrate_legacy_strategy_schema()
             self._migrate_strategy_attempt_schema()
-            self._migrate_voice_prefs()
-            self._migrate_quick_skills_default()
-            self._migrate_chart_drawings_schema()
-            # 4.1 multi-account data layer (after the legacy strategy rebuilds, which recreate
-            # strategy tables from their own DDL and would drop the column): every row gets its trading account. The
+            # 4.1 multi-account data layer: every row gets its trading account. The
             # nine tables whose primary key already identifies one row only gain the
             # column (the DEFAULT backfills old rows); the three keyed by a single
             # business column are rebuilt below with a composite key.
@@ -1367,36 +1345,6 @@ class StoreBase:
                 END;
                 """
             )
-            deployments_kept = self._drop_retired_deployment_table()
-            # Early Phase 1.3 development builds used a shortened content ID. Upgrade
-            # those local rows in place so persisted backtest snapshots keep working.
-            rows = self.connection.execute(
-                "SELECT * FROM strategy_releases"
-            ).fetchall()
-            if any(row["id"] != f"sha256-{row['artifact_digest']}" for row in rows):
-                self.connection.execute("PRAGMA defer_foreign_keys = ON")
-            for row in rows:
-                canonical_id = f"sha256-{row['artifact_digest']}"
-                if row["id"] == canonical_id:
-                    continue
-                manifest = json.loads(row["manifest_json"])
-                manifest["releaseId"] = canonical_id
-                self.connection.execute(
-                    "UPDATE strategy_releases SET id = ?, manifest_json = ? WHERE id = ?",
-                    (canonical_id, json.dumps(manifest, ensure_ascii=False), row["id"]),
-                )
-                if deployments_kept:
-                    self.connection.execute(
-                        "UPDATE strategy_deployments SET release_id = ? WHERE release_id = ?",
-                        (canonical_id, row["id"]),
-                    )
-                # Backtest rows point at the release too, and the foreign key
-                # settles at this transaction's commit — without the rewrite the
-                # whole upgrade fails on the old short ids (#525-C2).
-                self.connection.execute(
-                    "UPDATE backtest_runs SET strategy_release_id = ? WHERE strategy_release_id = ?",
-                    (canonical_id, row["id"]),
-                )
             # Paper accounts provisioned before claims existed: each user's claim is
             # the earliest active paper account they own — the one the lookup used
             # to return. A duplicate a race left behind keeps its row and history
@@ -1411,267 +1359,9 @@ class StoreBase:
             # exist only to populate an empty table; after that the rows are the
             # owner's data and outlive any restart unchanged.
             self.seed_plan_tiers()
-            # The skill registry (2026-09-24): rows still carrying the legacy
-            # `features` list become `skills` lists, once (the rewrite is a
-            # no-op for already-migrated rows, so every startup runs it safely).
-            self.migrate_plan_configs_to_skills()
-            # AI 简报订阅上限 (2026-10-05): basic/pro rows predating `briefProducts`
-            # gain the built-in default; the owner's own value is never touched.
-            self.migrate_plan_brief_products()
-            # 统一提醒 (#932): the reminders already sent through the older ledgers become 提醒中心 rows
-            # (read, so no badge lights up for them) — once per database.
-            self.migrate_legacy_reminders()
+            self.migrate_reminders_schema()
             # 改动留痕 (2026-10-30): last, so a table a migration above rebuilt gets its triggers back.
             install_state_changes(self.connection)
-
-    def _backup_legacy_strategy_database(self) -> Path:
-        backup_path = self.database_path.with_name(
-            f"{self.database_path.stem}.pre-strategy-migration-"
-            f"{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}-{uuid4().hex[:8]}.sqlite3"
-        )
-        backup = sqlite3.connect(backup_path)
-        try:
-            self.connection.backup(backup)
-        finally:
-            backup.close()
-        return backup_path
-
-    def _drop_retired_deployment_table(self) -> bool:
-        """The strategy deployment-candidate chain was removed (2026-09-25).
-
-        Its table is dropped only when empty; a table that still holds rows is kept
-        untouched for inspection. Returns whether the table still exists."""
-        exists = self.connection.execute(
-            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'strategy_deployments'"
-        ).fetchone()
-        if exists is None:
-            return False
-        count = self.connection.execute("SELECT COUNT(*) FROM strategy_deployments").fetchone()[0]
-        if count:
-            log.warning("strategy_deployments kept: %s rows from the retired deployment chain", count)
-            return True
-        self.connection.execute("DROP TABLE strategy_deployments")
-        return False
-
-    def _migrate_voice_prefs(self) -> None:
-        """1.6.6: the chosen voice (`user_voice_prefs`) became `user_preferences.voice.voice`."""
-        exists = self.connection.execute(
-            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'user_voice_prefs'").fetchone()
-        if exists is None:
-            return
-        for row in self.connection.execute("SELECT user_id, voice FROM user_voice_prefs").fetchall():
-            self.connection.execute(
-                "INSERT OR IGNORE INTO user_preferences (user_id, version, preferences_json, updated_at)"
-                " VALUES (?, 1, ?, ?)",
-                (row["user_id"], json.dumps({"voice": {"voice": row["voice"]}}), utc_now()))
-        self.connection.execute("DROP TABLE user_voice_prefs")
-
-    def _migrate_quick_skills_default(self) -> None:
-        """快捷技能默认不置顶（owner 2026-10-05）：一次性把 ui.quickSkills 恰好等于
-        旧默认 ["strategy-signals", "strategy-guided-design"]（顺序也相同）的行改成
-        []; 用户改过的（顺序不同、多一个少一个）不动。quick_skills_default_cleared
-        的标记行保证只跑一次——迁移后用户自己重新钉上旧默认，重启也不会再被清掉。"""
-        done = self.connection.execute(
-            "SELECT 1 FROM quick_skills_default_cleared WHERE id = 1").fetchone()
-        if done is not None:
-            return
-        old_default = ["strategy-signals", "strategy-guided-design"]
-        for row in self.connection.execute(
-                "SELECT user_id, preferences_json FROM user_preferences").fetchall():
-            try:
-                document = json.loads(row["preferences_json"])
-            except (TypeError, ValueError):
-                continue
-            ui = document.get("ui") if isinstance(document, dict) else None
-            if not isinstance(ui, dict) or ui.get("quickSkills") != old_default:
-                continue
-            ui["quickSkills"] = []
-            self.connection.execute(
-                "UPDATE user_preferences SET version = version + 1, preferences_json = ?,"
-                " updated_at = ? WHERE user_id = ?",
-                (json.dumps(document, ensure_ascii=False), utc_now(), row["user_id"]))
-        self.connection.execute(
-            "INSERT INTO quick_skills_default_cleared (id, cleared_at) VALUES (1, ?)",
-            (utc_now(),))
-
-    def _migrate_legacy_strategy_schema(self) -> None:
-        """Replace the retired draft status without discarding strategy evidence."""
-        self.connection.executescript(
-            """
-            BEGIN IMMEDIATE;
-            DROP TABLE IF EXISTS strategy_validation_reports_migration_backup;
-            DROP TABLE IF EXISTS strategy_intent_snapshots_migration_backup;
-            DROP TABLE IF EXISTS strategy_monitor_states_migration_backup;
-            DROP TABLE IF EXISTS strategy_execution_attempts_migration_backup;
-            CREATE TABLE strategy_validation_reports_migration_backup AS
-                SELECT * FROM strategy_validation_reports;
-            CREATE TABLE strategy_intent_snapshots_migration_backup AS
-                SELECT * FROM strategy_intent_snapshots;
-            CREATE TABLE strategy_monitor_states_migration_backup AS
-                SELECT * FROM strategy_monitor_states;
-            CREATE TABLE strategy_execution_attempts_migration_backup AS
-                SELECT * FROM strategy_execution_attempts;
-            DROP TABLE strategy_execution_attempts;
-            DROP TABLE strategy_monitor_states;
-            DROP TABLE strategy_validation_reports;
-            DROP TABLE strategy_intent_snapshots;
-            ALTER TABLE strategy_drafts RENAME TO strategy_drafts_legacy;
-            CREATE TABLE strategy_drafts (
-                id TEXT PRIMARY KEY,
-                user_id TEXT NOT NULL,
-                source_session_id TEXT NOT NULL,
-                name TEXT NOT NULL,
-                symbol TEXT NOT NULL,
-                version INTEGER NOT NULL CHECK (version > 0),
-                status TEXT NOT NULL CHECK (
-                    status IN ('draft', 'validating', 'ready', 'monitoring', 'paused', 'archived')
-                ),
-                definition_json TEXT NOT NULL,
-                definition_digest TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                UNIQUE(user_id, name, version)
-            );
-            INSERT INTO strategy_drafts
-            SELECT id, user_id, source_session_id, name, symbol, version,
-                   CASE WHEN status = 'backtest_required' THEN 'draft' ELSE status END,
-                   definition_json, definition_digest, created_at, updated_at
-            FROM strategy_drafts_legacy;
-            DROP TABLE strategy_drafts_legacy;
-            CREATE INDEX idx_strategy_drafts_user_updated
-                ON strategy_drafts(user_id, updated_at DESC);
-            CREATE TABLE strategy_validation_reports (
-                id TEXT PRIMARY KEY,
-                strategy_id TEXT NOT NULL,
-                user_id TEXT NOT NULL,
-                strategy_digest TEXT NOT NULL,
-                status TEXT NOT NULL CHECK (status IN ('incomplete', 'passed', 'failed')),
-                checks_json TEXT NOT NULL,
-                evidence_json TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                FOREIGN KEY(strategy_id) REFERENCES strategy_drafts(id)
-            );
-            INSERT INTO strategy_validation_reports SELECT *
-                FROM strategy_validation_reports_migration_backup;
-            CREATE INDEX idx_strategy_validation_strategy_created
-                ON strategy_validation_reports(strategy_id, created_at DESC);
-            CREATE TABLE strategy_intent_snapshots (
-                id TEXT PRIMARY KEY,
-                strategy_id TEXT NOT NULL,
-                user_id TEXT NOT NULL,
-                strategy_digest TEXT NOT NULL,
-                signal_bar_time TEXT NOT NULL,
-                context_digest TEXT NOT NULL,
-                payload_json TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                UNIQUE(user_id, strategy_id, context_digest),
-                FOREIGN KEY(strategy_id) REFERENCES strategy_drafts(id)
-            );
-            INSERT INTO strategy_intent_snapshots SELECT *
-                FROM strategy_intent_snapshots_migration_backup;
-            CREATE INDEX idx_strategy_intents_strategy_created
-                ON strategy_intent_snapshots(strategy_id, created_at DESC);
-            CREATE TABLE strategy_monitor_states (
-                strategy_id TEXT PRIMARY KEY,
-                user_id TEXT NOT NULL,
-                trading_date TEXT NOT NULL,
-                high_watermark_equity TEXT,
-                last_today_pnl TEXT,
-                consecutive_losses INTEGER NOT NULL DEFAULT 0 CHECK (consecutive_losses >= 0),
-                last_trade_id TEXT,
-                last_executed_bar TEXT,
-                pause_reason TEXT,
-                last_error TEXT,
-                last_error_at TEXT,
-                consecutive_failures INTEGER NOT NULL DEFAULT 0 CHECK (consecutive_failures >= 0),
-                next_retry_at TEXT,
-                updated_at TEXT NOT NULL,
-                FOREIGN KEY(strategy_id) REFERENCES strategy_drafts(id)
-            );
-            INSERT INTO strategy_monitor_states (
-                strategy_id, user_id, trading_date, high_watermark_equity,
-                last_today_pnl, consecutive_losses, last_trade_id,
-                last_executed_bar, pause_reason, updated_at
-            ) SELECT strategy_id, user_id, trading_date, high_watermark_equity,
-                     last_today_pnl, consecutive_losses, last_trade_id,
-                     last_executed_bar, pause_reason, updated_at
-              FROM strategy_monitor_states_migration_backup;
-            CREATE TABLE strategy_execution_attempts (
-                id TEXT PRIMARY KEY,
-                strategy_id TEXT NOT NULL,
-                user_id TEXT NOT NULL,
-                intent_id TEXT NOT NULL,
-                signal_bar_time TEXT NOT NULL,
-                trading_day TEXT NOT NULL,
-                action TEXT NOT NULL,
-                volume INTEGER NOT NULL CHECK (volume >= 0),
-                status TEXT NOT NULL CHECK (
-                    status IN (
-                        'RESERVED', 'SUBMITTED', 'PARTIAL', 'NOT_DISPATCHED',
-                        'REJECTED', 'CANCELLED', 'SKIPPED', 'BLOCKED', 'UNKNOWN', 'FAILED'
-                    )
-                ),
-                client_order_id TEXT,
-                detail TEXT,
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                UNIQUE(user_id, strategy_id, signal_bar_time),
-                FOREIGN KEY(strategy_id) REFERENCES strategy_drafts(id),
-                FOREIGN KEY(intent_id) REFERENCES strategy_intent_snapshots(id)
-            );
-            INSERT INTO strategy_execution_attempts (
-                id, strategy_id, user_id, intent_id, signal_bar_time, trading_day,
-                action, volume, status, client_order_id, detail, created_at, updated_at
-            ) SELECT id, strategy_id, user_id, intent_id, signal_bar_time,
-                     substr(created_at, 1, 10), action, volume, status,
-                     client_order_id, detail, created_at, updated_at
-              FROM strategy_execution_attempts_migration_backup;
-            CREATE INDEX idx_strategy_attempts_strategy_created
-                ON strategy_execution_attempts(strategy_id, created_at DESC);
-            DROP TABLE strategy_validation_reports_migration_backup;
-            DROP TABLE strategy_intent_snapshots_migration_backup;
-            DROP TABLE strategy_monitor_states_migration_backup;
-            DROP TABLE strategy_execution_attempts_migration_backup;
-            """
-        )
-        violations = self.connection.execute("PRAGMA foreign_key_check").fetchall()
-        if violations:
-            self.connection.rollback()
-            raise RuntimeError("legacy_strategy_migration_foreign_key_failed")
-        self.connection.commit()
-
-    def _migrate_chart_drawings_schema(self) -> None:
-        """画线第二版 (2026-10-09): the first version's table limited `kind` to three values with a
-        CHECK and had no `style`. Rebuild it once — every row kept as it was (its points, label and
-        times), `style` '{}' meaning the kind's original look — so old lines read and draw the same."""
-        table = self.connection.execute(
-            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'chart_drawings'").fetchone()
-        if table is None or "CHECK" not in str(table["sql"] or ""):
-            return
-        self.connection.executescript(
-            """
-            BEGIN IMMEDIATE;
-            ALTER TABLE chart_drawings RENAME TO chart_drawings_legacy;
-            DROP INDEX IF EXISTS idx_chart_drawings_user_symbol;
-            CREATE TABLE chart_drawings (
-                id TEXT PRIMARY KEY,
-                user_id TEXT NOT NULL,
-                symbol TEXT NOT NULL,
-                kind TEXT NOT NULL,
-                points TEXT NOT NULL,
-                label TEXT NOT NULL DEFAULT '',
-                style TEXT NOT NULL DEFAULT '{}',
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL
-            );
-            INSERT INTO chart_drawings (id, user_id, symbol, kind, points, label, style, created_at, updated_at)
-            SELECT id, user_id, symbol, kind, points, label, '{}', created_at, updated_at FROM chart_drawings_legacy;
-            DROP TABLE chart_drawings_legacy;
-            CREATE INDEX IF NOT EXISTS idx_chart_drawings_user_symbol ON chart_drawings(user_id, symbol, created_at);
-            COMMIT;
-            """
-        )
 
     def _migrate_strategy_fill_events_key(self) -> None:
         """#453: a fill's uniqueness is (user, trading account, event) — the same

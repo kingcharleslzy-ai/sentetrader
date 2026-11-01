@@ -6,18 +6,14 @@ use serde_json::json;
 use std::fs::{self, OpenOptions};
 use std::io::{ErrorKind, Write};
 use std::path::{Path, PathBuf};
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Mutex,
-};
-use std::time::{Duration, Instant};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 use sysinfo::{Pid, ProcessesToUpdate, System};
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     AppHandle, Manager, State,
 };
-use tauri_plugin_shell::process::CommandChild;
 use tauri_plugin_shell::ShellExt;
 use tokio::sync::Mutex as AsyncMutex;
 use zeroize::Zeroize;
@@ -171,12 +167,6 @@ fn chrono_like_timestamp() -> String {
 }
 
 #[derive(Default)]
-struct DesktopProcesses {
-    runtime: Option<CommandChild>,
-    sidecar: Option<CommandChild>,
-}
-
-#[derive(Default)]
 struct DesktopInstallGate(AsyncMutex<()>);
 
 #[derive(Default)]
@@ -198,15 +188,6 @@ struct DesktopLifecycleState {
     quitting: AtomicBool,
 }
 
-fn stop_desktop_processes(processes: &mut DesktopProcesses) {
-    if let Some(runtime) = processes.runtime.take() {
-        stop_command_child(runtime);
-    }
-    if let Some(sidecar) = processes.sidecar.take() {
-        stop_command_child(sidecar);
-    }
-}
-
 /// One process in a snapshot: (pid, parent pid, start time in seconds since the epoch).
 type ProcessEntry = (u32, u32, u64);
 /// A process identity: Windows reuses PIDs, so a PID alone does not name a process.
@@ -226,27 +207,6 @@ fn process_snapshot(system: &System) -> Vec<ProcessEntry> {
         .collect()
 }
 
-fn managed_process_tree_ids(processes: &DesktopProcesses) -> Vec<ProcessIdentity> {
-    let roots = [
-        processes.runtime.as_ref().map(CommandChild::pid),
-        processes.sidecar.as_ref().map(CommandChild::pid),
-    ]
-    .into_iter()
-    .flatten()
-    .collect::<Vec<_>>();
-    let snapshot = process_snapshot(&System::new_all());
-    let mut tracked = Vec::new();
-    for root in roots {
-        if let Some(&(_, _, started)) = snapshot.iter().find(|entry| entry.0 == root) {
-            tracked.push((root, started));
-        }
-        tracked.extend(descendant_processes(root, &snapshot));
-    }
-    tracked.sort_unstable();
-    tracked.dedup();
-    tracked
-}
-
 /// The process that holds `pid` now, if it is still the one identified by `started`.
 fn same_process(system: &mut System, (pid, started): ProcessIdentity) -> Option<&sysinfo::Process> {
     let pid = Pid::from_u32(pid);
@@ -254,23 +214,6 @@ fn same_process(system: &mut System, (pid, started): ProcessIdentity) -> Option<
     system
         .process(pid)
         .filter(|process| process.start_time() == started)
-}
-
-fn wait_for_process_exit(processes: &[ProcessIdentity], timeout: Duration) -> bool {
-    let deadline = Instant::now() + timeout;
-    loop {
-        let mut system = System::new();
-        if processes
-            .iter()
-            .all(|&identity| same_process(&mut system, identity).is_none())
-        {
-            return true;
-        }
-        if Instant::now() >= deadline {
-            return false;
-        }
-        std::thread::sleep(Duration::from_millis(50));
-    }
 }
 
 /// Processes in `root_pid`'s tree with their start times. Windows keeps a stale parent PID
@@ -308,20 +251,6 @@ fn stop_process_descendants(root_pid: u32) {
     }
 }
 
-fn stop_command_child(child: CommandChild) {
-    // PyInstaller one-file binaries launch a second worker process. Killing
-    // only the outer Tauri CommandChild leaves that worker orphaned.
-    stop_process_descendants(child.pid());
-    let _ = child.kill();
-}
-
-fn stop_managed_desktop_processes(app: &AppHandle) {
-    let state = app.state::<Mutex<DesktopProcesses>>();
-    if let Ok(mut processes) = state.lock() {
-        stop_desktop_processes(&mut processes);
-    };
-}
-
 fn restore_main_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
         let _ = window.show();
@@ -334,7 +263,6 @@ fn request_desktop_quit(app: &AppHandle) {
     app.state::<DesktopLifecycleState>()
         .quitting
         .store(true, Ordering::SeqCst);
-    stop_managed_desktop_processes(app);
     app.exit(0);
 }
 
@@ -599,7 +527,6 @@ async fn install_desktop_update(
     app: AppHandle,
     expected_version: String,
     state: State<'_, DesktopUpdateState>,
-    processes: State<'_, Mutex<DesktopProcesses>>,
     install_gate: State<'_, DesktopInstallGate>,
 ) -> Result<(), String> {
     if state.installing.swap(true, Ordering::SeqCst) {
@@ -611,7 +538,7 @@ async fn install_desktop_update(
         let update = desktop_updates::check(&app).await?
             .ok_or_else(|| "desktop_update_not_available".to_string())?;
         ensure_expected_update_version(&expected_version, &update.version)?;
-        download_and_install_update(&app, update, &state, &processes, &install_gate).await
+        download_and_install_update(&app, update, &state, &install_gate).await
     }
     .await;
 
@@ -622,12 +549,11 @@ async fn install_desktop_update(
     app.restart();
 }
 
-/// Download, stop the managed processes, install; the caller restarts on success.
+/// Download and install; the caller restarts on success.
 async fn download_and_install_update(
     app: &AppHandle,
     update: tauri_plugin_updater::Update,
     state: &DesktopUpdateState,
-    processes: &Mutex<DesktopProcesses>,
     install_gate: &DesktopInstallGate,
 ) -> Result<(), String> {
     {
@@ -643,17 +569,6 @@ async fn download_and_install_update(
             total_bytes: Some(bytes.len() as u64), percent: Some(100),
             bytes_per_second: None, remaining_seconds: None, source: None, incremental: false,
         });
-        let process_ids = {
-            let mut processes = processes
-                .lock()
-                .map_err(|_| "desktop_state_poisoned".to_string())?;
-            let process_ids = managed_process_tree_ids(&processes);
-            stop_desktop_processes(&mut processes);
-            process_ids
-        };
-        if !wait_for_process_exit(&process_ids, Duration::from_secs(10)) {
-            return Err("desktop_update_processes_still_running".to_string());
-        }
         update
             .install(bytes)
             .map_err(|_| "desktop_update_install_failed".to_string())
@@ -736,9 +651,8 @@ fn spawn_frontend_ready_watchdog(app: AppHandle) {
         if state.installing.swap(true, Ordering::SeqCst) { return; }
         state.cancelled.store(false, Ordering::SeqCst);
         desktop_log(&app, &format!("installing {} unattended", update.version));
-        let processes = app.state::<Mutex<DesktopProcesses>>();
         let install_gate = app.state::<DesktopInstallGate>();
-        match download_and_install_update(&app, update, &state, &processes, &install_gate).await {
+        match download_and_install_update(&app, update, &state, &install_gate).await {
             Ok(()) => app.restart(),
             Err(error) => { state.installing.store(false, Ordering::SeqCst); desktop_log(&app, &format!("unattended update failed: {error}")); }
         }
@@ -785,7 +699,6 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
-        .manage(Mutex::new(DesktopProcesses::default()))
         .manage(DesktopInstallGate::default())
         .manage(DesktopUpdateState::default())
         .manage(DesktopLifecycleState::default())
@@ -861,13 +774,8 @@ pub fn run() {
             app.state::<DesktopLifecycleState>()
                 .quitting
                 .store(true, Ordering::SeqCst);
-            stop_managed_desktop_processes(app);
-            // Also cover descendants outside the managed process state.
             stop_process_descendants(std::process::id());
         }
-        // Keep the final event idempotent as a fallback for platform-specific
-        // exits that do not expose a prior ExitRequested callback.
-        tauri::RunEvent::Exit => stop_managed_desktop_processes(app),
         #[cfg(target_os = "macos")]
         tauri::RunEvent::Reopen { .. } => restore_main_window(app),
         _ => {}

@@ -184,10 +184,6 @@ TIER_SEED_META: tuple[tuple[str, str, bool, int, dict[str, Any]], ...] = (
         "models": None, "dailyTokens": 1_000_000, "voiceSecondsPerDay": 60 * 60,
     }),
 )
-# The built-in tiers' AI 简报订阅上限 an upgrade also writes into rows that
-# predate the key (owner 2026-10-05: 基础 3 / 高级 10) — a row that already
-# carries any value is the owner's edit and is never touched.
-BRIEF_PRODUCT_DEFAULTS: dict[str, int] = {"basic": 3, "pro": 10}
 
 
 def plan_for_user(store: RuntimeStore | None, user_id: str | None) -> Plan:
@@ -284,7 +280,7 @@ def default_allowed_model(
 
 
 __all__ = [
-    "BRIEF_PRODUCT_DEFAULTS", "FEATURES", "FEATURE_BY_CAMEL", "FEATURE_KEYS", "FEATURE_TO_SKILLS",
+    "FEATURES", "FEATURE_BY_CAMEL", "FEATURE_KEYS", "FEATURE_TO_SKILLS",
     "Plan", "TIER_SEED_META", "UNLIMITED",
     "daily_token_limit", "default_allowed_model", "estimated_daily_cost_cny",
     "plan_from_config", "plan_for_user",

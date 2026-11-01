@@ -3278,7 +3278,7 @@ test("手机版提醒（统一提醒 #932）：AI 标签与铃铛带服务端的
       unread = wanted.all ? 0 : unread - wanted.ids.length;
       return body({ unread });
     }
-    // An older Runtime (no moreCommand) with a day past its pages: today keeps a next cursor, later pages are empty.
+    // A day past its pages: today keeps a next cursor, later pages are empty.
     const query = new URL(input instanceof Request ? input.url : input).searchParams;
     const busyToday = query.get("scope") === "today";
     if (path.endsWith("/api/reminders") && busyToday && query.get("before")) return body({ unread, tradingDay: "2026-10-04", nextCursor: "more", items: [] });
@@ -3299,12 +3299,8 @@ test("手机版提醒（统一提醒 #932）：AI 标签与铃铛带服务端的
     await waitFor(() => expect(tabButton("AI")).toHaveAccessibleName("AI（2 条未读）"));
     expect(screen.getByTestId("notify-dot")).toHaveTextContent("2");
     expect(state()).toMatchObject({ mobileUnread: 2, reminderCenter: { open: false, filter: "all", unread: 2, today: 2 } });
-    // Old Runtime → the snapshot keeps the old shape, even on a day with more to read (Codex r4308078551): its
-    // ReminderCenterState forbids the #932 R5 fields, and the `more` command is refused here instead.
     await waitFor(() => expect(vi.mocked(fetch).mock.calls.filter(([input]) => String(input instanceof Request ? input.url : input).includes("before=more")).length).toBe(9));
     await act(async () => { await Promise.resolve(); });
-    expect(Object.keys((state() as { reminderCenter: object }).reminderCenter).sort()).toEqual(["earlier", "filter", "open", "today", "unread"]);
-    expect(() => control.mock.calls.at(-1)?.[3]({ reminderCenter: { more: true } } as any)).toThrow("这个服务端版本还不支持继续加载当天提醒的命令");
     // The timeline carries the fill and the judgment only, with no read marks of its own.
     expect(within(home()).getByRole("group", { name: "时间线筛选" })).toHaveTextContent("全部成交AI 简报");
     expect(within(within(home()).getByRole("list", { name: "时间线" })).getAllByRole("listitem")).toHaveLength(2);

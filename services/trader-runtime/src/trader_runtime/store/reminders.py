@@ -210,79 +210,17 @@ class ReminderStore(StoreBase):
             row = self.connection.execute("SELECT value FROM reminder_meta WHERE key = 'epoch'").fetchone()
         return str(row["value"]) if row else ""
 
-    def migrate_legacy_reminders(self) -> int:
-        """Once per database (inside the schema migration's transaction): the last 30 days of the older
-        once-only ledgers become read 提醒中心 rows under the same dedupe keys the new delivery uses, so a
-        reminder already sent before the switch is never sent again and still shows in 更早."""
-        from datetime import UTC, datetime, timedelta
-
-        from ..trading_calendar import trading_day_at
-        connection = self.connection
-        # A reminders table made by an earlier build of this table (or this one) is kept: the columns are
-        # checked one by one and the missing ones added, never assumed fresh.
+    def migrate_reminders_schema(self) -> None:
+        """Inside the schema migration's transaction: a reminders table made by an earlier build of this table
+        (or this one) is kept — the columns are checked one by one and the missing ones added, never assumed
+        fresh — and the database's first reminders moment is stamped once (`reminders_epoch`)."""
         for definition in ("account_id TEXT NOT NULL DEFAULT ''", "symbol TEXT NOT NULL DEFAULT ''",
                            "name TEXT NOT NULL DEFAULT ''", "session_id TEXT", "message_id TEXT", "card_id TEXT",
                            "target_json TEXT NOT NULL DEFAULT '{\"type\":\"chat\"}'", "state_json TEXT",
                            "actions_json TEXT", "read_at TEXT"):
             self._add_column("reminders", definition)
-        connection.execute("CREATE INDEX IF NOT EXISTS idx_reminders_card ON reminders(card_id)")
-        if connection.execute("SELECT 1 FROM reminder_meta WHERE key = 'legacy_migrated'").fetchone():
-            return 0
-        now = utc_now()
-        connection.execute("INSERT OR IGNORE INTO reminder_meta (key, value) VALUES ('epoch', ?)", (now,))
-        cutoff = (datetime.now(UTC) - timedelta(days=30)).isoformat()
-        rows: list[tuple[Any, ...]] = []
-
-        def add(user_id: str, kind: str, key: str, day: str, at: str, title: str, body: str, *,
-                account_id: str = "", symbol: str = "", target: dict[str, Any] | None = None) -> None:
-            rows.append((uuid4().hex, user_id, account_id, kind, day, at, symbol, title, body,
-                         json.dumps(target or {"type": "chat"}, ensure_ascii=False), now, key))
-
-        def day_of(at: str) -> str:
-            try:
-                return trading_day_at(at)
-            except ValueError:
-                return at[:10]
-
-        for row in connection.execute("SELECT * FROM reminder_notices WHERE created_at >= ?", (cutoff,)):
-            close = str(row["kind"]).startswith("market_close")
-            half = "night" if row["kind"] == "market_close_night" else "day"
-            key = f"{row['account_id']}:{row['trade_day']}" + (f":{half}" if close else "")
-            add(row["user_id"], "market_close" if close else "risk_ratio", key, row["trade_day"], row["created_at"],
-                "收盘提醒" if close else "风险度提醒", row["text"], account_id=row["account_id"])
-        for row in connection.execute("SELECT * FROM delivery_notices WHERE created_at >= ?", (cutoff,)):
-            add(row["user_id"], "delivery", f"{row['symbol']}:{row['trade_day']}", row["trade_day"], row["created_at"],
-                "交割提醒", row["text"], symbol=row["symbol"])
-        for row in connection.execute("SELECT * FROM push_notices WHERE created_at >= ?", (cutoff,)):
-            key = str(row["key"])
-            if key.startswith("market:"):
-                symbol = key.split(":")[1] if len(key.split(":")) > 1 else ""
-                add(row["user_id"], "market_movement", key, day_of(row["created_at"]), row["created_at"],
-                    "盘中异动", str(row["text"] or "盘中异动"), symbol=symbol)
-            elif key.startswith("morning:"):
-                day = key.split(":", 1)[1]
-                add(row["user_id"], "morning_desk", day, day, row["created_at"], "开盘前判断", "今日判断好了",
-                    target={"type": "research"})
-        for row in connection.execute("SELECT * FROM breakeven_notices WHERE created_at >= ?", (cutoff,)):
-            card = _decode(row["card_json"], {})
-            add(row["user_id"], "breakeven", row["id"], row["trade_day"], row["created_at"],
-                str(card.get("title") or "保本提醒"), str(card.get("summary") or "保本提醒"),
-                account_id=row["trading_account_id"], symbol=row["symbol"],
-                target={"type": "chat", "cardId": card.get("cardId"), "sessionId": row["session_id"] or None})
-        for row in connection.execute(
-                "SELECT * FROM daily_reviews WHERE pushed_at IS NOT NULL AND pushed_at >= ?", (cutoff,)):
-            add(row["user_id"], "daily_review", f"{row['account_id']}:{row['trading_day']}", row["trading_day"],
-                row["pushed_at"], f"今日复盘 · {row['trading_day'][5:]}", "今天的复盘好了",
-                account_id=row["account_id"], target={"type": "review", "tradingDay": row["trading_day"]})
-        for row in connection.execute(
-                "SELECT * FROM price_alerts WHERE status = 'triggered' AND triggered_at >= ?", (cutoff,)):
-            add(row["user_id"], "price_alert", row["id"], day_of(row["triggered_at"]), row["triggered_at"],
-                "到价提醒", f"{row['name'] or row['symbol']} 到了 {row['price']}", symbol=row["symbol"])
-        connection.executemany(
-            """INSERT OR IGNORE INTO reminders (id, user_id, account_id, kind, trading_day, created_at, symbol, title,
-            body, target_json, read_at, dedupe_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", rows)
-        connection.execute("INSERT OR IGNORE INTO reminder_meta (key, value) VALUES ('legacy_migrated', ?)", (now,))
-        return len(rows)
+        self.connection.execute("CREATE INDEX IF NOT EXISTS idx_reminders_card ON reminders(card_id)")
+        self.connection.execute("INSERT OR IGNORE INTO reminder_meta (key, value) VALUES ('epoch', ?)", (utc_now(),))
 
     # -- the unfilled-order watch's own rows (order_watch.py) -------------------------------------------
 

@@ -46,16 +46,6 @@ class StrategyReleaseManager:
                 or self.engineering_root in self.state_root.parents):
             raise ValueError("runtime_state_must_be_outside_engineering_root")
         self._migrate_short_release_directories()
-        self._remove_empty_deployments_root()
-
-    def _remove_empty_deployments_root(self) -> None:
-        # The deployment-candidate chain is gone (2026-09-25). Its directory is
-        # removed only when empty; anything left inside stays for inspection.
-        legacy = self.state_root / "strategy-runtime" / "deployments"
-        try:
-            legacy.rmdir()
-        except OSError:
-            pass
 
     def _migrate_short_release_directories(self) -> None:
         rows = self.store.connection.execute(
@@ -63,9 +53,6 @@ class StrategyReleaseManager:
         ).fetchall()
         for row in rows:
             canonical = self.releases_root / row["id"]
-            legacy = self.releases_root / f"sha256-{row['artifact_digest'][:16]}"
-            if not canonical.exists() and legacy.exists():
-                _replace_path(legacy, canonical)
             if not canonical.exists():
                 continue
             manifest_path = canonical / "manifest.json"

@@ -1,5 +1,3 @@
-import { CHART_SETTINGS_STORAGE_KEY } from "../theme";
-import { consumeLegacyMaVisible } from "./futures/support";
 import {
   DEFAULT_CHART_INDICATORS, MA_LINES_MAX, SUB_PANES_MAX,
   bollingerBands, cciSeries, kdSeries, macdSeries, maLinesLabel, movingAverage, normalizeChartIndicators, normalizePaneSizes,
@@ -107,23 +105,6 @@ test("labels read the normalized configuration", () => {
   expect(subPaneLabel("rsi", DEFAULT_CHART_INDICATORS)).toBe("RSI 14");
   expect(subPaneLabel("oi", DEFAULT_CHART_INDICATORS)).toBe("持仓量");
   expect(SUB_PANES_MAX).toBe(3);
-});
-
-test("consumeLegacyMaVisible migrates the stored maVisible switches once", () => {
-  window.localStorage.clear();
-  expect(consumeLegacyMaVisible()).toBeNull(); // nothing stored
-  window.localStorage.setItem(CHART_SETTINGS_STORAGE_KEY, JSON.stringify({ theme: "dark", maVisible: { 5: true, 10: false, 25: true, 60: true, 200: false } }));
-  expect(consumeLegacyMaVisible()).toEqual([
-    { period: 5, enabled: true }, { period: 10, enabled: false }, { period: 25, enabled: true }, { period: 60, enabled: true }, { period: 200, enabled: false },
-  ]);
-  // The switches leave the local key, so a second run has nothing to migrate.
-  expect(JSON.parse(window.localStorage.getItem(CHART_SETTINGS_STORAGE_KEY)!)).toEqual({ theme: "dark" });
-  expect(consumeLegacyMaVisible()).toBeNull();
-  // All-on switches equal the default five: the local key is consumed but no preference write happens.
-  window.localStorage.setItem(CHART_SETTINGS_STORAGE_KEY, JSON.stringify({ maVisible: { 5: true, 10: true, 25: true, 60: true, 200: true } }));
-  expect(consumeLegacyMaVisible()).toBeNull();
-  expect(JSON.parse(window.localStorage.getItem(CHART_SETTINGS_STORAGE_KEY)!)).toEqual({});
-  window.localStorage.clear();
 });
 
 test("a flat window of decimal prices reads CCI 0, not a rounding residue (#998)", () => {

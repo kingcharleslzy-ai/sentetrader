@@ -48,10 +48,7 @@ def test_desktop_runtime_config_accepts_only_bounded_deepseek_credentials(
         read_config()
 
 
-def test_desktop_legacy_flash_slug_maps_to_the_catalog_slug(monkeypatch: pytest.MonkeyPatch) -> None:
-    legacy = _desktop_runtime_config(agentModel="deepseek-v4-flash")
-    monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps(legacy) + "\n"))
-    assert read_config()["agentModel"] == "deepseek-flash"
+def test_desktop_unknown_model_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
     unknown = _desktop_runtime_config(agentModel="deepseek-unknown")
     monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps(unknown) + "\n"))
     with pytest.raises(RuntimeError, match="runtime_agent_model_invalid"):

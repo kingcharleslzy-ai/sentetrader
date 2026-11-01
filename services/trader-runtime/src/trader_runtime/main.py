@@ -38,7 +38,7 @@ from .skill_registry import write_skill_gate
 from .wiring.accounts import ACCOUNT_HEADER, idp_fallback_for_auth
 from .wiring.agent import build_agent
 from .wiring.auth import AuthService, build_auth, current_user_resolver, default_execution_owner_user_id
-from .wiring.config import REPO_ROOT, RuntimeSettings, _migrate_legacy_database, resolve_settings
+from .wiring.config import REPO_ROOT, RuntimeSettings, resolve_settings
 from .wiring.context import RuntimeContext
 from .wiring.feed import build_feed
 from .wiring.http_middleware import DisconnectGuard, OriginAndClientCompat
@@ -46,7 +46,7 @@ from .wiring.lifespan import build_lifespan
 from .wiring.producers import start_producers, stop_producers
 from .wiring.services import build_services, recover_incomplete_agent_runs, recover_interrupted_execution
 
-__all__ = ["REPO_ROOT", "_migrate_legacy_database", "app", "create_app", "create_replay_app"]
+__all__ = ["REPO_ROOT", "app", "create_app", "create_replay_app"]
 
 log = logging.getLogger("uvicorn.error.client")
 

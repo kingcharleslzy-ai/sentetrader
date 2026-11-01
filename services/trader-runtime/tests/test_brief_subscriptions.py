@@ -5,8 +5,6 @@ overLimit——全部走公共 HTTP 面。"""
 from __future__ import annotations
 
 import asyncio
-import json
-import sqlite3
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import MethodType, SimpleNamespace
@@ -97,45 +95,6 @@ def test_fresh_tiers_seed_brief_products_and_plan_reads_follow(tmp_path: Path):
         assert plan_from_config('basic', '基础档', {'briefProducts': None, 'skills': []}).brief_products is None
         assert plan_from_config('guest', '游客', {}).brief_products == 0
         assert UNLIMITED.brief_products is None
-    finally:
-        store.close()
-
-
-def test_old_tier_rows_gain_the_default_only_where_the_key_is_missing(tmp_path: Path):
-    database = tmp_path / 'old-tiers.sqlite3'
-    connection = sqlite3.connect(database)
-    connection.execute(
-        "CREATE TABLE plan_tiers ("
-        " name TEXT PRIMARY KEY, label TEXT NOT NULL, config TEXT NOT NULL,"
-        " is_default INTEGER NOT NULL, sort_order INTEGER NOT NULL,"
-        " created_at TEXT NOT NULL, updated_at TEXT NOT NULL)")
-    rows = {
-        'basic': {"models": ["deepseek-flash"], "dailyTokens": 300000, "voiceSecondsPerDay": 1800, "skills": []},
-        # An owner-edited value must survive the migration untouched.
-        'pro': {"models": None, "dailyTokens": 2000000, "voiceSecondsPerDay": 7200,
-                "briefProducts": 7, "skills": []},
-        'test': {"models": None, "dailyTokens": 1000000, "voiceSecondsPerDay": 3600, "skills": []},
-    }
-    for position, (name, config) in enumerate(rows.items()):
-        connection.execute(
-            "INSERT INTO plan_tiers (name, label, config, is_default, sort_order, created_at, updated_at)"
-            " VALUES (?, ?, ?, ?, ?, '2026-10-01T00:00:00+00:00', '2026-10-01T00:00:00+00:00')",
-            (name, name, json.dumps(config), 1 if name == 'basic' else 0, position))
-    connection.commit()
-    connection.close()
-
-    store = RuntimeStore(database)
-    try:
-        assert store.get_plan_tier('basic')['config']['briefProducts'] == 3
-        assert store.get_plan_tier('pro')['config']['briefProducts'] == 7
-        assert 'briefProducts' not in store.get_plan_tier('test')['config']
-    finally:
-        store.close()
-    # Reopening is a no-op: the rows now carry the key.
-    store = RuntimeStore(database)
-    try:
-        assert store.get_plan_tier('basic')['config']['briefProducts'] == 3
-        assert store.get_plan_tier('pro')['config']['briefProducts'] == 7
     finally:
         store.close()
 

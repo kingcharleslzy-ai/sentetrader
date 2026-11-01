@@ -24,12 +24,10 @@ describe("appearance preferences", () => {
     expect(readInterfaceDensity()).toBe("standard");
   });
 
-  test("persists type and density independently and removes legacy page zoom", () => {
-    window.localStorage.setItem("ai-trader:display-scale", "1.25");
+  test("persists type and density independently", () => {
     persistAppearance("extra-large", "compact");
     expect(readFontScale()).toBe("extra-large");
     expect(readInterfaceDensity()).toBe("compact");
-    expect(window.localStorage.getItem("ai-trader:display-scale")).toBeNull();
   });
 
   test("invalid stored values fall back safely", () => {

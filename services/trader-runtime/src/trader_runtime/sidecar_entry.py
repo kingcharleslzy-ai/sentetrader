@@ -15,10 +15,6 @@ import uvicorn
 from .data_providers import SidecarReadOnlyDataProvider
 from .model_provider import DEEPSEEK_MODELS, DEFAULT_DEEPSEEK_MODEL
 
-# The desktop shell and its saved settings still name the flash model by its
-# pre-catalog slug; the Runtime catalog is authoritative.
-DESKTOP_MODEL_ALIASES = {"deepseek-v4-flash": "deepseek-flash"}
-
 
 def process_is_alive(pid: int) -> bool:
     if pid <= 1:
@@ -83,9 +79,7 @@ def read_config() -> dict[str, Any]:
     provider = config.get("agentProvider", "deepseek")
     if provider != "deepseek":
         raise RuntimeError("runtime_agent_provider_invalid")
-    model = DESKTOP_MODEL_ALIASES.get(str(config.get("agentModel", DEFAULT_DEEPSEEK_MODEL)),
-                                      str(config.get("agentModel", DEFAULT_DEEPSEEK_MODEL)))
-    config["agentModel"] = model
+    model = str(config.get("agentModel", DEFAULT_DEEPSEEK_MODEL))
     if provider == "deepseek" and model not in DEEPSEEK_MODELS:
         raise RuntimeError("runtime_agent_model_invalid")
     api_key = config.get("agentApiKey")

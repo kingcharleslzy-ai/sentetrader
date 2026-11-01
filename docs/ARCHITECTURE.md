@@ -280,7 +280,7 @@ REST、Fake Agent 与模型工具都把请求/run ID 绑定到 `BacktestCoordina
 
 Release manifest 记录首次写入的 `artifactName`，因此相同字节来自不同策略文件名时仍复用同一 digest 目录。
 
-2026-09-25 起旧的“部署候选 / 模拟部署”链路已删除：不再有 `proposal.deployment` 事件、部署候选卡和 `strategy_deployments` 表。已有数据库里该表为空时启动即删除，非空则保留并记日志；`strategy-runtime/deployments` 目录同理（空则删）。`POST /api/backtests/{id}/deployment-proposal` 的 410 空壳已于 2026-09-30 删除（客户端早已不调用）。
+2026-09-25 起旧的“部署候选 / 模拟部署”链路已删除：不再有 `proposal.deployment` 事件、部署候选卡和 `strategy_deployments` 表。`POST /api/backtests/{id}/deployment-proposal` 的 410 空壳已于 2026-09-30 删除（客户端早已不调用）。
 
 ## 7. 确定性安全边界
 

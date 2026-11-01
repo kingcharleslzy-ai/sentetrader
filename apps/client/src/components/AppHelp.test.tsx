@@ -9,7 +9,7 @@ vi.mock("../api", () => ({ requestJson: vi.fn() }));
 const topic = (title: string, group: string, extra: Record<string, unknown> = {}) => ({
   title, group, summary: `${title}的一句话`, steps: [`${title}第一步`, `${title}第二步`, `${title}第三步`],
   faq: [{ q: `${title}问一`, a: `${title}答一` }, { q: `${title}问二`, a: `${title}答二` }],
-  detail: [`${title}的完整说明`], paragraphs: [], ...extra,
+  detail: [`${title}的完整说明`], ...extra,
 });
 const MANUAL = {
   groups: [{ id: "start", title: "快速上手" }, { id: "market", title: "看行情" }, { id: "admin", title: "管理员", ownerOnly: true },
@@ -123,14 +123,9 @@ test("旧 id 与界面命令：别名打开对应主题，help 命令切主题�
   await waitFor(() => expect(state()).toMatchObject({ open: false }));
 });
 
-test("主账号看得到管理员分组；旧版 Runtime 只有段落时整段显示", async () => {
+test("主账号看得到管理员分组", async () => {
   await open("admin", true);
   expect(within(card()).getByRole("article", { hidden: true })).toHaveAccessibleName("后台管理");
-  resetUiSurfaces();
-  document.body.innerHTML = "";
-  vi.mocked(requestJson).mockResolvedValue({ topics: { tour: { title: "新手引导", paragraphs: ["旧版的一段说明"] } } });
-  await open("tour");
-  expect(within(card()).getByText("旧版的一段说明")).toBeInTheDocument();
 });
 
 test("读取失败的状态进快照，help: {retry: true} 与“重试”按钮同一操作；已读到或未连接时拒绝", async () => {

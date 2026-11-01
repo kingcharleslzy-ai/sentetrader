@@ -15,7 +15,6 @@ export type InterfaceDensity = (typeof INTERFACE_DENSITY_OPTIONS)[number]["value
 
 const FONT_SCALE_STORAGE_KEY = "ai-trader:font-scale";
 const INTERFACE_DENSITY_STORAGE_KEY = "ai-trader:interface-density";
-const LEGACY_DISPLAY_SCALE_STORAGE_KEY = "ai-trader:display-scale";
 
 export const DEFAULT_FONT_SCALE: FontScale = "large";
 export const DEFAULT_INTERFACE_DENSITY: InterfaceDensity = "standard";
@@ -55,12 +54,11 @@ export function readInterfaceDensity(
 export function persistAppearance(
   fontScale: FontScale,
   interfaceDensity: InterfaceDensity,
-  storage: Pick<Storage, "setItem" | "removeItem"> | undefined = typeof window === "undefined" ? undefined : window.localStorage
+  storage: Pick<Storage, "setItem"> | undefined = typeof window === "undefined" ? undefined : window.localStorage
 ): void {
   try {
     storage?.setItem(FONT_SCALE_STORAGE_KEY, fontScale);
     storage?.setItem(INTERFACE_DENSITY_STORAGE_KEY, interfaceDensity);
-    storage?.removeItem(LEGACY_DISPLAY_SCALE_STORAGE_KEY);
   } catch {
     // The selected appearance remains active for this session when persistence is unavailable.
   }

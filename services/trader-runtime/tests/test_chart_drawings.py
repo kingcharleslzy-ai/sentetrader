@@ -224,52 +224,6 @@ def test_the_chart_drawings_skill_claims_exactly_its_tools_and_routes() -> None:
             "DELETE /api/market/drawings/{drawing_id}", "DELETE /api/market/drawings"} <= set(skill.routes)
 
 
-def test_a_first_version_database_reads_unchanged_after_the_schema_rebuild(tmp_path: Path) -> None:
-    """画线第二版: the first version's table (kind CHECK, no style) is rebuilt once at start-up; every
-    saved line keeps its id, coordinates, label and times, and reads with an empty style (the kind's
-    original look). The rebuilt table takes the new kinds."""
-    import sqlite3
-
-    database = tmp_path / "drawings-v1.sqlite3"
-    connection = sqlite3.connect(database)
-    connection.executescript("""
-        CREATE TABLE chart_drawings (
-            id TEXT PRIMARY KEY, user_id TEXT NOT NULL, symbol TEXT NOT NULL,
-            kind TEXT NOT NULL CHECK (kind IN ('hline', 'trendline', 'zone')),
-            points TEXT NOT NULL, label TEXT NOT NULL DEFAULT '',
-            created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
-        CREATE INDEX idx_chart_drawings_user_symbol ON chart_drawings(user_id, symbol, created_at);
-    """)
-    rows = [("a", "hline", '{"price": 826.0}', "压力"),
-            ("b", "trendline", '{"t1": 1790000000, "p1": 820.0, "t2": 1790003600, "p2": 828.5}', ""),
-            ("c", "zone", '{"low": 820.0, "high": 824.0}', "震荡区")]
-    for index, (drawing_id, kind, points, label) in enumerate(rows):
-        connection.execute("INSERT INTO chart_drawings VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                           (drawing_id, USER, "SHFE.au2612", kind, points, label,
-                            f"2026-10-0{index + 1}T00:00:00Z", "2026-10-05T00:00:00Z"))
-    connection.commit()
-    connection.close()
-
-    app = application(database, Gateway(), AlertProvider())
-    listed = app.state.store.list_chart_drawings(user_id=USER, symbol="SHFE.au2612")
-    assert [(item["id"], item["kind"], item["points"], item["label"], item["style"]) for item in listed] == [
-        ("a", "hline", {"price": 826.0}, "压力", {}),
-        ("b", "trendline", {"t1": 1790000000, "p1": 820.0, "t2": 1790003600, "p2": 828.5}, "", {}),
-        ("c", "zone", {"low": 820.0, "high": 824.0}, "震荡区", {}),
-    ]
-    assert listed[0]["createdAt"] == "2026-10-01T00:00:00Z" and listed[0]["updatedAt"] == "2026-10-05T00:00:00Z"
-    made = app.state.store.create_chart_drawing(
-        user_id=USER, symbol="SHFE.au2612", kind="fib",
-        points={"anchors": [{"t": 1, "p": 800.0}, {"t": 2, "p": 840.0}]},
-        label="", style={"color": "amber"}, max_per_symbol=MAX_DRAWINGS_PER_SYMBOL)
-    assert made["kind"] == "fib" and made["style"] == {"color": "amber"}
-    app.state.store.close()
-    # A second start finds nothing left to rebuild.
-    again = application(database, Gateway(), AlertProvider())
-    assert len(again.state.store.list_chart_drawings(user_id=USER, symbol="SHFE.au2612")) == 4
-    again.state.store.close()
-
-
 async def test_every_second_version_kind_stores_its_anchors_and_refuses_a_wrong_count(tmp_path: Path) -> None:
     app = application(tmp_path / "drawings-kinds.sqlite3", Gateway(), AlertProvider())
     http = await login(app)

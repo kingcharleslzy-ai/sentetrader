@@ -311,8 +311,7 @@ class DataPreferences(BaseModel):
 QUICK_SKILLS_MAX = 8
 # 默认不置顶（owner 2026-10-05）：输入框上方改由 AI 建议问题占用，快捷技能栏只在
 # 用户自己钉选后出现。apps/client/src/userPreferences.ts 的 DEFAULT_QUICK_SKILLS 是
-# 这份默认的镜像，两边一起改；存量用户仍是旧默认钉选的，由 RuntimeStore 启动迁移
-# 一次性清掉（store/base.py 的 _migrate_quick_skills_default）。
+# 这份默认的镜像，两边一起改。
 DEFAULT_QUICK_SKILLS: list[str] = []
 
 

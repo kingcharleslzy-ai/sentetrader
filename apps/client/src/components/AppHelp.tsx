@@ -30,21 +30,9 @@ interface HelpTopic {
 }
 interface HelpGroup { id: string; title: string; ownerOnly?: boolean; collapsed?: boolean }
 interface HelpData { groups: HelpGroup[]; aliases: Record<string, string>; topics: Record<string, HelpTopic> }
-type RawHelp = { groups?: HelpGroup[]; aliases?: Record<string, string>; topics: Record<string, Partial<HelpTopic> & { title: string; paragraphs?: string[] }> };
 export interface HelpChange { topic?: string; group?: string; query?: string; detail?: boolean; faq?: { index: number; open: boolean }; retry?: boolean }
 
 const DEFAULT_TOPIC = "tour";
-const LEGACY_GROUP = "all";
-
-/** A Runtime before the two-layer manual sends only titles and paragraphs: show them as the complete text. */
-function normalize(raw: RawHelp): HelpData {
-  const topics: Record<string, HelpTopic> = {};
-  for (const [id, item] of Object.entries(raw.topics)) {
-    topics[id] = { title: item.title, group: item.group ?? LEGACY_GROUP, summary: item.summary ?? "", steps: item.steps ?? [],
-      faq: item.faq ?? [], terms: item.terms, detail: item.detail ?? item.paragraphs ?? [], tour: item.tour };
-  }
-  return { groups: raw.groups ?? [{ id: LEGACY_GROUP, title: "全部说明" }], aliases: raw.aliases ?? {}, topics };
-}
 
 const lower = (text: string) => text.toLocaleLowerCase();
 const hit = (text: string, query: string) => Boolean(query) && lower(text).includes(query);
@@ -143,7 +131,7 @@ export function AppHelp({ baseUrl, isOwner = false }: { baseUrl?: string; isOwne
     if (!isOpen || data || baseUrl === undefined) return;
     let cancelled = false;
     setError("");
-    void requestJson<RawHelp>(baseUrl + "/api/app/help").then(value => { if (!cancelled) setData(normalize(value)); })
+    void requestJson<HelpData>(baseUrl + "/api/app/help").then(value => { if (!cancelled) setData(value); })
       .catch(reason => { if (!cancelled) setError(isRequestTimeout(reason) ? "说明读取超时，应用服务暂时没有响应" : "说明读取失败，应用服务暂时不可用"); });
     return () => { cancelled = true; };
   }, [isOpen, data, baseUrl, attempt]);

@@ -6,8 +6,8 @@ import secrets
 from datetime import UTC, datetime
 from typing import Any
 
-from ..plans import BRIEF_PRODUCT_DEFAULTS, TIER_SEED_META
-from ..skill_registry import migrate_config_features, seed_tier_configs
+from ..plans import TIER_SEED_META
+from ..skill_registry import seed_tier_configs
 from .base import StoreBase, utc_now
 
 log = logging.getLogger("uvicorn.error.agent")
@@ -152,52 +152,3 @@ class PlanTierStore(StoreBase):
                   1 if is_default else 0, sort_order, now, now)
                  for tier_name, label, is_default, sort_order, meta in TIER_SEED_META],
             )
-
-    def migrate_plan_configs_to_skills(self) -> int:
-        """The one-time features→skills rewrite of every tier row (2026-09-24
-        registry migration): each legacy switch's skill group joins the row's
-        `skills`, then `features` leaves the JSON. Rows already carrying only
-        `skills` are untouched, so this is safe on every startup and on
-        databases created after the migration."""
-        migrated = 0
-        with self.lock, self.connection:
-            for row in self.connection.execute(
-                "SELECT name, config FROM plan_tiers"
-            ).fetchall():
-                config = json.loads(row["config"])
-                if migrate_config_features(config) is None:
-                    continue
-                self.connection.execute(
-                    "UPDATE plan_tiers SET config = ?, updated_at = ? WHERE name = ?",
-                    (json.dumps(config, ensure_ascii=False), utc_now(), row["name"]),
-                )
-                migrated += 1
-        if migrated:
-            log.info("plan tiers migrated features→skills: %d row(s)", migrated)
-        return migrated
-
-    def migrate_plan_brief_products(self) -> int:
-        """AI 简报多品种订阅 (2026-10-05): write the built-in tiers' default
-        `briefProducts` into basic/pro rows that predate the key. A row already
-        carrying the key — any value, including an explicit null — is the
-        owner's edit and is never overwritten, so this is safe on every
-        startup."""
-        changed = 0
-        with self.lock, self.connection:
-            for name, default in BRIEF_PRODUCT_DEFAULTS.items():
-                row = self.connection.execute(
-                    "SELECT config FROM plan_tiers WHERE name = ?", (name,)).fetchone()
-                if row is None:
-                    continue
-                config = json.loads(row["config"])
-                if not isinstance(config, dict) or "briefProducts" in config:
-                    continue
-                config["briefProducts"] = default
-                self.connection.execute(
-                    "UPDATE plan_tiers SET config = ?, updated_at = ? WHERE name = ?",
-                    (json.dumps(config, ensure_ascii=False), utc_now(), name),
-                )
-                changed += 1
-        if changed:
-            log.info("plan tiers gained briefProducts defaults: %d row(s)", changed)
-        return changed
