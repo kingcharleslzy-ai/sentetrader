@@ -12,24 +12,32 @@ from .chart_drawings import KIND_WORDS
 from .price_alerts import alert_line
 from .ui_control import UI_COMMAND_OPERATION, describe_ui_change
 
+# The agent's own tools for these (what the model actually picks, 2026-11-01 live check) call the same route and
+# hand its JSON back as the result's `data`; app_call wraps it once more ({ok, data}).
+DEDICATED_TOOLS = {"create_price_alert": "POST /api/market/alerts", "create_chart_drawing": "POST /api/market/drawings"}
+
 
 def step_action(tool: str, arguments: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any] | None:
-    """`{text, undo}` for a successful app_call that created a price alert or a drawing, or applied an interface
-    command; None for anything else. `payload` is the tool's result object ({success, data: {ok, data, …}})."""
-    if tool != "app_call":
-        return None
-    try:
-        request = json.loads(arguments.get("requestJson") or "{}")
-    except (TypeError, ValueError):
-        return None
-    if not isinstance(request, dict):
-        return None
+    """`{text, undo}` for a successful tool call that created a price alert or a drawing (its own tool or app_call),
+    or an app_call that applied an interface command; None for anything else. `payload` is the tool's result
+    object ({success, data, …}); the caller passes only calls that succeeded."""
     data = payload.get("data")
     result: dict[str, Any] = data if isinstance(data, dict) else {}
-    if not result.get("ok"):
+    request: dict[str, Any] = {}
+    if tool in DEDICATED_TOOLS:
+        operation, body = DEDICATED_TOOLS[tool], result
+    elif tool == "app_call":
+        try:
+            parsed = json.loads(arguments.get("requestJson") or "{}")
+        except (TypeError, ValueError):
+            return None
+        if not isinstance(parsed, dict) or not result.get("ok"):
+            return None
+        request = parsed
+        operation = str(request.get("operation") or "")
+        body = result["data"] if isinstance(result.get("data"), dict) else {}
+    else:
         return None
-    body: dict[str, Any] = result["data"] if isinstance(result.get("data"), dict) else {}
-    operation = request.get("operation")
     if operation == "POST /api/market/alerts" and isinstance(body.get("alert"), dict) and body["alert"].get("id"):
         alert = body["alert"]
         return {"text": "建了到价提醒：" + alert_line(alert),
@@ -53,3 +61,6 @@ assert step_action("app_call", {"requestJson": json.dumps({"operation": "POST /a
                          "undo": {"method": "DELETE", "path": "/api/market/drawings/d1"}}
 assert step_action("app_call", {"requestJson": json.dumps({"operation": "GET /api/market/alerts"})},
                    {"data": {"ok": True, "data": {}}}) is None
+assert (step_action("create_price_alert", {"symbol": "螺纹", "price": 3036},
+                    {"data": {"alert": {"id": "a1", "symbol": "SHFE.rb2701", "price": 3036, "direction": "up"}}}
+                    ) or {}).get("undo") == {"method": "DELETE", "path": "/api/market/alerts/a1"}
