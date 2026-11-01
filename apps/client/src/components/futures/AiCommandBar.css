@@ -1,0 +1,42 @@
+/* AI 指令栏 (改版第二步 2026-11-01): one input in the header and its result drop-down. Theme tokens only. */
+/* The header grid gets a fourth column for it (brand | tabs | bar | status); the tabs keep the free space. */
+.fdw-header:has(> .ai-bar) { grid-template-columns: auto minmax(0, 1fr) fit-content(320px) auto; }
+.ai-bar { position: relative; min-width: 0; }
+.ai-bar-input { display: flex; align-items: center; gap: var(--space-2); height: 30px; padding: 0 var(--space-2) 0 var(--space-3);
+  border: 1px solid var(--line-strong); border-radius: var(--radius-control); background: var(--soft); }
+.ai-bar-input:focus-within { border-color: var(--accent); box-shadow: var(--glow); }
+.ai-bar-input > svg { flex: none; width: 15px; height: 15px; color: var(--accent); }
+.ai-bar-input input { flex: 1; width: 220px; min-width: 0; border: 0; background: none; color: var(--ink); font-size: var(--font-md); outline: none; }
+.ai-bar-input input::placeholder { color: var(--muted); }
+.ai-bar-input kbd { flex: none; padding: 0 var(--space-1); border: 1px solid var(--line); border-radius: 4px; color: var(--muted);
+  font-family: inherit; font-size: var(--font-xs); }
+.ai-bar-result { position: absolute; z-index: 40; top: calc(100% + var(--space-1)); left: 0; right: 0; min-width: 320px;
+  display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--line-strong);
+  border-radius: var(--radius-card); background: var(--panel); color: var(--ink); box-shadow: var(--shadow); font-size: var(--font-md); }
+.ai-bar-result header { display: flex; align-items: center; gap: var(--space-2); }
+.ai-bar-asked { flex: 1; min-width: 0; overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; }
+.ai-bar-result header button { display: inline-flex; padding: 2px; border: 0; background: none; color: var(--muted); cursor: pointer; }
+.ai-bar-result header svg { width: 14px; height: 14px; }
+.ai-bar-status { margin: 0; color: var(--muted); font-size: var(--font-sm); }
+.ai-bar-actions { display: flex; flex-direction: column; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
+.ai-bar-actions li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.ai-bar-actions li > svg { flex: none; width: 14px; height: 14px; color: var(--positive); }
+.ai-bar-actions li > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.ai-bar-actions li[data-undone] > span { color: var(--muted); text-decoration: line-through; }
+.ai-bar-actions button { display: inline-flex; align-items: center; gap: var(--space-1); padding: 2px var(--space-2);
+  border: 1px solid var(--line-strong); border-radius: var(--radius-control); background: none; color: var(--ink); font-size: var(--font-sm); cursor: pointer; }
+.ai-bar-actions button svg { width: 12px; height: 12px; }
+.ai-bar-actions em { color: var(--muted); font-size: var(--font-sm); font-style: normal; }
+.ai-bar-actions small { flex-basis: 100%; color: var(--danger); }
+.ai-bar-answer { margin: 0; line-height: 1.6; overflow-wrap: anywhere; }
+.ai-bar-card { margin: 0; color: var(--warning); }
+.ai-bar-result footer { display: flex; justify-content: flex-end; }
+.ai-bar-chat { padding: 0; border: 0; background: none; color: var(--accent); font-size: var(--font-sm); cursor: pointer; }
+/* Header fit level 1 (useHeaderFit): the bar gives way before anything else and shrinks to a ✦ ⌘K button;
+   focusing it (click, ⌘K, Tab) floats the full input over the header, blurring shrinks it back. */
+.fdw-fit-compact-ai > .ai-bar .ai-bar-input { cursor: pointer; }
+.fdw-fit-compact-ai > .ai-bar .ai-bar-input input { flex: 0; width: 0; }
+.fdw-fit-compact-ai > .ai-bar .ai-bar-input:focus-within { position: absolute; z-index: 41; top: 50%; right: 0; width: min(360px, 70vw);
+  transform: translateY(-50%); background: var(--panel); box-shadow: var(--shadow); cursor: text; }
+.fdw-fit-compact-ai > .ai-bar .ai-bar-input:focus-within input { flex: 1; }
+.fdw-fit-compact-ai > .ai-bar .ai-bar-result { left: auto; width: min(360px, 70vw); }

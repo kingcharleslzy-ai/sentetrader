@@ -2,16 +2,17 @@ import { useCallback, useLayoutEffect, useRef, useState, type RefObject } from "
 
 /**
  * The header gives content up in measured-space levels instead of viewport breakpoints:
- * 0 shows everything, 1 hides the 复盘/回放 labels, 2 the brand sub-label 模拟盘,
- * 3 folds the contract tabs into a single dropdown, 4 the equity.
+ * 0 shows everything, 1 shrinks the AI 指令栏 to a ✦ ⌘K button and 2 drops the 美元 half of the equity
+ * chip (both give way first, owner 2026-11-01: the chip's hover and 账户明细 still show it), 3 hides the
+ * 复盘/回放 labels, 4 the brand sub-label 模拟盘, 5 folds the contract tabs into a single dropdown, 6 the equity.
  * Connection/queue warnings and the recovery button never hide —
- * they stay and truncate when even level 4 overflows.
+ * they stay and truncate when even level 6 overflows.
  */
-export const HEADER_FIT_MAX_LEVEL = 4;
+export const HEADER_FIT_MAX_LEVEL = 6;
 
-const FIT_CLASSES = ["fdw-fit-hide-text", "fdw-fit-hide-brand", "fdw-fit-contract-menu", "fdw-fit-hide-equity"];
+const FIT_CLASSES = ["fdw-fit-compact-ai", "fdw-fit-hide-usd", "fdw-fit-hide-text", "fdw-fit-hide-brand", "fdw-fit-contract-menu", "fdw-fit-hide-equity"];
 
-/** Cumulative level classes: a level-3 header also carries the level-1 and level-2 rules. */
+/** Cumulative level classes: a level-5 header also carries the level-1 to level-4 rules. */
 export function headerFitClasses(level: number): string {
   return FIT_CLASSES.slice(0, Math.max(0, Math.min(level, HEADER_FIT_MAX_LEVEL))).join(" ");
 }
@@ -39,7 +40,7 @@ function cellOverflows(element: HTMLElement): boolean {
   return element.scrollWidth - element.clientWidth > 1;
 }
 
-/** Cells whose content must fit whole. The picker joins at level 3 (hidden otherwise);
+/** Cells whose content must fit whole. The picker joins at level 5 (hidden otherwise);
  *  warning texts may ellipsize instead, so they are deliberately not probed. */
 const WHOLE_CELLS = [".fdw-brand", "nav", ".fdw-contract-tabs", ".fdw-contract-picker", ".fdw-header-status"];
 
@@ -48,7 +49,7 @@ function isDisplayed(element: Element): boolean {
   return element.getClientRects().length > 0;
 }
 
-/** Whether anything inside is actually shown — an emptied cell (status after level 4
+/** Whether anything inside is actually shown — an emptied cell (status after level 6
  *  hid equity) is allowed to collapse to nothing. */
 function hasDisplayedContent(element: HTMLElement): boolean {
   return Array.from(element.querySelectorAll("*")).some(node => isDisplayed(node));
@@ -93,7 +94,7 @@ function scheduleFrame(callback: () => void): number {
 /**
  * Resolves the header's collapse level from the space it actually has. One synchronous
  * pass per trigger: each level is applied straight to the live DOM (the level classes
- * switch the CSS, including the level-3 tabs/picker swap, which is why both subtrees
+ * switch the CSS, including the level-5 tabs/picker swap, which is why both subtrees
  * stay mounted) and measured before the next is tried, so the walk settles before the
  * browser paints — no flicker, no climb state to race. The final level is written to
  * the DOM and mirrored into state in one go. Passes re-run on header resizes (coalesced

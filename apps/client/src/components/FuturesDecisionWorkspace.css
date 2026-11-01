@@ -1935,7 +1935,7 @@
 }
 
 /* Header fit levels: useHeaderFit sets data-fit plus these cumulative classes from the
-   header's measured space, never from viewport width. Level 3 switches tabs/picker by
+   header's measured space, never from viewport width. Level 5 switches tabs/picker by
    class alone (both subtrees stay mounted so the measuring pass needs no re-render);
    the aria-hidden attributes only mirror the settled level. Levels only ever give
    content up; warnings and recovery stay visible. */

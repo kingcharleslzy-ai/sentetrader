@@ -104,6 +104,7 @@ button.fdw-account-chip:disabled { cursor: default; }
 .fdw-header-status > button.fdw-ai-safety-stop { width: auto; height: auto; padding: var(--space-1) var(--space-3); border-radius: var(--radius-control); color: var(--danger); background: var(--danger-soft); white-space: nowrap; }
 
 /* Fit levels. */
+.fdw-header.fdw-fit-hide-usd .fdw-account-chip > :is([data-testid="account-equity-usd"], [data-testid="today-net-usd"]) { display: none; }
 .fdw-header.fdw-fit-hide-text .fdw-nav-view span { display: none; }
 .fdw-header.fdw-fit-hide-text .fdw-nav-view { padding: 0 var(--space-2); }
 .fdw-header.fdw-fit-hide-brand > .fdw-brand span { display: none; }

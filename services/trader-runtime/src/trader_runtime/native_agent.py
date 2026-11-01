@@ -3562,8 +3562,11 @@ class NativeAgentAdapter:
                 # The planner asked: the question card, published once; it is the turn's answer.
                 turn.asked = await self._publish_question(turn.session_id, turn.turn_id, ask)
             outcome = (self._error_code(response) or "failed") if failed else "ok"
+            # AI 指令栏 (改版第二步): what this call changed, for "AI 做了 N 件事" and its 撤销.
+            from .agent_actions import step_action
+            action = None if failed else step_action(call.name, arguments, self._tool_payload(response))
             self._advance_task(turn, call, detail="失败" if failed else "已完成", completed=True, failed=failed,
-                               error_code=outcome if failed else None)
+                               error_code=outcome if failed else None, action=action)
             await self._publish_task(turn)
             output = "".join(str(item.get("text", "")) for item in response.get("contentItems") or [])
             read_card = not failed and turn.cards is not None
@@ -3679,7 +3682,8 @@ class NativeAgentAdapter:
         }
 
     def _advance_task(self, turn: _Turn, call: _ToolCall, *, detail: str,
-                      completed: bool = False, failed: bool = False, error_code: str | None = None) -> None:
+                      completed: bool = False, failed: bool = False, error_code: str | None = None,
+                      action: dict[str, Any] | None = None) -> None:
         steps = turn.task["steps"]
         understand = next((step for step in steps if step["id"] == "understand"), None)
         if understand and understand["status"] == "active":
@@ -3694,6 +3698,8 @@ class NativeAgentAdapter:
             if error_code:
                 # Why the call failed, on the task event itself (audit 10-13: steps said only 失败).
                 step["errorCode"] = error_code
+            if action is not None:
+                step["action"] = action
         else:
             step.update({"status": "active", "detail": detail})
         done = sum(step["status"] == "done" for step in steps)

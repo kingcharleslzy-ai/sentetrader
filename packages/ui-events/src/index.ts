@@ -180,6 +180,9 @@ export interface TaskStep {
   detail: string;
   /** A failed tool step's errorCode (no_position_to_close, tool_failed …), for tracing a failure later. */
   errorCode?: string;
+  /** AI 指令栏 (2026-11-01): what a successful step changed, in one line, and the business call that takes it
+   *  back (null: nothing to undo, e.g. a screen change). Only price alerts, drawings and interface commands. */
+  action?: { text: string; undo: { method: "DELETE"; path: string } | null };
 }
 
 export interface AgentTask {

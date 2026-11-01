@@ -93,16 +93,17 @@ test("空间充足时等级保持 0，所有内容完整显示", () => {
   expect(view.container.firstChild).not.toHaveClass("fdw-fit-hide-text");
 });
 
-test("逐步变窄：等级从 1 升到 4，类名按等级累加", () => {
+test("逐步变窄：等级从 1 升到 6，类名按等级累加", () => {
   for (let needed = 1; needed <= HEADER_FIT_MAX_LEVEL; needed += 1) {
     expect(resolveHeaderFitLevel(level => level >= needed)).toBe(needed);
   }
-  // Cumulative: a level-3 header also carries the level-1 and level-2 rules.
-  expect(headerFitClasses(3)).toBe("fdw-fit-hide-text fdw-fit-hide-brand fdw-fit-contract-menu");
+  // Cumulative: a level-5 header also carries the level-1 to level-4 rules; the AI 指令栏 and 美元 give way first.
+  expect(headerFitClasses(1)).toBe("fdw-fit-compact-ai");
+  expect(headerFitClasses(5)).toBe("fdw-fit-compact-ai fdw-fit-hide-usd fdw-fit-hide-text fdw-fit-hide-brand fdw-fit-contract-menu");
   expect(headerFitClasses(HEADER_FIT_MAX_LEVEL)).toContain("fdw-fit-hide-equity");
 });
 
-test("连最高级也放不下时停在 4；警告与恢复按钮不在任何等级的隐藏范围里", () => {
+test("连最高级也放不下时停在 6；警告与恢复按钮不在任何等级的隐藏范围里", () => {
   expect(resolveHeaderFitLevel(() => false)).toBe(HEADER_FIT_MAX_LEVEL);
   for (let level = 0; level <= HEADER_FIT_MAX_LEVEL; level += 1) {
     expect(headerFitClasses(level)).not.toMatch(/warning|connection|recovery|stop/);
@@ -116,16 +117,16 @@ test("宽度回升时等级回落：每轮都从 0 重新判定", () => {
 });
 
 test("hook 一轮同步测量收敛到最终等级，宽度回升后回落", () => {
-  const view = render(<Harness overflowAt={level => level < 3} contentKey="mid" />);
-  expect(view.container.firstChild).toHaveAttribute("data-fit", "3");
+  const view = render(<Harness overflowAt={level => level < 5} contentKey="mid" />);
+  expect(view.container.firstChild).toHaveAttribute("data-fit", "5");
   expect(view.container.firstChild).toHaveClass("fdw-fit-contract-menu");
   // Space comes back: the next pass restarts from 0 and settles on 1.
   view.rerender(<Harness overflowAt={level => level < 1} contentKey="wide" />);
   expect(view.container.firstChild).toHaveAttribute("data-fit", "1");
   expect(view.container.firstChild).not.toHaveClass("fdw-fit-contract-menu");
-  // Content grows without new space: the pass climbs again, capping at 4.
+  // Content grows without new space: the pass climbs again, capping at 6.
   view.rerender(<Harness overflowAt={() => true} contentKey="grown" />);
-  expect(view.container.firstChild).toHaveAttribute("data-fit", "4");
+  expect(view.container.firstChild).toHaveAttribute("data-fit", "6");
 });
 
 test("内容放得下：header、子容器、相邻盒子与宽度都正常时不判溢出", () => {
@@ -157,6 +158,6 @@ test("可见子元素被挤成 0 宽判溢出：钉住入口与导航按钮都�
 test("警告文字省略号截断不算溢出，等级隐藏的容器也不算", () => {
   // 警告文字自己滚动了（截断），但各容器与盒子都放得下。
   expect(headerContentOverflows(probeHeader({ warningText: { clientWidth: 60, scrollWidth: 120 } }).header)).toBe(false);
-  // 等级 3 隐藏的下拉即便“溢出”也不参与判定（display:none）。
+  // 等级 5 以下隐藏的下拉即便“溢出”也不参与判定（display:none）。
   expect(headerContentOverflows(probeHeader({ picker: { clientWidth: 90, scrollWidth: 400, displayed: false } }).header)).toBe(false);
 });

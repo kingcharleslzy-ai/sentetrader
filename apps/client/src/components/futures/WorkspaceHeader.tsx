@@ -18,6 +18,8 @@ const VISIBLE_TABS = 6;
 
 interface Props {
   guestActions?: ReactNode;
+  /** AI 指令栏 (改版第二步): sits after the contract tabs and shrinks before anything else does. */
+  aiBar?: ReactNode;
   workspace: FuturesDecisionWorkspaceProps;
   view: FuturesWorkspaceView;
   onSelectView: (view: FuturesWorkspaceView) => void;
@@ -42,7 +44,7 @@ interface Props {
  * review / replay, connection state and equity; drags the desktop window.
  * Contract tabs are role=tab with aria-selected; review and replay stay buttons.
  */
-export function WorkspaceHeader({ workspace, view, onSelectView, recoveryButton, tradingAccounts, pinnedSymbols, onSelectContract, onPinContract, onUnpinContract, onVisibleCurrentContractChange, replayBlocked, guestActions }: Props) {
+export function WorkspaceHeader({ workspace, view, onSelectView, recoveryButton, tradingAccounts, pinnedSymbols, onSelectContract, onPinContract, onUnpinContract, onVisibleCurrentContractChange, replayBlocked, guestActions, aiBar }: Props) {
   const headerRef = useRef<HTMLElement | null>(null);
   const [menu, setMenu] = useState<"more" | "pick" | null>(null);
   const [blocked, setBlocked] = useState("");
@@ -78,7 +80,7 @@ export function WorkspaceHeader({ workspace, view, onSelectView, recoveryButton,
     isTauriRuntime() ? "" : "web",
   ].join("|");
   const fit = useHeaderFit(headerRef, fitKey);
-  const contractMenu = fit >= 3;
+  const contractMenu = fit >= 5;
   useEffect(() => {
     if (!menu) return;
     const outside = (event: PointerEvent) => { if (!(event.target as Element).closest?.(".fdw-tab-menu, .fdw-tab-menu-trigger")) setMenu(null); };
@@ -155,6 +157,7 @@ export function WorkspaceHeader({ workspace, view, onSelectView, recoveryButton,
         {workspace.onOpenReplay && <button type="button" className={`fdw-nav-view ${replay && view === "trade" ? "active" : ""}`} aria-label="回放" title={replayBlocked && !replay ? replayBlocked : undefined} onClick={() => { if (replay) onSelectView("trade"); else if (!workspace.access && replayBlocked) setBlocked(replayBlocked); else if (allowed("market-replay")) workspace.onOpenReplay?.(); }}><Play /><span>回放</span></button>}
         </span>
       </nav>
+      {aiBar}
       <div className="fdw-header-status">
         {!workspace.guest && (tradingAccounts.currentPoolStatus === "connecting" || tradingAccounts.currentPoolStatus === "queued")
           ? <span data-testid="pool-connection" className="warning"><i /><span className="fdw-warning-text">{tradingAccounts.currentPoolStatus === "connecting" ? "正在连接模拟盘…" : "服务器在线人数已满，排队中，稍后自动重试"}</span></span>
@@ -162,7 +165,7 @@ export function WorkspaceHeader({ workspace, view, onSelectView, recoveryButton,
         {!workspace.status.runtimeUsable || workspace.connection !== "connected" ? <span data-testid="runtime-connection" className="warning"><i /><span className="fdw-warning-text">{workspace.connection === "connecting" ? "正在连接" : workspace.connection === "disconnected" ? "连接已断开" : "数据恢复中"}</span></span> : null}
         {!workspace.guest && recoveryButton}
         {/* 点权益打开账户明细（2026-10-22，本站模拟两本账样稿）：切到复盘、明细卡里人民币 / 美元两栏；回放中没有账户明细。 */}
-        {!workspace.guest && <button type="button" className="fdw-account-chip" data-testid="account-equity" aria-label={`${equityText}，查看账户明细`}
+        {!workspace.guest && <button type="button" className="fdw-account-chip" data-testid="account-equity" aria-label={`${equityText}，查看账户明细`} title={equityText}
           aria-haspopup="dialog" disabled={replay} onClick={() => {
             if (!allowed("review-summary")) return;
             onSelectView("review");

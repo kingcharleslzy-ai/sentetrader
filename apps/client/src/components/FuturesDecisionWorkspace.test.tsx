@@ -1838,8 +1838,8 @@ test("超过六个标签折进“更多合约”菜单，上限八个后不再�
   expect(values.onSelectSymbol).toHaveBeenLastCalledWith("SHFE.sn2612");
 });
 
-test("顶栏收起等级 3：合约标签收成当前合约下拉，列出钉住合约与钉住入口", () => {
-  const fit = vi.spyOn(headerFit, "useHeaderFit").mockReturnValue(3);
+test("顶栏收起等级 5：合约标签收成当前合约下拉，列出钉住合约与钉住入口", () => {
+  const fit = vi.spyOn(headerFit, "useHeaderFit").mockReturnValue(5);
   try {
     render(<FuturesDecisionWorkspace {...props({ instruments: twoContracts }) as any} />);
     const nav = screen.getByRole("navigation", { name: "主要工作区" });
@@ -1855,13 +1855,13 @@ test("顶栏收起等级 3：合约标签收成当前合约下拉，列出钉住
   }
 });
 
-test("顶栏收起等级累加：等级 4 带全部收起类名，警告与权益等仍渲染（由等级类隐藏，警告除外）", () => {
-  const fit = vi.spyOn(headerFit, "useHeaderFit").mockReturnValue(4);
+test("顶栏收起等级累加：等级 6 带全部收起类名，警告与权益等仍渲染（由等级类隐藏，警告除外）", () => {
+  const fit = vi.spyOn(headerFit, "useHeaderFit").mockReturnValue(6);
   try {
     render(<FuturesDecisionWorkspace {...props({ connection: "connecting" }) as any} />);
     const header = screen.getByRole("banner");
-    expect(header).toHaveAttribute("data-fit", "4");
-    expect(header).toHaveClass("fdw-fit-hide-text", "fdw-fit-hide-brand", "fdw-fit-contract-menu", "fdw-fit-hide-equity");
+    expect(header).toHaveAttribute("data-fit", "6");
+    expect(header).toHaveClass("fdw-fit-compact-ai", "fdw-fit-hide-usd", "fdw-fit-hide-text", "fdw-fit-hide-brand", "fdw-fit-contract-menu", "fdw-fit-hide-equity");
     // 必要状态永不隐藏：连接警告照常渲染，权益由等级类收起，下载入口留在侧栏。
     expect(screen.getByTestId("runtime-connection")).toHaveTextContent("正在连接");
     expect(screen.getByTestId("account-equity")).toBeInTheDocument();

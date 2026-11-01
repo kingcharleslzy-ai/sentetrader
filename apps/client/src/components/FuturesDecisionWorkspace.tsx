@@ -39,6 +39,7 @@ import { routineEditPrompt } from "./cards/RoutineCards";
 import { routineRunPrompt, type RoutineRef } from "../routines";
 import { ContractDrawer } from "./futures/WorkspaceDrawers";
 import { AiDock } from "./futures/AiDock";
+import { AiCommandBar } from "./futures/AiCommandBar";
 import { NewsPanel, type NewsTab } from "./NewsPanel";
 import { useDebateHost } from "./ResearchDebate";
 import { productOfSymbol } from "./FlashFeed";
@@ -1499,7 +1500,10 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
       <WorkspaceHeader workspace={workspace} view={view} onSelectView={selectView} recoveryButton={executionStopped ? recoveryButton : null} tradingAccounts={tradingAccounts}
         onVisibleCurrentContractChange={setHeaderCurrentContract}
         pinnedSymbols={pinnedSymbols} onSelectContract={selectContractTab} onPinContract={() => { setContractPinMode(true); setContractOpen(true); }} onUnpinContract={unpinContractTab} replayBlocked={replayBlocked}
-        guestActions={props.guest ? <PttButton ptt={ptt} /> : undefined} />
+        guestActions={props.guest ? <PttButton ptt={ptt} /> : undefined}
+        aiBar={props.guest || mobile ? undefined : <AiCommandBar baseUrl={connectedRuntimeUrl} turns={props.state.turns} busy={Boolean(props.chatBusy || chat.sendingPrompt)}
+          blockedReason={!connectedRuntimeUrl ? "连接后可以问 AI" : props.agentAccount && !props.agentAccount.authenticated ? "模型尚未就绪，请在设置里选择模型" : null}
+          onSend={text => chat.sendQuickPrompt(text)} onOpenChat={openChat} />} />
 
       {dialogs}
       <WebUpdateBanner />

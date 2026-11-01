@@ -316,6 +316,11 @@ export const COMMANDABLE: Rule[] = [
   { match: control => control.surface === "dialog-strategy-launch" && /^(取消|关闭上线运行)$/.test(control.label), via: "dialog: {name: strategy-launch, open: false}" },
   { match: /^验证并上线$/, via: "POST /api/strategy-plans/{id}/validate + POST /api/strategies/{id}/monitor/start {signalAction, sessionId}（用户点；字段用 strategyLaunch 填）" },
   { match: /^(新对话|历史对话)$/, via: "chatSession: {new: true} / disclosure: chat-history" },
+  // AI 指令栏 (改版第二步 2026-11-01): the header bar's input is a chat send (the /^问 AI/ rule below); its result drop-down.
+  { match: /^收起 AI 指令结果$/, via: "disclosure: {name: ai-command-result, open: false}" },
+  { match: control => control.group === "ai-command-bar" && /撤销$/.test(control.label),
+    via: "DELETE /api/market/alerts/{alert_id} | DELETE /api/market/drawings/{drawing_id}（任务步骤 step.action.undo 写明的那个业务接口）" },
+  { match: /^(在对话里看全文|到对话里确认)$/, via: "panel: ai" },
   // 说人话 (2026-09-25): each parameter's “?” note (结果页 · 来自模板的参数).
   { match: control => control.role === "button" && /是什么$/.test(control.label) && /^ai-strategy|strategy-template/.test(`${control.surface} ${control.group ?? ""}`),
     via: "disclosure: {name: strategy-param-help, id: 参数key}（参数旁的“?”说明）" },

@@ -218,6 +218,10 @@ DISCLOSURE_NAMES = Literal[
     "habits-how",
     # The AI dock's 历史对话 list (open = the list is shown; `chatHistory` in the state carries it).
     "chat-history",
+    # AI 指令栏 (改版第二步 2026-11-01): the header bar's result drop-down — what the AI did for the last line
+    # sent there (each action with 撤销 where it can be undone) and the answer's first lines; available once a
+    # line was sent from the bar in this window.
+    "ai-command-result",
     # AI 动态卡 “清空显示”: open = hide the finished records (state true = nothing left to clear).
     "activity-clear",
     # 策略面板: a 运行中 card's 运行日志 (per strategy, `id` = its id). strategy-new opens the 策略编辑卡
