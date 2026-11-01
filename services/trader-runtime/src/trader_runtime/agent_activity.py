@@ -137,7 +137,7 @@ def activity_snapshot(
         if strategy["status"] != "monitoring" and monitor is None:
             continue
         strategies.append({"strategyId": strategy["strategyId"], "name": strategy["name"],
-            "status": strategy["status"], "decision": monitor_service.latest_results.get(strategy["strategyId"]),
+            "status": strategy["status"], "reminderOnly": bool(strategy.get("reminderOnly")), "decision": monitor_service.latest_results.get(strategy["strategyId"]),
             "monitorState": monitor,
             "recentAttempts": base.recent_attempts(strategy["strategyId"])})
     # Attribute only through persisted execution links, never through symbol/name.

@@ -4,6 +4,7 @@ import type { AgentTask } from "@ai-trader/ui-events";
 import { requestJson } from "../../api";
 import type { ConversationTurn } from "../../state/conversation";
 import { useDisclosureSurface } from "../../uiSurfaces";
+import { PttButton, PttLive, type PushToTalk } from "./PushToTalk";
 import "./AiCommandBar.css";
 
 const ORDER_CARDS = new Set(["trade", "close-batch", "spread"]);
@@ -15,9 +16,10 @@ const ANSWER_CHARS = 140;
  * result drops down under it (`disclosure: ai-command-result`): what the AI did — each step the Runtime marked as
  * an action (`step.action`: a price alert, a drawing, a screen change) with 撤销 where it can be taken back through
  * the same business call the UI uses — then the answer's first lines. Orders only ever come as cards: a card
- * points to the chat, where it is confirmed.
+ * points to the chat, where it is confirmed. 按住说话 sits in the bar too: the workspace's one hold (`ptt.pressTo`), its
+ * words sent from here like a typed line.
  */
-export function AiCommandBar({ baseUrl, turns, busy, blockedReason, onSend, onOpenChat }: {
+export function AiCommandBar({ baseUrl, turns, busy, blockedReason, onSend, onOpenChat, ptt }: {
   baseUrl: string | undefined;
   turns: readonly ConversationTurn[];
   /** The chat is answering or sending: a new line waits (the input keeps it). */
@@ -26,6 +28,8 @@ export function AiCommandBar({ baseUrl, turns, busy, blockedReason, onSend, onOp
   blockedReason: string | null;
   onSend: (text: string) => Promise<void>;
   onOpenChat: () => void;
+  /** The workspace's 按住说话; absent hides the bar's microphone. */
+  ptt?: PushToTalk;
 }) {
   const [text, setText] = useState("");
   const [asked, setAsked] = useState<{ text: string; after: number } | null>(null);
@@ -59,9 +63,7 @@ export function AiCommandBar({ baseUrl, turns, busy, blockedReason, onSend, onOp
     return () => document.removeEventListener("pointerdown", outside);
   }, [open, setOpen]);
 
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    const line = text.trim();
+  const send = async (line: string) => {
     if (!line || busy || blockedReason) return;
     setAsked({ text: line, after: turns.length });
     setUndone({});
@@ -69,6 +71,19 @@ export function AiCommandBar({ baseUrl, turns, busy, blockedReason, onSend, onOp
     setText("");
     await onSend(line);
   };
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    await send(text.trim());
+  };
+  // Held here, the words go out from the bar (or wait in its input while the AI is still answering).
+  const latest = useRef({ busy, send });
+  latest.current = { busy, send };
+  const [holding, setHolding] = useState(false);
+  useEffect(() => { if (ptt?.status.state === "idle") setHolding(false); }, [ptt?.status.state]);
+  const barPtt: PushToTalk | undefined = ptt && { ...ptt, press: () => {
+    setHolding(true);
+    ptt.pressTo(words => { if (latest.current.busy) setText(words); else void latest.current.send(words.trim()); });
+  } };
   const undo = async (id: string, path: string) => {
     if (!baseUrl) return;
     setUndone(previous => ({ ...previous, [id]: "busy" }));
@@ -82,12 +97,14 @@ export function AiCommandBar({ baseUrl, turns, busy, blockedReason, onSend, onOp
 
   return <div className="ai-bar" ref={root} data-agent-target="ai-command-bar">
     <form className="ai-bar-input" role="search" aria-label="AI 指令栏" title={blockedReason ?? "问 AI（⌘K）"}
-      onClick={() => input.current?.focus()} onSubmit={event => void submit(event)}>
+      onClick={event => { if (!(event.target as Element).closest("button")) input.current?.focus(); }} onSubmit={event => void submit(event)}>
       <Sparkles aria-hidden="true" />
-      <input ref={input} aria-label="问 AI，或说一句要做的事" value={text} maxLength={500} disabled={Boolean(blockedReason)}
+      {holding && ptt && ptt.status.state !== "idle" ? <PttLive status={ptt.status} /> : null}
+      <input hidden={holding && ptt?.status.state !== "idle"} ref={input} aria-label="问 AI，或说一句要做的事" value={text} maxLength={500} disabled={Boolean(blockedReason)}
         placeholder={blockedReason ?? "问 AI，或说一句要做的事"} onChange={event => setText(event.target.value)}
         onFocus={() => { if (asked) setOpen(true); }} onKeyDown={event => { if (event.key === "Escape") { setOpen(false); input.current?.blur(); } }} />
       <kbd aria-hidden="true">⌘K</kbd>
+      {barPtt ? <PttButton ptt={barPtt} releaseLabel="发给 AI" label="按住对 AI 说" /> : null}
     </form>
     {open && asked ? <section className="ai-bar-result" aria-label="AI 指令结果" aria-live="polite">
       <header>

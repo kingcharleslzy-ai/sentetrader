@@ -218,17 +218,20 @@ class StrategyStore(StoreBase):
         self, *, user_id: str, limit: int = 20,
     ) -> list[dict[str, Any]]:
         """`list_strategy_drafts` without the definitions (the same rows and order): the activity
-        frame reads only these four fields every second, and parsing 50 definitions was a tenth
-        of the Runtime at 60 readers (2026-10-13)."""
+        frame reads only these few fields every second, and parsing 50 definitions was a tenth
+        of the Runtime at 60 readers (2026-10-13). `reminderOnly` (只提醒, the chart's "AI 正在盯" row) is one
+        json_extract, not a parse."""
         safe_limit = min(max(int(limit), 1), 50)
         with self.lock:
             rows = self.connection.execute(
-                """SELECT id, name, symbol, status FROM strategy_drafts WHERE user_id = ?
+                """SELECT id, name, symbol, status,
+                COALESCE(json_extract(definition_json, '$.plan.reminderOnly'), 0) AS reminder_only
+                FROM strategy_drafts WHERE user_id = ?
                 ORDER BY updated_at DESC, id DESC LIMIT ?""",
                 (user_id, safe_limit),
             ).fetchall()
         return [{"strategyId": row["id"], "name": row["name"], "symbol": row["symbol"],
-                 "status": row["status"]} for row in rows]
+                 "status": row["status"], "reminderOnly": bool(row["reminder_only"])} for row in rows]
 
     def list_strategy_library(self, *, user_id: str) -> list[dict[str, Any]]:
         with self.lock:

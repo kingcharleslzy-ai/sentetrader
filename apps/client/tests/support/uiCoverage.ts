@@ -319,8 +319,12 @@ export const COMMANDABLE: Rule[] = [
   // AI 指令栏 (改版第二步 2026-11-01): the header bar's input is a chat send (the /^问 AI/ rule below); its result drop-down.
   { match: /^收起 AI 指令结果$/, via: "disclosure: {name: ai-command-result, open: false}" },
   { match: control => control.group === "ai-command-bar" && /撤销$/.test(control.label),
-    via: "DELETE /api/market/alerts/{alert_id} | DELETE /api/market/drawings/{drawing_id}（任务步骤 step.action.undo 写明的那个业务接口）" },
+    via: "DELETE /api/market/alerts/{alert_id} | DELETE /api/market/drawings/{drawing_id} | DELETE /api/strategy-plans/{identifier}（任务步骤 step.action.undo 写明的那个业务接口）" },
   { match: /^(在对话里看全文|到对话里确认)$/, via: "panel: ai" },
+  // AI 正在盯 (改版第二步): the line under the chart only opens where each watched item is managed.
+  { match: control => control.group === "ai-watching" && /今天提醒过 \d+ 次$/.test(control.label), via: "reminders: {tab: history}" },
+  { match: control => control.group === "ai-watching" && /提醒中$/.test(control.label), via: "reminders: {tab: mine}" },
+  { match: control => control.group === "ai-watching" && /运行中$/.test(control.label), via: "strategyTab: running" },
   // 说人话 (2026-09-25): each parameter's “?” note (结果页 · 来自模板的参数).
   { match: control => control.role === "button" && /是什么$/.test(control.label) && /^ai-strategy|strategy-template/.test(`${control.surface} ${control.group ?? ""}`),
     via: "disclosure: {name: strategy-param-help, id: 参数key}（参数旁的“?”说明）" },
@@ -710,7 +714,7 @@ export const EXEMPT: Exemption[] = [
   { match: /^(打开锁屏提醒|这台 .+ 收锁屏提醒)$/,
     reason: "开启锁屏提醒必须由用户在这台设备上点、在系统询问里允许，浏览器才给推送订阅（PUT /api/app/push/subscription 不在能力目录）；状态在快照 state.pushSubscribed 与 GET /api/app/push" },
   { match: /^(录制.+|恢复默认快捷键)$/, reason: "本机快捷键由键盘录制，不进账号偏好；当前绑定在快照 settings.shortcuts" },
-  { match: /^按住说话(，松开发送)?$/, reason: "按住说话是用户的物理语音输入（与快捷键同类），没有命令；状态在快照 context.voice.ptt，按住键在 settings.shortcuts.ptt" },
+  { match: /^(按住说话(，松开发送)?|按住对 AI 说)$/, reason: "按住说话是用户的物理语音输入（与快捷键同类），没有命令；状态在快照 context.voice.ptt，按住键在 settings.shortcuts.ptt" },
   { match: /^(清除本地缓存|诊断 JSON)$/, reason: "本机维护动作（清 localStorage / 下载诊断文件），不对应业务能力" },
   { match: control => control.group === "mobile-notify" && control.label === "全部已读", reason: "手机版 AI 首页时间线的已读标记只存在本机浏览器（按用户），不对应业务能力；未读数在快照 state.mobileUnread" },
   { match: control => control.group === "mobile-ai" && /^(还有 \d+ 张待确认|收起其余待确认)$/.test(control.label),

@@ -1094,6 +1094,11 @@ export interface components {
             name: string;
             /** Status */
             status: string;
+            /**
+             * Reminderonly
+             * @default false
+             */
+            reminderOnly: boolean;
             decision: components["schemas"]["StrategyDecision"] | null;
             monitorState: components["schemas"]["MonitorState"] | null;
             /** Recentattempts */

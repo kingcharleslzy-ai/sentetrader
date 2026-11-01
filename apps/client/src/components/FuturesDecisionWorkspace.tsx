@@ -40,6 +40,7 @@ import { routineRunPrompt, type RoutineRef } from "../routines";
 import { ContractDrawer } from "./futures/WorkspaceDrawers";
 import { AiDock } from "./futures/AiDock";
 import { AiCommandBar } from "./futures/AiCommandBar";
+import { AiWatching } from "./futures/AiWatching";
 import { NewsPanel, type NewsTab } from "./NewsPanel";
 import { useDebateHost } from "./ResearchDebate";
 import { productOfSymbol } from "./FlashFeed";
@@ -1503,7 +1504,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
         guestActions={props.guest ? <PttButton ptt={ptt} /> : undefined}
         aiBar={props.guest || mobile ? undefined : <AiCommandBar baseUrl={connectedRuntimeUrl} turns={props.state.turns} busy={Boolean(props.chatBusy || chat.sendingPrompt)}
           blockedReason={!connectedRuntimeUrl ? "连接后可以问 AI" : props.agentAccount && !props.agentAccount.authenticated ? "模型尚未就绪，请在设置里选择模型" : null}
-          onSend={text => chat.sendQuickPrompt(text)} onOpenChat={openChat} />} />
+          onSend={text => chat.sendQuickPrompt(text)} onOpenChat={openChat} ptt={ptt} />} />
 
       {dialogs}
       <WebUpdateBanner />
@@ -1555,6 +1556,12 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
                   openFills={openFills} openChat={openChat} setPrompt={setPrompt}
                   onReminder={mobile || props.guest ? undefined : playbook => openReminderEditor({ new: true, reminder: true,
                     ...(playbook ? { ask: `按我的交易笔记「${playbook.name}」设提醒：${playbook.entryRules.trim() || playbook.name}`.slice(0, 500) } : {}) })} />}
+                {market && !props.guest && !mobile && !props.replayActive ? <AiWatching
+                  alerts={alerts.active.filter(alert => sameContract(alert.symbol, quote?.symbol))} strategies={appWorkbench.activity?.strategies ?? []}
+                  todayReminders={reminders.today.length} onOpen={target => {
+                    if (target === "strategies") { setStrategyTab("running"); setRightDock("strategy"); }
+                    else { setRemindersTab(target === "history" ? "history" : "mine"); setRightDock("reminders"); }
+                  }} /> : null}
                 {aiOrb}
                 </div>)}
                 {!props.guest && view === "review" ? <aside className="fdw-market-side">{props.runtimeBaseUrl !== undefined ? props.replayActive ? <TradeReview baseUrl={props.runtimeBaseUrl} symbol={props.selectedSymbol ?? ""} onFocus={setTradeFocus}/> : <AccountPnl baseUrl={props.runtimeBaseUrl} rootUrl={props.rootBaseUrl ?? props.runtimeBaseUrl} symbol={quote?.symbol ?? props.selectedSymbol ?? ""} chartSymbols={(props.instruments?.items ?? []).map(item => item.symbol)} chartAvailable={Boolean(quote)} accountId={reviewAccountId} foreignAccountId={foreignReviewAccountId} snapshots={ledgerSnapshots} onFocus={setTradeFocus} onSelectSymbol={props.onSelectSymbol} initialBalance={initialBalance} onInitialBalanceChange={setInitialBalance} onVoiceReview={call.available ? call.review : undefined} voiceReviewing={Boolean(call.status.review)} /> : <ActivityPanel account={props.account} simulationOrders={props.simulationOrders} busy={props.tradeBusy} onOrderAction={handleOrderAction} />}</aside> : null}

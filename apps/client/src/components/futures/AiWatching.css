@@ -1,0 +1,11 @@
+/* AI 正在盯 (改版第二步): one line under the chart; items shrink with an ellipsis, the line never wraps. Theme tokens only. */
+.ai-watching { flex: none; display: flex; align-items: center; gap: var(--space-2); min-width: 0; height: 30px; padding: 0 var(--space-3);
+  overflow: hidden; border-top: 1px solid var(--line); background: var(--panel); color: var(--muted); font-size: var(--font-sm); }
+.ai-watching svg { flex: none; width: 13px; height: 13px; }
+.ai-watching-title { flex: none; display: inline-flex; align-items: center; gap: var(--space-1); color: var(--accent); }
+.ai-watching button { flex: 0 1 auto; display: inline-flex; align-items: center; gap: var(--space-1); min-width: 0; max-width: 240px; height: 22px;
+  padding: 0 var(--space-2); overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius-control); background: none;
+  color: var(--ink); font: inherit; white-space: nowrap; text-overflow: ellipsis; cursor: pointer; }
+.ai-watching button:hover, .ai-watching button:focus-visible { border-color: var(--line-strong); background: var(--surface-hover); }
+.ai-watching em { flex: none; color: var(--muted); font-style: normal; }
+.ai-watching .ai-watching-today { margin-left: auto; color: var(--muted); }

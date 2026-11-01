@@ -31,7 +31,7 @@ StepKind = Literal["read", "draw", "backtest", "margin", "card", "alert", "watch
 STEP_KINDS: dict[str, tuple[str, str]] = {
     "read": ("读", "读今日判断、调研、简报、持仓与账户"),
     "draw": ("画线", "在图上画支撑、阻力和失效位"),
-    "backtest": ("回测", "回测一个打法或策略"),
+    "backtest": ("回测", "回测一个交易笔记或策略"),
     "margin": ("算", "算保证金与可开手数"),
     "card": ("出卡", "出开仓 / 平仓卡（只出卡，下单要你确认）"),
     "alert": ("提醒", "设到价提醒"),

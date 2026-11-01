@@ -14,12 +14,17 @@ from .ui_control import UI_COMMAND_OPERATION, describe_ui_change
 
 # The agent's own tools for these (what the model actually picks, 2026-11-01 live check) call the same route and
 # hand its JSON back as the result's `data`; app_call wraps it once more ({ok, data}).
-DEDICATED_TOOLS = {"create_price_alert": "POST /api/market/alerts", "create_chart_drawing": "POST /api/market/drawings"}
+DEDICATED_TOOLS = {"create_price_alert": "POST /api/market/alerts", "create_chart_drawing": "POST /api/market/drawings",
+                   "create_strategy_draft": "POST /api/strategy-plans",
+                   "create_strategy_from_template": "POST /api/strategy-templates/{template_id}/instantiate"}
+# A strategy or 条件提醒 the AI saves is a draft (it never starts one): taken back through 我的策略's own delete, which
+# refuses while it monitors or has orders / positions — the refusal shows beside 撤销.
+STRATEGY_SAVES = {"POST /api/strategy-plans", "POST /api/strategy-templates/{template_id}/instantiate"}
 
 
 def step_action(tool: str, arguments: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any] | None:
-    """`{text, undo}` for a successful tool call that created a price alert or a drawing (its own tool or app_call),
-    or an app_call that applied an interface command; None for anything else. `payload` is the tool's result
+    """`{text, undo}` for a successful tool call that created a price alert, a drawing or a strategy / 条件提醒 draft
+    (its own tool or app_call), or an app_call that applied an interface command; None for anything else. `payload` is the tool's result
     object ({success, data, …}); the caller passes only calls that succeeded."""
     data = payload.get("data")
     result: dict[str, Any] = data if isinstance(data, dict) else {}
@@ -47,6 +52,11 @@ def step_action(tool: str, arguments: dict[str, Any], payload: dict[str, Any]) -
         label = f"「{drawing['label']}」" if drawing.get("label") else ""
         return {"text": f"在 {drawing.get('symbol') or '图'} 上画了{KIND_WORDS.get(str(drawing.get('kind')), '一条线')}{label}",
                 "undo": {"method": "DELETE", "path": f"/api/market/drawings/{drawing['id']}"}}
+    if operation in STRATEGY_SAVES and body.get("strategyId"):
+        plan = (body.get("definition") or {}).get("plan") if isinstance(body.get("definition"), dict) else None
+        reminder = bool(body.get("reminderOnly") or (isinstance(plan, dict) and plan.get("reminderOnly")))
+        what = f"存了提醒「{body.get('name') or ''}」（还没开始提醒）" if reminder else f"存了策略草稿「{body.get('name') or ''}」（没上线）"
+        return {"text": what, "undo": {"method": "DELETE", "path": f"/api/strategy-plans/{body['strategyId']}"}}
     if operation == UI_COMMAND_OPERATION:
         changes = (request.get("body") or {}).get("changes") if isinstance(request.get("body"), dict) else None
         if isinstance(changes, dict) and changes:
@@ -64,3 +74,5 @@ assert step_action("app_call", {"requestJson": json.dumps({"operation": "GET /ap
 assert (step_action("create_price_alert", {"symbol": "螺纹", "price": 3036},
                     {"data": {"alert": {"id": "a1", "symbol": "SHFE.rb2701", "price": 3036, "direction": "up"}}}
                     ) or {}).get("undo") == {"method": "DELETE", "path": "/api/market/alerts/a1"}
+assert step_action("create_strategy_draft", {}, {"data": {"strategyId": "s1", "name": "突破提醒", "reminderOnly": True}}) == {
+    "text": "存了提醒「突破提醒」（还没开始提醒）", "undo": {"method": "DELETE", "path": "/api/strategy-plans/s1"}}

@@ -64,7 +64,9 @@ def _reference_snapshot(app, user, symbol, activity, simulation_orders=None, str
         if strategy["status"] != "monitoring" and monitor is None:
             continue
         strategies.append({"strategyId": strategy["strategyId"], "name": strategy["name"],
-            "status": strategy["status"], "decision": monitor_service.latest_results.get(strategy["strategyId"]),
+            "status": strategy["status"],
+            "reminderOnly": bool(((strategy.get("definition") or {}).get("plan") or {}).get("reminderOnly")),
+            "decision": monitor_service.latest_results.get(strategy["strategyId"]),
             "monitorState": monitor,
             "recentAttempts": store.list_strategy_execution_attempts(
                 strategy_id=strategy["strategyId"], user_id=user, limit=10)})

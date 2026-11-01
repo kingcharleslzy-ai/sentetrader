@@ -29,7 +29,7 @@ test("initial history is quiet, new partial fills merge, repeated snapshots do n
 });
 
 test("clear is display-only; changing execution status makes the event visible again",async()=>{
-  const data=snapshot([]);data.strategies=[{strategyId:"s",name:"策略",status:"monitoring",decision:null,monitorState:null,recentAttempts:[{attemptId:"a",action:"open_long",volume:1,status:"FAILED",detail:"ai_execution_stopped",updatedAt:"2026-09-09T06:20:00Z"}]}];
+  const data=snapshot([]);data.strategies=[{strategyId:"s",name:"策略",status:"monitoring",reminderOnly:false,decision:null,monitorState:null,recentAttempts:[{attemptId:"a",action:"open_long",volume:1,status:"FAILED",detail:"ai_execution_stopped",updatedAt:"2026-09-09T06:20:00Z"}]}];
   const view=render(<OperationTimeline {...props} activity={data}/>);
   await act(async()=>{await Promise.resolve();});
   fireEvent.click(screen.getByRole("button",{name:"清空显示"}));

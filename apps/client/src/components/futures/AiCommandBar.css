@@ -40,3 +40,10 @@
   transform: translateY(-50%); background: var(--panel); box-shadow: var(--shadow); cursor: text; }
 .fdw-fit-compact-ai > .ai-bar .ai-bar-input:focus-within input { flex: 1; }
 .fdw-fit-compact-ai > .ai-bar .ai-bar-result { left: auto; width: min(360px, 70vw); }
+/* 按住说话 in the bar: the workspace's one hold; while held its level bars stand in for the input. */
+.ai-bar-input .fdw-ptt-button { flex: none; display: inline-flex; padding: 2px; border: 0; border-radius: var(--radius-control);
+  background: none; color: var(--muted); cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; }
+.ai-bar-input .fdw-ptt-button svg { width: 15px; height: 15px; }
+.ai-bar-input .fdw-ptt-button.active { color: var(--danger); background: var(--danger-soft); }
+.ai-bar-input .fdw-ptt-live { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; font-size: var(--font-sm); }
+.fdw-fit-compact-ai > .ai-bar .ai-bar-input:not(:focus-within) .fdw-ptt-button { display: none; }

@@ -2319,6 +2319,7 @@ class TraderReadOnlyTools:
         if writes:
             brief = {key: data.get(key) for key in ("strategyId", "name", "version", "status")}
             brief["templateSource"] = (data.get("definition") or {}).get("templateSource")
+            brief["reminderOnly"] = bool(((data.get("definition") or {}).get("plan") or {}).get("reminderOnly"))
             return self._response(TraderToolResult(tool=tool, readOnly=False, data=brief,
                                                    warning="已存为策略草稿，未上线；上线由用户在策略面板决定。"), True), None
         backtest = data["backtest"]

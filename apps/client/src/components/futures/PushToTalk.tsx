@@ -125,7 +125,8 @@ export function usePushToTalk({ baseUrl, blockedReason, sendOnRelease, onSend, o
 }
 
 /** The microphone button beside 发送: press and hold (mouse, touch or Space), release to finish. */
-export function PttButton({ ptt, releaseLabel }: { ptt: PushToTalk; /** What releasing does, when not the composer's own. */ releaseLabel?: string }) {
+export function PttButton({ ptt, releaseLabel, label = "按住说话" }: { ptt: PushToTalk; /** What releasing does, when not the composer's own. */ releaseLabel?: string;
+  /** Its name where another 按住说话 button shows at the same time (the AI 指令栏's). */ label?: string }) {
   const { status, blockedReason, keyLabel, sendOnRelease, press } = ptt;
   const active = status.state !== "idle";
   const title = blockedReason || `按住说话（或按住${keyLabel}），松开${releaseLabel ?? (sendOnRelease ? "直接发送" : "填入输入框")}；Esc 取消`;
@@ -136,7 +137,7 @@ export function PttButton({ ptt, releaseLabel }: { ptt: PushToTalk; /** What rel
     else if (!down) pushToTalkStore.release();
   };
   return (
-    <button type="button" className={`fdw-ptt-button${active ? " active" : ""}`} aria-label="按住说话" title={title}
+    <button type="button" className={`fdw-ptt-button${active ? " active" : ""}`} aria-label={label} title={title}
       aria-pressed={status.state === "recording"} disabled={Boolean(blockedReason) && !active}
       onPointerDown={event => { if (event.button > 0) return; event.preventDefault(); event.currentTarget.setPointerCapture?.(event.pointerId); press(); }}
       onPointerUp={() => pushToTalkStore.release()} onPointerCancel={() => pushToTalkStore.cancel()}

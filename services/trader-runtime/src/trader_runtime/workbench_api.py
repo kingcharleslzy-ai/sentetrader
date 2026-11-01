@@ -201,6 +201,7 @@ class ActivityStrategy(BaseModel):
     strategyId: str
     name: str
     status: str
+    reminderOnly: bool = False  # 只提醒（条件提醒）, not a strategy that trades
     decision: StrategyDecision | None
     monitorState: MonitorState | None
     recentAttempts: list[dict[str, Any]]
