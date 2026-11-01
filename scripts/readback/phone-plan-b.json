@@ -1,5 +1,5 @@
 {
- "about": "手机版方案 B（#1248）：底部 今天 · 调研 ·（说话键）· 看盘 · 策略，我的从今天页头像进；每页底部有说话键。只切页面看，不发消息（说话键与回执条另用测试账号手动发一句核对）。 11-01 对齐批（#1247）加：策略页“停止”菜单只打开不点、看盘单图合约信息卡、下单页的五档（不下单）、持仓页 → 复盘、我的里的新设置行。",
+ "about": "手机版方案 B（#1248）：底部 今天 · 调研 ·（说话键）· 看盘 · 策略，我的从今天页头像进；每页底部有说话键。只切页面看，不发消息（说话键与回执条另用测试账号手动发一句核对）。 11-01 对齐批（#1247）加：策略页“停止”菜单只打开不点、看盘单图合约信息卡、下单页的五档（不下单）、持仓页 → 复盘、我的里的新设置行。 11-01 第二轮补完（#1250）加：今天页 AI 正在盯三个胶囊与“?”、我的 → 下单与停止 / 语音两个精简设置页（只看不改）；连续说要真麦克风，不在回读里接通。",
  "device": "phone",
  "steps": [
   {
@@ -9,12 +9,41 @@
    "expect": {
     "mobileTab": "ai",
     "observation.text": {
-     "includes": "今天"
+     "includes": "AI 正在盯"
     }
    }
   },
   {
    "screenshot": "01-today"
+  },
+  {
+   "ui": {
+    "disclosure": {
+     "name": "help-tip",
+     "id": "mobile-watch",
+     "open": true
+    }
+   },
+   "expect": {
+    "observation.text": {
+     "includes": "点一个胶囊进管它的地方"
+    }
+   }
+  },
+  {
+   "screenshot": "01b-today-watch-help"
+  },
+  {
+   "ui": {
+    "disclosure": {
+     "name": "help-tip",
+     "id": "mobile-watch",
+     "open": false
+    }
+   },
+   "expect": {
+    "mobileTab": "ai"
+   }
   },
   {
    "ui": {
@@ -206,6 +235,50 @@
   {
    "ui": {
     "mobilePage": null
+   },
+   "expect": {
+    "mobilePage": null
+   }
+  },
+  {
+   "ui": {
+    "settingsOpen": true
+   },
+   "expect": {
+    "observation.text": {
+     "includes": "设置"
+    }
+   }
+  },
+  {
+   "ui": {
+    "settingsPage": "trade"
+   },
+   "expect": {
+    "observation.text": {
+     "includes": "下单与停止"
+    }
+   }
+  },
+  {
+   "screenshot": "12-settings-trade-phone"
+  },
+  {
+   "ui": {
+    "settingsPage": "voice"
+   },
+   "expect": {
+    "observation.text": {
+     "includes": "口头确认时限"
+    }
+   }
+  },
+  {
+   "screenshot": "13-settings-voice-phone"
+  },
+  {
+   "ui": {
+    "settingsOpen": false
    },
    "expect": {
     "mobilePage": null
