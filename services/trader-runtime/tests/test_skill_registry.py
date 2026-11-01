@@ -959,15 +959,11 @@ def test_pending_card_outranks_every_routed_action():
 # -- docs stay current (AGENTS.md: no stale descriptions) -----------------------
 
 
-def test_the_documented_skill_tables_list_the_registry():
-    external = (REPO_ROOT / "skills" / "ai-trader" / "SKILL.md").read_text(encoding="utf-8")
-    capability = (REPO_ROOT / "docs" / "FUTURES_AGENT_CAPABILITY_V1.md").read_text(encoding="utf-8")
+def test_the_help_skills_chapter_lists_the_registry():
+    """The registry is the skill list's only home (AGENTS.md); the docs point to it instead of copying it."""
     from trader_runtime.app_help import HELP
     help_text = "\n".join(HELP["skills"]["detail"])
     # The skills chapter is generated from this registry at load, never a frozen copy in the help data.
     assert {"generated": "skills"} in json.loads(HELP_CATALOG.read_text(encoding="utf-8"))["topics"]["skills"]["detail"]
     for skill in all_skills():
-        for document, text in (("skills/ai-trader", external),
-                               ("docs/FUTURES_AGENT_CAPABILITY_V1", capability),
-                               ("app_help", help_text)):
-            assert skill.skill_id in text, f"{document} lacks {skill.skill_id}"
+        assert skill.skill_id in help_text, f"app_help lacks {skill.skill_id}"
