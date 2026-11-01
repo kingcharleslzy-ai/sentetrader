@@ -2157,8 +2157,7 @@ class NativeAgentAdapter:
         answer = {"turnId": turn.turn_id, "role": "assistant", "agentId": "native", "text": summary,
                   **self._voice_fields(turn, summary)}
         async with self._usage_status_follows_publish(run_id):
-            self._notify_turn_text(session_id, "message.completed", answer)
-            await self.broker.publish(session_id, kind="message", name="message.completed", payload=answer)
+            await self._publish(session_id, "message", "message.completed", answer)
         history.append({"role": "assistant", "content": summary})
 
     async def handle_message(
@@ -2639,8 +2638,7 @@ class NativeAgentAdapter:
                     "现在怎么做：数据恢复前先观望。")
             unavailable = {"turnId": turn.turn_id, "role": "assistant", "agentId": "native", "text": text,
                            **self._voice_fields(turn, voice_note + "实时行情还没就绪，先观望，数据恢复了再看。")}
-            self._notify_turn_text(session_id, "message.completed", unavailable)
-            await self.broker.publish(session_id, kind="message", name="message.completed", payload=unavailable)
+            await self._publish(session_id, "message", "message.completed", unavailable)
             history.append({"role": "assistant", "content": text})
             return
         if final_text is None:
@@ -2691,8 +2689,9 @@ class NativeAgentAdapter:
                 "severity": "warning", "deterministic": True})
         answer = {"turnId": turn.turn_id, "role": "assistant", "agentId": "native", "text": final_text or "任务已完成。",
                   **self._voice_fields(turn, spoken)}
-        self._notify_turn_text(session_id, "message.completed", answer)
-        await self.broker.publish(session_id, kind="message", name="message.completed", payload=answer)
+        # Through _publish, which drops a text snapshot still in the coalescing window: sent after this as a transient
+        # it reached the client last and reopened the answered turn (11-02: a quote-card answer stuck "AI 正在处理…").
+        await self._publish(session_id, "message", "message.completed", answer)
         history.append({"role": "assistant", "content": final_text or "任务已完成。"})
 
     def _record_turn_cards(self, turn: _Turn, shown: set[str], *, numeric: bool) -> None:
