@@ -391,7 +391,16 @@ def register_workbench(application, current_user, root, adapter, store, broker, 
         user = await current_user(request)
         selected = fixed_verdict_model(application) or (
             adapter.adapter_for_user(user) if hasattr(adapter, "adapter_for_user") else adapter)
-        return workspace.start(user, body.model_dump(exclude_none=True), selected)
+        # The plan carries no contract: the one the sentence names rides the job for the 策略编辑卡 (2026-11-02:
+        # “螺纹 2701 降到 3010…” kept the chart's 中证2612). Unreadable catalog → none, the card keeps its own.
+        try:
+            from .order_planner import named_contract
+            source = ((await ctx.account_context(request, user)).account.provider if ctx is not None else provider)
+            items = (await asyncio.to_thread(source.instrument_catalog)).get("items")
+            symbol = named_contract(body.description, items)
+        except Exception:
+            symbol = None
+        return workspace.start(user, body.model_dump(exclude_none=True), selected, symbol=symbol)
 
     @application.get("/api/strategy-plans/design-jobs/{identifier}")
     async def design_status(identifier: str, request: Request):

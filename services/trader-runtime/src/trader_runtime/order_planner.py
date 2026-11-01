@@ -739,6 +739,21 @@ def _said_contracts(words: Any, context: ParseContext, catalog: list[dict[str, A
     return list(dict.fromkeys(named))
 
 
+def named_contract(text: str, items: Any) -> str | None:
+    """The one catalog contract a sentence names — a code or a month after a product name exactly, a product alone
+    as its main contract — read as the order card reads it; None when it names none, several, or one the catalog
+    lacks (the 策略编辑卡 then keeps its own contract, 2026-11-02)."""
+    from .turn_router import catalog_product_names
+    catalog = [item for item in items or [] if isinstance(item, dict)]
+    context = ParseContext(products=tuple(catalog_product_names(catalog) or ()))
+    one = _one_contract(_said_contracts(mentions(text, context), context, catalog))
+    if one is None:
+        return None
+    rows = _exact(one.symbol, catalog) if one.symbol else (
+        [row] if one.name and not one.month and (row := _catalog_match(one.name, catalog)) is not None else [])
+    return str(rows[0]["symbol"]) if len(rows) == 1 else None
+
+
 def _distinct(candidates: list[_Named]) -> list[_Named]:
     """The distinct contracts the candidates are: a product an exact one (“这个”, a code) already is folds into it."""
     exact = {candidate.symbol.casefold(): candidate for candidate in candidates if candidate.symbol}

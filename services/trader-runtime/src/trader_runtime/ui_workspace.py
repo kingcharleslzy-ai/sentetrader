@@ -66,7 +66,7 @@ class UiWorkspace:
             self.persist(user, job)
         return job
 
-    def start(self, user: str, body: dict, adapter) -> dict:
+    def start(self, user: str, body: dict, adapter, *, symbol: str | None = None) -> dict:
         if not isinstance(body, dict):
             raise HTTPException(422, "invalid_design_request")
         identifier = body.get("id") or uuid4().hex
@@ -95,7 +95,8 @@ class UiWorkspace:
         if any(owner == user for owner, _ in self.tasks):
             raise HTTPException(409, "已有策略正在生成，请等待或停止后再试")
         job = dict(id=identifier, description=description, constraints=constraints,
-                   status="running", stage="等待模型响应", summary="", startedAt=utc_now())
+                   status="running", stage="等待模型响应", summary="", startedAt=utc_now(),
+                   **({"symbol": symbol} if symbol else {}))
         self.persist(user, job)
         key = (user, identifier)
         self.jobs[key] = job

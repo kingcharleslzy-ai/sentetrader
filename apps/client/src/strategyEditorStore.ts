@@ -507,7 +507,7 @@ async function design(description: string, history: { question: string; answer: 
   const id = newJobId();
   askJob = id;
   set({ ask: { text: description, status: "running", stage: "正在发送" }, questions: [], history, error: null });
-  type Job = { id: string; status: string; stage?: string; result?: StrategyPlan; error?: { message?: string } };
+  type Job = { id: string; status: string; stage?: string; result?: StrategyPlan; symbol?: string; error?: { message?: string } };
   try {
     // No direction / maxPosition / maxLoss here: the server would treat them as limits the user set and
     // let them override the plan; the sentence and the form decide.
@@ -529,23 +529,24 @@ async function design(description: string, history: { question: string; answer: 
     }
     const plan = reply.result;
     const questions = plan.questions.length || plan.clarifications?.length ? strategyQuestions(plan) : [];
-    applyDesigned(plan, previousPlan);
+    applyDesigned(plan, previousPlan, reply.symbol);
     if (questions.length) set({ ask: { text: description, status: "questions" }, questions, answers: {} });
   } catch (error) {
     if (live()) { askJob = null; set({ ask: { text: description, status: "failed", error: strategyError(error, "这次没有改成，请检查连接后再试") } }); }
   }
 }
 
-/** The designed plan into the form (not saved): what it changed is highlighted once. */
-function applyDesigned(plan: StrategyPlan, sent?: StrategyPlan) {
-  const proposed = formFromPlan(plan, state.form.symbol);
+/** The designed plan into the form (not saved): what it changed is highlighted once. The plan carries no contract:
+ * the one the sentence names (the job's `symbol`) replaces the card's, else the card's stays. */
+function applyDesigned(plan: StrategyPlan, sent?: StrategyPlan, named?: string) {
+  const proposed = formFromPlan(plan, named || state.form.symbol);
   // 响几次 / 到期 / 自选表 and 信号来了怎么办 are the user's picks: the designer never writes them.
   proposed.reminderOptions = state.form.reminderOptions; proposed.signalAction = state.form.signalAction;
   if (!plan.timeframeSeconds && state.form.timeframe) proposed.timeframe = state.form.timeframe;
   // 补一句 on a filled form: only what the designer actually changed against the plan it was sent lands on
   // the form — a field it merely echoed (an empty field's default, a value it kept) stays as the user left it.
   const next = sent ? revisedForm(proposed, formFromPlan(sent, state.form.symbol)) : proposed;
-  const changed: FieldName[] = changedFields(state.form, next).filter(field => field !== "symbol");
+  const changed: FieldName[] = changedFields(state.form, next);
   set({ base: plan, form: next, changed, aiFields: state.aiFields.filter(field => !changed.includes(field)),
     ask: state.ask && { ...state.ask, status: "done", stage: undefined } });
   schedule();

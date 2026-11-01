@@ -934,3 +934,15 @@ def test_a_relay_frozen_to_its_account_while_the_conversation_moved_stays_bound_
         assert isinstance(outcome, Cards), outcome
         assert plans[0]["trading_account_id"] == "acct-A"
         assert bool(plans[0]["leg_json"].get("accountExplicit")) is bound, session_account
+
+
+def test_named_contract_reads_the_sentence_like_the_order_card():
+    # 2026-11-02: the 策略编辑卡's design job takes the contract its sentence names; none or several → the card's own.
+    from trader_runtime.data_providers import fake_instrument_catalog
+    from trader_runtime.order_planner import named_contract
+    items = fake_instrument_catalog()["items"]
+    assert named_contract("螺纹 2610 降到 3010，同时 MACD 死叉、五日和十日均线交叉才提醒", items) == "SHFE.rb2610"
+    assert named_contract("螺纹降到 3010 提醒我", items) == "SHFE.rb2610"
+    assert named_contract("MACD 死叉、五日和十日均线交叉才提醒", items) is None
+    assert named_contract("螺纹 2705 降到 3010", items) is None
+    assert named_contract("螺纹和沪金都提醒", items) is None
