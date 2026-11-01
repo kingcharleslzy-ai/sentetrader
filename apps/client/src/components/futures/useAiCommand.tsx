@@ -34,7 +34,9 @@ export function useAiCommand({ baseUrl, turns, busy, blockedReason, onSend, avai
   const reply = asked ? turns.slice(asked.after).find(turn => turn.role === "assistant") : undefined;
   const task = reply?.cards.find(card => card.type === "task")?.payload as AgentTask | undefined;
   const actions = (task?.steps ?? []).filter(step => step.status === "done" && step.action);
-  const working = Boolean(asked) && (!reply || reply.completed === false || task?.status === "running");
+  // A reply with a task is done when its task is (11-02: a quote answer's message.completed never came, so the
+  // 指令结果 said "AI 正在处理…" for good while the task and the answer were both there); without one, by the turn.
+  const working = Boolean(asked) && (!reply || (task ? task.status === "running" : reply.completed === false));
   const hasCard = Boolean(reply?.cards.some(card => ORDER_CARDS.has(card.type)));
   const answer = reply?.text.trim() ?? "";
 

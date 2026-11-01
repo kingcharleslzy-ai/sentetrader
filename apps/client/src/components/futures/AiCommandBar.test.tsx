@@ -38,7 +38,7 @@ test("AI 指令栏：回车发出、Shift+回车不发；结果在 AI 球旁：A
 
   const turns: ConversationTurn[] = [
     { id: "u1", role: "user", text: "突破 3036 提醒我，打开调研", timestamp: "", cards: [] },
-    { id: "a1", role: "assistant", text: "好了，提醒已经建好。", timestamp: "", completed: true,
+    { id: "a1", role: "assistant", text: "好了，提醒已经建好。", timestamp: "", completed: false, // message.completed lost (11-02): the finished task still ends the wait
       cards: [task("completed"), { id: "p1", type: "trade", payload: {} as never }] },
   ];
   view.rerender(<Bubble turns={turns} onSend={onSend} onOpenChat={onOpenChat} />);
