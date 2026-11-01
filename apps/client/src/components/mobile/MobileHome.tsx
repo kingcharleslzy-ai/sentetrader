@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Bell, ChevronDown } from "lucide-react";
+import { HelpTip } from "../Blocks";
 import { formatSigned, signClass } from "../futures/support";
 import { CardSkeleton } from "./MobileFeed";
+import { RollingText } from "./mobileMotion";
 import { approvalMinutesLeft, type MobileFeedItem } from "./feedItems";
 import { NOTIFY_FILTERS, notifyTime, rowTime, type JudgmentStance, type NotifyFilter, type NotifyRow } from "./notifyItems";
 
@@ -9,7 +11,7 @@ import { NOTIFY_FILTERS, notifyTime, rowTime, type JudgmentStance, type NotifyFi
  *  judgment) and the contract it opens. */
 export interface JudgmentChip { product: string; name: string; stance: JudgmentStance; symbol?: string }
 
-/** 它正在盯着: what the AI watches right now, each list already in words. */
+/** AI 正在盯: what the AI watches right now, each list already in words. */
 export interface WatchInfo {
   /** "甲醇空单 6 手" per position. */
   positions: string[];
@@ -30,14 +32,15 @@ const NEW_PILL_SCROLL = 40;
 
 /**
  * AI 首页 (手机版新结构, 2026-10-06; the approved mockup): 今天概况 (three tiles that go somewhere),
- * the cards waiting for 确认 pinned in their own card component until handled or expired, 它正在盯着
- * when nothing waits and nothing was reminded today, one row of 今日判断 chips (a tap opens 调研 on
+ * the cards waiting for 确认 pinned in their own card component until handled or expired, AI 正在盯 (第二轮
+ * 2026-11-01: always there, one row of 到价 / 策略在跑 / 今日提醒 chips that open where each is managed, the watched
+ * items themselves behind its "?"), one row of 今日判断 chips (a tap opens 调研 on
  * that product), 最新提醒 (the 提醒中心's two newest, 2026-10-15), then the timeline that used to be
  * 通知 — its filters and the AI 简报 product chips, each row time · title · one line. A new row opens
  * in at the top; scrolled down, it waits behind “↑ N 条新动态”. What is unread is the 提醒中心's (the
  * Runtime's read marks), not this timeline's.
  */
-export function MobileHome({ rows, pending, renderCard, quickPending, now, today, onPositions, watch, judgments, onJudgment,
+export function MobileHome({ rows, pending, renderCard, quickPending, now, today, onPositions, watch, onAlerts, onStrategies, onTodayReminders, judgments, onJudgment,
   filter, onFilter, products, product, onProduct, onOpen, onReminders, latest, notice, refreshError, loading = false, focus }: {
   rows: NotifyRow[];
   /** The cards waiting for 确认, newest first. */
@@ -51,6 +54,10 @@ export function MobileHome({ rows, pending, renderCard, quickPending, now, today
   today: { positions: number; floating: number | null; floatingUsd?: number | null; reminders: number; unreadReminders: number };
   onPositions: () => void;
   watch: WatchInfo;
+  /** AI 正在盯's chips: 到价 → 我的提醒, 策略在跑 → 策略, 今日提醒 → 提醒记录. */
+  onAlerts: () => void;
+  onStrategies: () => void;
+  onTodayReminders: () => void;
   judgments: JudgmentChip[];
   onJudgment: (chip: JudgmentChip) => void;
   filter: NotifyFilter;
@@ -106,7 +113,12 @@ export function MobileHome({ rows, pending, renderCard, quickPending, now, today
   const shown = filter === "all" ? rows : rows.filter(row => row.filter === filter && (filter !== "brief" || !product || row.product === product));
   const productName = filter === "brief" && product ? products.find(item => item.product === product)?.name ?? product : null;
   const waiting = pending.length + (quickPending ? 1 : 0);
-  const quiet = !waiting && !today.reminders;
+  const watched = [
+    watch.positions.length ? `${watch.positions.length} 笔持仓：${watch.positions.join("、")}` : "",
+    watch.alerts.length ? `${watch.alerts.length} 个到价提醒：${watch.alerts.join("、")}` : "",
+    watch.strategies.length ? `${watch.strategies.length} 个策略运行中：${watch.strategies.join("、")}` : "",
+    watch.movement && watch.positions.length ? "盘中异动：持仓合约每分钟查一次" : "",
+  ].filter(Boolean);
   let order = 0;
   return (
     <div className="fdm-home" data-testid="mobile-feed" aria-label="AI 首页" data-agent-target="mobile-ai" ref={root}>
@@ -114,9 +126,9 @@ export function MobileHome({ rows, pending, renderCard, quickPending, now, today
       {notice ? <p className="fdm-feed-notice" role="status">{notice}</p> : null}
       <div className="fdm-today" role="group" aria-label="今天概况">
         <button type="button" onClick={onPositions} aria-label={`持仓 ${today.positions} 笔${today.positions && today.floating !== null ? `，${today.floating >= 0 ? "浮盈" : "浮亏"} ${formatSigned(today.floating, 0)}` : ""}${today.floatingUsd != null ? `，外盘 ${formatSigned(today.floatingUsd, 0)} 美元` : ""}`}><span>持仓</span><b>{today.positions} 笔</b>
-          {today.positions && today.floating !== null ? <small className={signClass(today.floating)}>{today.floating >= 0 ? "浮盈" : "浮亏"} {formatSigned(today.floating, 0)}</small>
+          {today.positions && today.floating !== null ? <small className={signClass(today.floating)}>{today.floating >= 0 ? "浮盈" : "浮亏"} <RollingText text={formatSigned(today.floating, 0)} /></small>
             : today.floatingUsd == null ? <small>&nbsp;</small> : null}
-          {today.floatingUsd != null ? <small className={signClass(today.floatingUsd)}>美元 {formatSigned(today.floatingUsd, 0)}</small> : null}</button>
+          {today.floatingUsd != null ? <small className={signClass(today.floatingUsd)}>美元 <RollingText text={formatSigned(today.floatingUsd, 0)} /></small> : null}</button>
         <button type="button" onClick={toPinned} disabled={!pending.length}
           aria-label={`待确认 ${waiting} 张${pending.length ? `，还剩 ${approvalMinutesLeft(pending[0], now)} 分钟` : ""}`}><span>待确认</span><b>{waiting ? `${waiting} 张` : "0"}</b>
           <small>{pending.length ? `还剩 ${approvalMinutesLeft(pending[0], now)} 分钟` : " "}</small></button>
@@ -124,21 +136,20 @@ export function MobileHome({ rows, pending, renderCard, quickPending, now, today
           aria-label={`今天提醒 ${today.reminders} 条${today.unreadReminders ? `，${today.unreadReminders} 条未读` : ""}`}><span>今天提醒</span><b>{today.reminders ? `${today.reminders} 条` : "0"}</b>
           <small>{today.unreadReminders ? `${today.unreadReminders} 条未读` : " "}</small></button>
       </div>
+      <section className="fdm-watching" aria-label="AI 正在盯" data-testid="mobile-watch" data-agent-target="mobile-watch">
+        <h3>AI 正在盯<HelpTip helpKey="mobile-watch" label="AI 正在盯">{watched.length ? `${watched.join("；")}。` : "还没有持仓、提醒或策略。"}点一个胶囊进管它的地方。</HelpTip></h3>
+        <div className="fdm-chips" role="group" aria-label="AI 正在盯">
+          <button type="button" onClick={onAlerts}>到价 <b>{watch.alerts.length}</b></button>
+          <button type="button" onClick={onStrategies}>策略在跑 <b>{watch.strategies.length}</b></button>
+          <button type="button" onClick={onTodayReminders}>今日提醒 <b>{today.reminders}</b></button>
+        </div>
+        {watch.closed ? <div className="fdm-watch-next"><span>休市中，开盘后继续盯</span></div>
+          : watch.next.length ? <div className="fdm-watch-next">{watch.next.map((line, index) => <span key={line}>{index ? line : `下一次：${line}`}</span>)}</div> : null}
+      </section>
       {pending.slice(0, 1).map(item => <div className="fdm-pin" key={item.id} data-pin-id={item.id}>{renderCard(item)}</div>)}
       {pending.length > 1 ? <button type="button" className="fdm-pin-more" aria-expanded={moreOpen} onClick={() => setMoreOpen(open => !open)}>
         {moreOpen ? "收起其余待确认" : `还有 ${pending.length - 1} 张待确认`}<ChevronDown aria-hidden="true" /></button> : null}
       {moreOpen ? pending.slice(1).map(item => <div className="fdm-pin" key={item.id} data-pin-id={item.id}>{renderCard(item)}</div>) : null}
-      {quiet ? <section className="fdm-watching" aria-label="它正在盯着" data-testid="mobile-watch">
-        <h3>它正在盯着</h3>
-        {watch.positions.length || watch.alerts.length || watch.strategies.length ? <ul>
-          {watch.positions.length ? <li>{watch.positions.length} 笔持仓<span>{watch.positions.join(" · ")}</span></li> : null}
-          {watch.alerts.length ? <li>{watch.alerts.length} 个到价提醒<span>{watch.alerts.join(" · ")}</span></li> : null}
-          {watch.strategies.length ? <li>{watch.strategies.length} 个策略运行中<span>{watch.strategies.join(" · ")}</span></li> : null}
-          {watch.movement && watch.positions.length ? <li>盘中异动<span>持仓合约，每分钟一次</span></li> : null}
-        </ul> : <p>还没有持仓、提醒或策略</p>}
-        {watch.closed ? <div className="fdm-watch-next"><span>休市中，开盘后继续盯</span></div>
-          : watch.next.length ? <div className="fdm-watch-next">{watch.next.map((line, index) => <span key={line}>{index ? line : `下一次：${line}`}</span>)}</div> : null}
-      </section> : null}
       {judgments.length ? <>
         <div className="fdm-sec"><strong>今日判断</strong><span>点一个看完整调研</span></div>
         <div className="fdm-judges" role="group" aria-label="今日判断">

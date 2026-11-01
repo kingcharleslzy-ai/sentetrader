@@ -23,7 +23,7 @@ function Home({ filterStart = "all", ...rest }: Partial<Parameters<typeof Mobile
   const [filter, setFilter] = useState<NotifyFilter>(filterStart);
   const [product, setProduct] = useState<string | null>(null);
   return <div className="fdm-content"><MobileHome rows={rows} pending={[]} renderCard={() => null} quickPending={false} now={now}
-    today={{ positions: 1, floating: 860, reminders: 0, unreadReminders: 0 }} onPositions={vi.fn()} watch={watch} judgments={[]} onJudgment={vi.fn()}
+    today={{ positions: 1, floating: 860, reminders: 0, unreadReminders: 0 }} onPositions={vi.fn()} watch={watch} onAlerts={vi.fn()} onStrategies={vi.fn()} onTodayReminders={vi.fn()} judgments={[]} onJudgment={vi.fn()}
     filter={filter} onFilter={setFilter} products={notifyProducts(rows)} product={product} onProduct={setProduct}
     onOpen={vi.fn()} onReminders={vi.fn()} focus={0} {...rest} /></div>;
 }
@@ -48,34 +48,36 @@ it("订阅品种在前；订阅了还没有内容的品种说明还没有简报"
   const products = notifyProducts(rows, [{ product: "SHFE.ru", name: "橡胶" }, { product: "SHFE.rb", name: "螺纹钢" }]);
   expect(products.map(item => item.name)).toEqual(["橡胶", "螺纹钢", "铁矿石"]);
   render(<MobileHome rows={rows} pending={[]} renderCard={() => null} quickPending={false} now={now}
-    today={{ positions: 0, floating: null, reminders: 0, unreadReminders: 0 }} onPositions={vi.fn()} watch={watch} judgments={[]} onJudgment={vi.fn()}
+    today={{ positions: 0, floating: null, reminders: 0, unreadReminders: 0 }} onPositions={vi.fn()} watch={watch} onAlerts={vi.fn()} onStrategies={vi.fn()} onTodayReminders={vi.fn()} judgments={[]} onJudgment={vi.fn()}
     filter="brief" onFilter={vi.fn()} products={products} product="SHFE.ru" onProduct={vi.fn()} onOpen={vi.fn()} onReminders={vi.fn()} focus={0} />);
   expect(screen.queryByRole("list", { name: "时间线" })).toBeNull();
   expect(screen.getByText("橡胶还没有简报")).toBeVisible();
 });
 
-it("它正在盯着：没有待确认、今天也没有提醒时显示；有待确认或今天有提醒时收起；休市与什么都没有各有一句", () => {
-  const view = render(<Home />);
-  const block = screen.getByTestId("mobile-watch");
-  expect(block).toHaveTextContent("1 笔持仓甲醇空单 6 手");
-  expect(block).toHaveTextContent("1 个到价提醒螺纹 3188");
-  expect(block).toHaveTextContent("1 个策略运行中均线金叉 · 出卡确认");
-  expect(block).toHaveTextContent("盘中异动持仓合约，每分钟一次");
-  expect(block).toHaveTextContent("下一次：14:55 收盘前持仓检查15:15 今日复盘");
-  view.rerender(<Home today={{ positions: 1, floating: 860, reminders: 2, unreadReminders: 1 }} />);
-  expect(screen.queryByTestId("mobile-watch")).toBeNull();
+it("AI 正在盯：一直在今天页，三个胶囊带数、点了进对应页；盯着的东西在“?”里；休市与什么都没有各有一句", () => {
+  const onAlerts = vi.fn(), onStrategies = vi.fn(), onTodayReminders = vi.fn();
+  const view = render(<Home onAlerts={onAlerts} onStrategies={onStrategies} onTodayReminders={onTodayReminders} />);
+  const block = () => screen.getByTestId("mobile-watch");
+  const chips = () => within(screen.getByRole("group", { name: "AI 正在盯" })).getAllByRole("button");
+  expect(chips().map(chip => chip.textContent)).toEqual(["到价 1", "策略在跑 1", "今日提醒 0"]);
+  expect(block()).toHaveTextContent("下一次：14:55 收盘前持仓检查15:15 今日复盘");
+  fireEvent.click(within(block()).getByRole("button", { name: "AI 正在盯的说明" }));
+  const tip = screen.getByTestId("help-tip-mobile-watch");
+  expect(tip).toHaveTextContent("1 笔持仓：甲醇空单 6 手；1 个到价提醒：螺纹 3188；1 个策略运行中：均线金叉 · 出卡确认；盘中异动：持仓合约每分钟查一次。");
+  fireEvent.click(chips()[0]);
+  fireEvent.click(chips()[1]);
+  fireEvent.click(chips()[2]);
+  expect([onAlerts, onStrategies, onTodayReminders].map(fn => fn.mock.calls.length)).toEqual([1, 1, 1]);
+  // 待确认 and today's reminders no longer hide it.
+  view.rerender(<Home today={{ positions: 1, floating: 860, reminders: 2, unreadReminders: 1 }} quickPending />);
+  expect(chips().map(chip => chip.textContent)).toEqual(["到价 1", "策略在跑 1", "今日提醒 2"]);
   expect(within(screen.getByRole("group", { name: "今天概况" })).getByRole("button", { name: /^今天提醒/ })).toHaveTextContent("2 条1 条未读");
   // The three tiles are named for screen readers and the observation snapshot (10-06 实测：名字为空).
   const tiles = within(screen.getByRole("group", { name: "今天概况" })).getAllByRole("button").map(button => button.getAttribute("aria-label"));
-  expect(tiles).toEqual(["持仓 1 笔，浮盈 +860", "待确认 0 张", "今天提醒 2 条，1 条未读"]);
-  view.rerender(<Home quickPending />);
-  expect(screen.queryByTestId("mobile-watch")).toBeNull();
+  expect(tiles).toEqual(["持仓 1 笔，浮盈 +860", "待确认 1 张", "今天提醒 2 条，1 条未读"]);
   view.rerender(<Home watch={{ ...watch, closed: true }} />);
-  expect(screen.getByTestId("mobile-watch")).toHaveTextContent("休市中，开盘后继续盯");
-  expect(screen.getByTestId("mobile-watch")).not.toHaveTextContent("收盘前持仓检查");
-  view.rerender(<Home watch={{ positions: [], alerts: [], strategies: [], movement: true, next: ["15:15 今日复盘"], closed: false }} />);
-  expect(screen.getByTestId("mobile-watch")).toHaveTextContent("还没有持仓、提醒或策略");
-  expect(screen.getByTestId("mobile-watch")).not.toHaveTextContent("盘中异动");
+  expect(block()).toHaveTextContent("休市中，开盘后继续盯");
+  expect(block()).not.toHaveTextContent("收盘前持仓检查");
 });
 
 it("今日判断只是一行品种胶囊：点一个交给调研；今天提醒打开提醒页，最新提醒在时间线上面", () => {

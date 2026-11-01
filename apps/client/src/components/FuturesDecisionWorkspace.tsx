@@ -428,8 +428,8 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   const backtestBlocked = skillBlockedLine("strategy-backtests", skills, planFeatures, "回测");
   const strategyBlocked = skillBlockedLine("strategy-management", skills, planFeatures, "策略");
   // One call for the whole window: the orb owns its `voice-call` / `voice-mute` surfaces, the
-  // 对话面板 call bar drives the same store.
-  const call = useVoiceCall({ baseUrl: connectedRuntimeUrl, sessionId: props.chatSessionId, voiceAvailable });
+  // 对话面板 call bar drives the same store. The phone has no orb: its 连续说 (the key's lock) owns them there.
+  const call = useVoiceCall({ baseUrl: connectedRuntimeUrl, sessionId: props.chatSessionId, voiceAvailable, register: mobile && !isGuest });
   // 设置重做第 2 步: the account preference document (read before the layout hook — it owns the
   // chart indicator configuration the presentation document derives its old switches from).
   const { preferences, document: preferenceDocument } = prefs;
@@ -842,7 +842,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   const reloadBriefSubscriptions = briefSubscriptions.reload;
   useEffect(() => { if (mobile && mobileTab === "ai" && connectedRuntimeUrl && !isGuest) void reloadBriefSubscriptions(); },
     [mobile, mobileTab, connectedRuntimeUrl, isGuest, reloadBriefSubscriptions]);
-  // 策略 (2026-10-06): the running instances (also 它正在盯着's) and, while the tab shows, their monitors and the labs.
+  // 策略 (2026-10-06): the running instances (also AI 正在盯's) and, while the tab shows, their monitors and the labs.
   const mobileRootUrl = connectedRuntimeUrl ? props.rootBaseUrl ?? connectedRuntimeUrl : undefined;
   const mobileStrategies = useMobileStrategies({ baseUrl: connectedRuntimeUrl, rootUrl: mobileRootUrl,
     enabled: mobile && !isGuest && !strategyBlocked, detailed: mobileTab === "strategy" && !mobileSub,
@@ -1247,7 +1247,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
       recoveryButton={recoveryButton} armedStopCount={armedStopCount} onEmergencyStop={() => setEmergencyOpen(true)}
       onHaltOpens={() => props.onStopAiExecution(false, "opens")}
       quickSkipConfirm={quickSkipConfirm} setQuickSkipConfirm={setQuickSkipConfirm} quickSkipConfirmScoped={Boolean(props.preferencesScope)} initialBalance={initialBalance} setInitialBalance={setInitialBalance} voiceAvailable={voiceAvailable}
-      ownerStatus={ownerPlan.status} preferences={prefs} skills={skills} routines={routineActions} /> : null}
+      ownerStatus={ownerPlan.status} preferences={prefs} skills={skills} routines={routineActions} mobile={mobile} /> : null}
 
     {accessNotice && (!settingsOpen || props.guest?.loginOpen) ? <div className="toast" role="status">{accessNotice}</div> : null}
     {signalNotice ? <p className="fdw-signal-notice" role="status" data-testid="strategy-signal-notice">{signalNotice}</p> : null}
@@ -1329,7 +1329,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     const showReminders = () => tapPage("reminders");
     const briefsBlocked = skillBlockedLine("market-briefs", skills, planFeatures, "行情简讯") ?? undefined;
     const toggleBriefs = (value: boolean) => { if (access.require("market-briefs")) void appWorkbench.updateConfig({ showMarketBriefs: value }).catch(() => setAccessNotice("简讯设置未保存，请重试")); };
-    // AI 首页's 今天概况, 今日判断 and 它正在盯着 — all from what the window already reads.
+    // AI 首页's 今天概况, 今日判断 and AI 正在盯 — all from what the window already reads.
     const positions = props.account?.positions ?? [];
     // The product's name (螺纹钢2610 → 螺纹钢); a contract the catalog does not list keeps its code (ag2612).
     const shortName = (symbol: string, name?: string) => {
@@ -1423,7 +1423,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
       >
         {dialogs}
         <WebUpdateBanner />
-        <MobileWorkspace tab={mobileTab} onTab={selectMobileTab} onOpenChat={openChat} quote={quote} symbolName={quoteEntry?.instrumentName} decimals={decimals} ptt={ptt}
+        <MobileWorkspace tab={mobileTab} onTab={selectMobileTab} onOpenChat={openChat} quote={quote} symbolName={quoteEntry?.instrumentName} decimals={decimals} ptt={ptt} call={call}
           command={isGuest ? undefined : aiCommand} context={mobileContext} aiBlocked={aiBlocked} aiBusy={Boolean(props.chatBusy || chat.sendingPrompt)}
           notices={<>
             {!props.guest && !props.replayActive ? <ConnectionProgress connection={props.connection} runtime={props.state.runtime} agent={props.agentAccount} hasMarket={Boolean(market)} runtimeUsable={props.status.runtimeUsable} onSettings={() => setSettingsOpen(true)} /> : null}
@@ -1438,6 +1438,8 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
                 ? positions.filter(position => position.accountId).reduce((sum, position) => sum + (Number(position.unrealizedPnl) || 0), 0) : null,
               reminders: reminders.today.length, unreadReminders: reminders.unread }}
             onPositions={() => tapPage("positions")} watch={watch} judgments={chips} onJudgment={openJudgment}
+            onAlerts={showMyReminders} onStrategies={() => { setMobileStrategyTab("running"); selectMobileTab("strategy"); }}
+            onTodayReminders={() => { setRemindersTab("history"); showReminders(); }}
             filter={notifyFilter} onFilter={setNotifyFilter}
             products={notifyProductList} product={shownNotifyProduct} onProduct={setNotifyProduct}
             onOpen={openNotify} onReminders={showReminders}

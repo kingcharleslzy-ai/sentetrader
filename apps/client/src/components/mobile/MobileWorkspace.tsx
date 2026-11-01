@@ -1,14 +1,17 @@
-import { Bell, ChartCandlestick, ChevronUp, FlaskConical, MessageSquare, Search, Send, Sparkles, Sun, X, type LucideIcon } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
+import { Bell, ChartCandlestick, ChevronUp, FlaskConical, MessageSquare, Phone, Search, Send, Sparkles, Sun, X, type LucideIcon } from "lucide-react";
+import { useCallback, useContext, useEffect, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import type { MarketQuoteSnapshot } from "../../api";
+import { AccountAccessContext } from "../../hooks/useAccountAccess";
 import type { PushToTalk } from "../futures/PushToTalk";
 import { formatNumber } from "../futures/support";
 import { AiCommandResult, type AiCommand } from "../futures/useAiCommand";
 import { pushToTalkStore, setPttTarget } from "../../pushToTalk";
+import type { VoiceCallControls } from "../../voiceCallControls";
+import { orbLabel } from "../../voiceRealtime";
 import "../futures/AiCommandBar.css";
 import { HoldToTalk, HoldToTalkLive } from "./HoldToTalk";
-import { usePriceFlash, useRiseKey } from "./mobileMotion";
+import { RollingText, usePriceFlash, useRiseKey } from "./mobileMotion";
 import { PullIndicator, usePullToRefresh } from "./usePullToRefresh";
 import { UnreadBadge } from "../reminders/ReminderCenter";
 import "./MobileWorkspace.css";
@@ -164,10 +167,11 @@ function receiptLine(command: AiCommand) {
  * 提醒中心's unread count), 调研, 看盘 and 策略, with the 按住说话 key in the middle of the bar on every page. Held words
  * and typed lines (a tap on the key opens typing) are about the page on screen (`context`, 按哪一页理解): they go out
  * from here without leaving it, and the 回执条 above the bar says what the AI did (the AI 指令栏's result, `command`);
- * tapping it shows each action with 撤销, and 在对话里看全文 opens the AI 对话 page. A full-screen page (下单, 持仓与委托,
+ * tapping it shows each action with 撤销, and 在对话里看全文 opens the AI 对话 page. 连续说 (第二轮): sliding the held key up to
+ * its lock starts the window's voice call (`call`, the desktop's); the 回执条 then says 通话中 with one 结束. A full-screen page (下单, 持仓与委托,
  * 复盘, 回测结果) covers the bar until it is closed. Touch targets are at least 44 px; the bottom keeps the safe area.
  */
-export function MobileWorkspace({ tab, onTab, onOpenChat, onBell, quote, symbolName, decimals, feed, chat, ptt, command, context, aiBlocked, aiBusy, notices, pages, overlay, overlayTabs = false, onCloseOverlay, onRefreshFeed, unread }: {
+export function MobileWorkspace({ tab, onTab, onOpenChat, onBell, quote, symbolName, decimals, feed, chat, ptt, call, command, context, aiBlocked, aiBusy, notices, pages, overlay, overlayTabs = false, onCloseOverlay, onRefreshFeed, unread }: {
   tab: MobileTab;
   onTab: (tab: MobileTab) => void;
   /** Open the AI 对话 page (access-checked; a refusal explains itself). */
@@ -183,6 +187,8 @@ export function MobileWorkspace({ tab, onTab, onOpenChat, onBell, quote, symbolN
   /** The AI 对话 page (the 对话面板 in its phone form). */
   chat: ReactNode;
   ptt: PushToTalk;
+  /** The window's voice call (连续说); absent or unavailable leaves the key without its lock. */
+  call?: VoiceCallControls;
   /** Where held and typed words go and what came back; absent (a visitor) leaves the key out. */
   command?: AiCommand;
   /** 按哪一页理解: the page the words are about, e.g. 看盘 · 螺纹2701 5分. */
@@ -248,6 +254,10 @@ export function MobileWorkspace({ tab, onTab, onOpenChat, onBell, quote, symbolN
   const notice = ptt.status.state === "idle" ? ptt.status.notice : undefined;
   const receipt = command?.asked && tab !== "chat" ? command : undefined;
   const barHidden = Boolean(overlay) && !overlayTabs;
+  const calling = call && (call.inCall || call.status.state === "error") ? call : undefined;
+  const access = useContext(AccountAccessContext);
+  // As the 对话面板's 通话 button: the account's voice-call check runs before the call connects.
+  const lock = command && call?.available && !call.inCall ? () => { if (access?.require("voice-call") ?? true) call.start(); } : undefined;
   return (
     <div className="fdm-body" data-mobile-tab={tab} data-mobile-overlay={overlay ? "" : undefined}>
       <div className="fdm-view" key={tab} data-motion={view.motion === "none" ? undefined : view.motion}>
@@ -261,7 +271,7 @@ export function MobileWorkspace({ tab, onTab, onOpenChat, onBell, quote, symbolN
           <strong>{TITLES[tab]}</strong>
           {quote ? (
             <button type="button" className="fdm-quote" aria-label={`看盘：${name} ${price}`} onClick={() => onTab("market")}>
-              <span className="fdm-quote-name">{name}</span><span className="fdm-quote-price" data-direction={direction} data-flash={flash}>{price}</span>
+              <span className="fdm-quote-name">{name}</span><span className="fdm-quote-price" data-direction={direction} data-flash={flash}><RollingText text={price} identity={quote.symbol} /></span>
             </button>
           ) : null}
           <button type="button" className="fdm-head-chat" aria-label="AI 对话" title="AI 对话" onClick={onOpenChat}><MessageSquare aria-hidden="true" /></button>
@@ -274,9 +284,15 @@ export function MobileWorkspace({ tab, onTab, onOpenChat, onBell, quote, symbolN
       </div>
       <OverlayLayer overlay={overlay} onClose={onCloseOverlay ?? (() => undefined)} />
       <footer className="fdm-foot" hidden={barHidden} data-over-page={overlay && overlayTabs ? "" : undefined}>
-        <HoldToTalkLive status={ptt.status} slideCancel={slideCancel} context={command ? context : undefined} />
+        <HoldToTalkLive status={ptt.status} slideCancel={slideCancel} context={command ? context : undefined} lockable={Boolean(lock)} />
         {notice && tab !== "chat" ? <p className="fdm-talk-notice" role="status" title="点一下关闭" onClick={() => pushToTalkStore.dismiss()}>{notice}</p> : null}
-        {command && typing !== null ? <form className="fdm-type" aria-label="对 AI 说" data-agent-target="mobile-ai-type" onSubmit={submitTyping}>
+        {calling ? <div className="fdm-receipt fdm-call" data-agent-target="mobile-call" data-state={calling.status.state}>
+          <p className="fdm-receipt-main" role={calling.status.state === "error" ? "alert" : "status"}><Phone aria-hidden="true" />
+            <span>{calling.status.state === "error" ? orbLabel(calling.status) : `通话中 · ${orbLabel(calling.status)}`}</span></p>
+          {calling.status.state === "error"
+            ? <button type="button" className="fdm-call-end" onClick={calling.dismiss}>关闭</button>
+            : <button type="button" className="fdm-call-end" aria-label="结束通话" onClick={calling.stop}>结束</button>}
+        </div> : command && typing !== null ? <form className="fdm-type" aria-label="对 AI 说" data-agent-target="mobile-ai-type" onSubmit={submitTyping}>
           <div className="fdm-type-row">
             <label htmlFor="fdm-type-input" className="fdm-context">按 {context} 理解</label>
             <button type="button" className="fdm-type-close" aria-label="收起打字" onClick={() => setTyping(null)}><X aria-hidden="true" /></button>
@@ -297,7 +313,7 @@ export function MobileWorkspace({ tab, onTab, onOpenChat, onBell, quote, symbolN
         <nav className="fdm-tabs" aria-label="主导航" data-agent-target="mobile-tabs" data-moved={view.moved ? "" : undefined} data-key={command ? "" : undefined}>
           <span className="fdm-tab-pill" aria-hidden="true" style={{ "--fdm-tab": command ? BAR_COLUMN[active] ?? 0 : Math.max(0, MOBILE_TABS.findIndex(item => item.id === active)) } as CSSProperties} />
           {MOBILE_TABS.map(item => [
-            item.id === "market" && command ? <span key="key" className="fdm-key"><HoldToTalk ptt={keyPtt} onSlideCancelChange={onSlideCancelChange} onTap={() => openTyping()} /></span> : null,
+            item.id === "market" && command ? <span key="key" className="fdm-key"><HoldToTalk ptt={keyPtt} onSlideCancelChange={onSlideCancelChange} onTap={() => openTyping()} onLock={lock} /></span> : null,
             <button type="button" key={item.id} aria-current={active === item.id ? "page" : undefined}
               aria-label={item.id === "ai" && unread ? `${item.label}（${unread} 条未读）` : undefined}
               onClick={() => onTab(item.id)}>

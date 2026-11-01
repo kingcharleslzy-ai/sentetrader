@@ -117,6 +117,13 @@
 .fdm-key { position: relative; z-index: 1; display: flex; justify-content: center; align-items: flex-start; }
 .fdm-key > .fdm-hold { width: 60px; height: 60px; margin: calc(-1 * var(--fdm-key-rise, 20px)) 0 0; outline: 4px solid var(--panel); }
 .fdm-key > .fdm-hold.cancel { outline-color: var(--danger-soft); }
+/* 连续说: the lock the held key slides up to. */
+.fdm-lock {
+  position: absolute; bottom: calc(100% + var(--fdm-key-rise, 20px) + var(--space-3)); left: 50%; translate: -50% 0; width: 36px; height: 52px;
+  display: flex; align-items: flex-start; justify-content: center; padding-top: var(--space-2); border-radius: var(--radius-pill);
+  color: var(--accent); background: var(--panel); border: 1px solid var(--line-strong); pointer-events: none; box-sizing: border-box;
+}
+.fdm-lock > svg { width: 18px; height: 18px; }
 
 /* The bottom of every page: what a hold or a typed line came to (回执条 / its result, the typing sheet, a hold's
    notice) above the bar. `hidden` under a full-screen page; the 提醒 page keeps it (2026-10-15) over the page layer,
@@ -143,6 +150,11 @@
   color: var(--ink); text-align: left;
 }
 .fdm-receipt-main > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 连续说 in the 回执条's place: 通话中 · what the call is doing, and 结束. */
+.fdm-call > .fdm-receipt-main { margin: 0; }
+.fdm-call > .fdm-receipt-main > svg { flex: none; color: var(--positive); }
+.fdm-call[data-state="error"] > .fdm-receipt-main > svg { color: var(--danger); }
+.fdm-call-end { flex: none; min-width: 64px; min-height: 44px; padding: 0 var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-control); color: var(--ink); background: transparent; font-weight: 600; }
 .fdm-receipt-main > svg:first-child { flex: none; color: var(--accent); }
 .fdm-receipt[data-working] .fdm-receipt-main > svg:first-child { animation: ui-ai-thinking 1.2s var(--ease-standard) infinite; }
 .fdm-receipt-main > svg:last-child, .fdm-receipt-close { flex: none; color: var(--muted); }
@@ -365,14 +377,11 @@
   border: 1px solid var(--accent); border-radius: var(--radius-card); color: var(--accent); background: var(--accent-soft); font-size: var(--font-md); font-weight: 600; }
 .fdm-pin-more > svg { width: 16px; height: 16px; transition: transform var(--dur-1) var(--ease-standard); }
 .fdm-pin-more[aria-expanded="true"] > svg { transform: rotate(180deg); }
-/* 它正在盯着: a dashed block with a breathing dot. */
+/* AI 正在盯 (第二轮): a dashed block with a breathing dot, a row of chips that go somewhere, the next check. */
 .fdm-watching { display: grid; gap: var(--space-2); padding: var(--space-3); border: 1px dashed var(--line-strong); border-radius: var(--radius-card); }
+.fdm-watching > .fdm-chips > button b { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
 .fdm-watching > h3 { margin: 0; display: flex; align-items: center; gap: var(--space-2); font-size: var(--font-md); }
 .fdm-watching > h3::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: var(--radius-sm); background: var(--positive); outline: 4px solid var(--positive-soft); outline-offset: 0; animation: none; }
-.fdm-watching > ul { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-1); font-size: var(--font-md); }
-.fdm-watching li { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: baseline; gap: var(--space-0) var(--space-3); }
-.fdm-watching li > span { min-width: 0; color: var(--muted); text-align: right; overflow-wrap: anywhere; text-wrap: balance; }
-.fdm-watching > p { margin: 0; color: var(--muted); font-size: var(--font-md); }
 .fdm-watch-next { display: grid; gap: var(--space-0); padding-top: var(--space-2); border-top: 1px solid var(--line); color: var(--muted); font-size: var(--font-md); }
 /* A section line: its title, then a quiet hint or count on the right. */
 .fdm-sec { display: flex; align-items: baseline; gap: var(--space-2); color: var(--muted); font-size: var(--font-md); }
@@ -643,6 +652,13 @@
 :is(.fdm-quote-price, .fdm-market-price)[data-flash="up-b"] { animation: ui-price-change-repeat 150ms var(--ease-out); --price-flash-bg: var(--market-up-soft); }
 :is(.fdm-quote-price, .fdm-market-price)[data-flash="down-a"] { animation: ui-price-change 150ms var(--ease-out); --price-flash-bg: var(--market-down-soft); }
 :is(.fdm-quote-price, .fdm-market-price)[data-flash="down-b"] { animation: ui-price-change-repeat 150ms var(--ease-out); --price-flash-bg: var(--market-down-soft); }
+/* 数字逐位滚动 (第二轮): a changed digit's old value (data-from) above the new one; the column rests on the new digit and
+   the roll plays over --dur-2, so reduced motion (0 ms) just shows the new figure. Digits are tabular: nothing shifts. */
+:where(.fdm-quote-price, .fdm-market-price, .fdm-today) { font-variant-numeric: tabular-nums; }
+.fdm-roll { display: inline-block; height: 1.2em; line-height: 1.2; overflow: hidden; vertical-align: bottom; }
+.fdm-roll > span { display: flex; flex-direction: column; transform: translateY(-50%); animation: fdm-roll var(--dur-2) var(--ease-out); }
+.fdm-roll > span::before { content: attr(data-from); }
+@keyframes fdm-roll { from { transform: translateY(0); } }
 
 /* 按住说话: the button grows a little while recording and two ripples spread from it, 0.6 s apart. */
 .fdm-hold { position: relative; transition: transform var(--dur-1) var(--ease-out); }

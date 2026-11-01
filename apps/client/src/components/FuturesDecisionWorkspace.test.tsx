@@ -2870,7 +2870,7 @@ test("手机版 AI 首页：今天概况三格、时间线行按时间倒序（�
   expect(screen.getByRole("region", { name: "AI 对话" })).toBeVisible();
 });
 
-test("手机版 AI 首页：待确认的卡用对话里同一张卡置顶，确认走现有确认流程；处理后回到时间线原位，它正在盯着随之出现", () => {
+test("手机版 AI 首页：待确认的卡用对话里同一张卡置顶，确认走现有确认流程；处理后回到时间线原位", () => {
   stubPhone(true);
   const issued = new Date().toISOString();
   const tradeTurn = (status: string) => ({ id: "tp", role: "assistant", text: "", timestamp: issued, completed: true, cards: [{ id: "p1", type: "trade", payload: {
@@ -2884,16 +2884,16 @@ test("手机版 AI 首页：待确认的卡用对话里同一张卡置顶，确�
   expect(pin()).not.toBeNull();
   expect(within(pin() as HTMLElement).getByTestId("trade-proposal-card")).toHaveTextContent("卖出平仓");
   expect(within(home()).getByRole("button", { name: /^待确认/ })).toHaveTextContent("1 张还剩 10 分钟");
-  expect(within(home()).queryByTestId("mobile-watch")).toBeNull();
   expect(within(home()).queryByRole("button", { name: /卖出平仓/ })).toBeNull();
   fireEvent.click(within(pin() as HTMLElement).getByTestId("confirm-trade"));
   expect(values.proposalActions.confirm).toHaveBeenCalledWith(expect.objectContaining({ id: "p1", type: "trade" }));
-  // Confirmed: off the pin, back in the timeline at its own time; nothing waits, so 它正在盯着 shows.
+  // Confirmed: off the pin, back in the timeline at its own time.
   view.rerender(<FuturesDecisionWorkspace {...props({ state: { turns: [...phoneTurns.slice(0, 1), tradeTurn("candidate_recorded")], runtime: { simulationTrading: true } } }) as any} />);
   expect(pin()).toBeNull();
   const rows = within(screen.getByRole("list", { name: "时间线" })).getAllByRole("button").map(row => row.getAttribute("aria-label"));
   expect(rows[0]).toBe("已确认 · 卖出平仓 沪金2612 2 手 @ 823");
-  expect(within(home()).getByTestId("mobile-watch")).toHaveTextContent("1 笔持仓沪金多单 2 手");
+  fireEvent.click(within(home()).getByRole("button", { name: "AI 正在盯的说明" }));
+  expect(screen.getByTestId("help-tip-mobile-watch")).toHaveTextContent("1 笔持仓：沪金多单 2 手");
 });
 
 test("手机版 AI 首页渲染后会停下来：确认卡的时钟只按定时器走，不随时间线数据的每次重算再触发渲染（10-06 更新循环回归）", async () => {

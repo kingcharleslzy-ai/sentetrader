@@ -1,4 +1,4 @@
-import { Mic } from "lucide-react";
+import { Lock, Mic } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { PTT_MIN_HOLD_MS, pushToTalkStore, type PttStatus } from "../../pushToTalk";
 import type { PushToTalk } from "../futures/PushToTalk";
@@ -7,6 +7,8 @@ import type { PushToTalk } from "../futures/PushToTalk";
 export const SLIDE_CANCEL_PX = 60;
 export { PTT_TOO_SHORT } from "../../pushToTalk";
 export const PTT_SLID_AWAY = "已取消，这句没有发送";
+/** With `onLock` (the bottom key): a finger that slides this far up reaches the lock and turns the hold into 连续说. */
+export const SLIDE_LOCK_PX = 80;
 
 /**
  * 手机版按住说话 (2026-10-04): the workspace's push-to-talk (the same store, socket and
@@ -17,16 +19,21 @@ export const PTT_SLID_AWAY = "已取消，这句没有发送";
  * (call running, not connected, model not ready) records nothing and shows the reason.
  * 方案 B (2026-11-01): the button in the middle of the bottom tabs, on every page; with `onTap` a tap (a release
  * under PTT_MIN_HOLD_MS) opens typing instead of saying it was too short.
+ * 连续说 (2026-11-01 第二轮): with `onLock` the slide up goes to a lock over the key instead — reaching it drops the hold's
+ * words and starts the voice call (the desktop's call, `onLock`) — and the cancel moves to a slide left.
  */
-export function HoldToTalk({ ptt, onSlideCancelChange, onTap }: {
+export function HoldToTalk({ ptt, onSlideCancelChange, onTap, onLock }: {
   ptt: PushToTalk;
   /** Whether a release right now would cancel (the live strip says “松开手指，取消发送”). */
   onSlideCancelChange: (armed: boolean) => void;
   /** A tap rather than a hold: open typing. */
   onTap?: () => void;
+  /** Slid up to the lock: start 连续说 (the voice call). */
+  onLock?: () => void;
 }) {
   const { status, blockedReason, press } = ptt;
   const startY = useRef<number | null>(null);
+  const startX = useRef(0);
   // With `onTap`: when the key went down, so a quick release opens typing even when the voice could not start
   // (blocked, no microphone in this browser).
   const pressedAt = useRef<number | null>(null);
@@ -60,11 +67,22 @@ export function HoldToTalk({ ptt, onSlideCancelChange, onTap }: {
     if (event.button > 0) return;
     event.preventDefault();
     event.currentTarget.setPointerCapture?.(event.pointerId);
-    if (begin()) startY.current = event.clientY;
+    if (begin()) { startY.current = event.clientY; startX.current = event.clientX; }
   };
   const onPointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (startY.current === null) return;
-    setArmed(startY.current - event.clientY > SLIDE_CANCEL_PX);
+    if (!onLock) { setArmed(startY.current - event.clientY > SLIDE_CANCEL_PX); return; }
+    if (startY.current - event.clientY > SLIDE_LOCK_PX) {
+      // The call takes the microphone from here; what the hold heard so far is dropped, the release does nothing.
+      pressedAt.current = null;
+      startY.current = null;
+      setArmed(false);
+      pushToTalkStore.cancel();
+      pushToTalkStore.dismiss();
+      onLock();
+      return;
+    }
+    setArmed(startX.current - event.clientX > SLIDE_CANCEL_PX);
   };
   const onKey = (event: ReactKeyboardEvent<HTMLButtonElement>, down: boolean) => {
     if (event.key !== " " && event.key !== "Enter") return;
@@ -72,27 +90,31 @@ export function HoldToTalk({ ptt, onSlideCancelChange, onTap }: {
     if (down && !event.repeat) begin();
     else if (!down) finish(false);
   };
-  return (
+  const slides = onLock ? "上滑到锁连续说，左滑取消" : "上滑取消";
+  return (<>
+    {onLock && status.state === "recording" ? <span className="fdm-lock" aria-hidden="true"><Lock /></span> : null}
     <button type="button" className={`fdm-hold${active ? " active" : ""}${armed ? " cancel" : ""}`}
-      aria-label={onTap ? "按住说话，点一下打字" : "按住说话，松开发送"} title={blockedReason || (onTap ? "按住说话，松开发送，上滑取消；点一下打字" : "按住说话，松开发送，上滑取消")} aria-pressed={status.state === "recording"}
+      aria-label={onTap ? "按住说话，点一下打字" : "按住说话，松开发送"} title={blockedReason || `按住说话，松开发送，${slides}${onTap ? "；点一下打字" : ""}`} aria-pressed={status.state === "recording"}
       aria-disabled={Boolean(blockedReason) && !active} data-agent-target="mobile-hold-to-talk"
       onPointerDown={onPointerDown} onPointerMove={onPointerMove}
       onPointerUp={() => finish(armedRef.current)} onPointerCancel={() => finish(true)}
       onKeyDown={event => onKey(event, true)} onKeyUp={event => onKey(event, false)} onContextMenu={event => event.preventDefault()}>
       <Mic aria-hidden="true" />
     </button>
-  );
+  </>);
 }
 
 const WAVE = [0.3, 0.55, 0.85, 0.45, 1, 0.65, 0.35, 0.8, 0.95, 0.5, 0.75, 0.4, 0.6, 0.3, 0.5, 0.25];
 
 /** Above the button while holding / transcribing: the sound wave, what releasing does, the words so far. */
-export function HoldToTalkLive({ status, slideCancel, context }: { status: PttStatus; slideCancel: boolean;
+export function HoldToTalkLive({ status, slideCancel, context, lockable = false }: { status: PttStatus; slideCancel: boolean;
   /** 按哪一页理解 (方案 B): the page the words are about. */
-  context?: string }) {
+  context?: string;
+  /** The key's slide up goes to the lock (连续说) and the cancel is a slide left. */
+  lockable?: boolean }) {
   if (status.state === "idle") return null;
   const recording = status.state === "recording";
-  const line = recording ? slideCancel ? "松开手指，取消发送" : status.notice || "正在听… 松开发送，上滑取消" : "识别中…";
+  const line = recording ? slideCancel ? "松开手指，取消发送" : status.notice || `正在听… 松开发送，${lockable ? "上滑连续说，左滑取消" : "上滑取消"}` : "识别中…";
   return (
     <div className={`fdm-live${slideCancel ? " cancel" : ""}`} role="status" aria-live="polite" data-agent-target="ptt-status" data-state={status.state}>
       <span className="fdm-wave" aria-hidden="true">

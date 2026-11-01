@@ -14,7 +14,7 @@ import { ContractInfoControl } from "../futures/ContractInfoControl";
 import { foreignChartSource, formatNumber, watchlistMainSymbol } from "../futures/support";
 import type { ChartIndicatorPatch } from "../chartIndicatorEditor";
 import type { ChartIndicatorConfig } from "../chartIndicators";
-import { usePriceFlash } from "./mobileMotion";
+import { RollingText, usePriceFlash } from "./mobileMotion";
 import { MARKET_VIEWS, shownSubPane, subPaneName } from "./mobileMarketPrefs";
 import type { MobileMarketHandle } from "./useMobileMarket";
 import { MobileQuotes } from "./MobileQuotes";
@@ -239,7 +239,7 @@ export function MobileMarket({ market, name, decimals, chartView, onSelectDurati
             {quote ? <ContractInfoControl quote={quote} item={instruments.find(item => sameContract(item.symbol, quote.symbol))} runtimeUrl={guest ? undefined : baseUrl} /> : null}
           </div>
           {quote ? <span className="fdm-market-price" data-direction={tone} data-flash={flash}>
-            <b>{formatNumber(quote.lastPrice, decimals)}</b><small>{percent(quote.changePercent)}</small>
+            <b><RollingText text={formatNumber(quote.lastPrice, decimals)} identity={quote.symbol} /></b><small><RollingText text={percent(quote.changePercent)} identity={quote.symbol} /></small>
             {/* 新浪备用 (2026-10-07): the same mark as the desktop price. */}
             {market?.dataStatus === "backup" ? <em className="fdm-backup-badge" data-testid="quote-backup" title="快期行情暂不可用，这是新浪备用行情，可能延迟几秒；只供看盘，不能下单">备用 · 新浪</em> : null}
             {foreignChartSource(quote.symbol, quote.source, market?.source) ? <em className="fdm-backup-badge" data-testid="quote-foreign-source">{foreignChartSource(quote.symbol, quote.source, market?.source)}</em> : null}

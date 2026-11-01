@@ -13,7 +13,7 @@ import { contractLabel, formatSigned, moneyUnit, signClass } from "../futures/su
 import { PullIndicator, usePullToRefresh } from "./usePullToRefresh";
 import { useDisclosureSurface } from "../../uiSurfaces";
 
-/** A running or paused strategy instance as the 策略 tab and AI 首页's 它正在盯着 show it. */
+/** A running or paused strategy instance as the 策略 tab and AI 首页's AI 正在盯 show it. */
 export interface MobileStrategyRun {
   strategyId: string;
   /** The 我的策略 entry it runs (the instance's own id for an older single-contract strategy). */

@@ -113,6 +113,8 @@ interface Props {
   skills?: AgentSkill[] | null;
   /** 我的流程 (2026-10-06): 运行 sends “跑一下<名称>” in the chat with the routine's id (#522), 改 opens the chat with “改一下『名称』：”. */
   routines?: { run: (routine: RoutineRef) => void; edit: (name: string) => void };
+  /** 手机版 (第二轮 2026-11-01): 交易 and 语音 keep only the everyday rows (下单与停止: 默认手数, 默认价格方式, 停止; 语音: see VoiceSettings). */
+  mobile?: boolean;
 }
 
 /** 设置 → 账户 → 登录 → 登录密码 (2026-10-21): a site-password account changes it here (this device stays
@@ -136,7 +138,7 @@ const CHART_OPTIONS = [["volume", "成交量"], ["crosshair", "同步十字线"]
 export function WorkspaceSettings({ workspace, page, onPageChange, onClose, model, tradingAccounts, connectedRuntimeUrl, desktopVersion,
   agentModelLabel, apiSetupRequired, apiProviderName, preferenceStatus, chartSettings, setChartSettings, chartIndicators, onChartIndicatorsChange, chartIndicatorStatus, boardColumns, onBoardColumnsChange, boardColumnStatus, dockSide, setDockSide,
   resetLayout, closed, sessionLabel, aiExecutionActive, executionStopped, recoveryButton, armedStopCount, onEmergencyStop,
-  onHaltOpens, quickSkipConfirm, setQuickSkipConfirm, quickSkipConfirmScoped, initialBalance, setInitialBalance, voiceAvailable, ownerStatus, preferences, skills, routines }: Props) {
+  onHaltOpens, quickSkipConfirm, setQuickSkipConfirm, quickSkipConfirmScoped, initialBalance, setInitialBalance, voiceAvailable, ownerStatus, preferences, skills, routines, mobile = false }: Props) {
   const prefs = preferences.preferences;
   const prefStatus = preferences.status ? <span role="status">{preferences.status}</span> : undefined;
   const offline = !connectedRuntimeUrl && !workspace.guest;
@@ -164,6 +166,15 @@ export function WorkspaceSettings({ workspace, page, onPageChange, onClose, mode
     && Boolean(tradingAccounts.directory) && !tradingAccounts.directory?.accounts.some(entry => entry.providerKind === "paper" && entry.executionOwner);
   // Web builds have no desktop updater: the build itself knows its version.
   const versionText = desktopVersion ?? workspace.updater.info?.currentVersion ?? CLIENT_BUILD.version;
+  const defaultVolumeRow = <SettingRow label="默认手数" hint={prefStatus ?? "打开下单台和快捷下单的起始手数"}><Stepper label="默认手数" value={prefs.trade.defaultVolume} min={1} max={100} unit="手" disabled={offline} onChange={value => { if (value != null) setPref("trade.defaultVolume", Math.round(value)); }} /></SettingRow>;
+  const priceIntentRow = <SettingRow label="默认价格方式" helpKey="default-price-intent" help="语音或 AI 下单没说价格时用的挂单价"><Segmented label="默认价格方式" value={prefs.trade.defaultPriceIntent} disabled={offline} options={[{ value: "aggressive", label: "对手价" }, { value: "passive", label: "挂单价" }] as const} onChange={value => setPref("trade.defaultPriceIntent", value)} /></SettingRow>;
+  const stopRow = <SettingRow label="执行状态" hint={stopStatus === "EMERGENCY_STOP" ? "已急停" : stopStatus === "HALT_OPENS" ? "已只停新开仓" : stopStatus === "STOPPED" ? "已停止" : aiExecutionActive ? "执行中" : "尚未启动"}>
+    {stopStatus === "HALT_OPENS"
+      // The fence only strengthens: from halt-opens the user can still upgrade to a full emergency stop.
+      ? <>{recoveryButton}<Button danger disabled={stopActionsDisabled} onClick={() => onEmergencyStop()}>全局急停</Button></>
+      : executionStopped ? recoveryButton
+      : !workspace.replayActive && <><Button disabled={stopActionsDisabled} onClick={() => onHaltOpens()}>只停新开仓</Button><Button danger disabled={stopActionsDisabled} onClick={() => onEmergencyStop()}>全局急停</Button></>}
+  </SettingRow>;
   const compatHint = compat.state === "outdated"
     ? <span role="status">Runtime 要求客户端至少 {compat.minVersion ?? "较新版本"}，请更新客户端</span>
     : compat.state === "refresh" ? <span role="status">网页有新版本，点检查更新或刷新页面即可更新</span> : undefined;
@@ -214,7 +225,7 @@ export function WorkspaceSettings({ workspace, page, onPageChange, onClose, mode
         {connectedRuntimeUrl && !workspace.guest && routines ? <RoutineSettings baseUrl={connectedRuntimeUrl} onRun={routines.run} onEdit={routines.edit} /> : null}
       </> },
       { id: "memory-advanced", label: "约定、经验与最近变动", parent: "memory", content: <MemoryAdvancedSettings baseUrl={connectedRuntimeUrl} preferences={preferences} /> },
-      { id: "voice", label: "语音", content: <>
+      { id: "voice", label: "语音", content: mobile ? <VoiceSettings compact baseUrl={connectedRuntimeUrl} available={voiceAvailable} preferences={preferences} /> : <>
         <XiaomiRemoteSettings onPageChange={onPageChange} />
         <VoiceSettings baseUrl={connectedRuntimeUrl} available={voiceAvailable} preferences={preferences} />
         <SettingsLink label="判停与确认时限" helpKey="voice-advanced" help="说完判停与口头确认的安全网参数" onOpen={() => onPageChange("voice-advanced")} />
@@ -264,15 +275,18 @@ export function WorkspaceSettings({ workspace, page, onPageChange, onClose, mode
           <SettingRow label="指标参数" hint="连接后可修改均线、布林带与副图指标"><strong>未连接</strong></SettingRow>
         </SettingsSection>
       </> },
-      { id: "trade", label: "交易", content: <>
+      { id: "trade", label: mobile ? "下单与停止" : "交易", content: mobile ? <>
+        <SettingsSection title="下单默认">{defaultVolumeRow}{priceIntentRow}</SettingsSection>
+        <SettingsSection title="停止">{stopRow}</SettingsSection>
+      </> : <>
         <SettingsSection title="交易状态">
           <SettingRow label="模拟网关"><strong>{workspace.simulationGatewayAvailable ? "已连接" : "不可用"}</strong></SettingRow>
           <SettingRow label="当前提交"><strong>{workspace.simulationEnabled ? "可用" : closed ? `${sessionLabel}，暂不可提交` : "暂不可用"}</strong></SettingRow>
           <SettingRow label="实盘交易"><strong>永久关闭</strong></SettingRow>
         </SettingsSection>
         <SettingsSection title="下单默认">
-          <SettingRow label="默认手数" hint={prefStatus ?? "打开下单台和快捷下单的起始手数"}><Stepper label="默认手数" value={prefs.trade.defaultVolume} min={1} max={100} unit="手" disabled={offline} onChange={value => { if (value != null) setPref("trade.defaultVolume", Math.round(value)); }} /></SettingRow>
-          <SettingRow label="默认价格方式" helpKey="default-price-intent" help="语音或 AI 下单没说价格时用的挂单价"><Segmented label="默认价格方式" value={prefs.trade.defaultPriceIntent} disabled={offline} options={[{ value: "aggressive", label: "对手价" }, { value: "passive", label: "挂单价" }] as const} onChange={value => setPref("trade.defaultPriceIntent", value)} /></SettingRow>
+          {defaultVolumeRow}
+          {priceIntentRow}
           <SettingRow label="快捷下单免确认" hint={quickSkipConfirmScoped ? quickSkipConfirm ? "下单台快捷行直接提交" : "提交前弹出确认" : offlineReason ?? "正在连接，连上后可修改"}>
             <Switch label="快捷下单免确认" checked={quickSkipConfirm} disabled={!quickSkipConfirmScoped} onChange={setQuickSkipConfirm} />
           </SettingRow>
@@ -303,13 +317,7 @@ export function WorkspaceSettings({ workspace, page, onPageChange, onClose, mode
           <SettingRow label="限额保存">
             <Button disabled={workspace.simulationLimitsStatus === "连接后可设置"} onClick={() => workspace.onSimulationLimitsChange(limits)} status={workspace.simulationLimitsStatus || "待读取"}>保存</Button>
           </SettingRow>
-          <SettingRow label="执行状态" hint={stopStatus === "EMERGENCY_STOP" ? "已急停" : stopStatus === "HALT_OPENS" ? "已只停新开仓" : stopStatus === "STOPPED" ? "已停止" : aiExecutionActive ? "执行中" : "尚未启动"}>
-            {stopStatus === "HALT_OPENS"
-              // The fence only strengthens: from halt-opens the user can still upgrade to a full emergency stop.
-              ? <>{recoveryButton}<Button danger disabled={stopActionsDisabled} onClick={() => onEmergencyStop()}>全局急停</Button></>
-              : executionStopped ? recoveryButton
-              : !workspace.replayActive && <><Button disabled={stopActionsDisabled} onClick={() => onHaltOpens()}>只停新开仓</Button><Button danger disabled={stopActionsDisabled} onClick={() => onEmergencyStop()}>全局急停</Button></>}
-          </SettingRow>
+          {stopRow}
           <SettingRow label="止损保护"><strong>{armedStopCount} 个待触发保护单</strong></SettingRow>
           <SettingRow label="已用委托次数"><strong>{workspace.aiExecution ? workspace.aiExecution.authorization?.usedOrders ?? 0 : "—"}</strong></SettingRow>
         </SettingsSection>

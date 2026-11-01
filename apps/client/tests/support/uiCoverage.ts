@@ -118,6 +118,10 @@ export const COMMANDABLE: Rule[] = [
   // (before the desktop rules: 看图表 and 上线运行 mean other things there).
   { match: control => control.group === "mobile-ai" && /^持仓/.test(control.label), via: "mobilePage: positions（AI 首页 · 今天概况的持仓格）" },
   { match: control => control.group === "mobile-ai" && /^今天提醒/.test(control.label), via: "reminderCenter: {open: true}（AI 首页 · 今天提醒格：进提醒页；条数在快照 state.reminderCenter.today / unread）" },
+  // AI 正在盯 (手机版第二轮): the 今天 page's three chips only open where each is managed.
+  { match: /^到价 \d+$/, via: "reminders: {tab: mine}（今天页 AI 正在盯 · 到价：提醒页的我的提醒）" },
+  { match: /^策略在跑 \d+$/, via: "mobileStrategyTab: running + mobileTab: strategy（今天页 AI 正在盯 · 策略在跑）" },
+  { match: /^今日提醒 \d+$/, via: "reminders: {tab: history}（今天页 AI 正在盯 · 今日提醒：提醒页的提醒记录）" },
   { match: control => control.group === "mobile-ai" && / (今日判断|暂无|读取中)$/.test(control.label), via: "symbol + mobileTab: research（今日判断胶囊：切到该品种主力合约并打开调研；判断还没读回时显示“读取中”）" },
   { match: /^看提醒(（\d+ 条未读）)?$/, via: "reminderCenter: {open: true}（今天页右上角铃铛进提醒页；未读数在快照 state.reminderCenter.unread / state.mobileUnread）" },
   { match: control => control.group === "mobile-strategy" && /^(暂停|继续运行|正在暂停…|正在继续…)$/.test(control.label), via: "POST /api/strategies/{id}/monitor/pause | …/monitor/start（策略卡的暂停 / 继续运行，与电脑运行中卡同一接口）" },
@@ -410,10 +414,10 @@ export const COMMANDABLE: Rule[] = [
   { match: /查看账户明细$/, via: "dialog: account-detail（复盘页）" },
   { match: /^手续费口径$/, via: "dialog: fee-hint（复盘页）" },
   { match: /^关闭(系统设置|交易时间|说明|合约列表|回放设置|账户明细|手续费口径)$/, via: "settingsOpen: false / dialog: {open: false}" },
-  { match: /^(账户|AI 与对话|记忆|语音|图表|交易|提醒|界面|快捷键|数据与隐私|关于)$/, via: "settingsPage: account|ai|memory|voice|chart|trade|notify（提醒）|ui|shortcuts|data|about" },
+  { match: /^(账户|AI 与对话|记忆|语音|图表|交易|下单与停止|提醒|界面|快捷键|数据与隐私|关于)$/, via: "settingsPage: account|ai|memory|voice|chart|trade（手机上叫下单与停止）|notify（提醒）|ui|shortcuts|data|about" },
   // 设置拆页 (2026-09-30): 一级页尾的 SettingsLink 进二级页，二级页头的 ‹ 返回键回一级页。
   { match: /^(打开)?(高级交易设置|判停与确认时限|指标参数与均线|约定、经验与最近变动|问题与建议)$/, via: "settingsPage: trade-advanced|voice-advanced|chart-advanced|memory-advanced|feedback（一级页尾的 SettingsLink，aria-label 带“打开”前缀；问题与建议在关于下）" },
-  { match: /^返回(交易|语音|图表|记忆|关于)$/, via: "settingsPage: trade|voice|chart|memory|about（二级页头的返回键）" },
+  { match: /^返回(交易|下单与停止|语音|图表|记忆|关于)$/, via: "settingsPage: trade|voice|chart|memory|about（二级页头的返回键；手机上交易页叫下单与停止）" },
   // 问题与建议 (2026-10-06): the diagnostics preview fold; the form itself is exempt below.
   { match: control => control.surface.startsWith("settings-feedback") && control.role === "summary" && control.label === "预览诊断内容",
     via: "disclosure: feedback-diagnostics（附上基础诊断开着时才有；快照 disclosures.feedback-diagnostics，预览正文同邮件里的白名单诊断）" },
