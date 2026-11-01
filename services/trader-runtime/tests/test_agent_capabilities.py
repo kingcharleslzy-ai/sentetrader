@@ -308,6 +308,35 @@ async def test_ui_receipt_wait_allows_pulse_and_preserves_command_identity(tmp_p
                     assert (await c.post(f'/api/replays/{IDENTIFIER}/control', json={'action': 'close'})).status_code == 200
 
 
+async def test_window_refusing_an_outdated_command_reads_as_moved_on(tmp_path):
+    """A window whose state settled after dispatch refuses the command for its revision: that receipt has no
+    state, like a refusal at dispatch, so the agent and readback re-send it against the new revision."""
+    from uuid import uuid4
+
+    from trader_runtime.ui_control import ChartOptions
+
+    app = create_app(tmp_path / 'runtime.sqlite3', runtime_state_root=tmp_path, agent_mode='fake', local_token='ui-test-token')
+    headers = {'Authorization': 'Bearer ui-test-token', 'Origin': 'http://127.0.0.1:5173'}
+    state = dict(symbol='SHFE.rb2701', duration=60, view='trade', panel=None, settingsOpen=False,
+        theme='dark', dockSide='right', dockWidth=400, replay=False, settingsPage='connection',
+        fontScale='standard', density='standard', chart={k: True for k in ChartOptions.model_fields},
+        chartSizes=dict(main=58, kd=19, macd=23), strategy=None)
+    observation = dict(capturedAt='2026-09-08T00:00:00Z', viewport=dict(width=1280, height=720),
+        text='交易台', truncated=False, regions=[], controls=[], context={})
+    async with app.router.lifespan_context(app):
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='http://runtime', headers=headers) as c:
+            wid, cid = str(uuid4()), str(uuid4())
+            pulse = dict(windowId=wid, revision=0, state=state, observation=observation)
+            assert (await c.post('/api/ui/pulse', json=pulse)).status_code == 200
+            body = dict(commandId=cid, windowId=wid, expectedRevision=0, changes={'theme': 'light'})
+            assert (await c.post('/api/app/ui/commands', json=body)).status_code in {200, 202}
+            assert (await c.post('/api/ui/pulse', json=pulse)).json()['command']['commandId'] == cid
+            moved = {**pulse, 'revision': 1, 'receipt': {'commandId': cid, 'status': 'rejected'}}
+            assert (await c.post('/api/ui/pulse', json=moved)).status_code == 200
+            result = (await c.get('/api/app/ui/commands/' + cid)).json()
+            assert result['status'] == 'rejected' and result['state'] is None
+
+
 async def test_capability_names_are_identifiers_and_tool_entries_carry_descriptions(tmp_path: Path) -> None:
     """Agents index the catalog by name; a `tool:*` entry used to expose its Chinese description there."""
     import re

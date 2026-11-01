@@ -2824,8 +2824,8 @@ async def test_ui_owner_uses_real_step_receipts_without_retrying_unknown_writes(
                     continue
                 commands.append(command["changes"])
                 rejected = case == "second_rejected" and len(commands) == 2
-                pulse["revision"] += 1
-                if not rejected:
+                if not rejected:  # a window that refuses a command changes nothing, so its revision stays
+                    pulse["revision"] += 1
                     if "highlight" in command["changes"]:
                         pulse["state"]["highlights"] = [command["changes"]["highlight"]]
                     else:

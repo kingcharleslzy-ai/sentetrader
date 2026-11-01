@@ -130,7 +130,7 @@ AI 球、对话面板与简讯的界面行为见帮助主题 voice-realtime、ac
 外部 Agent 的连接（stdio MCP 入口基于 [官方 Python MCP SDK](https://github.com/modelcontextprotocol/python-sdk)、MCP 配置、打包 CLI）、界面命令生命周期与页面快照读取见 [skills/ai-trader/SKILL.md](../skills/ai-trader/SKILL.md)，命令字段与取值见帮助主题 ui-commands。实现上的取舍：
 
 - 浏览器心跳/回执接口不在 Agent 能力白名单中；MCP 不提供任意 JS、Shell、鼠标或 DOM 执行工具，业务行为仍经原鉴权、风险检查和回放串行调度。连接切换、凭据输入与软件更新的下载/安装不进通用界面命令。
-- 前端每次只处理一个命令，并检查身份、环境与界面版本；身份失效的排队命令不派发；命令记录只在内存里保留五分钟。窗口只回报“已执行”或“执行不了”，applied 由 Runtime 判定：按这次及之后心跳里 React 已提交的状态核对所改字段（`ui_control.changes_match`，全系统唯一一处回执规则），7 秒内没对上记 unknown；applied 不保证行情请求已完成。界面表面的 id、旧名、游客可用与否统一在 `services/trader-runtime/src/trader_runtime/ui_surfaces.json` 一张表里，Runtime 与客户端都读它。图表周期切换复用原图表周期接口，保留跟随图表策略的行为。
+- 前端每次只处理一个命令，并检查身份、环境与界面版本；身份失效的排队命令不派发；命令记录只在内存里保留五分钟。窗口只回报“已执行”或“执行不了”，applied 由 Runtime 判定：按这次及之后心跳里 React 已提交的状态核对所改字段（`ui_control.changes_match`，全系统唯一一处回执规则），7 秒内没对上记 unknown；窗口因版本已变回“执行不了”时，与派发时版本不符一样记 rejected 且不带 state，调用方读最新 revision 后换新 commandId 重发；applied 不保证行情请求已完成。界面表面的 id、旧名、游客可用与否统一在 `services/trader-runtime/src/trader_runtime/ui_surfaces.json` 一张表里，Runtime 与客户端都读它。图表周期切换复用原图表周期接口，保留跟随图表策略的行为。
 - 观察数据不参与界面 revision，避免报价跳动让纯外观命令不停冲突。心跳里的 `state` 是窗口现状的报告：Runtime 只做形状与数量上限校验（`highlights` ≤20、`chartAnnotations` ≤50 条宽松记录），不用命令输入的严格规则拒绝它——否则旧契约下画的内容会让整个窗口失联；命令输入（`UiChanges`）仍严格。客户端心跳连续 3 次 422 时在工作区显示登记失败提示（`data-agent-target="ui-control-health"`）并写桌面 frontend.log。
 - 模拟限额、策略定义和手续费仍调用业务 API；客户端同步外部保存结果，保留本地尚未保存的限额草稿。
 

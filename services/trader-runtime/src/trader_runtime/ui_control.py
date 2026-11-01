@@ -2268,6 +2268,11 @@ def register_ui_control(app, current_user):
                     if authorized and body.receipt.status == "applied":
                         # The window ran it; judge() decides whether it took effect, on this and later heartbeats.
                         command.status, command.claimed = "dispatched", monotonic()
+                    elif authorized and body.receipt.status == "rejected" and body.revision != command.request.expectedRevision:
+                        # The window had moved on before it ran it (state settling late, 2026-11-01 readback): the
+                        # same outcome as a refusal at dispatch — rejected with no state, which callers re-send.
+                        command.status = "rejected"
+                        log_result(command)
                     else:
                         command.status = body.receipt.status if authorized else "unknown"
                         command.state = body.state.model_dump()

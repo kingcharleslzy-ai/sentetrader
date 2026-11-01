@@ -176,17 +176,20 @@ async function run({ plan, expected, out, monitorSeconds }) {
       previous = current?.revision;
       return { ok: stable >= 3, value: current };
     }, "窗口状态稳定");
-    const commandId = randomUUID();
     let reply;
     for (let attempt = 0; attempt < 3; attempt++) {
+      const commandId = randomUUID();
       reply = await api("POST", "/api/app/ui/commands?waitMs=3000", { commandId, windowId, expectedRevision: snapshot.revision, changes });
-      if (reply.status !== 409 || reply.attempted !== "false") break;
+      if (reply.status === 409 && reply.attempted === "false") { snapshot = await detail(); continue; }
+      if (reply.status >= 400) throw new Error(`界面命令 ${JSON.stringify(changes)} 被拒（${reply.status}）：${JSON.stringify(reply.body).slice(0, 300)}`);
+      if (["queued", "dispatched"].includes(reply.body?.status)) {
+        reply = await until(async () => { const r = await api("GET", `/api/app/ui/commands/${commandId}`); return { ok: !["queued", "dispatched"].includes(r.body?.status), value: r }; }, "界面命令回执");
+      }
+      // Rejected with no state: the window had moved on before it ran the command (the same signal the agent re-sends on).
+      if (reply.body?.status !== "rejected" || reply.body?.state != null) break;
       snapshot = await detail();
     }
     if (reply.status >= 400) throw new Error(`界面命令 ${JSON.stringify(changes)} 被拒（${reply.status}）：${JSON.stringify(reply.body).slice(0, 300)}`);
-    if (["queued", "dispatched"].includes(reply.body?.status)) {
-      reply = await until(async () => { const r = await api("GET", `/api/app/ui/commands/${commandId}`); return { ok: !["queued", "dispatched"].includes(r.body?.status), value: r }; }, "界面命令回执");
-    }
     return reply.body;
   };
   const step = async (raw, log) => {
