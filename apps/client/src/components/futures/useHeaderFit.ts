@@ -44,6 +44,15 @@ function cellOverflows(element: HTMLElement): boolean {
  *  warning texts may ellipsize instead, so they are deliberately not probed. */
 const WHOLE_CELLS = [".fdw-brand", "nav", ".fdw-contract-tabs", ".fdw-contract-picker", ".fdw-header-status"];
 
+/** The AI 指令栏 is not probed: its result and its focused input float over the header (wider than its cell,
+ *  which empties while the input floats), and its own width is the grid's to give — level 1 shrinks it. */
+const FLOATING_CELL = ".ai-bar";
+
+/** A header child the fit pass looks at. */
+function probed(element: Element): boolean {
+  return !element.matches(FLOATING_CELL);
+}
+
 /** Cells hidden by the fit levels themselves (or in layout-less jsdom) never count. */
 function isDisplayed(element: Element): boolean {
   return element.getClientRects().length > 0;
@@ -57,7 +66,7 @@ function hasDisplayedContent(element: HTMLElement): boolean {
 
 /** A flex row that ran out of room: a child with content squeezed flat, or one drawn over its neighbour. */
 function childrenSqueeze(parent: HTMLElement): boolean {
-  const children = (Array.from(parent.children) as HTMLElement[]).filter(isDisplayed);
+  const children = (Array.from(parent.children) as HTMLElement[]).filter(child => isDisplayed(child) && probed(child));
   let rightEdge = Number.NEGATIVE_INFINITY;
   for (const child of children) {
     const rect = child.getBoundingClientRect();
@@ -78,7 +87,7 @@ export function headerContentOverflows(header: HTMLElement): boolean {
   if (cellOverflows(header)) return true;
   const cells = [
     header,
-    ...(Array.from(header.children) as HTMLElement[]),
+    ...(Array.from(header.children) as HTMLElement[]).filter(probed),
     ...WHOLE_CELLS.flatMap(selector => Array.from(header.querySelectorAll<HTMLElement>(selector))),
   ];
   return cells.some(cell => isDisplayed(cell) && (cellOverflows(cell) || childrenSqueeze(cell)));
