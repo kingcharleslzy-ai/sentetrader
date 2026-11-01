@@ -221,7 +221,8 @@ async def test_switch_off_asks_nothing_and_the_push_follows_its_switch(tmp_path:
 async def test_spoken_answers_need_the_read_out_the_window_and_no_waiting_card(tmp_path: Path) -> None:
     import time
 
-    from trader_runtime.voice_realtime import CallState, VoiceRealtimeService, breakeven_route
+    from trader_runtime.voice_realtime import CallState, VoiceRealtimeService
+    from trader_runtime.voice_route import breakeven_route
     # Only explicit words answer; "好" goes to the agent like any other sentence and moves nothing.
     for said in ("移", "移吧", "移到成本", "保本"):
         assert breakeven_route(said, pending=False, heard=True) == "breakeven_move", said

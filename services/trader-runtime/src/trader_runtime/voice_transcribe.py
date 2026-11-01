@@ -29,7 +29,8 @@ from uuid import uuid4
 
 from fastapi import WebSocket
 
-from .voice_realtime import DOUBAO_URL, MODEL, VOICE, CallIdentity, asr_settings, clean_transcript
+from .voice_asr import clean_transcript
+from .voice_realtime import DOUBAO_URL, MODEL, VOICE, CallIdentity, asr_settings
 
 if TYPE_CHECKING:
     from .voice_realtime import VoiceRealtimeService

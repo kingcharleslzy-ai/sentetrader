@@ -13,16 +13,16 @@ from httpx import ASGITransport, AsyncClient
 
 from trader_runtime.agent_api import CHAT_SEND
 from trader_runtime.main import create_app
+from trader_runtime.voice_asr import clean_transcript
 from trader_runtime.voice_realtime import (
     CHINA,
     INSTRUCTIONS,
     TOOLS,
     CallState,
     VoiceRealtimeService,
-    clean_transcript,
     first_sentence,
-    route_utterance,
 )
+from trader_runtime.voice_route import route_utterance
 
 WINDOW = "3f1e4d5a-1111-4222-8333-444444444444"
 
@@ -357,7 +357,7 @@ async def test_cloud_voice_uses_the_signed_in_user_and_limits_one_call_per_user(
 def test_the_runtime_routes_each_utterance_itself():
     """The user's 1.6.0 call (voice call 1f5e0d96): three business requests got Doubao's filler and no
     tool call. The Runtime now decides from the ASR final; these are the call's own sentences."""
-    from trader_runtime.voice_realtime import route_utterance
+    from trader_runtime.voice_route import route_utterance
     assert route_utterance("哎，买多一手，我现在看的这个。", pending=False) == "delegate"
     assert route_utterance("卡到哪了？", pending=False) == "delegate"
     assert route_utterance("为什么我看我的持仓还是只有一个？", pending=False) == "delegate"
@@ -413,7 +413,7 @@ def test_the_runtime_routes_each_utterance_itself():
 def test_the_watchdogs_two_commands_accept_natural_short_sentences():
     """09-22: 撤单/追单 are short spoken sentences around the word, not fixed spellings — but a
     negation or a second trading action keeps the sentence with the agent."""
-    from trader_runtime.voice_realtime import is_watch_cancel_command, is_watch_chase_command
+    from trader_runtime.voice_route import is_watch_cancel_command, is_watch_chase_command
     for said in ("撤单", "撤了", "把刚才那张委托撤掉", "撤了吧", "取消挂单", "取消它", "把挂单撤了。"):
         assert is_watch_cancel_command(said.rstrip("。")), said
     for said in ("追单", "追一下", "追价", "追上去", "按对手价追一下", "改成对手价", "用对手价", "把挂单改成对手价"):
@@ -2404,42 +2404,42 @@ def test_numeral_equivalence_does_not_blur_values_the_grammar_does_not_cover() -
     keeps its point (0.1 must not compare as 01 = 一), digit-by-digit Chinese without a unit (“一二”)
     is refused instead of collapsing to its last digit by the amount parser; the same decimal in both
     sentences and one spoken digit still strip. 二十 = 20 (the production rewrite) is the tests below."""
-    import trader_runtime.voice_realtime as module
-    bare = module._bare
-    assert module._answered_prefix(bare("止损改成 20 跳。打开画线工具栏。"), bare("止损改成二十跳")) == 7
-    assert module._answered_prefix(bare("止损改成 0.1 倍 ATR。打开画线工具栏。"), bare("止损改成一倍ATR")) is None
-    assert module._answered_prefix(bare("止损改成 1.5 跳。打开画线工具栏。"), bare("止损改成十五跳")) is None
-    assert module._answered_prefix(bare("止损改成一二跳。打开画线工具栏。"), bare("止损改成2跳")) is None
-    assert module._answered_prefix(bare("止损改成二零跳。打开画线工具栏。"), bare("止损改成20跳")) is None  # digit-by-digit: refused, not 20
-    assert module._answered_prefix(bare("止损改成 1.5 跳。打开画线工具栏。"), bare("止损改成1.5跳")) == 8  # the same decimal
-    assert module._answered_prefix(bare("止损改成 1.50 跳。打开画线工具栏。"), bare("止损改成1.5跳")) == 9  # the same decimal by value
-    assert module._answered_prefix(bare("止损改成 1.05 倍 ATR。打开画线工具栏。"), bare("止损改成1.5倍ATR")) is None  # 1.05's 05 is not 1.5's 5: one token, not two runs
-    assert module._answered_prefix(bare("止损改成 1.5 跳。打开画线工具栏。"), bare("止损改成一")) is None  # an answered integer is not the head of a new decimal
-    assert module._answered_prefix(bare("止损改成一二十跳。打开画线工具栏。"), bare("止损改成20跳")) is None  # not a number the grammar reads
-    assert module._answered_prefix(bare("改成1跳打开画线工具栏。"), bare("改成一跳")) == 4  # one spoken digit
-    assert module._answered_prefix(bare("止损改成2万打开画线工具栏"), bare("止损改成二")) is None
-    assert module._answered_prefix(bare("止损改成20万打开画线工具栏"), bare("止损改成二十")) is None
-    assert module._answered_prefix(bare("止损改成一点五跳"), bare("止损改成1")) is None
-    assert module._answered_prefix(bare("止损改成二十点五跳"), bare("止损改成20")) is None
-    assert module._answered_prefix(bare("止损改成二十，点开画线工具栏"), bare("止损改成20")) == 6
+    import trader_runtime.voice_asr as module
+    bare = module.bare_form
+    assert module.answered_prefix(bare("止损改成 20 跳。打开画线工具栏。"), bare("止损改成二十跳")) == 7
+    assert module.answered_prefix(bare("止损改成 0.1 倍 ATR。打开画线工具栏。"), bare("止损改成一倍ATR")) is None
+    assert module.answered_prefix(bare("止损改成 1.5 跳。打开画线工具栏。"), bare("止损改成十五跳")) is None
+    assert module.answered_prefix(bare("止损改成一二跳。打开画线工具栏。"), bare("止损改成2跳")) is None
+    assert module.answered_prefix(bare("止损改成二零跳。打开画线工具栏。"), bare("止损改成20跳")) is None  # digit-by-digit: refused, not 20
+    assert module.answered_prefix(bare("止损改成 1.5 跳。打开画线工具栏。"), bare("止损改成1.5跳")) == 8  # the same decimal
+    assert module.answered_prefix(bare("止损改成 1.50 跳。打开画线工具栏。"), bare("止损改成1.5跳")) == 9  # the same decimal by value
+    assert module.answered_prefix(bare("止损改成 1.05 倍 ATR。打开画线工具栏。"), bare("止损改成1.5倍ATR")) is None  # 1.05's 05 is not 1.5's 5: one token, not two runs
+    assert module.answered_prefix(bare("止损改成 1.5 跳。打开画线工具栏。"), bare("止损改成一")) is None  # an answered integer is not the head of a new decimal
+    assert module.answered_prefix(bare("止损改成一二十跳。打开画线工具栏。"), bare("止损改成20跳")) is None  # not a number the grammar reads
+    assert module.answered_prefix(bare("改成1跳打开画线工具栏。"), bare("改成一跳")) == 4  # one spoken digit
+    assert module.answered_prefix(bare("止损改成2万打开画线工具栏"), bare("止损改成二")) is None
+    assert module.answered_prefix(bare("止损改成20万打开画线工具栏"), bare("止损改成二十")) is None
+    assert module.answered_prefix(bare("止损改成一点五跳"), bare("止损改成1")) is None
+    assert module.answered_prefix(bare("止损改成二十点五跳"), bare("止损改成20")) is None
+    assert module.answered_prefix(bare("止损改成二十，点开画线工具栏"), bare("止损改成20")) == 6
     # 10-10 review: a separator before 点+numeral keeps 点 the click verb (the transcript goes in whole;
     # without the boundary 二十点一下 read as the number 二十点一 and the answered words would not strip)
-    assert module._answered_prefix("止损改成二十，点一下画线工具栏", bare("止损改成20")) == 6
-    assert module._answered_prefix("止损改成二十。点一下画线工具栏", bare("止损改成二十")) == 6
-    assert module._answered_prefix("止损改成二十 点一下画线工具栏", bare("止损改成二十")) == 6  # a space is the same boundary
-    assert module._answered_prefix("止损改成二十、点一下画线工具栏", bare("止损改成二十")) == 6
-    assert module._after_bare("止损改成二十，点一下画线工具栏", 6) == "点一下画线工具栏"
+    assert module.answered_prefix("止损改成二十，点一下画线工具栏", bare("止损改成20")) == 6
+    assert module.answered_prefix("止损改成二十。点一下画线工具栏", bare("止损改成二十")) == 6
+    assert module.answered_prefix("止损改成二十 点一下画线工具栏", bare("止损改成二十")) == 6  # a space is the same boundary
+    assert module.answered_prefix("止损改成二十、点一下画线工具栏", bare("止损改成二十")) == 6
+    assert module.after_bare("止损改成二十，点一下画线工具栏", 6) == "点一下画线工具栏"
     # 10-10 review: the answered record keeps the transcript's separators, so the same completed after
     # the answered “止损改成二十，点一下画线工具栏” is the same words — a dedup, not the numeral
     # correction 二十 → 二十点一 that would route the answered instruction a second time.
-    assert module._prefix_match("止损改成二十，点一下画线工具栏。", "止损改成二十，点一下画线工具栏") == (14, False)
+    assert module.prefix_match("止损改成二十，点一下画线工具栏。", "止损改成二十，点一下画线工具栏") == (14, False)
     # digit grouping between ASCII digits is not a word boundary: the number stays one token, however
     # the two passes spelled it — the separator around Chinese numerals still breaks words.
-    assert module._answered_prefix("止损改成1,000跳。打开画线工具栏。", "止损改成1000跳") == 9
-    assert module._answered_prefix("止损改成1000跳。打开画线工具栏。", "止损改成 1,000 跳") == 9
-    assert module._answered_prefix("止损改成 10 000 跳。打开画线工具栏。", "止损改成10000跳") == 10
-    assert module._answered_prefix("止损改成1，000跳。打开画线工具栏。", "止损改成1000跳") is None  # a fullwidth comma still breaks
-    assert module._after_bare("止损改成 1.5 跳。打开画线工具栏。", 8) == "打开画线工具栏。"  # the dot counts with its digits
+    assert module.answered_prefix("止损改成1,000跳。打开画线工具栏。", "止损改成1000跳") == 9
+    assert module.answered_prefix("止损改成1000跳。打开画线工具栏。", "止损改成 1,000 跳") == 9
+    assert module.answered_prefix("止损改成 10 000 跳。打开画线工具栏。", "止损改成10000跳") == 10
+    assert module.answered_prefix("止损改成1，000跳。打开画线工具栏。", "止损改成1000跳") is None  # a fullwidth comma still breaks
+    assert module.after_bare("止损改成 1.5 跳。打开画线工具栏。", 8) == "打开画线工具栏。"  # the dot counts with its digits
 
 
 async def test_a_late_completed_that_rewrites_the_answered_numeral_still_strips_it(tmp_path, monkeypatch):
@@ -2448,11 +2448,12 @@ async def test_a_late_completed_that_rewrites_the_answered_numeral_still_strips_
     “止损改成 20 跳。打开画线工具栏。” — Doubao's second pass had rewritten 二十 as 20 — and the completed carried
     the executed sentence again, so the toolbar command was misrouted as another strategy edit. The
     answered prefix matches by numeral value; only the new sentence routes."""
+    import trader_runtime.voice_asr as asr
     import trader_runtime.voice_realtime as module
     monkeypatch.setattr(module, "STALL_FINAL_SECONDS", 0.2)
-    assert module._answered_prefix("止损改成20跳打开画线工具栏", "止损改成二十跳") == 7  # 二十 = 20: the same words
-    assert module._answered_prefix("止损改成30跳打开画线工具栏", "止损改成二十跳") is None  # a different value is a new sentence
-    assert module._answered_prefix("打开画线工具栏", "止损改成二十跳") is None
+    assert asr.answered_prefix("止损改成20跳打开画线工具栏", "止损改成二十跳") == 7  # 二十 = 20: the same words
+    assert asr.answered_prefix("止损改成30跳打开画线工具栏", "止损改成二十跳") is None  # a different value is a new sentence
+    assert asr.answered_prefix("打开画线工具栏", "止损改成二十跳") is None
     app, _, service = await _voice_app(tmp_path, "numeral-late-final.sqlite3")
     preferences = app.state.store.user_preferences("local-user")
     fast = preferences.model_copy(update={"voice": preferences.voice.model_copy(update={"endpointStallSeconds": 0.2})})

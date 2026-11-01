@@ -124,6 +124,7 @@ from .turn_router import (
     classify_turn,
     fills_directly,
     order_write,
+    run_editor_ask,
     run_window_intent,
     strip_filler_prefix,
 )
@@ -1408,17 +1409,9 @@ class NativeAgentAdapter:
         falls back to the model exactly as before."""
         session = self.store.get_session(session_id)
         user_id = str(session["userId"])
-        capabilities = self.trader_tools.app_capabilities
-        if capabilities is None:
+        call = self._bridge_call(user_id, session_id)
+        if call is None:
             return None  # no app bridge wired: the model turn, as before
-
-        async def call(operation: str, *, path=None, query=None, body=None) -> dict[str, Any]:
-            from .agent_api import AppCall
-            result = await capabilities.call(
-                AppCall(operation=operation, path=path or {}, query=query or {}, body=body),
-                user=user_id, session_id=session_id)
-            return result if isinstance(result, dict) else {"data": result}
-
         try:
             window = await self.trader_tools._ui_window(decoded.ui_window_id, user_id=user_id,
                                                         session_id=session_id, task_id=None)
@@ -1496,25 +1489,33 @@ class NativeAgentAdapter:
         await self._publish_routed_line(session_id, decoded, line, run_id, turn_id=turn_id)
         return line
 
+    def _bridge_call(self, user_id: str, session_id: str) -> Callable[..., Awaitable[dict[str, Any]]] | None:
+        """The AppCapabilities bridge runner (operation, path=, query=, body=) the shared window executors take —
+        the voice service passes its own `_call`; None when no app bridge is wired."""
+        capabilities = self.trader_tools.app_capabilities
+        if capabilities is None:
+            return None
+
+        async def call(operation: str, *, path=None, query=None, body=None) -> dict[str, Any]:
+            from .agent_api import AppCall
+            result = await capabilities.call(
+                AppCall(operation=operation, path=path or {}, query=query or {}, body=body),
+                user=user_id, session_id=session_id)
+            return result if isinstance(result, dict) else {"data": result}
+        return call
+
     async def _execute_editor_ask(self, decoded: DecodedInstruction, *, session_id: str) -> str:
-        """补一句 on the open 策略编辑卡: one UI command (`strategyEditor: {ask}`) with a real receipt — the card
-        runs the design job, highlights what it changed and never saves by itself. Returns the line to publish."""
+        """补一句 on the open 策略编辑卡 through the shared `run_editor_ask` (the voice's too). Returns the line to publish."""
         from .strategy_editor import EDITOR_ASK_FAILED, EDITOR_ASK_LINE
         session = self.store.get_session(session_id)
         user_id = str(session["userId"])
-        capabilities = self.trader_tools.app_capabilities
+        call = self._bridge_call(user_id, session_id)
         line = EDITOR_ASK_FAILED
-        if capabilities is not None and decoded.ui_window_id:
-            from .agent_api import AppCall
+        if call is not None and decoded.ui_window_id:
             try:
                 window = await self.trader_tools._ui_window(decoded.ui_window_id, user_id=user_id,
                                                             session_id=session_id, task_id=None)
-                result = await capabilities.call(AppCall(operation="POST /api/app/ui/commands", query={"waitMs": 3000}, body={
-                    "commandId": str(uuid4()), "windowId": window["windowId"], "expectedRevision": window["revision"],
-                    "changes": {"strategyEditor": {"ask": decoded.user_text.strip()[:500]}}}),
-                    user=user_id, session_id=session_id)
-                receipt = (result.get("data") if isinstance(result, dict) else None) or {}
-                if receipt.get("status") == "applied":
+                if await run_editor_ask(decoded.user_text, window=window, call=call):
                     line = EDITOR_ASK_LINE
             except Exception as error:
                 log.info("agent_editor_ask_failed session=%s reason=%s", session_id, error)

@@ -8,13 +8,13 @@
     "board": {"label": "报价总表"}
   },
   "panels": {
-    "ai": {"label": "对话面板"},
+    "ai": {"label": "对话面板", "words": "AI(?:助手|面板)?", "say": "AI 面板"},
     "depth": {"aliasOf": "order"},
-    "order": {"label": "下单面板"},
-    "strategy": {"label": "策略面板"},
-    "positions": {"label": "持仓面板"},
+    "order": {"label": "下单面板", "words": "下单(?:台|区|面板|的地方|那个地方|那里|界面)?|模拟下单|交易台?下单|(?:价格)?阶梯|五档|盘口|深度", "say": "下单台"},
+    "strategy": {"label": "策略面板", "words": "策略(?:面板|配置|页)?"},
+    "positions": {"label": "持仓面板", "words": "持仓(?:与订单|和订单|那个页|那页|页|列表|清单|面板)?|持仓订单|仓位"},
     "news": {"label": "调研面板", "guest": true},
-    "debate": {"label": "调研面板的辩论页"},
+    "debate": {"label": "调研面板的辩论页", "words": "辩论|AI辩论|多AI辩论|研讨|多AI研讨", "say": "辩论页"},
     "reminders": {"label": "提醒面板"}
   },
   "settingsPages": {
@@ -61,12 +61,12 @@
     "history": {"label": "提醒记录"}
   },
   "mobileTabs": {
-    "ai": {"guest": true},
+    "ai": {"guest": true, "words": "AI动态|动态|AI首页"},
     "chat": {},
-    "research": {"guest": true},
-    "market": {"guest": true},
+    "research": {"guest": true, "words": "调研|调研台"},
+    "market": {"guest": true, "words": "看盘"},
     "strategy": {"guest": true},
-    "me": {"guest": true},
+    "me": {"guest": true, "words": "我的|个人中心"},
     "notify": {"aliasOf": "ai", "guest": true}
   },
   "mobilePages": {

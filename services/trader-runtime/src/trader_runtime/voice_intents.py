@@ -50,28 +50,34 @@ _PAGE_LABELS = {page: entry.get("say", entry["label"]) for page, entry in SURFAC
 _DURATIONS = [(r"(?:1|一)分(?:钟)?", 60, "一分钟"), (r"(?:3|三)分(?:钟)?", 180, "三分钟"), (r"(?:5|五)分(?:钟)?", 300, "五分钟"),
               (r"(?:15|十五)分(?:钟)?", 900, "十五分钟"), (r"(?:30|三十)分(?:钟)?", 1800, "三十分钟"), (r"(?:1|一)小时", 3600, "一小时"),
               (r"日线|日K|天线", 86400, "日线"), (r"周线|周K", 604800, "周线")]
+# A panel the table names (ui_surfaces.json panels: words, say — the spoken name, else label) opens and closes by its
+# own words; monitor / chat / positions-bar are intents (another tab, the same panel, the bottom bar), kept here.
+def _panel(panel: str) -> tuple[str, dict[str, Any], str]:
+    entry = SURFACES["panels"][panel]
+    return entry["words"], {"panel": panel}, f"{entry.get('say', entry['label'])}打开了"
+
+
 _PANELS = {
-    "ai": (r"AI(?:助手|面板)?", {"panel": "ai"}, "AI 面板打开了"),
+    "ai": _panel("ai"),
     # 2026-09-25: 盯盘 is the 策略面板's 运行中 tab (the 对话面板 holds the conversation only).
     "monitor": (r"AI盯盘|盯盘|监控|运行中(?:的)?策略", {"panel": "strategy"}, "运行中的策略打开了"),
     "chat": (r"对话|聊天|语音|文字|AI对话|对话与语音", {"panel": "ai"}, "对话打开了"),
     # 2026-10-07: the 价格阶梯 panel is gone; its words (阶梯 / 五档 / 盘口) open the 下单面板 with its 五档.
-    "order": (r"下单(?:台|区|面板|的地方|那个地方|那里|界面)?|模拟下单|交易台?下单|(?:价格)?阶梯|五档|盘口|深度", {"panel": "order"}, "下单台打开了"),
+    "order": _panel("order"),
     # 1.6.6: 持仓 is a side panel again. Only a sentence that names the bottom bar means the bar.
     # #759: 持仓清单 is the same panel (清单 is already a POSITION_UI_NOUNS interface noun).
-    "positions": (r"持仓(?:与订单|和订单|那个页|那页|页|列表|清单|面板)?|持仓订单|仓位", {"panel": "positions"}, "持仓面板打开了"),
+    "positions": _panel("positions"),
     "positions-bar": (r"底栏|持仓栏|持仓底栏|下面那条", {"positionsBar": "expanded"}, "底栏展开了"),
-    "strategy": (r"策略(?:面板|配置|页)?", {"panel": "strategy"}, "策略面板打开了"),
+    "strategy": _panel("strategy"),
     # 辩论页 (2026-10-24): the right rail's 辩论 (“打开辩论”); “辩一辩 / 让 AI 们辩一轮” start one (`_debate_intent`).
-    "debate": (r"辩论|AI辩论|多AI辩论|研讨|多AI研讨", {"panel": "debate"}, "辩论页打开了"),
+    "debate": _panel("debate"),
 }
 # 手机版底部标签的说法（“我的”必须带动词：单说“我的”太常见）。2026-10-06 (手机版新结构): the 策略 tab takes
 # the 策略面板's words (`intent_for_window`). 2026-10-15 (统一提醒 #932): 通知 / 提醒 / 消息中心 open the
 # 提醒中心 (`_REMINDER_WORDS`, both layouts); 时间线 still opens AI 首页's timeline (`_NOTIFY_WORDS`).
 # 画线第二版 (2026-10-09): a spoken price for “画一条水平线在 3070” (a decimal point survives as "D").
 _DRAW_PRICE = r"(\d{1,6}(?:D\d{1,4})?)"
-_MOBILE_TAB_WORDS = (("ai", r"AI动态|动态|AI首页"), ("research", r"调研|调研台"), ("market", r"看盘"),
-                     ("me", r"我的|个人中心"))
+_MOBILE_TAB_WORDS = tuple((tab, entry["words"]) for tab, entry in SURFACES["mobileTabs"].items() if "words" in entry)
 _NOTIFY_WORDS = r"时间线"
 _REMINDER_WORDS = r"提醒中心|提醒列表|通知中心|通知列表|通知|消息中心"
 _MOBILE_SAY = {"ai": "到 AI 首页了", "chat": "对话打开了", "research": "调研打开了", "market": "到看盘了",
@@ -82,8 +88,9 @@ _DESKTOP_FOR_TAB: dict[str, tuple[dict[str, Any], str]] = {"ai": ({"aiActivityCa
                                                              "research": ({"news": {"tab": "sheet"}}, "调研打开了"),
                                                              "market": ({"view": "trade"}, "回交易台了"),
                                                              "strategy": ({"panel": "strategy"}, "策略面板打开了")}
-_CLOSE_SAY = {"ai": "AI 面板收起了", "monitor": "策略面板收起了", "chat": "对话收起了", "order": "下单台收起了",
-              "positions": "持仓面板收起了", "positions-bar": "底栏收起了", "strategy": "策略面板收起了", "debate": "辩论页收起了"}
+_CLOSE_SAY = {"monitor": "策略面板收起了", "chat": "对话收起了", "positions-bar": "底栏收起了",
+              **{key: f"{say.removesuffix('打开了')}收起了" for key, (_, changes, say) in _PANELS.items()
+                 if changes.get("panel") == key}}
 
 
 # 手机看盘 (2026-10-09): the 看盘 tab's 报价 / 多图 / 单图 and the sub pane under the single chart.

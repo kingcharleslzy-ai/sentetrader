@@ -54,7 +54,7 @@ from trader_runtime.store import RuntimeStore
 from trader_runtime.store.trading_accounts import scoped_owner_user_id
 from trader_runtime.strategy_editor import RETIRED_GUIDE_ROUTES
 from trader_runtime.trader_tools import CARD_ACTION_TOOLS, TOOL_ARGUMENT_MODELS
-from trader_runtime.voice_realtime import ROUTED_ACTION_SKILLS, route_utterance
+from trader_runtime.voice_route import ROUTED_ACTION_SKILLS, route_utterance
 
 ORIGIN = "https://qilinshuzhi.com"
 PASSWORD = "correct-demo-password"

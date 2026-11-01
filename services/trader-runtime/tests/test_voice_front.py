@@ -24,7 +24,8 @@ from trader_runtime.voice_front import (
     spoken_line,
     takeover_line,
 )
-from trader_runtime.voice_realtime import FRONT_TOOLS, INSTRUCTIONS, TOOLS, CallState, route_utterance
+from trader_runtime.voice_realtime import FRONT_TOOLS, INSTRUCTIONS, TOOLS, CallState
+from trader_runtime.voice_route import route_utterance
 
 NAMES = ["螺纹钢", "沪金", "沪银", "白糖", "铁矿石", "焦炭", "原油"]
 

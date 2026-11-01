@@ -384,8 +384,7 @@ async def run_window_intent(
     revision = window["revision"]
     receipt: dict[str, Any] = {}
     for step in [changes, *intent.follow]:
-        body = {"commandId": str(uuid4()), "windowId": window["windowId"], "expectedRevision": revision, "changes": step}
-        result = await call("POST /api/app/ui/commands", query={"waitMs": 3000}, body=body)
+        result = await send_ui_command(call, window, step, revision=revision)
         receipt = result.get("data") or {}
         if receipt.get("status") != "applied":
             return {"ok": False, "error": str(receipt.get("status") or result.get("status") or "not_applied"), "changes": step}
@@ -398,6 +397,22 @@ async def run_window_intent(
         # reused, refused with why) lands a moment later in the window's state — say that, never a false start.
         say = await debate_start_line(receipt.get("state"), window["windowId"], call, intent.say)
     return {"ok": True, "changes": changes, "say": say}
+
+
+async def send_ui_command(call: Callable[..., Awaitable[dict[str, Any]]], window: dict[str, Any], changes: dict[str, Any], *,
+                          revision: int | None = None, wait_ms: int = 3000) -> dict[str, Any]:
+    """One UI command on `window` (at its revision, or the one a previous step moved it to): the bridge result, the
+    window's receipt in `data`. Every Runtime-side command — typed and spoken fast path, tour, 补一句 — is sent here."""
+    body = {"commandId": str(uuid4()), "windowId": window["windowId"],
+            "expectedRevision": window["revision"] if revision is None else revision, "changes": changes}
+    return await call("POST /api/app/ui/commands", query={"waitMs": wait_ms}, body=body)
+
+
+async def run_editor_ask(text: str, *, window: dict[str, Any], call: Callable[..., Awaitable[dict[str, Any]]]) -> bool:
+    """补一句 on the open 策略编辑卡 (typed or spoken): the sentence as one UI command with a real receipt — the card
+    runs the design job, highlights what changed and never saves by itself. Whether the window applied it."""
+    result = await send_ui_command(call, window, {"strategyEditor": {"ask": text.strip()[:500]}})
+    return ((result.get("data") if isinstance(result, dict) else None) or {}).get("status") == "applied"
 
 
 DEBATE_POLL_SECONDS = 0.5

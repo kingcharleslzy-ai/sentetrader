@@ -370,7 +370,7 @@ async def test_a_healthy_call_never_reconnects(tmp_path, monkeypatch):
 
 
 def test_a_replay_of_the_answered_sentence_is_not_new_words():
-    from trader_runtime.voice_realtime import _replays_answered
+    from trader_runtime.voice_asr import replays_answered as _replays_answered
     first_pass = "开三首不对两首互金多单算了"  # what the stall final answered (d5902f9b)
     for partial in ("开", "开三手", "开 3 手，不对", "开三手，不对，两手沪金多单，算了。", first_pass, ""):
         assert _replays_answered(partial, first_pass), partial

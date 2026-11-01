@@ -8,6 +8,20 @@ capabilities and boundaries — the simulated account and "an order needs an exp
 The agent answers with `content` (rendered in the conversation as usual) plus `spoken` (1–3
 sentences); the voice reads `spoken` and keeps the content as its tool result for follow-ups.
 Orders come back as proposal cards; "确认" / "算了" confirm or drop the card the same way a click does.
+
+The chain, stage by stage (one owner each, 2026-11-01):
+1. 接入 — the call socket, auth, the per-user slot, the Doubao session and its watchdog: here (`_run_call`).
+2. 听 — recognizer words, the cleaned transcript and "this partial only replays what was answered": voice_asr;
+   when a partial counts as final (early / stall / Doubao's own): here.
+3. 分 — which route a final takes: voice_route (`route_utterance`, `classify_final`), reading the words through
+   voice_intents (interface table, quick queries), order_intent_parse (orders) and voice_front (front-desk picks).
+4. 做 — interface words: turn_router `run_window_intent` / `send_ui_command` / `run_editor_ask`, the typed turn's
+   own path; queries and order cards the front desk answers itself: `front_query` / `front_action` here (contracts
+   by order_planner `resolve_words` / voice_intents `resolve_symbol`, like every other caller); everything else:
+   `_delegate` → chat:send (native_agent `classify_turn`); the call's waiting cards (确认 / 取消 / 一张一张问):
+   here, over the card routes a click uses.
+5. 说 — sentence streaming and interim lines: here; push-to-talk speech: voice_speak; push-to-talk transcription:
+   voice_transcribe.
 """
 from __future__ import annotations
 
@@ -26,7 +40,6 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta, timezone
-from decimal import Decimal
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -40,8 +53,7 @@ from .auth import COOKIE_NAME, LOCAL_USER_ID, OWNER_COOKIE_NAME, LocalAuth
 from .instruments import foreign_codes_named
 from .native_agent import PROCESSING_PLACEHOLDER
 from .order_intent import OrderIntent
-from .order_intent_parse import ParseContext, Parsed, commands_order
-from .order_intent_parse import parse as parse_intent
+from .order_intent_parse import commands_order
 from .order_planner import (
     Ask,
     Cards,
@@ -65,8 +77,18 @@ from .skill_registry import (
 )
 from .strategy_workbench import catalog_contract_label
 from .trader_tools import _market_analysis, card_events, card_skill_block
-from .turn_router import catalog_product_names, classify_turn, run_window_intent
+from .turn_router import catalog_product_names, classify_turn, run_editor_ask, run_window_intent, send_ui_command
 from .user_preferences import UserPreferences
+from .voice_asr import (
+    ASR_CORRECT_WORDS,
+    TRADING_HOTWORDS,
+    after_bare,
+    answered_prefix,
+    bare_form,
+    clean_transcript,
+    prefix_match,
+    replays_answered,
+)
 from .voice_front import (
     ACTION_TOOL,
     FRONT_ACTION_INSTRUCTIONS,
@@ -76,7 +98,6 @@ from .voice_front import (
     brief_fields,
     card_line,
     change_words,
-    classify_front,
     front_action_enabled,
     front_arguments,
     front_order,
@@ -95,7 +116,6 @@ from .voice_front import (
 )
 from .voice_intents import (
     Intent,
-    looks_like_replay_control,
     looks_like_ui,
     match_intent,
     match_quick_query,
@@ -104,6 +124,17 @@ from .voice_intents import (
     review_control,
     review_offer_answer,
     review_start_scope,
+)
+from .voice_route import (
+    CANCEL_ALL_WORDS,
+    CANCEL_RUN_WORDS,
+    EARLY_ROUTES,
+    MERGEABLE_ROUTES,
+    REVIEW_ROUTES,
+    ROUTED_ACTION_SKILLS,
+    classify_final,
+    sentence_intent,
+    strip_punctuation,
 )
 
 log = logging.getLogger("uvicorn.error.voice")
@@ -317,14 +348,6 @@ LATE_FINAL_WINDOW_SECONDS = 10.0
 # partial this long after the forced commit (no new words in between) and answers them itself.
 STALL_FINAL_SECONDS = _env_number("AI_TRADER_VOICE_STALL_FINAL_SECONDS", 1.2)
 SENTENCE_END = ("。", "？", "！", "?", "!")
-# Routes the Runtime answers itself (Doubao's own reply is muted anyway): only these may be routed from
-# a partial. Small talk, quick queries and interface requests wait for its final.
-EARLY_ROUTES = frozenset({"delegate", "confirm", "cancel", "stop", "hangup", "chase", "watch_cancel",
-                          "breakeven_move", "breakeven_decline"})
-MERGEABLE_ROUTES = frozenset({"delegate", "quick", "front", "action", "replay", "editor_ask", "review_answer"})
-# 引导复盘 (2026-09-29): the routes the Runtime answers itself while it walks the user through the day's
-# notable trades (review_picks); Doubao's own reply to them is muted like any Runtime-spoken turn.
-REVIEW_ROUTES = frozenset({"review_start", "review_answer", "review_skip", "review_stop", "review_decline"})
 # An answer is recorded once the user has been quiet this long (a pause mid-answer splits it into two
 # finals, merged within CONTINUATION_SECONDS): the merged sentence cancels the first round before it saves.
 REVIEW_SETTLE_SECONDS = 1.2
@@ -398,142 +421,10 @@ FRONT_TOOLS: list[dict[str, Any]] = [tool for tool in TOOLS if tool["name"] in {
 FRONT_ACTION_TOOLS: list[dict[str, Any]] = [*FRONT_TOOLS, ACTION_TOOL]
 # Tools whose turn the Runtime may already have taken over: answered silently instead of run twice.
 MODEL_ROUTED_TOOLS = QUICK_TOOLS | {"query", "action"}
-# With a card waiting, these drop it (the call with AI_TRADER_VOICE_FRONT_ACTION on): "不做了" / "先不买了" read as
-# 算了 there, measured on the 10-13 regression where they went to the trading AI and took 4 s.
-ACTION_CANCEL_WORDS = re.compile(r"^(?:先?(?:不做|不买|不卖|不平|不下|不要|不弄|算了|取消|撤了|撤掉)了?(?:吧|啊|呀)?)+$")
 QUICK_TOOL_BY_KIND = {"quote": "get_quote", "positions": "get_positions", "account": "get_account"}
 QUICK_MAX_AGE_SECONDS = 15.0
 
 SPOKEN_LIMIT = 320
-
-
-# -- Runtime-side routing of each utterance (2026-09-18) ------------------------------------------
-# Leaving "say a filler, then call delegate" to Doubao is unreliable: on the user's 1.6.0 call three
-# business requests ("买多一手我现在看的这个", "为什么持仓还是只有一个") got a filler and no tool call.
-# The Runtime now decides from the ASR final text: confirm / cancel words act on the waiting card,
-# small talk is left to Doubao, everything else is delegated by the Runtime itself. Doubao's own
-# tool call for the same turn, if it comes, is served the same result instead of running twice.
-CONFIRM_WORDS = re.compile(r"^(确认|确定|是的|是|对|好|好的|好吧|可以|行|下吧|下单|发吧|发|就这样|没问题|OK|ok)+[吧呀啊的了呢]?$")
-CANCEL_WORDS = re.compile(r"^(取消|算了|不要|不用|不了|不下了|放弃|别下|别|撤了|不对)+[吧呀啊的了呢]?$")
-SMALL_TALK = re.compile(r"^(你好|您好|喂|哈喽|hello|hi|在吗|在不在|能听到吗|听得到吗|谢谢|多谢|辛苦了|再见|拜拜|好的|嗯|哦|行|收到|知道了|明白|没事|没有了|不用了)+$")
-# "关闭语音 / 结束通话 / 挂断 / 不说了 / 退出语音": the Runtime hangs up itself. "停 / 等一下 / 别说了": only
-# the read-out stops. Both are decided here, never left to the model (a 1.6.5 call ended with "好了，关闭语音"
-# delegated to the agent).
-HANGUP_WORDS = re.compile(r"^(好了|好的|好|行|嗯|那|就这样|先|先这样|谢谢|ok|OK)*(关闭语音|关掉语音|结束通话|结束语音|退出语音|挂断|挂了|挂掉|挂断吧|不说了|不聊了|先不说了|再见|拜拜|byebye|bye)+(吧|了|啊|呀|吧啊)*$")
-# Two-character requests that the "≤2 chars = small talk" rule would otherwise hand to Doubao.
-ACTION_WORDS = re.compile(r"^(全平|清仓|撤单|平仓|平掉|买入|卖出|做多|做空|加仓|减仓|止损|止盈|查仓|看仓|持仓|行情|新闻)+[吧呀啊的了呢]?$")
-STOP_WORDS = re.compile(r"^(停|停一下|停下|停停|等一下|等等|等一等|先等等|别说了|不用说了|别念了|不用念了|闭嘴|安静|先别说|够了|知道了知道了)+(吧|了|啊|呀)*$")
-# 09-21: a waiting card aside, these words cancel the round that is still running (the query the user
-# interrupted), not just its read-out.
-CANCEL_ALL_WORDS = re.compile(r"(?:都|全部|全都|全)(?:不要|取消|算了|不下|不做|作废)了?(?:吧|啊|呀)?")
-CANCEL_RUN_WORDS = re.compile(r"^(算了|不要了|不用了|别查了|不查了|不用查了|取消|取消掉|别弄了|不弄了)+(吧|呀|啊|的了|了呢|了吧)*$")
-# 09-22: the unfilled-order watchdog's two spoken commands accept natural short sentences, not just
-# fixed spellings: 撤 = a stripped sentence ≤16 chars built around 撤/取消, 追 = the same around 追
-# or the 对手价 reprice. Both need a watched order and exclude negation and any other trading
-# action — those sentences stay with the agent.
-WATCH_COMMAND_MAX_CHARS = 16
-WATCH_CANCEL_TRIGGER = re.compile(r"撤|取消")
-WATCH_CHASE_TRIGGER = re.compile(r"追|改对手价|改成对手价|用对手价")
-WATCH_CANCEL_BLOCKERS = re.compile(r"别|不要|不用|买|卖|开|平|加|减|改价|追|再|然后|顺便")
-WATCH_CHASE_BLOCKERS = re.compile(r"别|不要|不用|买|卖|开|平|加|减|改价|撤|取消|再|然后|顺便")
-
-
-# 保本提醒 (2026-10-06): right after this call read a 保本提醒 out, and only inside the voice confirm window
-# (preferences.voice.confirmWindowSeconds, counted from the end of that read-out), an explicit 移 / 移到成本 /
-# 保本 / 移吧 moves the stop and 不用 / 不移 declines. Nothing else — "好" included — touches the stop: it
-# keeps its normal route (the agent). A proposal card waiting for 确认 always comes first.
-BREAKEVEN_MOVE_WORDS = re.compile(r"^(移|移吧|移到成本|移到成本吧|保本|移一下)$")
-BREAKEVEN_DECLINE_WORDS = re.compile(r"^(不用|不用了|不移|不移了)$")
-
-
-def breakeven_route(stripped: str, *, pending: bool, heard: bool) -> str | None:
-    """"breakeven_move" / "breakeven_decline" for a short answer to the 保本提醒 this call just read out
-    (`heard`: still inside its confirm window); None otherwise. A waiting proposal card wins (`pending`):
-    its 确认 / 取消 keep their meaning and a 移 then goes to the agent like any other sentence."""
-    if pending or not heard:
-        return None
-    if BREAKEVEN_MOVE_WORDS.match(stripped):
-        return "breakeven_move"
-    if BREAKEVEN_DECLINE_WORDS.match(stripped):
-        return "breakeven_decline"
-    return None
-
-
-def is_watch_cancel_command(stripped: str) -> bool:
-    return (len(stripped) <= WATCH_COMMAND_MAX_CHARS
-            and WATCH_CANCEL_TRIGGER.search(stripped) is not None
-            and WATCH_CANCEL_BLOCKERS.search(stripped) is None)
-
-
-def is_watch_chase_command(stripped: str) -> bool:
-    return (len(stripped) <= WATCH_COMMAND_MAX_CHARS
-            and WATCH_CHASE_TRIGGER.search(stripped) is not None
-            and WATCH_CHASE_BLOCKERS.search(stripped) is None)
-
-
-# The registry skills behind the Runtime-routed actions (2026-09-24): a routed
-# utterance whose skill is unavailable gets the unified refusal line before any
-# tool runs. editor_ask (2026-10-08) is the 策略编辑卡's 补一句.
-ROUTED_ACTION_SKILLS = {
-    "editor_ask": "strategy-management",
-    "replay": "replay-control",
-}
-
-
-# A guided tour is running (state.tour.active in the window): these move it instead of asking the agent.
-TOUR_NEXT_WORDS = re.compile(r"^(下一步|继续|往下|下一个|再往下|接着|接着说|然后呢|下面呢|下面)+[吧呀啊呢]?$")
-TOUR_PREV_WORDS = re.compile(r"^(上一步|回上一步|退回去|返回上一步|上一个|回去)+[吧呀啊]?$")
-TOUR_STOP_WORDS = re.compile(r"^(结束引导|退出引导|停止引导|不看了|不用引导了|不用教了|结束|结束吧|好了不看了)+[吧呀啊]?$")
-TOUR_ROUTES = {"tour_next": TOUR_NEXT_WORDS, "tour_prev": TOUR_PREV_WORDS, "tour_stop": TOUR_STOP_WORDS}
-
-
-def route_utterance(text: str, *, pending: bool, tour_active: bool = False,
-                    product_names: list[str] | None = None, replay_active: bool = False,
-                    editor_open: bool = False) -> str:
-    """Where an ASR final goes: "confirm" / "cancel" (a card is waiting), "tour_next" / "tour_prev" /
-    "tour_stop" (a tour is running), "editor_ask" (the window shows the 策略编辑卡 and the words are about
-    the strategy's own fields — its 补一句), "replay" (a replay-bound call's playback words), "quick" (a
-    quote / positions / account question Doubao answers with a Runtime tool), "chat" (Doubao answers itself) or "delegate"
-    (the Runtime hands it to the agent; "新建策略" and the other fixed interface words take its zero-LLM
-    fast path). Punctuation and spaces are ignored."""
-    stripped = re.sub(r"[\s，。,.!！?？、~～…·]", "", text)
-    if not stripped:
-        return "chat"
-    if len(stripped) <= 12 and HANGUP_WORDS.match(stripped):
-        return "hangup"
-    if len(stripped) <= 10 and STOP_WORDS.match(stripped):
-        return "stop"
-    if tour_active and len(stripped) <= 8:
-        for route, words in TOUR_ROUTES.items():
-            if words.match(stripped):
-                return route
-    if pending and len(stripped) <= 8:
-        if CONFIRM_WORDS.match(stripped):
-            return "confirm"
-        if CANCEL_WORDS.match(stripped):
-            return "cancel"
-    if editor_open and not pending:
-        # 策略编辑卡 (2026-10-08): "止损改成 20 跳" / "每次开两手" change the card's form and never reach the
-        # order / quick / target routes (voiceOrderConfirm=false would confirm an order card at once);
-        # "螺纹买两手" names its contract and keeps its card, interface words stay interface words.
-        from .strategy_editor import editor_utterance
-        if editor_utterance(stripped, product_names):
-            return "editor_ask"
-    if replay_active and (match_replay_control(stripped) is not None or looks_like_replay_control(stripped)):
-        return "replay"  # playback words (and unplayable asks like a time jump) drive the control route
-    if match_quick_query(stripped, product_names) is not None:
-        return "quick"  # a plain quote / positions / account question: Doubao answers it with a Runtime tool
-    if ACTION_WORDS.match(stripped):
-        return "delegate"  # "全平" / "清仓" / "撤单": two characters that are an order, not small talk
-    if match_intent(stripped) is not None:
-        # "看图" / "深色" are two characters and an interface command: the "≤2 chars = small talk" rule
-        # below used to hand them to Doubao (09-19 harness: "看图" got a chat reply and no command).
-        return "delegate"  # the caller runs the zero-LLM fast path for it
-    if len(stripped) <= 2 or SMALL_TALK.match(stripped):
-        return "chat"
-    if not pending and len(stripped) <= 4 and (CONFIRM_WORDS.match(stripped) or CANCEL_WORDS.match(stripped)):
-        return "chat"
-    return "delegate"
 
 
 def _order_outcome_line(order: dict[str, Any], label: str = "") -> str:
@@ -558,51 +449,6 @@ def _order_outcome_line(order: dict[str, Any], label: str = "") -> str:
     return f"{symbol} {status}".strip()
 
 
-TRADING_HOTWORDS = (
-    # 动作
-    "全平", "清仓", "平仓", "平掉", "撤单", "撤销", "开多", "开空", "买入", "卖出", "搞一手", "来一手",
-    "挂单", "市价", "对手价", "最新价", "止损", "止盈", "减仓", "加仓", "锁仓", "反手", "撤掉",
-    # 策略信号问法 (2026-09)：ASR 需要把这几段听准才会路由到 explain_strategy_signal
-    "策略信号", "按我的策略", "按策略",
-    # 手数
-    "一手", "两手", "三手", "四手", "五手", "六手", "七手", "八手", "九手", "十手", "半仓", "满仓",
-    # 品种口语（目录名之外的自叫法）
-    "螺纹", "热卷", "沪金", "沪银", "沪铜", "沪镍", "铁矿", "焦煤", "焦炭", "棉花", "白糖", "苹果", "豆粕", "豆油",
-    "棕榈", "甲醇", "PTA", "纯碱", "玻璃", "原油", "燃油", "沥青", "橡胶", "股指", "IF", "IC", "IM", "IH", "国债",
-    # 市况
-    "持仓", "行情", "主力", "主连", "多单", "空单", "实盘", "模拟盘",
-)
-# Real mishearings from the 09-19 harness replay: the replacement takes effect on its own (no twopass needed).
-# Every new pair is a near-homophone (pinyin in the comment) whose wrong form has no independent trading
-# meaning; pairs that could corrupt an innocent sentence ("原由"→原油, "开控"→开空) are deliberately absent.
-ASR_CORRECT_WORDS = {
-    # 09-19 harness, kept verbatim
-    "全屏": "全平", "全评": "全平", "告一首": "搞一手", "搞一首": "搞一手", "买一首": "买一手", "卖一首": "卖一手",
-    "时盘": "实盘", "罗文": "螺纹", "长了没": "涨了没", "长了吗": "涨了吗",
-    "幻城": "换成", "视窗": "持仓", "池仓": "持仓", "实仓": "持仓", "交义台": "交易台",
-    "自大一点": "字大一点", "复盘也": "复盘页",
-    # 平仓/清仓 (quánpíng→quánpíng píng；qīngcāng)
-    "全瓶": "全平", "青仓": "清仓", "亲仓": "清仓",
-    # 撤单 (chèdān)
-    "撤蛋": "撤单", "撤但": "撤单", "车单": "撤单",
-    # 搞/来一手 (gǎo lái)
-    "高一手": "搞一手", "告两手": "搞两手", "赖一手": "来一手",
-    # 品种近音
-    "罗纹": "螺纹", "罗纹钢": "螺纹钢", "沪进": "沪金", "护金": "沪金",  # luówén / hùjìn
-    "铁狂": "铁矿", "铁框": "铁矿", "焦没": "焦煤", "交煤": "焦煤", "焦碳": "焦炭",  # tiěkuàng jiāoméi jiāotàn
-    "热圈": "热卷", "热倦": "热卷", "春简": "纯碱", "豆泊": "豆粕", "棕旅": "棕榈",  # rèjuǎn chúnjiǎn dòupò zōnglǚ
-    "假醇": "甲醇", "波梨": "玻璃", "玻梨": "玻璃", "元油": "原油", "燃由": "燃油",  # jiǎchún bōlí yuányóu rányóu
-    "力青": "沥青", "香蕉": "橡胶", "护银": "沪银", "护铜": "沪铜", "护镍": "沪镍",  # lìqīng xiàngjiāo hùyín
-    "古指": "股指", "果债": "国债",  # gǔzhǐ guózhài
-    # 09-24 A/B: still misheard with twopass on
-    "户银": "沪银", "户金": "沪金", "户铜": "沪铜", "互同": "沪铜", "斗破": "豆粕", "菜破": "菜粕",  # hù dòupò càipò
-    "正眠": "郑棉", "正棉": "郑棉", "绵沙": "棉纱", "眠沙": "棉纱", "凭吊": "平掉",  # zhèngmián miánshā píngdiào
-    "两首": "两手", "三首": "三手", "一首": "一手",  # shǒu
-    # 交易词近音
-    "纸损": "止损", "纸盈": "止盈", "刮单": "挂单", "兑手价": "对手价",  # zhǐsūn guàdān duìshǒu
-    "曼仓": "满仓", "伴仓": "半仓", "所仓": "锁仓", "返手": "反手",  # mǎncāng bàncāng suǒcāng fǎnshǒu
-    "家仓": "加仓", "简仓": "减仓", "住力": "主力",  # jiācāng jiǎncāng zhǔlì
-}
 REFERENTIAL_WORDS = re.compile(r"刚才|刚刚|那个|这个|它|上一个|前面")
 DIALOG_CONTEXT_ROUNDS = 6
 DIALOG_CONTEXT_CHARS = 200
@@ -617,247 +463,6 @@ ASR_CONTEXT_FORMAT = os.getenv("AI_TRADER_VOICE_ASR_CONTEXT_FORMAT", "object")
 # the same ~1.3 s final latency, and a 48-utterance session kept every final and its latency flat — the
 # 09-19 slowdown (voice-v13) did not reproduce. `…ASR_TWOPASS=0` turns it off.
 ASR_TWOPASS = os.getenv("AI_TRADER_VOICE_ASR_TWOPASS", "1") == "1"
-# The twopass final now and then carries the recognizer's internal entity tag around a word, e.g.
-# `<FunctionCall>| "name : "getMusicEntity, "parameters : "content :"甲醇]| <FunctionCall>| 820 挂一手多`
-# (2 of 48 in the 09-24 long session; not in the doc). The tag is replaced by the word it wraps.
-_FUNCTION_CALL_LEAK = re.compile(r'<FunctionCall>\|.*?content\s*:\s*"?([^\]|]*)\]\|\s*<FunctionCall>\|\s*', re.S)
-
-
-def clean_transcript(text: str) -> str:
-    """ASR text without the recognizer's leaked `<FunctionCall>` entity tags."""
-    if "<FunctionCall>" not in text:
-        return text
-    return re.sub(r"<FunctionCall>\|?", "", _FUNCTION_CALL_LEAK.sub(lambda m: m.group(1).strip(), text)).strip()
-
-
-_BARE_DROP = re.compile(r"[\s，。,.!！?？、~～…·《》“”\"'：:；;]")
-
-
-def _dropped(text: str, index: int) -> bool:
-    """Whether `text[index]` is dropped from its bare form: punctuation, except a "." between two
-    digits — that is a decimal point ("0.1 倍"), and losing it made 0.1 compare as 01 = 一 (10-09)."""
-    if (text[index] == "." and 0 < index < len(text) - 1
-            and text[index - 1].isdigit() and text[index + 1].isdigit()):
-        return False
-    return _BARE_DROP.match(text[index]) is not None
-
-
-def _bare(text: str) -> str:
-    """The words of a transcript without punctuation (decimal points stay with their digits): Doubao's
-    partials alternate "确认" / "确认。"."""
-    return "".join(char for index, char in enumerate(text) if not _dropped(text, index))
-
-
-_ASCII_DIGITS = frozenset("0123456789")
-
-
-def _digit_grouping(text: str, index: int) -> bool:
-    """A comma or space between two ASCII digits is the second pass's digit grouping (“止损改成 1,000
-    跳”), not a word boundary: the digits stay one number token, so the answered 止损改成1000跳 still
-    strips and only the appended sentence routes (10-10 review: the grouping comma re-routed the
-    answered instruction). Separators around Chinese numerals keep breaking words (二十，点一下)."""
-    return (text[index] in ", " and 0 < index < len(text) - 1
-            and text[index - 1] in _ASCII_DIGITS and text[index + 1] in _ASCII_DIGITS)
-
-
-def _bare_breaks(text: str) -> frozenset[int]:
-    """Bare indexes a dropped separator starts: the comma in "止损改成二十，点一下画线工具栏" keeps 点 the
-    click verb, not the head of the number 二十点一 — removing punctuation must not remove the word
-    boundary with it (10-10 review: the lost boundary re-routed the answered instruction). A digit-
-    grouping separator (see `_digit_grouping`) breaks nothing."""
-    breaks: set[int] = set()
-    kept = 0
-    boundary = False
-    for index, char in enumerate(text):
-        if _dropped(text, index):
-            if not _digit_grouping(text, index):
-                boundary = True
-        else:
-            if boundary and kept:
-                breaks.add(kept)
-            boundary = False
-            kept += 1
-    return frozenset(breaks)
-
-
-def _after_bare(text: str, count: int) -> str:
-    """What of `text` follows its first `count` word characters (punctuation around the cut dropped;
-    a kept decimal point counts with its digits, like `_bare` does)."""
-    seen = 0
-    for index, char in enumerate(text):
-        if seen >= count:
-            return text[index:].lstrip("。．.，,！!？?；;、 ")
-        if not _dropped(text, index):
-            seen += 1
-    return ""
-
-
-# Doubao's second pass rewrites a spoken numeral between the partial and the completed ("止损改成二十跳"
-# → "止损改成 20 跳", production 10-09), so an already-answered prefix matches with whole number tokens
-# compared by value. A number is one token — Arabic digits together with their decimal point ("1.05" is
-# never the integer runs 1 and 05, which made 05 = 5 = 1.5's tail, 10-09) or a run of Chinese numeral
-# characters — and the Chinese side matches only through the unambiguous spoken grammar for 0..99 (一 /
-# 十五 / 二十 / 二十五). Anything looser — digit-by-digit "一二", "一二十", 一百 — has no value here: a
-# refused match keeps the whole sentence instead of guessing a number the words may not carry.
-_NUMERAL_CHARS = frozenset("0123456789零〇一二两三四五六七八九十百千万亿")
-_ASCII_NUMBER = re.compile(r"[0-9]+(?:\.[0-9]+)?")
-_CN_DIGIT_VALUES = {"零": 0, "〇": 0, "一": 1, "二": 2, "两": 2, "三": 3, "四": 4,
-                    "五": 5, "六": 6, "七": 7, "八": 8, "九": 9}
-_CN_TENS_HEAD = frozenset("一二三四五六七八九")  # 两十 / 零十 are not how tens are spoken
-
-
-def _numeral_token_at(text: str, index: int, breaks: frozenset[int] = frozenset()) -> str:
-    """Keep adjacent digits, decimal points and Chinese numerals together. Unsupported mixed forms
-    such as 20万 or 一点五 must be refused whole, never stripped as an answered integer.
-    点 joins a numeral only before another numeral; 点开 remains an ordinary operation word, and a
-    dropped separator (`breaks`, from `_bare_breaks`) never joins what it stood between."""
-    end = index + 1
-    while end < len(text) and end not in breaks and (
-        text[end] in _NUMERAL_CHARS or text[end] == "."
-        or (text[end] == "点" and end + 1 < len(text) and text[end + 1] in _NUMERAL_CHARS)
-    ):
-        end += 1
-    return text[index:end]
-
-
-def _small_chinese_value(run: str) -> int | None:
-    """A Chinese numeral run through the unambiguous spoken grammar for 0..99 only: one digit (零〇一…
-    九, 两 = 2), 十, 十X, X十, X十X. None for every other shape — bigger numbers (一百), digit-by-digit
-    readings (一二) — the caller keeps the sentence rather than guess."""
-    if not run:
-        return None
-    if len(run) == 1:
-        if run in _CN_DIGIT_VALUES:
-            return _CN_DIGIT_VALUES[run]
-        return 10 if run == "十" else None
-    head, rest = run[0], run[1:]
-    if head == "十":  # 十五: the 十 itself is the tens; 十两 / 十零 are not spoken
-        if len(rest) == 1 and rest in _CN_DIGIT_VALUES and rest not in "零〇两":
-            return 10 + _CN_DIGIT_VALUES[rest]
-        return None
-    if head not in _CN_TENS_HEAD:
-        return None
-    if rest == "十":
-        return _CN_DIGIT_VALUES[head] * 10
-    if len(rest) == 2 and rest[0] == "十" and rest[1] in _CN_DIGIT_VALUES and rest[1] not in "零〇两":
-        return _CN_DIGIT_VALUES[head] * 10 + _CN_DIGIT_VALUES[rest[1]]
-    return None
-
-
-def _numeral_tokens_equal(bare_token: str, done_token: str) -> bool:
-    """Whether two number tokens spell the same number: the same spelling outright; two Arabic numbers
-    by value (1.50 = 1.5, 1.05 ≠ 1.5); Arabic against Chinese only as whole numbers within the 0..99
-    grammar (一 = 1, 二十 = 20) — an answered integer is never the head of a new decimal."""
-    if bare_token == done_token:
-        return True
-    bare_arabic = _ASCII_NUMBER.fullmatch(bare_token) is not None
-    done_arabic = _ASCII_NUMBER.fullmatch(done_token) is not None
-    if bare_arabic and done_arabic:
-        return Decimal(bare_token) == Decimal(done_token)
-    if bare_arabic or done_arabic:
-        arabic, spoken = (bare_token, done_token) if bare_arabic else (done_token, bare_token)
-        if "." in arabic:
-            return False
-        value = _small_chinese_value(spoken)
-        return value is not None and value == int(arabic)
-    value, done_value = _small_chinese_value(bare_token), _small_chinese_value(done_token)
-    return value is not None and value == done_value
-
-
-def _prefix_match(text: str, done: str) -> tuple[int | None, bool]:
-    """How many leading word characters of `text`'s bare form spell the already-answered `done` words,
-    and whether the walk stopped at two number tokens of unequal value — the second pass corrected the
-    number (止损改成1 → 止损改成一点五跳). `done` is the answered transcript, punctuation and all: its own
-    separators bound its words too, so the answered “止损改成二十，点一下画线工具栏” never reads its 点一下
-    back as the head of 二十点一 (10-10 review: the bare-only record did, and the same completed
-    re-routed as a numeral correction). Whole number tokens compare by value (二十 = 20 and 1.50 = 1.5
-    are the same words; 20 ≠ 30, 1.05 ≠ 1.5, and a shape the grammar does not read never matches),
-    every other character exactly, and a dropped separator breaks both the join and the match.
-    None: `text` does not lead with the answered words."""
-    bare, breaks = _bare(text), _bare_breaks(text)
-    done_bare, done_breaks = _bare(done), _bare_breaks(done)
-    i = j = 0
-    while j < len(done_bare):
-        if i >= len(bare):
-            return None, False
-        if bare[i] in _NUMERAL_CHARS and done_bare[j] in _NUMERAL_CHARS:
-            bare_token, done_token = _numeral_token_at(bare, i, breaks), _numeral_token_at(done_bare, j, done_breaks)
-            if not _numeral_tokens_equal(bare_token, done_token):
-                return None, True
-            i += len(bare_token)
-            j += len(done_token)
-        elif bare[i] != done_bare[j]:
-            return None, False
-        else:
-            i += 1
-            j += 1
-    return i, False
-
-
-def _answered_prefix(text: str, done: str) -> int | None:
-    """The word count `_prefix_match` strips (see there; both sides are transcripts, punctuation and all)."""
-    return _prefix_match(text, done)[0]
-
-
-def _numeral_tokens(text: str) -> list[str]:
-    """The whole number tokens of a transcript, in order (as `_prefix_match` reads them)."""
-    bare, breaks = _bare(text), _bare_breaks(text)
-    tokens: list[str] = []
-    i = 0
-    while i < len(bare):
-        if bare[i] in _NUMERAL_CHARS:
-            token = _numeral_token_at(bare, i, breaks)
-            tokens.append(token)
-            i += max(1, len(token))
-        else:
-            i += 1
-    return tokens
-
-
-# What makes a sentence another order however alike the rest reads: its action and its direction (#905 review:
-# "平三手" after the answered "开三手…" is 2/3 alike, and it is a new order).
-_ORDER_WORD_CHARS = frozenset("开平买卖撤加减追多空")
-
-
-def _order_words_differ(bare: str, head: str) -> bool:
-    """Whether the words that differ between a partial and the answered start include an action or direction word."""
-    for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(None, bare, head).get_opcodes():
-        if tag != "equal" and _ORDER_WORD_CHARS.intersection(bare[i1:i2] + head[j1:j2]):
-            return True
-    return False
-
-
-def _replays_answered(partial: str, done: str, products: Any = ()) -> bool:
-    """A partial that only re-sends the sentence the Runtime already answered (`done`, the early / stall final):
-    the whole of it or a growing start of it, in the first pass's words or the second pass's (开三首…互金 →
-    开三手…沪金) — not the user saying something new (#905 review: "开三手" after "开三手，不对，…算了。"). A
-    rewording never changes the number, the action, the direction or the product (`products`: catalog names)."""
-    bare = _bare(partial)
-    if not bare:
-        return True
-    if not done:
-        return False
-    answered = _answered_prefix(partial, done)
-    if answered is not None:
-        return answered >= len(bare)
-    if _answered_prefix(done, partial) is not None:
-        return True
-    # A second-pass rewording of the answered start (开三首 → 开 3 手) — but never a changed number: 开五手 after
-    # 开三手 is a correction (#905 review), whatever the rest of the words.
-    numbers, answered_numbers = _numeral_tokens(partial), _numeral_tokens(done)
-    if len(numbers) > len(answered_numbers) or not all(
-            _numeral_tokens_equal(a, b) for a, b in zip(numbers, answered_numbers, strict=False)):
-        return False
-    done_bare = _bare(done)
-    head = done_bare[:len(bare)]
-    named = {name for name in products or () if name and name in bare}
-    answered_names = {name for name in products or () if name and name in done_bare}
-    # Another product than the answered one (a misheard name there — 互金 — says nothing either way).
-    if _order_words_differ(bare, head) or (named and answered_names and not named <= answered_names):
-        return False
-    return difflib.SequenceMatcher(None, bare, head).ratio() >= 0.5
-
-
 async def asr_settings(service: VoiceRealtimeService) -> tuple[dict[str, Any], dict[str, Any]]:
     """The ASR context (hotwords + replacement words) and the `extension.asr.extra` that a call and a
     push-to-talk transcription both send: one recognizer setup for the same words."""
@@ -1383,7 +988,7 @@ class VoiceRealtimeService:
                       "breakeven_move", "breakeven_decline"}
                 or route.startswith(("editor_", "tour_")) or state.replay_id):
             return route
-        stripped = re.sub(r"[\s，。,.!！?？、~～…·]", "", text)
+        stripped = strip_punctuation(text)
         if state.review is not None:
             control = review_control(stripped)
             if control is not None:
@@ -1422,10 +1027,7 @@ class VoiceRealtimeService:
         try:
             window = await self._window(state)
             if window is not None:
-                from uuid import uuid4
-                await self._call("POST /api/app/ui/commands", query={"waitMs": 0}, body={
-                    "commandId": str(uuid4()), "windowId": window["windowId"], "expectedRevision": window["revision"],
-                    "changes": {"reviewDay": day}})
+                await send_ui_command(self._call, window, {"reviewDay": day}, wait_ms=0)
         except Exception as error:  # noqa: BLE001
             log.debug("voice review page not opened: %s", error)
         return f"先说{'今天' if day == today.isoformat() else day[5:]}的复盘：{text.rstrip('。')}。"
@@ -2614,11 +2216,7 @@ class VoiceRealtimeService:
     def _learn_product_names(self, items: list[dict[str, Any]]) -> list[str]:
         """Every Chinese product name in catalog `items` (deduplicated, in catalog order); kept as the routers'
         names when there are any."""
-        names: list[str] = []
-        for item in items:
-            name = re.sub(r"\d+$", "", str((item or {}).get("instrumentName") or "")).strip()
-            if name and re.search(r"[\u4e00-\u9fa5]", name) and name not in names:
-                names.append(name)
+        names = [name for name in catalog_product_names(items) or [] if re.search(r"[\u4e00-\u9fa5]", name)]
         if names:
             self.product_names = sorted(names, key=len, reverse=True)
         return names
@@ -2733,32 +2331,24 @@ class VoiceRealtimeService:
         return editor_open((window or {}).get("state"))
 
     async def _editor_ask(self, utterance: str, state: CallState) -> dict[str, Any]:
-        """补一句 by voice: the sentence goes to the open 策略编辑卡 as one UI command with a real receipt (the
-        card runs the design job, highlights what changed and never saves by itself); the voice says so."""
-        from uuid import uuid4
-
+        """补一句 by voice through the shared `run_editor_ask` (the typed turn's too); the voice says so."""
         from .strategy_editor import EDITOR_ASK_FAILED, EDITOR_ASK_LINE
         window = await self._window(state)
         if window is None:
             return {"ok": False, "error": "no_window", "say": "软件窗口现在不在线。", "spoken": "软件窗口现在不在线。"}
-        body = {"commandId": str(uuid4()), "windowId": window["windowId"], "expectedRevision": window["revision"],
-                "changes": {"strategyEditor": {"ask": utterance.strip()[:500]}}}
-        result = await self._call("POST /api/app/ui/commands", query={"waitMs": 3000}, body=body)
-        applied = (result.get("data") or {}).get("status") == "applied"
+        applied = await run_editor_ask(utterance, window=window, call=self._call)
         line = EDITOR_ASK_LINE if applied else EDITOR_ASK_FAILED
         return {"ok": applied, "say": line, "spoken": line}
 
     async def _tour(self, op: str, state: CallState) -> dict[str, Any]:
         """Move the guided tour the user is in: one UI command with a real receipt, then the new step's
         `say` (or its label) is what the voice reads; past the last step, or on stop, the tour ends."""
-        from uuid import uuid4
         window = await self._window(state)
         if window is None:
             return {"ok": False, "error": "no_window", "say": "软件窗口现在不在线。"}
         if not ((window.get("state") or {}).get("tour") or {}).get("active"):
             return {"ok": False, "error": "no_tour", "say": "现在没有在引导。"}
-        body = {"commandId": str(uuid4()), "windowId": window["windowId"], "expectedRevision": window["revision"], "changes": {"tour": {"op": op}}}
-        result = await self._call("POST /api/app/ui/commands", query={"waitMs": 3000}, body=body)
+        result = await send_ui_command(self._call, window, {"tour": {"op": op}})
         receipt = result.get("data") or {}
         if receipt.get("status") != "applied":
             return {"ok": False, "error": str(receipt.get("status") or result.get("status")), "say": "这一步没切过去，再说一遍。"}
@@ -4533,7 +4123,7 @@ async def _run_call(service: VoiceRealtimeService, client: WebSocket, key: str, 
                 name = "cancel" if action == "retract" else action
                 arguments = ({"utterance": text} if name in {"delegate", "replay", "editor_ask"}
                              else {"retracted": True} if action == "retract"
-                             else {"all": True} if name == "cancel" and CANCEL_ALL_WORDS.fullmatch(_bare(text)) else {})
+                             else {"all": True} if name == "cancel" and CANCEL_ALL_WORDS.fullmatch(bare_form(text)) else {})
                 # A take-back with nothing to drop is answered by the Runtime alone: the pair is recorded in the
                 # conversation it was said in, like a front turn (#754 / #900 review).
                 retract_binding = service.binding(state) if action == "retract" else None
@@ -4719,11 +4309,11 @@ async def _run_call(service: VoiceRealtimeService, client: WebSocket, key: str, 
                 not a 续句 suffix to merge onto it."""
                 done_raw, state.segment_final_text = state.segment_final_text, ""
                 state.asr_bare, state.asr_sentence, state.early_checked_bare, state.asr_partial = "", None, "", ""
-                done = _bare(done_raw)
+                done = bare_form(done_raw)
                 if not done:
                     return text, False
-                bare = _bare(text)
-                answered, numeral_changed = _prefix_match(text, done_raw)
+                bare = bare_form(text)
+                answered, numeral_changed = prefix_match(text, done_raw)
                 if answered is not None and answered < len(bare):
                     # The answered words lead the completed: only what follows is new, however long the
                     # read-out in between took. A 10 s window here re-asked the answered question
@@ -4731,7 +4321,7 @@ async def _run_call(service: VoiceRealtimeService, client: WebSocket, key: str, 
                     # second pass may rewrite the numeral (止损改成二十跳 → "止损改成 20 跳。打开画线工具栏。",
                     # 10-09), so the prefix matches by numeral value, separator boundaries included
                     # ("止损改成二十，点一下画线工具栏" keeps 点一下 the click, 10-10).
-                    tail = _after_bare(text, answered)
+                    tail = after_bare(text, answered)
                     mark("asrFinalLate", text=text[:60], tail=tail[:60])
                     return tail, False
                 if time.monotonic() - state.segment_final_at > LATE_FINAL_WINDOW_SECONDS:
@@ -4754,22 +4344,22 @@ async def _run_call(service: VoiceRealtimeService, client: WebSocket, key: str, 
                         or time.monotonic() - state.asr_changed_at < EARLY_FINAL_SECONDS):
                     return
                 bare, done = state.asr_bare, state.segment_final_text
-                if done and _answered_prefix(state.asr_partial, done) is None and time.monotonic() - state.segment_final_at > LATE_FINAL_WINDOW_SECONDS:
+                if done and answered_prefix(state.asr_partial, done) is None and time.monotonic() - state.segment_final_at > LATE_FINAL_WINDOW_SECONDS:
                     # Doubao closed the answered segment without a completed and started a new one. While
                     # its partials still lead with the answered words they are stripped, however late.
                     done = state.segment_final_text = ""
-                answered = _answered_prefix(state.asr_partial, done) if done else None
+                answered = answered_prefix(state.asr_partial, done) if done else None
                 if bare == state.early_checked_bare or (done and (answered is None or len(bare) <= answered)):
                     return
                 state.early_checked_bare = bare
-                sentence_answered = _answered_prefix(sentence, done) if done else None
-                text = _after_bare(sentence, sentence_answered) if sentence_answered is not None else sentence
-                if not _bare(text):
+                sentence_answered = answered_prefix(sentence, done) if done else None
+                text = after_bare(sentence, sentence_answered) if sentence_answered is not None else sentence
+                if not bare_form(text):
                     return
-                route, _, _, front_pick = await classify(text, consume=False)
+                route, _, _, front_pick = await classify_final(service, state, text, consume=False)
                 if route not in EARLY_ROUTES and not (route == "front" and front_pick is not None and front_pick.kind == "query"):
                     return  # a front query is read by the Runtime too, so it may go early
-                if route == "delegate" and state.action_on and front_order(sentence_intent(text, False)) is not None:
+                if route == "delegate" and state.action_on and front_order(sentence_intent(text, service.product_names, False)) is not None:
                     return  # an order card waits for the completed sentence: "撤单…不对" must not act on half of it
                 intent = match_intent(text)
                 if route == "delegate" and (looks_like_ui(text, service.product_names) or (intent is not None and intent.symbol_query is None)):
@@ -4786,101 +4376,16 @@ async def _run_call(service: VoiceRealtimeService, client: WebSocket, key: str, 
                 is the sentence. Doubao never finalised it, so it would not answer it either — the Runtime
                 answers whatever the route; Doubao's own completed, if it still comes, is dropped as late."""
                 partial, bare, done = state.asr_partial, state.asr_bare, state.segment_final_text
-                answered = _answered_prefix(partial, done) if done else None
+                answered = answered_prefix(partial, done) if done else None
                 if answered is not None:
-                    text = _after_bare(partial, answered) if answered < len(bare) else ""
+                    text = after_bare(partial, answered) if answered < len(bare) else ""
                 else:
                     text = partial
-                if not _bare(text):
+                if not bare_form(text):
                     return
                 state.segment_final_text, state.segment_final_at = partial, time.monotonic()
                 mark("asrStallFinal", heldSeconds=round(time.monotonic() - state.asr_changed_at, 2))
                 await on_final(text, early=True, takeover=True)
-
-            def sentence_intent(text: str, pending: bool) -> Parsed:
-                """The one reading of the words (order_intent_parse): taken back, an order the front desk can card,
-                or anything else (Uncertain, a question, a condition…) that keeps its route."""
-                return parse_intent(text, ParseContext(products=tuple(service.product_names or ()), pending_card=pending))
-
-            async def classify(text: str, *, consume: bool) -> tuple[str, bool, Any, Any]:
-                """The route of a final (route_utterance + tour / order-watch overrides), with the pending and
-                product-name inputs it was decided from. `consume` is kept for the callers' symmetry (the
-                preview of an early final and the final itself route the same way)."""
-                pending_now = service._has_pending(state)
-                await service.ensure_product_names()
-                names_known = service.product_names or None
-                # 策略编辑卡: the window is read only for a sentence its 补一句 could take (a cheap word check
-                # first), so ordinary speech never waits on it.
-                from .strategy_editor import editor_utterance
-                editor_now = (not pending_now and editor_utterance(text, names_known)
-                              and await service.editor_open(state))
-                route = route_utterance(text, pending=pending_now, tour_active=True, product_names=names_known,
-                                        replay_active=bool(state.replay_id), editor_open=editor_now)
-                if route.startswith("tour_") and not await service.tour_active(state):
-                    route = route_utterance(text, pending=pending_now, product_names=names_known,
-                                            replay_active=bool(state.replay_id), editor_open=editor_now)  # no tour: the words mean what they usually mean
-                # The unfilled-order watchdog's two commands act on the watched order directly;
-                # with a card waiting they keep their usual meaning (cancel drops the card).
-                watched = None if pending_now else service.order_watch_target(state.user_id)
-                stripped_final = re.sub(r"[\s，。,.!！?？、~～…·]", "", text)
-                if watched is not None and is_watch_chase_command(stripped_final):
-                    route = "chase"
-                elif watched is not None and is_watch_cancel_command(stripped_final):
-                    route = "watch_cancel"
-                elif (answer := breakeven_route(stripped_final, pending=pending_now,
-                                                heard=service.breakeven_target(state) is not None)):
-                    route = answer  # 保本提醒 just read out on this call: 移 / 不用 (a waiting card comes first)
-                route = service.review_route(state, text, route)
-                if pending_now and CANCEL_ALL_WORDS.fullmatch(stripped_final):
-                    route = "cancel"  # “都不要 / 全部取消”：作废所有待确认卡（一句两单逐张问时也包括还没问到的）
-                parsed = sentence_intent(text, pending_now)
-                # A watched order's 撤 / 追 taken back in the same sentence ("撤掉这个单，算了") is withdrawn too (#900).
-                if (route in {"chat", "quick", "delegate", "watch_cancel", "chase"} and isinstance(parsed, OrderIntent)
-                        and parsed.stance == "retracted"):
-                    # 同句撤回 (#523 / #754): "开三手，不对，两手沪金多单，算了。" as one final is the user taking the
-                    # order back — the same as saying 算了 after it: a waiting card is dropped, a round still making
-                    # one is stopped, and nothing goes to the trading AI or becomes a card.
-                    route = "cancel" if pending_now else "retract"
-                routine = (service.routine_named(state.user_id, text)
-                           if route in {"chat", "quick"} or (state.front_on and route == "delegate") else False)
-                if route in {"chat", "quick"} and routine:
-                    # 我的流程 (2026-10-06): "老规矩" / "跑一下老规矩" is the user's routine — the agent runs it
-                    # (a two-character name would otherwise be small talk for Doubao).
-                    route = "delegate"
-                action_pick = None
-                if state.action_on and route in {"chat", "quick", "delegate"} and not routine:
-                    # 下单类直接出卡: an order the words state completely becomes its card here, without the
-                    # trading AI. With a card already waiting, a new order stays with the trading AI (it retires
-                    # or edits that card); a 撤 / 不做了 then drops the waiting card.
-                    pick = front_order(parsed) if not looks_like_ui(text, names_known) else None
-                    if pick is not None and pick.act != "cancel" and not state.preferences.trade.voiceOrderConfirm:
-                        # 语音下单免口头确认 on: the card would be confirmed the moment it is made, so an order never
-                        # takes the words-only path — the trading AI's turn handles it as before (the setting unchanged).
-                        pick = None
-                    if pending_now and (ACTION_CANCEL_WORDS.match(stripped_final)
-                                        or (isinstance(parsed, OrderIntent) and parsed.act == "retract")):
-                        route = "cancel"  # 有卡时“撤了 / 算了”指这张卡
-                    elif pick is not None and not pending_now:
-                        route, action_pick = "action", pick
-                front_pick = None
-                if state.front_on and route in {"chat", "quick", "delegate"} and not routine:
-                    # 前台直接查询: queries, concept questions, small talk and half sentences stay with Doubao
-                    # this turn. A fixed-table interface command keeps its zero-LLM path (a bare contract
-                    # candidate — "帮我看看" — is no interface command when the words ask a question).
-                    front_pick = classify_front(text, route, names_known, last_symbol=state.last_symbol_query,
-                                                last_what=state.last_what)
-                    if front_pick is not None and route == "delegate":
-                        intent = match_intent(text)
-                        if (intent is not None and not (intent.kind == "symbol" and not intent.explicit_chart
-                                                        and front_pick.kind in {"query", "half"})) or looks_like_ui(text, names_known):
-                            front_pick = None
-                    if front_pick is not None:
-                        route = "front"
-                    elif route == "quick":
-                        route = "delegate"  # the old quick lookups are not declared on this call
-                if consume:
-                    state.review_offer = False  # the offer is answered (or passed over) by this sentence
-                return route, pending_now, names_known, front_pick or action_pick
 
             async def on_final(text: str, *, early: bool = False, takeover: bool = False, correction: bool = False) -> None:
                 """One finished utterance (Doubao's completed, or a partial the Runtime finalised early):
@@ -4896,7 +4401,7 @@ async def _run_call(service: VoiceRealtimeService, client: WebSocket, key: str, 
                 # speaking, or a pause longer than the window, answers as its own question.
                 previous, parts = state.last_final, 1
                 # 下单类直接出卡: "算了" right after an order is the user taking it back, not the order's second half.
-                taken_back = state.action_on and CANCEL_RUN_WORDS.match(re.sub(r"[\s，。,.!！?？、~～…·]", "", text)) is not None
+                taken_back = state.action_on and CANCEL_RUN_WORDS.match(strip_punctuation(text)) is not None
                 if (previous is not None and previous.get("route") in MERGEABLE_ROUTES and not taken_back
                         # strictly inside the window: a window of 0 never merges (tests set it, #932 B5 — no real sleep)
                         and (correction or time.monotonic() - previous["at"] < CONTINUATION_SECONDS)
@@ -4951,12 +4456,12 @@ async def _run_call(service: VoiceRealtimeService, client: WebSocket, key: str, 
                 named = service.named_contract(text)
                 if named:
                     state.last_symbol_query = named
-                route, pending_now, names_known, front_pick = await classify(text, consume=True)
+                route, pending_now, names_known, front_pick = await classify_final(service, state, text, consume=True)
                 action_pick = front_pick if route == "action" else None
                 front_pick = front_pick if route == "front" else None
                 if takeover and route in {"chat", "quick"}:
                     route = "delegate"
-                stripped_final = re.sub(r"[\s，。,.!！?？、~～…·]", "", text)
+                stripped_final = strip_punctuation(text)
                 state.last_final = {"text": text, "route": route, "at": time.monotonic(), "parts": parts}
                 intent = match_intent(text) if route == "delegate" and not service.routine_named(state.user_id, text) else None
                 if (pending_now and intent is not None and intent.symbol_query is not None
@@ -5167,8 +4672,8 @@ async def _run_call(service: VoiceRealtimeService, client: WebSocket, key: str, 
                         partial = clean_transcript(str(event.get("delta") or ""))
                         # Doubao re-sending the sentence the Runtime already answered (early / stall final) is not
                         # the user talking over the answer: it neither interrupts the read-out nor releases it.
-                        replay = _replays_answered(partial, state.segment_final_text, service.product_names)
-                        if _bare(partial) and not replay and (state.speaking or state.still_playing()):
+                        replay = replays_answered(partial, state.segment_final_text, service.product_names)
+                        if bare_form(partial) and not replay and (state.speaking or state.still_playing()):
                             # The user talks over the assistant (words, as push-to-talk counts speech):
                             # barge-in. Cancel upstream if it is still generating and tell the client to
                             # drop its playback queue.
@@ -5184,7 +4689,7 @@ async def _run_call(service: VoiceRealtimeService, client: WebSocket, key: str, 
                             await to_client({"type": "status", "state": "listening"})
                         now = time.monotonic()
                         state.asr_open, state.asr_last_delta_at = True, now
-                        bare = _bare(partial)
+                        bare = bare_form(partial)
                         if bare != state.asr_bare:
                             state.asr_bare, state.asr_changed_at, state.asr_sentence = bare, now, None
                             state.stall_commit_at = 0.0  # new words: the user is still talking
@@ -5194,8 +4699,8 @@ async def _run_call(service: VoiceRealtimeService, client: WebSocket, key: str, 
                         # A segment Doubao kept open past an answered sentence still leads with it: the
                         # client shows only the words after it.
                         done = state.segment_final_text
-                        answered = _answered_prefix(partial, done) if done else None
-                        shown = _after_bare(partial, answered) if answered is not None and answered < len(bare) else partial
+                        answered = answered_prefix(partial, done) if done else None
+                        shown = after_bare(partial, answered) if answered is not None and answered < len(bare) else partial
                         if not replay:
                             lines_give_way()  # the user is saying something new
                         await to_client({"type": "transcript", "text": shown, "final": False})
@@ -5204,7 +4709,7 @@ async def _run_call(service: VoiceRealtimeService, client: WebSocket, key: str, 
                         text = clean_transcript(str(event.get("text") or event.get("transcript") or ""))
                         still, correction = await late_final(text)
                         if still is not None:
-                            if _bare(still):
+                            if bare_form(still):
                                 lines_give_way()
                             await on_final(still, correction=correction)
                     elif kind == "conversation.item.input_audio_transcription.failed":

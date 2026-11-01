@@ -22,7 +22,8 @@ from test_replay import IDENTIFIER, SYMBOL, HistoricalSource
 from trader_runtime.main import create_app
 from trader_runtime.skill_registry import hidden_tool_names
 from trader_runtime.voice_intents import looks_like_replay_control, match_replay_control
-from trader_runtime.voice_realtime import CallIdentity, CallState, _identity, _replay_binding, route_utterance
+from trader_runtime.voice_realtime import CallIdentity, CallState, _identity, _replay_binding
+from trader_runtime.voice_route import route_utterance
 
 TOKEN = "test-replay-token"
 HEADERS = {"Origin": "http://127.0.0.1:5173", "Authorization": f"Bearer {TOKEN}"}
