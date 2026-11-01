@@ -2499,6 +2499,15 @@ class TraderReadOnlyTools:
                 '{"operation":"POST /api/app/ui/commands","body":{"changes":{"panel":"positions"}}}；'
                 '字段的取值看 app_capabilities operation="ui:<字段>"。')
 
+    @staticmethod
+    def _editor_still_asking(result: dict[str, Any]) -> bool:
+        """An applied UI command whose receipt shows the 策略编辑卡 still designing from a sentence."""
+        receipt = result.get("data") if result.get("ok") else None
+        state = receipt.get("state") if isinstance(receipt, dict) and receipt.get("status") == "applied" else None
+        editor = state.get("strategyEditor") if isinstance(state, dict) else None
+        ask = editor.get("ask") if isinstance(editor, dict) else None
+        return isinstance(ask, dict) and ask.get("status") == "running"
+
     async def _ui_revision_retry(self, request: Any, result: dict[str, Any], *, user_id: str,
                                  session_id: str | None) -> dict[str, Any]:
         """A model's UI command refused only because the window's revision moved on (the user's own
@@ -3341,6 +3350,11 @@ class TraderReadOnlyTools:
                         result = await self._ui_revision_retry(request, result, user_id=user_id, session_id=session_id)
                         if result.get("status") == 422:
                             result = {**result, "hint": self._ui_command_hint(result)}
+                        elif self._editor_still_asking(result):
+                            # 11-02 live: seeing "running" the model re-read the window, re-sent the sentence and
+                            # reopened the card (14 rounds); the fill is the card's own job, not this turn's.
+                            result = {**result, "note": "编辑卡已收下这句话，正在自己填条件（要几十秒），填完显示在卡上。"
+                                      "这一步已办完：不要再读窗口等它、不要重发或关卡，直接告诉用户卡已打开、填好后核对再点开始。"}
                     read_only = operation_is_read_only(request.operation)
                     ok = result["ok"]
                     if not ok:

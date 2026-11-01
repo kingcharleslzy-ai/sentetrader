@@ -2702,6 +2702,18 @@ async def test_a_card_answer_with_an_interface_tail_keeps_the_full_toolbox(
 ESCALATED_ANSWERS = {"no_tool": "账户风险度不高，主要敞口在沪金。", "clarify": "你说的清单是持仓清单还是委托清单？"}
 
 
+def test_editor_still_asking_reads_only_an_applied_receipt():
+    # 11-02: a 策略编辑卡 still designing from a sentence gets the "this step is done" note; nothing else does.
+    from trader_runtime.trader_tools import TraderReadOnlyTools
+
+    def receipt(status, ask):
+        return {"ok": True, "data": {"status": status, "state": {"strategyEditor": {"open": True, "ask": ask}}}}
+    assert TraderReadOnlyTools._editor_still_asking(receipt("applied", {"text": "x", "status": "running"}))
+    assert not TraderReadOnlyTools._editor_still_asking(receipt("applied", {"text": "x", "status": "done"}))
+    assert not TraderReadOnlyTools._editor_still_asking(receipt("rejected", {"text": "x", "status": "running"}))
+    assert not TraderReadOnlyTools._editor_still_asking({"ok": False, "status": 422, "data": {"detail": []}})
+
+
 @pytest.mark.parametrize("case", ["no_tool", "clarify", "positions", "two_steps", "second_rejected", "pending", "highlight", "malformed_app", "invalid_highlight", "overclaim", "empty_final", "three_applied", "schema_body", "second_pending", "pending_card", "blocked_business", "stale_retry", "bare_changes"])
 async def test_ui_owner_uses_real_step_receipts_without_retrying_unknown_writes(
     native_client: AsyncClient, native_application: FastAPI, responses_server: FakeResponsesServer,
