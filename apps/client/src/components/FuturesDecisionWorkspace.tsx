@@ -22,7 +22,7 @@ import { AppHelp, openAppHelp } from "./AppHelp";
 import { marketClosedNow, marketSessionDisplay } from "../marketSession";
 import "./FuturesDecisionWorkspace.css";
 import "./futures/DockPanels.css";
-import { decimalsForTick, formatNumber, formatSigned, isProtectionActive, maxSharedDockWidth, EDITOR_CHART_MIN, isForeignSymbol, ownPositions, periods, positionKey, WIDE_PANELS,
+import { decimalsForTick, formatNumber, isProtectionActive, maxSharedDockWidth, EDITOR_CHART_MIN, isForeignSymbol, ownPositions, periods, positionKey, WIDE_PANELS,
   FOREIGN_BOARD, isForeignProductKey, normalizeBoardColumns, normalizeBoardExchange, normalizeBoardSort, normalizeWatchlist, watchlistKey, WATCHLIST_MAX,
   type BoardColumn, type BoardExchange, type BoardSort, type FuturesWorkspaceView, type ManualSimulationRequest,
   type RecentWorkspaceAction, type RightDock, type StrategyTab, type TicketDraft } from "./futures/support";
@@ -1327,7 +1327,6 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     const showReminders = () => tapPage("reminders");
     const briefsBlocked = skillBlockedLine("market-briefs", skills, planFeatures, "行情简讯") ?? undefined;
     const toggleBriefs = (value: boolean) => { if (access.require("market-briefs")) void appWorkbench.updateConfig({ showMarketBriefs: value }).catch(() => setAccessNotice("简讯设置未保存，请重试")); };
-    const today = props.account?.account.todayNetPnl ?? props.account?.account.todayPnl;
     // AI 首页's 今天概况, 今日判断 and 它正在盯着 — all from what the window already reads.
     const positions = props.account?.positions ?? [];
     // The product's name (螺纹钢2610 → 螺纹钢); a contract the catalog does not list keeps its code (ag2612).
@@ -1385,7 +1384,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
           onOrderAction={handleOrderAction} onClosePosition={closePosition} onRefresh={props.onRefreshAccount}
           onClose={() => setMobileSub(null)} activeProtections={activeProtections} protectionWarning={protectionWarning} onAskAi={askAi}
           stops={props.aiExecution?.stops} protectionBusy={props.aiExecutionBusy}
-          onCreateStop={createPositionStop} onCancelStop={cancelPositionStop} />
+          onCreateStop={createPositionStop} onCancelStop={cancelPositionStop} onReview={() => tapPage("review")} />
       </div>
     ) : mobileSub === "briefs" ? (
       <MobileBriefs baseUrl={connectedRuntimeUrl} enabled={appWorkbench.config.showMarketBriefs} blocked={briefsBlocked} offline={!connectedRuntimeUrl}
@@ -1403,7 +1402,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
         onClose={() => setMobileSub(null)} onAskAi={askMobile} onReport={setMobileLab} />
     ) : mobileSub === "review" ? (
       <section className="fdm-overlay fdm-page" aria-label="复盘摘要" data-testid="mobile-review" data-agent-target="mobile-review">
-        <header className="fdm-head"><button type="button" className="fdm-back" aria-label="返回我的" onClick={() => setMobileSub(null)}><ChevronLeft /></button><strong>复盘摘要</strong></header>
+        <header className="fdm-head"><button type="button" className="fdm-back" aria-label="返回" onClick={() => setMobileSub(null)}><ChevronLeft /></button><strong>复盘摘要</strong></header>
         <main className="fdm-content">
           {props.runtimeBaseUrl !== undefined ? <AccountPnl baseUrl={props.runtimeBaseUrl} rootUrl={props.rootBaseUrl ?? props.runtimeBaseUrl} symbol={quote?.symbol ?? props.selectedSymbol ?? ""} chartSymbols={(props.instruments?.items ?? []).map(item => item.symbol)} chartAvailable={Boolean(quote)} accountId={reviewAccountId} foreignAccountId={foreignReviewAccountId} snapshots={ledgerSnapshots} onFocus={setTradeFocus}
             onSelectSymbol={props.onSelectSymbol} initialBalance={initialBalance} onInitialBalanceChange={setInitialBalance} compact />
@@ -1426,6 +1425,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
           command={isGuest ? undefined : aiCommand} context={mobileContext} aiBlocked={aiBlocked} aiBusy={Boolean(props.chatBusy || chat.sendingPrompt)}
           notices={<>
             {!props.guest && !props.replayActive ? <ConnectionProgress connection={props.connection} runtime={props.state.runtime} agent={props.agentAccount} hasMarket={Boolean(market)} runtimeUsable={props.status.runtimeUsable} onSettings={() => setSettingsOpen(true)} /> : null}
+            {executionStopped ? <div className="fdm-stop-banner">{recoveryButton}</div> : null}
             {props.state.connectionError || props.state.runtime?.agentNotice ? <div className="fdw-runtime-notice" role={props.state.connectionError ? "alert" : "status"}>{props.state.connectionError || props.state.runtime?.agentNotice}</div> : null}
           </>}
           feed={<MobileHome rows={notifyRows} pending={pendingCards} quickPending={Boolean(quick.pending)} now={now}
@@ -1475,6 +1475,9 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
               starts={mobileRootUrl ? <StrategyStarts compact rootUrl={mobileRootUrl} symbol={quote?.symbol ?? props.selectedSymbol ?? ""}
                 symbolLabel={contractName} onStart={start => mobileEditor.onNew(start)} /> : undefined}
               onFocusChange={setMobileStrategyFocus}
+              stop={props.replayActive ? undefined : { status: props.aiExecution?.controls?.stopStatus,
+                disabled: Boolean(props.aiExecutionBusy) || props.connection !== "connected" || !props.simulationGatewayAvailable,
+                onHaltOpens: () => props.onStopAiExecution(false, "opens"), onEmergency: () => setEmergencyOpen(true) }}
               onChart={run => {
                 if (!sameContract(run.symbol, quote?.symbol)) selectContract(run.symbol);
                 if (run.timeframeSeconds && run.timeframeSeconds !== props.duration && [60, 180, 300, 900, 1800, 3600, 86400, 604800].includes(run.timeframeSeconds)) {
@@ -1484,11 +1487,10 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
               }} />,
             me: props.guest ? signIn("我的", "登录后看账户与持仓，改通知和设置。") : <MobileMe userName={ownerPlan.status?.username ?? ""} accountLabel={accountLabel}
               equity={`${formatNumber(props.account?.account.equity, 0)}${ledgerSnapshots.USD ? ` · 美元 ${formatNumber(ledgerSnapshots.USD.equity, 0)}` : ""}`}
-              positionCount={props.account?.positions.length ?? 0}
-              todayPnl={`${today === undefined ? "—" : formatSigned(today, 0)}${ledgerSnapshots.USD?.todayNetPnl !== undefined ? ` · 美元 ${formatSigned(ledgerSnapshots.USD.todayNetPnl, 0)}` : ""}`}
               alertCount={alerts.active.length}
               appearance={`${{ dark: "深色", light: "浅色", system: "跟随系统" }[chartSettings.theme]} · ${FONT_SCALE_OPTIONS.find(option => option.value === props.fontScale)?.label ?? "标准"}`}
               onOpenPage={tapPage}
+              onOpenSettings={page => { setSettingsPage(page); setSettingsOpen(true); }}
               onOpenAlerts={() => { showMobileChart(); applyUiSurface("disclosure:price-alerts", true); }}
               installed={installDetection.environment === "installed"}
               pushValue={pushRowValue(push.fcm ? { ...push.support, support: "unsupported" } : push.support, Boolean(push.thisDevice))}

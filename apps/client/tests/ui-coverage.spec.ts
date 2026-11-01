@@ -607,6 +607,8 @@ test("every user-operable control is commandable or reachable, and visible to th
       ["mobile-reminders-general", [{ reminderCenter: { filter: "all" } }, { reminders: { tab: "general" } }], true],
       ["", [{ mobilePage: null }], false],
       ["mobile-strategy", [{ mobileTab: "strategy" }], true],
+      ["mobile-execution-stop", [{ disclosure: { name: "mobile-execution-stop", open: true } }], true],
+      ["", [{ disclosure: { name: "mobile-execution-stop", open: false } }], false],
       ["mobile-strategy-mine", [{ mobileStrategyTab: "mine" }], true],
       // 手机编辑卡 (2026-10-08): the full-screen page (blank: the fake account has too few trades), its ③ 平仓 with 更多,
       // then a template's page with ② 开仓's rows and one condition's bottom sheet.

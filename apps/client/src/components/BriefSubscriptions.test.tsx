@@ -135,13 +135,13 @@ it("the picker is a commandable disclosure", async () => {
 it("我的 → AI 简报推送 shows the count and opens its page with the push switch", async () => {
   const onOpenPage = vi.fn();
   const notify = { briefs: true, briefCount: 2 };
-  const me = render(<MobileMe userName="测试" accountLabel="模拟" equity="1,000,000" positionCount={0} todayPnl="0" alertCount={0} appearance="深色 · 标准"
-    onOpenPage={onOpenPage} onOpenAlerts={vi.fn()} notify={notify} onOpenReminderSettings={vi.fn()} />);
+  const me = render(<MobileMe userName="测试" accountLabel="模拟" equity="1,000,000" alertCount={0} appearance="深色 · 标准"
+    onOpenPage={onOpenPage} onOpenSettings={vi.fn()} onOpenAlerts={vi.fn()} notify={notify} onOpenReminderSettings={vi.fn()} />);
   fireEvent.click(screen.getByRole("button", { name: /AI 简报推送/ }));
   expect(screen.getByRole("button", { name: /AI 简报推送/ })).toHaveTextContent("已订阅 2 个");
   expect(onOpenPage).toHaveBeenCalledWith("briefs");
-  me.rerender(<MobileMe userName="测试" accountLabel="模拟" equity="1,000,000" positionCount={0} todayPnl="0" alertCount={0} appearance="深色 · 标准"
-    onOpenPage={onOpenPage} onOpenAlerts={vi.fn()} notify={{ ...notify, briefs: false }} onOpenReminderSettings={vi.fn()} />);
+  me.rerender(<MobileMe userName="测试" accountLabel="模拟" equity="1,000,000" alertCount={0} appearance="深色 · 标准"
+    onOpenPage={onOpenPage} onOpenSettings={vi.fn()} onOpenAlerts={vi.fn()} notify={{ ...notify, briefs: false }} onOpenReminderSettings={vi.fn()} />);
   expect(screen.getByRole("button", { name: /AI 简报推送/ })).toHaveTextContent("已关闭");
   me.unmount();
   runtime({ products: [product("SHFE.rb", "螺纹钢")], limit: 3, source: "default" });

@@ -1,4 +1,4 @@
-import { BriefcaseBusiness, PanelRightClose, RefreshCw, ShieldCheck } from "lucide-react";
+import { BriefcaseBusiness, ChartLine, PanelRightClose, RefreshCw, ShieldCheck } from "lucide-react";
 import { CardShell } from "../CardShell";
 import type { AccountOverviewSnapshot, AccountPosition, AccountSnapshot, AiStopLoss, InstrumentCatalog, MarketQuoteSnapshot, SimulationOrder } from "../../api";
 import type { TradeReviewData } from "../../hooks/useTradeReview";
@@ -41,6 +41,8 @@ interface Props {
   onCancelStop: (stopId: string) => Promise<boolean | void>;
   /** 对象级 AI: each position and order row's "AI ▾" (the question goes out with the row as focus). */
   onAskAi?: AskAi;
+  /** The phone (2026-11-01): 复盘 sits behind the positions page, a button in its head. */
+  onReview?: () => void;
 }
 
 /** One ledger's six cells: 权益 / 今日 / 浮动盈亏 / 可用 / 保证金占用 / 风险度, all from that ledger's own snapshot and
@@ -66,7 +68,7 @@ function LedgerKpis({ snapshot, positions, testId }: { snapshot?: AccountSnapsho
  * 成交 tab here groups by trading day and filters by 来源.
  */
 export function PositionsDock({ account, instruments, quote, simulationOrders, review, foreignReview, reviewError, busy, tab, onTabChange, history, onHistoryChange,
-  fillsSource, onFillsSourceChange, onOrderAction, onClosePosition, onRefresh, onClose, activeProtections, protectionWarning, stops, protectionBusy, onCreateStop, onCancelStop, onAskAi }: Props) {
+  fillsSource, onFillsSourceChange, onOrderAction, onClosePosition, onRefresh, onClose, activeProtections, protectionWarning, stops, protectionBusy, onCreateStop, onCancelStop, onAskAi, onReview }: Props) {
   const abandon = useAbandonOrder(busy, onOrderAction);
   const [protectionOpen, setProtectionOpen] = useDisclosureSurface("protection-status");
   const positions = account?.positions ?? [];
@@ -85,6 +87,7 @@ export function PositionsDock({ account, instruments, quote, simulationOrders, r
       <header>
         <div><BriefcaseBusiness /><span><strong>持仓</strong><small>{account?.account.accountName ?? "账户读取中"}</small></span></div>
         <div className="fdw-ai-head-actions">
+          {onReview ? <button type="button" aria-label="复盘" title="复盘" onClick={onReview}><ChartLine /></button> : null}
           <button type="button" aria-label="刷新账户" title="刷新账户" onClick={onRefresh}><RefreshCw /></button>
           <button type="button" aria-label="收起持仓" onClick={() => onClose()}><PanelRightClose /></button>
         </div>

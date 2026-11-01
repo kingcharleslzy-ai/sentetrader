@@ -40,6 +40,10 @@
 }
 .fdw-contract-info-button svg { width: 13px; height: 13px; }
 .fdw-contract-info-button:hover { color: var(--fdw-text); border-color: var(--line-strong); }
+/* 手机看盘 (2026-11-01): the same marks beside the contract name, the ⓘ at a finger's size. */
+.fdm-market-name { display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
+.fdm-market-name .fdw-contract-info-button { width: 36px; height: 36px; border: 0; background: transparent; }
+.fdm-market-name .fdw-contract-info-button svg { width: 18px; height: 18px; }
 
 /* The card body: a stack of SectionCards, the reading-surface pattern. */
 .fdw-contract-info-card { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }

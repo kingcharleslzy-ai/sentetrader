@@ -27,6 +27,9 @@
 .fdw-order-holdings > h3 small { min-width: 18px; padding: 0 var(--space-1); border-radius: var(--radius-pill); background: var(--soft); color: var(--muted); text-align: center; }
 .fdw-order-empty { margin: 0; padding: var(--space-1) var(--space-3) var(--space-4); color: var(--fdw-faint); font-size: var(--font-md); }
 .fdw-order-holdings .fdw-dock-rows > li:last-child { border-bottom: 0; }
+/* 手机下单弹层 (2026-11-01): the same 五档, rows tall enough to tap a price. */
+.fdm-order .fdw-ladder-rows button { min-height: 36px; }
+.fdm-order .fdw-order-depth > h3 > button { height: 36px; }
 @media (prefers-reduced-motion: reduce) { .fdw-order-depth > h3 > button svg, .fdw-ladder-rows button::before { transition: none; } }
 .fdw-order-topline { display: flex; gap: var(--space-1); padding: var(--space-2) var(--space-3); }
 .fdw-order-topline button { flex: 1; min-width: 0; padding: var(--space-2) var(--space-1); border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--soft); color: var(--ink); cursor: pointer; }

@@ -345,6 +345,8 @@ html[data-font-scale="extra-large"] { --font-xs: 13px; --font-sm: 14px; --font-m
 @keyframes ui-panel-in { from { opacity: 0; transform: var(--enter-transform, translateY(8px)); } to { opacity: 1; transform: var(--rest-transform, none); } }
 @keyframes ui-fill-arrival { from { background-color: var(--accent-soft); opacity: .65; } to { background-color: transparent; opacity: 1; } }
 @keyframes ui-ai-thinking { 50% { opacity: .4; } }
+/* 按住说话 (手机, 2026-11-01): a ripple spreading from the held key. */
+@keyframes ui-ring { from { opacity: .7; transform: scale(1); } to { opacity: 0; transform: scale(1.35); } }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }

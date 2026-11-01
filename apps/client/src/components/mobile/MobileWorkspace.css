@@ -136,7 +136,7 @@
 .fdm-receipt {
   display: flex; align-items: center; gap: var(--space-1); margin: var(--space-2) var(--space-3) calc(var(--fdm-key-rise) + var(--space-2)); min-height: 48px;
   border: 1px solid var(--line-strong); border-radius: var(--radius-card); background: var(--soft);
-  animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; --enter-transform: translateY(8px);
+  animation: ui-panel-in var(--dur-3) var(--ease-out) backwards; --enter-transform: translateY(24px);
 }
 .fdm-receipt-main {
   flex: 1; min-width: 0; min-height: 44px; display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-1) 0 var(--space-3);
@@ -411,7 +411,7 @@
 /* 策略: one card per instance; 暂停 / 继续运行 and 看图表 side by side. */
 .fdm-strat { display: grid; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--panel); }
 .fdm-strat-head { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
-.fdm-strat-head > strong { flex: 1 1 auto; min-width: 0; font-size: var(--font-md); overflow-wrap: anywhere; }
+.fdm-strat-head > strong { flex: 1 1 auto; min-width: 0; font-size: var(--font-lg); font-weight: 600; overflow-wrap: anywhere; }
 .fdm-strat-meta { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); color: var(--muted); font-size: var(--font-sm); font-family: var(--font-num); font-variant-numeric: tabular-nums; }
 .fdm-strat-meta .positive { color: var(--market-up); }
 .fdm-strat-meta .negative { color: var(--market-down); }
@@ -625,6 +625,8 @@
 }
 .fdm-layer > .fdm-sheet-backdrop { background: transparent; }
 .fdm-layer > .fdm-overlay, .fdm-layer > .fdm-sheet-backdrop > .fdm-sheet { animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; --enter-transform: translateY(12px); }
+/* A bottom sheet (下单) is pushed up from the bottom edge. */
+.fdm-layer:not([data-closing]) > .fdm-sheet-backdrop > .fdm-sheet { animation-duration: var(--dur-3); --enter-transform: translateY(100%); }
 .fdm-layer[data-closing] { pointer-events: none; }
 .fdm-layer[data-closing]::before { animation: ui-panel-in var(--dur-2) var(--ease-out) reverse forwards; --enter-transform: none; }
 .fdm-layer[data-closing] > .fdm-overlay, .fdm-layer[data-closing] > .fdm-sheet-backdrop > .fdm-sheet { animation: ui-panel-in var(--dur-2) var(--ease-out) reverse forwards; --enter-transform: translateY(12px); }
@@ -647,9 +649,9 @@
 .fdm-hold::before, .fdm-hold::after {
   content: ""; position: absolute; inset: -8px; border-radius: 50%; border: 2px solid var(--accent); opacity: 0; pointer-events: none;
 }
-.fdm-shell .fdm-hold[aria-pressed="true"] { transform: scale(1.06) !important; }
-.fdm-hold[aria-pressed="true"]::before { animation: none; opacity: 0; }
-.fdm-hold[aria-pressed="true"]::after { animation: none; opacity: 0; }
+.fdm-shell .fdm-hold[aria-pressed="true"] { transform: scale(1.15) !important; }
+.fdm-hold[aria-pressed="true"]::before { animation: ui-ring 1.2s var(--ease-out) infinite; }
+.fdm-hold[aria-pressed="true"]::after { animation: ui-ring 1.2s var(--ease-out) .6s infinite; }
 .fdm-hold.cancel::before, .fdm-hold.cancel::after { border-color: var(--danger); }
 
 /* 加载: card-shaped skeletons with a sweep; the cards that replace them fade in one by one. */
@@ -1001,3 +1003,34 @@
 .fdm-mm-fold[aria-expanded="true"]::after { content: "▴"; }
 .fdm-mm-sheet .fdw-ind-editor { display: grid; gap: var(--space-2); }
 .fdm-mm-sheet .fdw-ind-row { flex-wrap: wrap; }
+
+/* ── 手机版对齐 (2026-11-01, owner-approved 第二轮设计稿) ── */
+.fdm-shell { font-variant-numeric: tabular-nums; }
+/* 卡片进场: a list's cards rise in one after another (--stagger apart). */
+.fdm-strategy .fdm-content > .fdm-strat { animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; }
+.fdm-strategy .fdm-content > .fdm-strat:nth-of-type(2) { animation-delay: var(--stagger); }
+.fdm-strategy .fdm-content > .fdm-strat:nth-of-type(3) { animation-delay: calc(2 * var(--stagger)); }
+.fdm-strategy .fdm-content > .fdm-strat:nth-of-type(n + 4) { animation-delay: calc(3 * var(--stagger)); }
+/* 运行中: a slowly breathing dot before the tag. */
+.fdm-strat .fdm-tag[data-tone="up"]::before {
+  content: ""; display: inline-block; width: 6px; height: 6px; margin-right: var(--space-1); border-radius: 50%; vertical-align: middle;
+  background: currentColor; animation: ui-ai-thinking 2.4s ease-in-out infinite;
+}
+/* 停止 in the 策略 head: a menu of the desktop's two stops; the recovery button over every page once stopped. */
+.fdm-stop { position: relative; margin-left: auto; }
+.fdm-stop-toggle {
+  min-height: 44px; display: inline-flex; align-items: center; gap: var(--space-1); padding: 0 var(--space-3);
+  border: 1px solid var(--line-strong); border-radius: var(--radius-control); color: var(--ink); background: transparent; font-size: var(--font-md);
+}
+.fdm-stop-toggle svg { color: var(--danger); }
+.fdm-stop-menu {
+  position: absolute; right: 0; top: calc(100% + var(--space-1)); z-index: 5; min-width: 180px; display: grid; overflow: hidden;
+  border: 1px solid var(--line-strong); border-radius: var(--radius-card); background: var(--panel); box-shadow: var(--shadow-2);
+  animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; --enter-transform: translateY(-4px);
+}
+.fdm-stop-menu > button { min-height: 48px; padding: 0 var(--space-4); border-bottom: 1px solid var(--line); color: var(--ink); text-align: left; font-size: var(--font-md); }
+.fdm-stop-menu > button:last-child { border-bottom: 0; }
+.fdm-stop-menu > button[data-tone="danger"] { color: var(--danger); background: var(--danger-soft); font-weight: 600; }
+.fdm-stop-banner { flex: none; display: flex; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--line); background: var(--danger-soft); }
+.fdm-stop-banner > button { flex: 1; min-height: 44px; }
+.fdm-stop-banner > .fdw-ai-safety-stop { padding: 0 var(--space-3); border: 1px solid var(--danger); border-radius: var(--radius-control); color: var(--danger); background: var(--panel); font-size: var(--font-md); font-weight: 600; }

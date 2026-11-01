@@ -1,4 +1,4 @@
-import { Bell, ChartLine, ChevronUp, FlaskConical, MessageSquare, Search, Send, Sparkles, X, type LucideIcon } from "lucide-react";
+import { Bell, ChartCandlestick, ChevronUp, FlaskConical, MessageSquare, Search, Send, Sparkles, Sun, X, type LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import type { MarketQuoteSnapshot } from "../../api";
@@ -25,9 +25,9 @@ export type MobileTab = "ai" | "chat" | "research" | "market" | "strategy" | "me
 export type MobilePage = "order" | "positions" | "review" | "briefs" | "install" | "push" | "lab" | "reminders" | "accounts" | "memory" | "appearance" | "help";
 
 export const MOBILE_TABS: { id: Exclude<MobileTab, "chat" | "me">; label: string; icon: LucideIcon }[] = [
-  { id: "ai", label: "今天", icon: Sparkles },
+  { id: "ai", label: "今天", icon: Sun },
   { id: "research", label: "调研", icon: Search },
-  { id: "market", label: "看盘", icon: ChartLine },
+  { id: "market", label: "看盘", icon: ChartCandlestick },
   { id: "strategy", label: "策略", icon: FlaskConical },
 ];
 /** The bar's five columns: two tabs, the 按住说话 key, two tabs. */

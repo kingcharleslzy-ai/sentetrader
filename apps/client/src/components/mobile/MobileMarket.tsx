@@ -10,6 +10,7 @@ import type { ChartView, DurationSeconds } from "../../userPreferences";
 import { TradingCharts, type ChartPreferences, type TradingChartSettings } from "../TradingCharts";
 import { TimeshareChart } from "../TimeshareChart";
 import { PriceAlertsControl } from "../futures/PriceAlertsControl";
+import { ContractInfoControl } from "../futures/ContractInfoControl";
 import { foreignChartSource, formatNumber, watchlistMainSymbol } from "../futures/support";
 import type { ChartIndicatorPatch } from "../chartIndicatorEditor";
 import type { ChartIndicatorConfig } from "../chartIndicators";
@@ -230,9 +231,13 @@ export function MobileMarket({ market, name, decimals, chartView, onSelectDurati
     <section className="fdm-page fdm-market" aria-label="看盘" data-testid="mobile-market" data-agent-target="mobile-market" data-view={view}>
       <header className="fdm-head fdm-market-head">
         {view === "single" ? <div className="fdm-market-id">
-          <button type="button" className="fdm-market-title" aria-label={`选择合约：${name}`} onClick={onOpenContracts}>
-            <strong>{name || "选择合约"}</strong><ChevronDown aria-hidden="true" />
-          </button>
+          <div className="fdm-market-name">
+            <button type="button" className="fdm-market-title" aria-label={`选择合约：${name}`} onClick={onOpenContracts}>
+              <strong>{name || "选择合约"}</strong><ChevronDown aria-hidden="true" />
+            </button>
+            {/* 合约信息 (2026-11-01): the desktop head's ⓘ and delivery badge, same card. */}
+            {quote ? <ContractInfoControl quote={quote} item={instruments.find(item => sameContract(item.symbol, quote.symbol))} runtimeUrl={guest ? undefined : baseUrl} /> : null}
+          </div>
           {quote ? <span className="fdm-market-price" data-direction={tone} data-flash={flash}>
             <b>{formatNumber(quote.lastPrice, decimals)}</b><small>{percent(quote.changePercent)}</small>
             {/* 新浪备用 (2026-10-07): the same mark as the desktop price. */}

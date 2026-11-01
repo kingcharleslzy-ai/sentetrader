@@ -203,6 +203,7 @@
     "mobile-subpanes": {"desc": "手机看盘 (2026-10-09): the single chart's 副图设置 sheet (also `mobileMarket: {subPanes}`) and its 均线 / 布林 / SAR parameter fold, the 报价 list's 列 sheet, and one 多图 cell's contract / period sheet (`id` = the cell's index 0–5)."},
     "mobile-subpanes-overlays": {},
     "mobile-quote-columns": {},
+    "mobile-execution-stop": {"desc": "手机策略页 (2026-11-01): the head's 停止 menu (open = 只停新开仓 and 急停… show; 急停 opens dialog emergency-stop). Hidden once execution is stopped."},
     "mobile-chart-cell": {"card": true, "idRequired": "要带 id：多图格子序号 0–5"},
     "mobile-drawing-style-row": {"desc": "手机画线 (2026-10-09): the selected line's bar under the single chart unfolds one style row at a time (`id` = color | width | dash; open = that row shows). Only while a line is selected (chart-drawing-style).", "card": true, "sparse": true, "idRequired": "要带 id：color / width / dash"},
     "debate-sheets": {"desc": "多 AI 研讨 (2026-10-11): the result page's folds — 五份底稿 (the phone's 底稿与来源), 资料来源, 研讨战绩, 研讨记录 and 裁判怎么取舍 (folded on both layouts since 2026-10-24). Need the 辩论 page open (researchDebate {open})."},

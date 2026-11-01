@@ -2,6 +2,7 @@ import { useRef, useState, type ComponentProps } from "react";
 import { X } from "lucide-react";
 import { sameContract, type SimulationOrder } from "../../api";
 import { TradeTicket } from "../futures/TradeTicket";
+import { OrderDepth } from "../futures/OrderPanelSections";
 import { formatNumber, orderStatusText, type ManualSimulationRequest } from "../futures/support";
 import { orderLegLabel, type ManualOrderOutcome } from "../../hooks/useSimulationOrders";
 
@@ -12,6 +13,7 @@ type TicketProps = ComponentProps<typeof TradeTicket>;
  * ticket, checks and confirm-then-send path (`onSubmit` is the workspace's manual order, which
  * creates the proposal and confirms it), laid out for a phone. After a confirm the sheet shows the
  * order's own status words (已受理 / 部分成交 / 已成交 / 结果未知 …), or 未发送 when nothing went out.
+ * 五档 (2026-11-01): the desktop order panel's 买一卖一 + foldable 五档 above the ticket; a tapped price fills it.
  */
 export function MobileOrder({ name, accountLabel, available, orders, onClose, ticket }: {
   name: string;
@@ -24,6 +26,9 @@ export function MobileOrder({ name, accountLabel, available, orders, onClose, ti
 }) {
   const [sent, setSent] = useState<{ before: Set<string>; symbol: string; outcome?: "unsent" | ManualOrderOutcome }>();
   const pending = useRef(false);
+  const quote = ticket.snapshot.quote;
+  const [picked, setPicked] = useState<{ price: number; symbol: string }>();
+  const selectedPrice = picked && picked.symbol === quote.symbol ? picked.price : ticket.selectedPrice;
   const submit = async (request: ManualSimulationRequest) => {
     if (pending.current) return undefined;
     pending.current = true;
@@ -56,7 +61,8 @@ export function MobileOrder({ name, accountLabel, available, orders, onClose, ti
           <button type="button" aria-label="关闭下单" onClick={onClose}><X aria-hidden="true" /></button>
         </header>
         <div className="fdm-sheet-body">
-          <TradeTicket {...ticket} onSubmit={submit} variant="mobile" />
+          <OrderDepth quote={quote} selectedPrice={selectedPrice} onPriceSelect={price => setPicked({ price, symbol: quote.symbol })} />
+          <TradeTicket {...ticket} selectedPrice={selectedPrice} onSubmit={submit} variant="mobile" />
           {status ? <p className="fdm-order-result" role="status" data-testid="mobile-order-result"
             data-status={statuses.length === 1 ? statuses[0] : statuses.length ? "mixed" : typeof sent?.outcome === "string" ? sent.outcome : undefined}>
             委托结果：<strong>{status}</strong>{placed.length === 1 ? ` · ${leg(placed[0])}` : ""}

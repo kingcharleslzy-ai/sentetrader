@@ -1,0 +1,223 @@
+{
+ "about": "手机版方案 B（#1248）：底部 今天 · 调研 ·（说话键）· 看盘 · 策略，我的从今天页头像进；每页底部有说话键。只切页面看，不发消息（说话键与回执条另用测试账号手动发一句核对）。 11-01 对齐批（#1247）加：策略页“停止”菜单只打开不点、看盘单图合约信息卡、下单页的五档（不下单）、持仓页 → 复盘、我的里的新设置行。",
+ "device": "phone",
+ "steps": [
+  {
+   "ui": {
+    "mobileTab": "ai"
+   },
+   "expect": {
+    "mobileTab": "ai",
+    "observation.text": {
+     "includes": "今天"
+    }
+   }
+  },
+  {
+   "screenshot": "01-today"
+  },
+  {
+   "ui": {
+    "mobileTab": "research"
+   },
+   "expect": {
+    "mobileTab": "research"
+   }
+  },
+  {
+   "screenshot": "02-research"
+  },
+  {
+   "ui": {
+    "mobileTab": "market"
+   },
+   "expect": {
+    "mobileTab": "market"
+   }
+  },
+  {
+   "screenshot": "03-market"
+  },
+  {
+   "ui": {
+    "mobileTab": "strategy"
+   },
+   "expect": {
+    "mobileTab": "strategy"
+   }
+  },
+  {
+   "screenshot": "04-strategy"
+  },
+  {
+   "ui": {
+    "mobileTab": "me"
+   },
+   "expect": {
+    "mobileTab": "me",
+    "observation.text": {
+     "includes": "费率"
+    }
+   }
+  },
+  {
+   "screenshot": "05-me"
+  },
+  {
+   "ui": {
+    "reminderCenter": {
+     "open": true
+    }
+   },
+   "expect": {
+    "mobilePage": "reminders"
+   }
+  },
+  {
+   "screenshot": "06-reminders"
+  },
+  {
+   "ui": {
+    "mobilePage": null
+   },
+   "expect": {
+    "mobilePage": null
+   }
+  },
+  {
+   "ui": {
+    "mobileTab": "strategy"
+   },
+   "expect": {
+    "mobileTab": "strategy"
+   }
+  },
+  {
+   "ui": {
+    "disclosure": {
+     "name": "mobile-execution-stop",
+     "open": true
+    }
+   },
+   "expect": {
+    "observation.text": {
+     "includes": "急停…"
+    }
+   }
+  },
+  {
+   "screenshot": "07-strategy-stop-menu"
+  },
+  {
+   "ui": {
+    "disclosure": {
+     "name": "mobile-execution-stop",
+     "open": false
+    }
+   },
+   "expect": {
+    "mobileTab": "strategy"
+   }
+  },
+  {
+   "ui": {
+    "mobileTab": "market"
+   },
+   "expect": {
+    "mobileTab": "market"
+   }
+  },
+  {
+   "ui": {
+    "mobileMarket": {
+     "view": "single"
+    }
+   },
+   "expect": {
+    "mobileTab": "market"
+   }
+  },
+  {
+   "ui": {
+    "disclosure": {
+     "name": "contract-info",
+     "open": true
+    }
+   },
+   "expect": {
+    "observation.text": {
+     "includes": "合约信息"
+    }
+   }
+  },
+  {
+   "screenshot": "08-contract-info"
+  },
+  {
+   "ui": {
+    "disclosure": {
+     "name": "contract-info",
+     "open": false
+    }
+   },
+   "expect": {
+    "mobileTab": "market"
+   }
+  },
+  {
+   "ui": {
+    "mobilePage": "order"
+   },
+   "expect": {
+    "mobilePage": "order",
+    "observation.text": {
+     "includes": "买一"
+    }
+   }
+  },
+  {
+   "screenshot": "09-order-depth"
+  },
+  {
+   "ui": {
+    "mobilePage": "positions"
+   },
+   "expect": {
+    "mobilePage": "positions"
+   }
+  },
+  {
+   "screenshot": "10-positions"
+  },
+  {
+   "ui": {
+    "mobilePage": "review"
+   },
+   "expect": {
+    "mobilePage": "review",
+    "observation.text": {
+     "includes": "复盘摘要"
+    }
+   }
+  },
+  {
+   "screenshot": "11-review"
+  },
+  {
+   "ui": {
+    "mobilePage": null
+   },
+   "expect": {
+    "mobilePage": null
+   }
+  },
+  {
+   "ui": {
+    "mobileTab": "ai"
+   },
+   "expect": {
+    "mobileTab": "ai"
+   }
+  }
+ ]
+}

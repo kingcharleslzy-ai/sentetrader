@@ -3453,16 +3453,18 @@ test("手机版我的：各子页进入与返回，mobilePage 命令与快照、
     fireEvent.click(tabButton("今天")); fireEvent.click(screen.getByRole("button", { name: "我的" }));
     const page = screen.getByTestId("mobile-me");
     expect(page).toHaveTextContent("快期模拟账户 · 权益 1,026,580");
-    expect(page).toHaveTextContent("回放和画线请在电脑上使用。");
-    fireEvent.click(within(page).getByRole("button", { name: /^持仓与委托/ }));
+    expect(page).toHaveTextContent("回放、快捷键、看板列设置和各项高级设置请在电脑上使用。");
+    // 2026-11-01: 持仓与委托 is 今天's 持仓 tile, 复盘 a button in the positions page's head.
+    apply({ mobilePage: "positions" });
     expect(screen.getByTestId("mobile-positions")).toBeVisible();
-    expect(state()).toMatchObject({ mobileTab: "me", mobilePage: "positions" });
-    fireEvent.click(screen.getByRole("button", { name: "收起持仓" }));
-    expect(state()).toMatchObject({ mobilePage: null });
-    fireEvent.click(within(page).getByRole("button", { name: /^复盘摘要/ }));
+    fireEvent.click(screen.getByRole("button", { name: "复盘" }));
     expect(screen.getByTestId("mobile-review")).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "返回我的" }));
+    expect(state()).toMatchObject({ mobilePage: "review" });
+    fireEvent.click(screen.getByRole("button", { name: "返回" }));
     expect(screen.queryByTestId("mobile-review")).toBeNull();
+    fireEvent.click(within(page).getByRole("button", { name: /^费率/ }));
+    expect(state()).toMatchObject({ settingsOpen: true, settingsPage: "trade-advanced" });
+    apply({ settingsOpen: false });
     // AI 简报推送 (2026-10-05): its own page with the push switch and the subscribed products.
     fireEvent.click(within(page).getByRole("button", { name: /^AI 简报推送/ }));
     expect(screen.getByTestId("mobile-briefs")).toBeVisible();

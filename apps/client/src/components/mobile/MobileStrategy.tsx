@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { FlaskConical, Plus } from "lucide-react";
+import { FlaskConical, OctagonX, Plus } from "lucide-react";
 import { getStrategyMonitor, setStrategyMonitoring, stopStrategyMonitoring, type InstrumentCatalog, type StrategyDrawdown,
   type StrategyFunds, type StrategyMonitorSnapshot } from "../../api";
 import { DrawdownStatus, FundsLines } from "../StrategyRiskBlocks";
@@ -11,6 +11,7 @@ import type { AiFocus } from "../AiMenu";
 import { cardMoney } from "../StrategyHome";
 import { contractLabel, formatSigned, moneyUnit, signClass } from "../futures/support";
 import { PullIndicator, usePullToRefresh } from "./usePullToRefresh";
+import { useDisclosureSurface } from "../../uiSurfaces";
 
 /** A running or paused strategy instance as the 策略 tab and AI 首页's 它正在盯着 show it. */
 export interface MobileStrategyRun {
@@ -266,7 +267,24 @@ function MineCard({ item, selected, onSelect, busy, error, notice, launching, la
  * 手机编辑卡 (2026-10-08): 我的策略 starts with 新建策略 (继续编辑 while a changed draft is hidden) and each card
  * has 编辑 (the 策略编辑卡 full screen) / 回测 / 上线… (出卡确认 only, as on the 回测结果页).
  */
-export function MobileStrategy({ strategies, instruments, blocked, tab, onTabChange, onChart, onFocusChange, draftName, onNew, onResumeDraft, onEdit, starts }: {
+/** 停止 (手机版对齐 2026-11-01): the desktop 设置 → 交易's two stops in the 策略 head — 只停新开仓 at once, 急停 through
+ *  the shared 急停 confirm. Hidden once execution is stopped: the recovery button then shows on every page. */
+export type MobileStop = { status?: string | null; disabled: boolean; onHaltOpens: () => void; onEmergency: () => void };
+
+function StopMenu({ stop }: { stop: MobileStop }) {
+  const [open, setOpen] = useDisclosureSurface("mobile-execution-stop");
+  const pick = (run: () => void) => { setOpen(false); run(); };
+  return <div className="fdm-stop" data-agent-target="mobile-execution-stop">
+    <button type="button" className="fdm-stop-toggle" aria-expanded={open} aria-haspopup="menu" disabled={stop.disabled}
+      onClick={() => setOpen(value => !value)}><OctagonX aria-hidden="true" />停止</button>
+    {open ? <div className="fdm-stop-menu" role="menu" aria-label="停止">
+      {stop.status !== "HALT_OPENS" ? <button type="button" role="menuitem" onClick={() => pick(stop.onHaltOpens)}>只停新开仓</button> : null}
+      <button type="button" role="menuitem" data-tone="danger" onClick={() => pick(stop.onEmergency)}>急停…</button>
+    </div> : null}
+  </div>;
+}
+
+export function MobileStrategy({ strategies, instruments, blocked, tab, onTabChange, onChart, onFocusChange, draftName, onNew, onResumeDraft, onEdit, starts, stop }: {
   strategies: MobileStrategies;
   instruments?: InstrumentCatalog;
   /** The tier's reason line when strategies are not part of it. */
@@ -283,6 +301,7 @@ export function MobileStrategy({ strategies, instruments, blocked, tab, onTabCha
   onEdit?: (item: SavedStrategy) => void;
   /** 我的策略 with no strategy: the ways to start (StrategyStarts, compact). */
   starts?: ReactNode;
+  stop?: MobileStop;
 }) {
   const pull = usePullToRefresh(strategies.reload, !blocked);
   const [picked, setPicked] = useState<string | null>(null);
@@ -295,7 +314,7 @@ export function MobileStrategy({ strategies, instruments, blocked, tab, onTabCha
   const running = strategies.runs;
   return (
     <section className="fdm-page fdm-strategy" aria-label="策略" data-testid="mobile-strategy" data-agent-target="mobile-strategy">
-      <header className="fdm-head"><strong>策略</strong></header>
+      <header className="fdm-head"><strong>策略</strong>{stop && stop.status !== "EMERGENCY_STOP" && stop.status !== "STOPPED" ? <StopMenu stop={stop} /> : null}</header>
       <main className="fdm-content" ref={pull.ref}>
         <PullIndicator phase={pull.phase} />
         {blocked ? (
