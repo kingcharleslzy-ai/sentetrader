@@ -29,7 +29,8 @@ interface Props {
 }
 
 /**
- * 策略面板 (策略页改版第八批, 2026-10-08): the header names the chart's contract; the workbench below
+ * 策略面板 (策略页改版第八批, 2026-10-08): the header names the chart's contract — the editor card's while it is open
+ * (owner 2026-11-02: a sentence naming 螺纹 2701 moves the card, and the header follows it); the workbench below
  * holds 我的策略 (the ask box that replaced ＋ 新建策略, `disclosure: strategy-new`) and 正在运行.
  */
 export function StrategyDock({ workspace, quote, onClose, tab, onTabChange, onStrategySelected, autonomy, onAskAi, explainBlocked, backtestBlocked, onShowChart, onShowReminders }: Props) {
@@ -46,7 +47,7 @@ export function StrategyDock({ workspace, quote, onClose, tab, onTabChange, onSt
   return (
     <section className="fdw-ai open fdw-strategy-dock" aria-label={reminder ? "提醒面板" : "策略面板"} data-agent-target="panel:strategy">
       <header>
-        <div>{reminder ? <Bell /> : <ListTree />}<span><strong>{reminder ? "提醒" : "策略"}</strong><small>{quote?.symbol ?? "未选择合约"}</small></span></div>
+        <div>{reminder ? <Bell /> : <ListTree />}<span><strong>{reminder ? "提醒" : "策略"}</strong><small>{(editor.open && editor.form.symbol) || quote?.symbol || "未选择合约"}</small></span></div>
         <div className="fdw-ai-head-actions">
           <button type="button" aria-label={reminder ? "收起提醒" : "收起策略"} onClick={() => onClose()}><PanelRightClose /></button>
         </div>
