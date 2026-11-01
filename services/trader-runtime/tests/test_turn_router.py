@@ -533,6 +533,25 @@ async def test_run_window_intent_theme_toggle_follows_the_window_state():
     assert outcome["changes"] == {"theme": "dark"} and "深色" in outcome["say"]
 
 
+async def test_run_window_intent_resends_once_when_the_window_moved_on():
+    """The phone opens the chat as the hold ends (11-01): the command meets a newer revision, is refused with no state,
+    and goes once more at the window's latest revision instead of falling back to the model."""
+    bodies = []
+
+    async def call(operation, *, path=None, query=None, body=None):
+        if operation.startswith("GET"):
+            return {"ok": True, "data": {"windowId": "w", "revision": 9}}
+        bodies.append(body)
+        if body["expectedRevision"] == 2:
+            return {"ok": True, "data": {"status": "rejected", "state": None}}
+        return {"ok": True, "data": {"status": "applied", "observedRevision": 10, "state": {"mobileTab": "market"}}}
+
+    outcome = await run_window_intent(Intent(kind="mobileTab", changes={"mobileTab": "market"}, say="到看盘了"),
+                                      window={"windowId": "w", "revision": 2, "state": {"mobileLayout": True}}, call=call)
+    assert outcome["ok"] and [b["expectedRevision"] for b in bodies] == [2, 9]
+    assert bodies[0]["commandId"] != bodies[1]["commandId"]
+
+
 @pytest.mark.parametrize("text", ["平掉螺纹", "把沪金平了", "螺纹全平", "把沪金的多单平仓", "帮我把金子平掉", "平掉沪金吧"])
 def test_closing_a_whole_product_without_a_size_is_the_batch_card(text):
     """“平掉螺纹 / 把沪金平了” (2026-10-04): no size = every position of that product — the planner's batch card for

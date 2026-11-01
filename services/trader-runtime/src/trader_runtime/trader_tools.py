@@ -2475,13 +2475,10 @@ class TraderReadOnlyTools:
         from uuid import uuid4
 
         from .agent_api import AppCall
+        from .turn_router import ui_command_moved_on
         body = request.body if isinstance(request.body, dict) else {}
         detail = str((result.get("data") or {}).get("detail") or "") if isinstance(result.get("data"), dict) else ""
-        stale = (not result.get("ok") and result.get("uiCommandAttempted") is False and "界面已变化" in detail)
-        receipt = result.get("data") if result.get("ok") else None
-        # Queued, then refused at dispatch because the window had moved on before it saw the command.
-        stale = stale or (isinstance(receipt, dict) and receipt.get("status") == "rejected" and receipt.get("state") is None)
-        if not stale or not body.get("windowId"):
+        if not ui_command_moved_on(result) or not body.get("windowId"):
             return result
         try:
             window = await self._ui_window(str(body["windowId"]), user_id=user_id, session_id=session_id, task_id=None)

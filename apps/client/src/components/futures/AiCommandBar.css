@@ -47,3 +47,13 @@
 .ai-bar-input .fdw-ptt-button.active { color: var(--danger); background: var(--danger-soft); }
 .ai-bar-input .fdw-ptt-live { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; font-size: var(--font-sm); }
 .fdw-fit-compact-ai > .ai-bar .ai-bar-input:not(:focus-within) .fdw-ptt-button { display: none; }
+
+.ai-bar-input > small.fdw-ptt-notice {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--warning);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}

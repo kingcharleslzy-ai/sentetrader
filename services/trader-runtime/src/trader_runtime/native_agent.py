@@ -1400,6 +1400,28 @@ class NativeAgentAdapter:
             return False
         return editor_open((window or {}).get("state"))
 
+    async def _execute_tour_step(self, decoded: DecodedInstruction, *, session_id: str) -> str | None:
+        """The tour move through the shared `run_tour_step` (the call's too) when the words ask for one and this turn's
+        window is in a guided tour; None otherwise — the turn then routes as usual."""
+        from .turn_router import run_tour_step
+        from .voice_route import tour_op
+        op = tour_op(decoded.user_text) if decoded.ui_window_id else None
+        if op is None:
+            return None
+        session = self.store.get_session(session_id)
+        user_id = str(session["userId"])
+        call = self._bridge_call(user_id, session_id)
+        if call is None:
+            return None
+        try:
+            window = await self.trader_tools._ui_window(decoded.ui_window_id, user_id=user_id, session_id=session_id, task_id=None)
+        except Exception as error:
+            log.info("agent_tour_window_unavailable session=%s reason=%s", session_id, error)
+            return None
+        if not ((window.get("state") or {}).get("tour") or {}).get("active"):
+            return None
+        return str((await run_tour_step(op, window=window, call=call)).get("say") or "")
+
     async def _execute_window_intent(
         self, decoded: DecodedInstruction, intent: Intent, *, session_id: str,
     ) -> str | None:
@@ -2195,6 +2217,14 @@ class NativeAgentAdapter:
                 return
             await self._execute_routine_turn(session_id, decoded, routine, run_id, user_id=user_id,
                                              model_slug=model_slug, history=history, started=started)
+            return
+        # 新手引导 (11-01): "下一步" typed or held while the window's tour runs moves the tour — the call's rule.
+        tour_line = await self._execute_tour_step(decoded, session_id=session_id)
+        if tour_line is not None:
+            await self._publish_routed_line(session_id, decoded, tour_line, run_id)
+            history.append({"role": "user", "content": decoded.user_text})
+            history.append({"role": "assistant", "content": tour_line})
+            log.info("agent_turn run_id=%s route=tour status=completed elapsed_ms=%.1f", run_id, (monotonic() - started) * 1000)
             return
         product_names = await self._product_names()
         strategies_available = "explain_strategy_signal" not in self._hidden_tools(user_id)

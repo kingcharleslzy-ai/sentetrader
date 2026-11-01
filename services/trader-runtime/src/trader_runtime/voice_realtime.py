@@ -77,7 +77,14 @@ from .skill_registry import (
 )
 from .strategy_workbench import catalog_contract_label
 from .trader_tools import _market_analysis, card_events, card_skill_block
-from .turn_router import catalog_product_names, classify_turn, run_editor_ask, run_window_intent, send_ui_command
+from .turn_router import (
+    catalog_product_names,
+    classify_turn,
+    run_editor_ask,
+    run_tour_step,
+    run_window_intent,
+    send_ui_command,
+)
 from .user_preferences import UserPreferences
 from .voice_asr import (
     ASR_CORRECT_WORDS,
@@ -2346,18 +2353,7 @@ class VoiceRealtimeService:
         window = await self._window(state)
         if window is None:
             return {"ok": False, "error": "no_window", "say": "软件窗口现在不在线。"}
-        if not ((window.get("state") or {}).get("tour") or {}).get("active"):
-            return {"ok": False, "error": "no_tour", "say": "现在没有在引导。"}
-        result = await send_ui_command(self._call, window, {"tour": {"op": op}})
-        receipt = result.get("data") or {}
-        if receipt.get("status") != "applied":
-            return {"ok": False, "error": str(receipt.get("status") or result.get("status")), "say": "这一步没切过去，再说一遍。"}
-        tour = (receipt.get("state") or {}).get("tour") or {}
-        if not tour.get("active"):
-            return {"ok": True, "tour": tour, "say": "引导结束了。" if op != "stop" else "好，引导结束。"}
-        current = tour.get("current") or {}
-        line = str(current.get("say") or current.get("label") or "")
-        return {"ok": True, "tour": tour, "say": f"第{tour.get('step')}步，{line}" if line else f"第{tour.get('step')}步。"}
+        return await run_tour_step(op, window=window, call=self._call)
 
     async def _delegate(self, utterance: str, state: CallState, *, progress=None, on_sentence=None,
                         follow_up: bool = False) -> dict[str, Any]:

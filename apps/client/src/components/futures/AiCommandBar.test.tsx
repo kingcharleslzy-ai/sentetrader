@@ -20,7 +20,7 @@ test("AI 指令栏：发出一句后列出 AI 做了几件事，能撤销的点�
   const view = render(<AiCommandBar {...props} turns={[]} />);
   fireEvent.change(screen.getByRole("textbox", { name: "问 AI，或说一句要做的事" }), { target: { value: "突破 3036 提醒我，打开调研" } });
   await act(async () => { fireEvent.submit(screen.getByRole("search", { name: "AI 指令栏" })); });
-  expect(onSend).toHaveBeenCalledWith("突破 3036 提醒我，打开调研");
+  expect(onSend).toHaveBeenCalledWith("突破 3036 提醒我，打开调研", false);
   expect(screen.getByRole("status")).toHaveTextContent("AI 正在处理…");
 
   const turns: ConversationTurn[] = [

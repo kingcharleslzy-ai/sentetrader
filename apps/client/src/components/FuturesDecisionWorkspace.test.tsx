@@ -2651,7 +2651,7 @@ test("技能注册表视图：拒绝原因与服务端同文案，快捷技能�
   await waitFor(() => expect(values.onPrompt).toHaveBeenCalledWith("回测我选中的策略", expect.anything()));
 });
 
-test("按住说话的快捷键全局生效：对话面板没开时按下右 Alt 先打开面板；被阻塞时不录音，只在输入行给原因", () => {
+test("按住说话的快捷键全局生效：电脑上由顶栏 AI 指令栏接收、不换掉右侧面板；被阻塞时不录音，原因写在指令栏", () => {
   const getUserMedia = vi.fn();
   Object.defineProperty(navigator, "mediaDevices", { value: { getUserMedia }, configurable: true });
   render(<FuturesDecisionWorkspace {...props() as any} />);
@@ -2659,10 +2659,9 @@ test("按住说话的快捷键全局生效：对话面板没开时按下右 Alt 
   const down = new KeyboardEvent("keydown", { code: "AltRight", key: "Alt", bubbles: true, cancelable: true });
   act(() => { window.dispatchEvent(down); });
   expect(down.defaultPrevented).toBe(true);
-  // No Runtime URL in this fixture: blocked — the panel opens with the reason, nothing records.
-  expect(screen.getByLabelText("向 AI 决策流提问")).toBeInTheDocument();
-  expect(screen.getByText("连接后可用", { selector: ".fdw-ptt-notice" })).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "按住说话" })).toBeDisabled();
+  // No Runtime URL in this fixture: blocked — the bar says why, the chat stays closed, nothing records.
+  expect(screen.queryByLabelText("向 AI 决策流提问")).not.toBeInTheDocument();
+  expect(screen.getByText("连接后可用", { selector: ".ai-bar-input .fdw-ptt-notice" })).toBeInTheDocument();
   expect(getUserMedia).not.toHaveBeenCalled();
   act(() => { window.dispatchEvent(new KeyboardEvent("keyup", { code: "AltRight", key: "Alt", bubbles: true })); });
   Object.defineProperty(navigator, "mediaDevices", { value: undefined, configurable: true });

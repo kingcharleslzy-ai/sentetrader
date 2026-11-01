@@ -405,7 +405,45 @@ async def send_ui_command(call: Callable[..., Awaitable[dict[str, Any]]], window
     window's receipt in `data`. Every Runtime-side command — typed and spoken fast path, tour, 补一句 — is sent here."""
     body = {"commandId": str(uuid4()), "windowId": window["windowId"],
             "expectedRevision": window["revision"] if revision is None else revision, "changes": changes}
-    return await call("POST /api/app/ui/commands", query={"waitMs": wait_ms}, body=body)
+    result = await call("POST /api/app/ui/commands", query={"waitMs": wait_ms}, body=body)
+    if not ui_command_moved_on(result):
+        return result
+    # The window moved on before it saw the command (the phone opens the chat as the hold ends, 11-01): nothing ran
+    # and every change is absolute, so it goes once more at the window's latest revision.
+    fresh = await call("GET /api/app/ui/windows/{window_id}", path={"window_id": window["windowId"]})
+    latest = (fresh.get("data") or {}).get("revision") if fresh.get("ok") else None
+    if not isinstance(latest, int) or latest == body["expectedRevision"]:
+        return result
+    return await call("POST /api/app/ui/commands", query={"waitMs": wait_ms},
+                      body={**body, "commandId": str(uuid4()), "expectedRevision": latest})
+
+
+def ui_command_moved_on(result: dict[str, Any]) -> bool:
+    """A UI command refused only because the window's revision moved on — before queueing (409 界面已变化, nothing
+    attempted) or by the window / at dispatch (rejected with no state). Safe to send again at the new revision."""
+    data = result.get("data")
+    if not isinstance(data, dict):
+        data = {}
+    if not result.get("ok"):
+        return result.get("uiCommandAttempted") is False and "界面已变化" in str(data.get("detail") or "")
+    return data.get("status") == "rejected" and data.get("state") is None
+
+
+async def run_tour_step(op: str, *, window: dict[str, Any], call: Callable[..., Awaitable[dict[str, Any]]]) -> dict[str, Any]:
+    """Move the guided tour the user is in (typed, held or spoken "下一步"): one UI command with a real receipt, then
+    the new step's `say` (or its label) as the line; past the last step, or on stop, the tour ends."""
+    if not ((window.get("state") or {}).get("tour") or {}).get("active"):
+        return {"ok": False, "error": "no_tour", "say": "现在没有在引导。"}
+    result = await send_ui_command(call, window, {"tour": {"op": op}})
+    receipt = result.get("data") or {}
+    if receipt.get("status") != "applied":
+        return {"ok": False, "error": str(receipt.get("status") or result.get("status")), "say": "这一步没切过去，再说一遍。"}
+    tour = (receipt.get("state") or {}).get("tour") or {}
+    if not tour.get("active"):
+        return {"ok": True, "tour": tour, "say": "引导结束了。" if op != "stop" else "好，引导结束。"}
+    current = tour.get("current") or {}
+    line = str(current.get("say") or current.get("label") or "")
+    return {"ok": True, "tour": tour, "say": f"第{tour.get('step')}步，{line}" if line else f"第{tour.get('step')}步。"}
 
 
 async def run_editor_ask(text: str, *, window: dict[str, Any], call: Callable[..., Awaitable[dict[str, Any]]]) -> bool:

@@ -127,6 +127,15 @@ TOUR_STOP_WORDS = re.compile(r"^(结束引导|退出引导|停止引导|不看�
 TOUR_ROUTES = {"tour_next": TOUR_NEXT_WORDS, "tour_prev": TOUR_PREV_WORDS, "tour_stop": TOUR_STOP_WORDS}
 
 
+def tour_op(text: str) -> str | None:
+    """The tour move ("next" / "prev" / "stop") these words ask for — spoken, held or typed — else None. Whether a
+    tour is running is the caller's check (the window's `tour.active`)."""
+    stripped = strip_punctuation(text)
+    if len(stripped) > 8:
+        return None
+    return next((route.removeprefix("tour_") for route, words in TOUR_ROUTES.items() if words.match(stripped)), None)
+
+
 def route_utterance(text: str, *, pending: bool, tour_active: bool = False,
                     product_names: list[str] | None = None, replay_active: bool = False,
                     editor_open: bool = False) -> str:
@@ -143,10 +152,8 @@ def route_utterance(text: str, *, pending: bool, tour_active: bool = False,
         return "hangup"
     if len(stripped) <= 10 and STOP_WORDS.match(stripped):
         return "stop"
-    if tour_active and len(stripped) <= 8:
-        for route, words in TOUR_ROUTES.items():
-            if words.match(stripped):
-                return route
+    if tour_active and (op := tour_op(stripped)) is not None:
+        return f"tour_{op}"
     if pending and len(stripped) <= 8:
         if CONFIRM_WORDS.match(stripped):
             return "confirm"

@@ -739,8 +739,9 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     lastAnswerId: lastAnswer,
   });
   const { setPrompt } = chat;
-  // 按住说话: one hold key for the whole window. Pressing it opens the 对话面板 and starts recording at
-  // once; the released text is an ordinary user message (the typed path) or goes into the input.
+  // 按住说话: one hold key for the whole window. On the desktop the AI 指令栏 takes the words (it registers as the hold
+  // target); elsewhere pressing it opens the 对话面板 and starts recording at once; the released text is an ordinary
+  // user message (the typed path) or goes into the input.
   const fillPrompt = (text: string) => setPrompt(current => current.trim() ? `${current.trimEnd()} ${text}` : text);
   // 我的流程 (2026-10-06) in 设置 → 记忆: 运行 is the typed path (“跑一下<名称>” as the user's own message,
   // metered like any turn) carrying the routine's id, so the Runtime runs the one picked (#522);
@@ -1493,7 +1494,10 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
         guestActions={props.guest ? <PttButton ptt={ptt} /> : undefined}
         aiBar={props.guest || mobile ? undefined : <AiCommandBar baseUrl={connectedRuntimeUrl} turns={props.state.turns} busy={Boolean(props.chatBusy || chat.sendingPrompt)}
           blockedReason={!connectedRuntimeUrl ? "连接后可以问 AI" : props.agentAccount && !props.agentAccount.authenticated ? "模型尚未就绪，请在设置里选择模型" : null}
-          onSend={text => chat.sendQuickPrompt(text)} onOpenChat={openChat} ptt={ptt} />} />
+          onSend={(text, spoken) => {
+            if (spoken && connectedRuntimeUrl) voiceReply.expect(connectedRuntimeUrl, props.state.turns.map(turn => turn.id));
+            return chat.sendQuickPrompt(text, undefined, spoken ? { origin: "ptt" } : undefined);
+          }} onOpenChat={openChat} ptt={ptt} />} />
 
       {dialogs}
       <WebUpdateBanner />

@@ -254,9 +254,8 @@ export function usePushToTalkStatus(): PttStatus {
 }
 
 /**
- * A surface that takes the held words instead of the 对话面板: the strategy guide card while it asks
- * (2026-09-26). While one is registered the hold key sends its text there and does not open the
- * 对话面板; the guide would take the same words from the chat anyway, this keeps them on the card.
+ * A surface that takes the held words instead of the 对话面板: the desktop AI 指令栏 (2026-11-01). While one is
+ * registered the hold key sends its text there and does not open the 对话面板, so the panel the words are about stays.
  */
 export type PttTarget = (text: string) => void;
 let pttTarget: PttTarget | undefined;
