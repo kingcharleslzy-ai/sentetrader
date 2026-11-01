@@ -9,12 +9,14 @@ import { disclosureStates, resetUiSurfaces, uiSurface } from "../uiSurfaces";
 import type { StrategyPlan } from "../strategyApi";
 import { resetStrategyBacktests } from "../strategyBacktests";
 import { resetStrategyEditor } from "../strategyEditorStore";
+import { resetReadIdentity } from "../runtimeClient";
 
 const request = vi.hoisted(() => vi.fn());
 const estimate = vi.hoisted(() => vi.fn());
-vi.mock("../api", () => ({ requestJson: request, getStrategyMonitor: vi.fn(), stopStrategyMonitoring: vi.fn(), getOrderEstimate: estimate }));
+vi.mock("../api", async () => ({ requestJson: request, getStrategyMonitor: vi.fn(), stopStrategyMonitoring: vi.fn(), getOrderEstimate: estimate,
+  sameContract: (await vi.importActual<typeof import("../api")>("../api")).sameContract }));
 const plan: StrategyPlan = {name:"我的策略",description:"均线和 KD 的交叉",direction:"both",timeframeSeconds:300,maxPosition:1,maxLoss:1000,stopLossTicks:20,takeProfitTicks:40,cooldownBars:1,maxOrdersPerDay:20,rules:{entryLong:null,exitLong:null,entryShort:null,exitShort:null},questions:["哪个周期？"],clarifications:[{id:"period",question:"你想在哪个周期看交叉？",recommended:0,options:[{label:"5 分钟",description:"适合盘中观察"},{label:"日线",description:"较慢的趋势信号"}]}]};
-beforeEach(() => {localStorage.clear(); vi.clearAllMocks(); resetUiSurfaces(); resetStrategyBacktests(); resetStrategyEditor(); HTMLDialogElement.prototype.showModal = function () {this.setAttribute("open", "");}; HTMLDialogElement.prototype.close = function () {this.removeAttribute("open");};});
+beforeEach(() => {localStorage.clear(); vi.clearAllMocks(); resetReadIdentity(); resetUiSurfaces(); resetStrategyBacktests(); resetStrategyEditor(); HTMLDialogElement.prototype.showModal = function () {this.setAttribute("open", "");}; HTMLDialogElement.prototype.close = function () {this.removeAttribute("open");};});
 
 function Input({scope}: {scope:string}) {
   const [text,setText,error] = usePersistentDraft(`draft:${scope}`, "");

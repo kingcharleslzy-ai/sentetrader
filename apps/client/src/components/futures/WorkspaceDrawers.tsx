@@ -1,6 +1,6 @@
 import { ChevronDown, Search, X } from "lucide-react";
 import { Fragment, useMemo } from "react";
-import type { InstrumentCatalogItem, MarketBoardSnapshot } from "../../api";
+import { sameContract, type InstrumentCatalogItem, type MarketBoardSnapshot } from "../../api";
 import type { FuturesDecisionWorkspaceProps } from "./props";
 import { BOARD_EXCHANGES, boardPrice, decimalsForTick, formatNumber, signClass, watchlistKey } from "./support";
 import { deliveryBadgeText } from "./deliveryInfo";
@@ -130,7 +130,7 @@ export function ContractDrawer({ workspace, query, onQueryChange, onSelect, onCl
     return group.months.filter(item => `${item.instrumentId}${item.symbol}`.toLowerCase().includes(needle));
   };
 
-  const row = (item: InstrumentCatalogItem) => <button type="button" className={item.symbol === workspace.selectedSymbol ? "active" : ""} key={item.symbol} onClick={() => onSelect(item.symbol)}><span><strong>{item.instrumentName || item.instrumentId}</strong><small>{item.symbol}</small></span><span><b>{item.isMain ? "主力" : `${item.deliveryYear}-${String(item.deliveryMonth).padStart(2, "0")}`}</b><small>Tick {formatNumber(item.priceTick, decimalsForTick(item.priceTick))}</small></span></button>;
+  const row = (item: InstrumentCatalogItem) => <button type="button" className={sameContract(item.symbol, workspace.selectedSymbol) ? "active" : ""} key={item.symbol} onClick={() => onSelect(item.symbol)}><span><strong>{item.instrumentName || item.instrumentId}</strong><small>{item.symbol}</small></span><span><b>{item.isMain ? "主力" : `${item.deliveryYear}-${String(item.deliveryMonth).padStart(2, "0")}`}</b><small>Tick {formatNumber(item.priceTick, decimalsForTick(item.priceTick))}</small></span></button>;
   // 游客的目录只有螺纹主力，同样按查询过滤：不匹配就是空态，不把固定合约当搜索结果（#476）。
   const guestRows = needle
     ? items.filter(item => `${item.instrumentName}${item.productId}${item.instrumentId}${item.symbol}`.toLowerCase().includes(needle))
@@ -162,7 +162,7 @@ export function ContractDrawer({ workspace, query, onQueryChange, onSelect, onCl
           {exchangeHeading ? <h4>{exchangeHeading}</h4> : null}
           <div className="fdw-product">
             <div className="fdw-product-row">
-              <button type="button" className={group.main.symbol === workspace.selectedSymbol ? "active" : ""}
+              <button type="button" className={sameContract(group.main.symbol, workspace.selectedSymbol) ? "active" : ""}
                 aria-label={`${group.productName} ${group.main.symbol}`} onClick={() => onSelect(group.main.symbol)}>
                 <span><strong>{group.productName}</strong><small>{group.main.symbol}{group.exchangeId === "KQD" && !group.main.strategyScope ? <i className="fdw-quote-only">仅行情</i> : null}</small></span>
                 {quote ? <span className="fdw-product-quote"><b className={boardPrice(quote).fallback ? "fallback" : undefined} title={boardPrice(quote).fallback ? "还没有成交，显示昨结算价" : undefined}>{boardPrice(quote).text}</b>
@@ -174,7 +174,7 @@ export function ContractDrawer({ workspace, query, onQueryChange, onSelect, onCl
             </div>
             {expanded ? months.map(month => (
               <button type="button" key={month.symbol} aria-label={month.symbol}
-                className={`fdw-month-row ${month.symbol === workspace.selectedSymbol ? "active" : ""} ${exact?.symbol === month.symbol ? "hit" : ""}`}
+                className={`fdw-month-row ${sameContract(month.symbol, workspace.selectedSymbol) ? "active" : ""} ${exact?.symbol === month.symbol ? "hit" : ""}`}
                 onClick={() => onSelect(month.symbol)}>
                 <span><strong>{month.instrumentId}</strong><small>{month.deliveryYear}-{String(month.deliveryMonth).padStart(2, "0")}</small></span>
                 {/* 交割月提醒 (2026-10-02): plain text on the month row (the button's aria-label

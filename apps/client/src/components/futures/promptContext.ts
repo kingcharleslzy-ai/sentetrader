@@ -1,4 +1,4 @@
-import type { AccountOverviewSnapshot, AccountPosition, FuturesWorkspacePromptContext, MarketWorkbenchSnapshot } from "../../api";
+import { sameContract, type AccountOverviewSnapshot, type AccountPosition, type FuturesWorkspacePromptContext, type MarketWorkbenchSnapshot } from "../../api";
 import type { OperationEvent } from "../../operationEvents";
 import { orderIsActive } from "./PositionPanels";
 import { positionPromptContext, type FuturesWorkspaceView, type RecentWorkspaceAction, type RightDock, type TicketDraft } from "./support";
@@ -38,7 +38,7 @@ export function buildPromptContext({ market, account, duration, view, rightDock,
   });
   const activeOrders = [...ownOrders, ...foreignOrders].slice(-8);
   const recentTrades = (account?.activity.trades ?? [])
-    .filter((trade) => trade.symbol.toUpperCase() === quote.symbol.toUpperCase())
+    .filter((trade) => sameContract(trade.symbol, quote.symbol))
     .slice(-8)
     .map(({ tradeId, clientOrderId, symbol, direction, offset, price, volume, tradeDateTime }) => ({
       tradeId, clientOrderId, symbol, direction, offset, price, volume, tradeDateTime

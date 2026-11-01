@@ -2,6 +2,7 @@ import { useSyncExternalStore } from "react";
 import type { StrategyBacktestResult } from "@ai-trader/ui-events";
 import type { components } from "./workbench.generated";
 import { formatSigned } from "./components/futures/support";
+import { sameContract } from "./api";
 
 /**
  * The AI annotation layer's state: surface highlights (a pulse and a bubble over a
@@ -101,7 +102,7 @@ export function applyChartAnnotations(symbol: string, op: "set" | "add" | "clear
   }
   if (next.length > CHART_ANNOTATIONS_MAX) throw new Error(`同一屏最多 ${CHART_ANNOTATIONS_MAX} 条 AI 标注，请精简`);
   annotations = { ...annotations, [key]: next };
-  if (op === "clear" && backtestMarks?.symbol.toUpperCase() === key) backtestMarks = null;
+  if (op === "clear" && backtestMarks && sameContract(backtestMarks.symbol, key)) backtestMarks = null;
   notify();
 }
 
@@ -130,7 +131,7 @@ export function backtestMarksOf(result: StrategyBacktestResult, idPrefix = ""): 
 }
 /** The markers for the chart now showing `symbol` at `durationSeconds`; none for another contract or period. */
 export function backtestMarksFor(marks: BacktestMarks | null, symbol: string | undefined, durationSeconds: number): BacktestMark[] {
-  return marks && symbol && marks.symbol.toUpperCase() === symbol.toUpperCase() && marks.durationSeconds === durationSeconds ? marks.items : NONE_MARKS;
+  return marks && sameContract(marks.symbol, symbol) && marks.durationSeconds === durationSeconds ? marks.items : NONE_MARKS;
 }
 const NONE_MARKS: BacktestMark[] = [];
 

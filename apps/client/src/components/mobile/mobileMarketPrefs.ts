@@ -1,5 +1,6 @@
 import type { DurationSeconds, MobileChartCell, MobileMarketPreferences } from "../../userPreferences";
 import { SUB_PANE_NAMES, SUB_PANE_TYPES, SUB_PANES_MAX, type SubPaneType } from "../chartIndicators";
+import { sameContract } from "../../api";
 
 /**
  * 手机看盘 (2026-10-09): the 看盘 tab's 报价 / 多图 / 单图, kept in the account preference `ui.mobileMarket`
@@ -85,7 +86,7 @@ export function resolveCells(market: MobileMarketPreferences, current: string | 
   const cells = market.cells.slice(0, count);
   const taken = new Set(cells.flatMap(cell => cell.symbol ? [cell.symbol.toUpperCase()] : []));
   const pool = [current, ...autoSymbols].filter((symbol): symbol is string => Boolean(symbol))
-    .filter((symbol, index, list) => list.findIndex(other => other.toUpperCase() === symbol.toUpperCase()) === index)
+    .filter((symbol, index, list) => list.findIndex(other => sameContract(other, symbol)) === index)
     .filter(symbol => !taken.has(symbol.toUpperCase()));
   return cells.map((cell, index) => cell.symbol
     ? { index, symbol: cell.symbol, duration: cell.duration, auto: false }

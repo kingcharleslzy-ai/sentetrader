@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { requestJson } from "../api";
+import { sameContract, requestJson } from "../api";
 import type { ChartDrawing, DrawingKind, DrawingPoints, DrawingStyle } from "../chartDrawingModel";
 import { onFeedNudge } from "../runtimeFeed";
 import { useIdentityFence, type FenceContext } from "./useIdentityFence";
@@ -174,7 +174,7 @@ export function useChartDrawings(baseUrl: string | undefined, enabled: boolean):
       try {
         const result = await requestJson<{ cleared: number }>(`${baseUrl}/api/market/drawings?symbol=${encodeURIComponent(symbol)}`, { method: "DELETE" });
         if (!fence.isCurrent()) return;
-        owner.confirmed = owner.confirmed.filter(item => item.symbol.toUpperCase() !== symbol.toUpperCase());
+        owner.confirmed = owner.confirmed.filter(item => !sameContract(item.symbol, symbol));
         publish({ notice: result.cleared > 0 ? `已删除本合约 ${result.cleared} 条画线` : "本合约没有画过线" });
       } catch (error) { publish({ notice: drawingErrorText(error) }); }
     });

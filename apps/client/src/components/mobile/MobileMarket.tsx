@@ -49,7 +49,7 @@ export function marketRows({ positions, watchlist, board, instruments, quote }: 
     const item = instruments.find(entry => entry.symbol.toUpperCase() === key);
     const live = board?.rows.find(row => row.symbol.toUpperCase() === key);
     const current = quote && quote.symbol.toUpperCase() === key ? quote : undefined;
-    const held = positions.filter(position => position.symbol.toUpperCase() === key)
+    const held = positions.filter(position => sameContract(position.symbol, key))
       .map(position => `${position.direction === "long" ? "多" : "空"}${position.volume}`).join(" ");
     rows.set(key, { symbol, name: displayName(item, live?.instrumentName ?? symbol), holding: held, starred,
       last: current?.lastPrice ?? live?.last ?? null, changePercent: current?.changePercent ?? live?.changePercent ?? null,
@@ -140,7 +140,7 @@ export function MobileMarket({ market, name, decimals, chartView, onSelectDurati
   const autoSymbols = useMemo(() => autoChartSymbols(rows, board), [rows, board]);
   const candidates = useMemo(() => {
     const names = new Map(instruments.map(item => [item.symbol.toUpperCase(), item.instrumentName]));
-    return autoSymbols.filter((symbol, index, list) => list.findIndex(other => other.toUpperCase() === symbol.toUpperCase()) === index).slice(0, 40)
+    return autoSymbols.filter((symbol, index, list) => list.findIndex(other => sameContract(other, symbol)) === index).slice(0, 40)
       .map(symbol => ({ symbol, name: names.get(symbol.toUpperCase()) ?? board?.rows.find(row => row.symbol === symbol)?.instrumentName ?? symbol }));
   }, [autoSymbols, instruments, board]);
   const tone = direction(quote?.changePercent);
@@ -290,7 +290,7 @@ export function MobileMarket({ market, name, decimals, chartView, onSelectDurati
           {rows.length ? <ul className="fdm-watch">
             {rows.map(row => (
               <li key={row.symbol}>
-                <button type="button" aria-current={row.symbol.toUpperCase() === quote?.symbol.toUpperCase() ? "true" : undefined}
+                <button type="button" aria-current={sameContract(row.symbol, quote?.symbol) ? "true" : undefined}
                   aria-label={`看 ${row.name}`} onClick={() => onSelectSymbol(row.symbol)}>
                   <span className="fdm-watch-name">{row.starred ? <Star aria-hidden="true" /> : null}<strong>{row.name}</strong>{row.holding ? <em>{row.holding}</em> : null}</span>
                   <span className="fdm-watch-price" data-direction={direction(row.changePercent)}>

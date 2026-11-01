@@ -5,7 +5,7 @@ import { LONG_READ_TIMEOUT_MS } from "./requestTimeout";
 import { activeTradingAccount, onTradingAccountChange } from "./tradingAccountScope";
 import { backtestError, type StrategyBacktestResult } from "./strategyBacktests";
 import { prewarmEngine, ruleBacktest, StaleEngine } from "./strategyEngine/browserEngine";
-import { designerPlanProblem, previewStrategyFunds, requestStatus, strategyError, strategyQuestions, strategyScope, type Clarification, type SavedStrategy, type StrategyPlan } from "./strategyApi";
+import { designerPlanProblem, previewStrategyFunds, requestStatus, strategiesChanged, strategyError, strategyQuestions, strategyScope, type Clarification, type SavedStrategy, type StrategyPlan } from "./strategyApi";
 import { advancedRules, applyPrefill, changedFields, DEFAULT_NAME, emptyForm, FIELD_NAMES, fieldDiffers, formFromPlan, hitsOf, maxPositionOf, missingParts,
   planFromForm, DEFAULTS, REMINDER_NEW, rowLabel, rowModifiers, type EditorForm, type ReminderOptions, type SignalChoice, type FieldName, type GroupForm, type PrefillResponse } from "./strategyEditor";
 import { FOCUS_TARGETS, strategyFlow, type FocusTarget, type StrategyFlowModel } from "./strategyFlow";
@@ -603,7 +603,7 @@ export function saveDraft(takenNames: string[] = []): Promise<{ item: SavedStrat
         plan, instrumentScope: item ? strategyScope(item) : { mode: "any", symbols: [] },
         ...(item ? { baseStrategyId: item.strategyId } : {}),
         ...(fromTemplate ? { templateId: state.templateId } : {}) }) });
-      window.dispatchEvent(new Event("ai-trader-strategies-changed"));
+      void strategiesChanged();
       // #507: a save that answers after the draft was thrown away or replaced only reports the strategy.
       if (mine !== generation) return { item: saved, current: false };
       if (rootUrl !== context.rootUrl) { set({ saving: false }); return { item: saved, current: false }; }

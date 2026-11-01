@@ -87,7 +87,7 @@ function MemberChartStage(props: Props) {
   const protectionLines = useMemo(() => {
     const rows: ProtectionLine[] = [];
     for (const stop of props.workspace.aiExecution?.stops ?? []) {
-      if (!isProtectionActive(stop.status) || stop.symbol.toUpperCase() !== props.market.quote?.symbol?.toUpperCase()) continue;
+      if (!isProtectionActive(stop.status) || !sameContract(stop.symbol, props.market.quote?.symbol)) continue;
       // 图上拖线改价: only the user's own armed protection; a strategy's is changed in the strategy.
       const draggable = repriceable && stop.source === "manual" && stop.status === "ARMED";
       if (stop.triggerPrice !== null) rows.push({ id: `${stop.stopId}:stop`, kind: "stop", price: stop.triggerPrice, draggable });

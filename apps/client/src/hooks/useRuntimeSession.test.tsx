@@ -18,7 +18,7 @@ vi.mock("../api", () => ({
 }));
 vi.mock("../runtimeConnection", () => ({setCloudAccessToken: vi.fn()}));
 
-vi.mock("../strategyApi", () => ({setChartPeriod: vi.fn(), strategyError: (error: unknown) => String(error)}));
+vi.mock("../strategyApi", () => ({setChartPeriod: vi.fn(), strategiesChanged: vi.fn(), strategyError: (error: unknown) => String(error)}));
 
 beforeEach(() => {
   vi.useFakeTimers(); vi.resetAllMocks(); resetFeedViewForTests();

@@ -1,6 +1,6 @@
 import { useRef, type ReactNode } from "react";
 import { Menu } from "lucide-react";
-import type { MarketWorkbenchSnapshot } from "../../api";
+import { sameContract, type MarketWorkbenchSnapshot } from "../../api";
 import { MarketSessionCard } from "../MarketSessionCard";
 import type { FuturesDecisionWorkspaceProps } from "./props";
 import { foreignChartSource, formatAge, formatNumber, formatTime, isForeignSymbol, signClass } from "./support";
@@ -79,7 +79,7 @@ export function MarketCommand({ workspace, market, headerCurrentContract, chartV
     ["低", formatNumber(quote?.lowest, decimals)], ["量", formatNumber(quote?.volume)],
   ];
   return (
-    <section className={`fdw-market-command${headerCurrentContract?.toUpperCase() === quote.symbol.toUpperCase() ? " fdw-current-contract-in-header" : ""}`} data-agent-target="market:command">
+    <section className={`fdw-market-command${sameContract(quote.symbol, headerCurrentContract) ? " fdw-current-contract-in-header" : ""}`} data-agent-target="market:command">
           <div className="fdw-market-head">
             <div className="fdw-contract-head">
               {/* The name is split for the ellipsis; the label keeps it whole: "沪金2612 SHFE.au2612". */}

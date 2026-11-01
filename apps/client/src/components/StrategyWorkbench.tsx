@@ -10,11 +10,11 @@ import { StrategyScopeEditor, StrategyScopeFields } from "./StrategyScopeEditor"
 import { usePersistentDraft } from "../hooks/usePersistentDraft";
 import { useWorkspaceScope } from "../hooks/useWorkspaceScope";
 import { AiProgressCard, type AiProgress } from "./AiProgressCard";
-import { useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { BookmarkPlus, Bot, Play, Plus } from "lucide-react";
-import { requestJson, getOrderEstimate, getStrategyMonitor, stopStrategyMonitoring, type StrategyMonitorSnapshot, type AccountOverviewSnapshot, type InstrumentCatalog, type MarketWorkbenchSnapshot } from "../api";
+import { sameContract, requestJson, getOrderEstimate, getStrategyMonitor, stopStrategyMonitoring, type StrategyMonitorSnapshot, type AccountOverviewSnapshot, type InstrumentCatalog, type MarketWorkbenchSnapshot } from "../api";
 import { marketClosedNow, marketSessionDisplay } from "../marketSession";
-import { launchBlockedReason, resumeAfterDrawdown, requestStatus, strategyError, strategyQuestions, strategyText, strategyStatusText, allowsSymbol, scopeLabel, spreadLegsWords, spreadWords, strategyScope, strategySymbol, needsAnswersOf, CONTRACT, type InstrumentScope, defaultFees, designerPlanProblem, designerRows, directions, followChart, loadStrategies, conditionParts, operandLabel, periodLabel, planBlockRows, reminderContracts, ruleNames, triggerRises, validateAndStart,
+import { launchBlockedReason, resumeAfterDrawdown, requestStatus, strategyError, strategyQuestions, strategyText, strategyStatusText, allowsSymbol, scopeLabel, spreadLegsWords, spreadWords, strategyScope, strategySymbol, needsAnswersOf, CONTRACT, type InstrumentScope, defaultFees, designerPlanProblem, designerRows, directions, loadStrategies, followChart, strategiesChanged, useStrategies, conditionParts, operandLabel, periodLabel, planBlockRows, reminderContracts, ruleNames, triggerRises, validateAndStart,
   type FeeRate, type FeeSchedule, type RuleCondition, type RuleGroup, type SavedStrategy, type StrategyPlan } from "../strategyApi";
 import { contractLabel, formatFee, formatSigned, isForeignSymbol, moneyUnit, signClass, type StrategyTab } from "./futures/support";
 import "./StrategyWorkbench.css";
@@ -39,6 +39,7 @@ import { applyEditorChange, askEditor, discardDraft, editDraft, editorSnapshot, 
   setEditorError, setStart, useStrategyEditor, type EditorChange } from "../strategyEditorStore";
 
 const backtestMarks = (result: StrategyBacktestResult) => backtestMarksOf(result);
+const NO_STRATEGIES: SavedStrategy[] = [];
 
 function FeeFields({ value, onChange }: { value: FeeRate; onChange: (value: FeeRate) => void }) {
   return <div className="strategy-fee-fields"><label>计费方式<select value={value.mode} onChange={e => onChange({ ...value, mode: e.target.value as FeeRate["mode"] })}><option value="per_lot">元 / 手</option><option value="notional">成交金额 · 万分之</option></select></label>
@@ -538,8 +539,10 @@ function StrategyWorkbenchContent({ rootUrl, baseUrl, symbol, chartTimeframe = 6
   } });
   // Folds of the selected strategy; commandable and reported as `strategyDetails`.
   const [details, setDetails] = useState<{ scope: boolean; idea: boolean; rules: boolean }>({ scope: false, idea: false, rules: false });
-  const [items, setItems] = useState<SavedStrategy[]>([]);
-  const [executions, setExecutions] = useState<SavedStrategy[]>([]);
+  // Strategy changes arrive through the conversation stream; the timer only catches drift.
+  const list = useStrategies(baseUrl, () => (feedLiveNow() ? 15_000 : 5_000));
+  const items = useMemo(() => list.data?.items.filter(item => item.definition.plan) ?? NO_STRATEGIES, [list.data]);
+  const executions = list.data?.executions ?? NO_STRATEGIES;
   const [selected, setSelected] = useState("");
   // A running instance picked by `selectedStrategyId` (its own id): the panel shows its library strategy on
   // 正在运行, and the published selection is the instance the command named (AI 审计 2026-10-13).
@@ -568,7 +571,7 @@ function StrategyWorkbenchContent({ rootUrl, baseUrl, symbol, chartTimeframe = 6
   // 提醒页的提醒 (第 6 批, `plan.reminderOnly`) are strategies too, but listed under 我的提醒, not here.
   const instances = [...executions.filter(isRunning), ...items.filter(item => !item.definition.instrumentScope && isRunning(item))].filter(item => !isReminder(item));
   const libraryOf = (run: SavedStrategy) => items.find(item => item.strategyId === run.definition.libraryStrategyId) ?? run;
-  const execution = executions.find(item => item.definition.libraryStrategyId === selected && item.symbol.toLowerCase() === symbol.toLowerCase() && item.status !== "archived");
+  const execution = executions.find(item => item.definition.libraryStrategyId === selected && sameContract(item.symbol, symbol) && item.status !== "archived");
   const executionId = execution?.strategyId || (pendingExecution?.library === selected ? pendingExecution.id : "") || (current && !current.definition.instrumentScope ? selected : "");
   const needsAnswers = needsAnswersOf(current);
   const currentMonitor = monitor?.strategyId === executionId ? monitor : undefined;
@@ -618,35 +621,24 @@ function StrategyWorkbenchContent({ rootUrl, baseUrl, symbol, chartTimeframe = 6
   const planSummary = tab === "detail" && current ? current.planSummary ?? null : null;
   useUiSurface("strategySummary", { state: planSummary }, [planSummary]);
   useEffect(() => { onSelectionChange?.(executionId); }, [executionId, onSelectionChange]);
-  const loadSequence = useRef(0);
   const loadContext = useRef({ baseUrl, active: true });
   loadContext.current.baseUrl = baseUrl;
-  const reload = async () => {
-    const sequence = ++loadSequence.current;
-    const active = () => loadContext.current.active && loadContext.current.baseUrl === baseUrl && sequence === loadSequence.current;
-    try {
-      const result = await loadStrategies(baseUrl);
-      if (!active()) return;
-      const values = result.items.filter(item => item.definition.plan);
-      setListLoaded(true);
-      setItems(values); setExecutions(result.executions || []);
-      if (!values.length) selectBacktestStrategy(null);
-      setSelected(previous => values.some(item => item.strategyId === previous) || previous === pendingSelect.current ? previous : values[0]?.strategyId || "");
-    } catch (error) { if (active()) setError(strategyError(error, "策略列表读取失败")); }
-  };
+  // Every write reads the shared list again, for this panel and every other one showing it.
+  const reload = strategiesChanged;
   // A strategy just saved by the main line may not be in the list yet: keep it selected until it is.
   const pendingSelect = useRef<string | null>(null);
-  // State, not a ref: the empty state must re-render once the first read lands (#522 A-08).
-  const [listLoaded, setListLoaded] = useState(false);
+  const listLoaded = list.data !== undefined;
   useEffect(() => {
     // The panel remembers its selection for the window.
-    loadContext.current.active = true; setSelected(backtestSelection()?.strategyId ?? ""); setError(""); void reload();
-    const refresh = () => { void reload(); };
-    window.addEventListener("ai-trader-strategies-changed", refresh);
-    // Strategy changes arrive through the conversation stream; the timer only catches drift.
-    const timer = setInterval(() => { if (!feedLiveNow() || Date.now() % 15000 < 5000) refresh(); }, 5000);
-    return () => { loadContext.current.active = false; ++loadSequence.current; clearInterval(timer); window.removeEventListener("ai-trader-strategies-changed", refresh); };
+    loadContext.current.active = true; setSelected(backtestSelection()?.strategyId ?? ""); setError("");
+    return () => { loadContext.current.active = false; };
   }, [baseUrl]);
+  useEffect(() => {
+    if (!list.data) return;
+    if (!items.length) selectBacktestStrategy(null);
+    setSelected(previous => items.some(item => item.strategyId === previous) || previous === pendingSelect.current ? previous : items[0]?.strategyId || "");
+  }, [list.dataUpdatedAt]);
+  useEffect(() => { if (list.isError) setError(strategyError(list.error, "策略列表读取失败")); }, [list.errorUpdatedAt]);
   useEffect(() => {
     setConditions(undefined); setConditionError(""); setMonitorUnavailable(false);
     if (!executionId || tab !== "detail") return;
@@ -670,7 +662,6 @@ function StrategyWorkbenchContent({ rootUrl, baseUrl, symbol, chartTimeframe = 6
   }, [baseUrl, executionId, tab, needsAnswers, closedMessage]);
   const edit = () => { if (current) editDraft(current, symbolFor(current)); };
   const editOrNew = () => { if (current?.definition.plan) editDraft(current, symbolFor(current)); else newDraft(); };
-  const announce = () => window.dispatchEvent(new Event("ai-trader-strategies-changed"));
   // 上线运行 (2026-09-25): opens the launch dialog (contract + 执行方式); `dialog: strategy-launch`.
   const [launchOpen, setLaunchOpen] = useState(false);
   const [launchError, setLaunchError] = useState("");
@@ -905,14 +896,14 @@ function StrategyWorkbenchContent({ rootUrl, baseUrl, symbol, chartTimeframe = 6
         launch.signalAction ? { signalAction: launch.signalAction, ...(sessionId ? { sessionId } : {}) } : {});
       const state = await getStrategyMonitor(baseUrl, id);
       if (active() && launch.reminder) { setMonitorUnavailable(false); await reload(); onShowReminders?.(); }
-      else if (active()) { setMonitor(state); setMonitorUnavailable(false); setLaunchOpen(false); changeTab("running"); onStarted?.(); await reload(); announce(); }
+      else if (active()) { setMonitor(state); setMonitorUnavailable(false); setLaunchOpen(false); changeTab("running"); onStarted?.(); await reload(); }
     } catch (error) {
       // A lost POST response is not permission to repeat a trading control action.
       let recovered = false;
       if (validatedId) {
         try {
           const state = await getStrategyMonitor(baseUrl, validatedId);
-          if (active()) { setMonitor(state); await reload(); announce(); }
+          if (active()) { setMonitor(state); await reload(); }
           recovered = state.status === "monitoring";
           if (active() && recovered) { setLaunchOpen(false); changeTab("running"); onStarted?.(); setMonitorUnavailable(false); }
         } catch { if (active()) setMonitorUnavailable(true); }
@@ -931,7 +922,7 @@ function StrategyWorkbenchContent({ rootUrl, baseUrl, symbol, chartTimeframe = 6
     try {
       const blocked = replayActive ? null : await launchBlockedReason(baseUrl);
       if (blocked) { setError(blocked); return; }
-      await resumeAfterDrawdown(baseUrl, run.strategyId); await reload(); announce();
+      await resumeAfterDrawdown(baseUrl, run.strategyId); await reload();
     } catch (error) { setError(strategyError(error, "没有恢复运行，请刷新后重试")); }
     finally { operation.current = false; ++monitorEpoch.current; setBusy(false); setStage(""); }
   };
@@ -939,7 +930,7 @@ function StrategyWorkbenchContent({ rootUrl, baseUrl, symbol, chartTimeframe = 6
   const changeSignalAction = async (run: SavedStrategy, signalAction: SignalAction) => {
     if (operation.current) return;
     operation.current = true; setBusy(true); setStage("正在切换执行方式…"); setError("");
-    try { await requestJson<StrategyMonitorSnapshot>(`${baseUrl}/api/strategies/${run.strategyId}/monitor/start`, { method: "POST", body: JSON.stringify({ signalAction }) }); await reload(); announce(); }
+    try { await requestJson<StrategyMonitorSnapshot>(`${baseUrl}/api/strategies/${run.strategyId}/monitor/start`, { method: "POST", body: JSON.stringify({ signalAction }) }); await reload(); }
     catch (error) { setError(strategyError(error, "执行方式没有切换，请刷新后重试")); }
     finally { operation.current = false; setBusy(false); setStage(""); }
   };
@@ -950,7 +941,7 @@ function StrategyWorkbenchContent({ rootUrl, baseUrl, symbol, chartTimeframe = 6
     operation.current = true; ++monitorEpoch.current; setBusy(true); setStage("正在停止…"); setError("");
     try {
       const state = await stopStrategyMonitoring(baseUrl, run.strategyId, closePositions);
-      setError(state.notice || "已停止：不再判断信号，已有持仓不会平掉。"); await reload(); announce();
+      setError(state.notice || "已停止：不再判断信号，已有持仓不会平掉。"); await reload();
     } catch (error) { setError(strategyError(error, "停止尚未确认，请刷新后重试")); }
     finally { operation.current = false; ++monitorEpoch.current; setBusy(false); setStage(""); }
   };
@@ -960,7 +951,7 @@ function StrategyWorkbenchContent({ rootUrl, baseUrl, symbol, chartTimeframe = 6
     operation.current = true; ++monitorEpoch.current; setBusy(true); setStage("正在暂停监控…"); setError("");
     try {
       const state = await requestJson<StrategyMonitorSnapshot>(`${baseUrl}/api/strategies/${id}/monitor/pause`, {method:"POST",body:"{}"});
-      if (activeContext.current === startedContext && loadContext.current.active) { setMonitor(state); setMonitorUnavailable(false); announce(); await reload(); }
+      if (activeContext.current === startedContext && loadContext.current.active) { setMonitor(state); setMonitorUnavailable(false); await reload(); }
     } catch (error) { if (activeContext.current === startedContext) { setMonitorUnavailable(true); setError(strategyError(error, "暂停尚未确认，正在回读状态")); } }
     finally { operation.current = false; ++monitorEpoch.current; setBusy(false); setStage(""); }
   };

@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { FlaskConical, Plus, Send } from "lucide-react";
 import { getStrategyMonitor, setStrategyMonitoring, stopStrategyMonitoring, type InstrumentCatalog, type StrategyDrawdown,
   type StrategyFunds, type StrategyMonitorSnapshot } from "../../api";
 import { DrawdownStatus, FundsLines } from "../StrategyRiskBlocks";
-import { launchBlockedReason, loadStrategies, needsAnswersOf, periodLabel, resumeAfterDrawdown, strategyError, strategySymbol, strategyText, validateAndStart, type SavedStrategy } from "../../strategyApi";
+import { launchBlockedReason, needsAnswersOf, periodLabel, resumeAfterDrawdown, strategiesChanged, strategyError, strategySymbol, strategyText, useStrategies, validateAndStart, type SavedStrategy } from "../../strategyApi";
 import { runStrategyBacktest, useBacktestCard } from "../../strategyBacktests";
 import { launchDefaults } from "../StrategySignalAction";
 import { actionText, attemptStatusLabel, monitorTime } from "../../strategyMonitorDisplay";
@@ -89,43 +89,36 @@ export function useMobileStrategies({ baseUrl, rootUrl, enabled, detailed, chart
   const [runs, setRuns] = useState<MobileStrategyRun[]>([]);
   const [mine, setMine] = useState<MobileStrategyItem[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [notices, setNotices] = useState<Record<string, string>>({});
-  const reader = useRef<() => Promise<void>>(async () => undefined);
   const active = enabled && Boolean(baseUrl);
+  const list = useStrategies(active ? baseUrl : undefined, detailed ? DETAIL_MS : LIST_MS);
+  const failed = list.isError;
   useEffect(() => {
-    reader.current = async () => undefined;
     if (!active || !baseUrl) { setRuns([]); setMine([]); setLoaded(false); return; }
+    const result = list.data;
+    // A failed read keeps what was shown.
+    if (!result) { if (list.isError) setLoaded(true); return; }
     let alive = true;
-    const read = async () => {
-      try {
-        const result = await loadStrategies(baseUrl);
-        const library = result.items.filter(item => item.definition.plan);
-        const executions = result.executions ?? [];
-        const instances = [...executions, ...library.filter(item => !item.definition.instrumentScope)].filter(item => RUNNING.has(item.status));
-        const monitors = detailed ? await Promise.all(instances.map(item => getStrategyMonitor(baseUrl, item.strategyId).catch(() => undefined))) : [];
-        if (!alive) return;
-        const owner = (run: SavedStrategy) => library.find(item => item.strategyId === run.definition.libraryStrategyId);
-        setRuns(instances.map((item, index) => runOf(item, owner(item), monitors[index])));
-        setMine(library.map(item => {
-          const own = instances.filter(run => (run.definition.libraryStrategyId ?? run.strategyId) === item.strategyId);
-          return { strategyId: item.strategyId, name: strategyText(item.name), plain: item.planSummary ?? null, latest: item.latestBacktest ?? null, source: item,
-            state: own.some(run => run.status === "monitoring") ? "运行中" : own.length ? "已暂停" : "没上线" };
-        }));
-        setFailed(false);
-      } catch { if (alive) setFailed(true); }
-      if (alive) setLoaded(true);
-    };
-    reader.current = read;
-    void read();
-    const timer = window.setInterval(() => void read(), detailed ? DETAIL_MS : LIST_MS);
-    const changed = () => void read();
-    window.addEventListener("ai-trader-strategies-changed", changed);
-    return () => { alive = false; window.clearInterval(timer); window.removeEventListener("ai-trader-strategies-changed", changed); };
-  }, [active, baseUrl, detailed]);
-  const reload = useCallback(() => reader.current(), []);
+    const library = result.items.filter(item => item.definition.plan);
+    const executions = result.executions ?? [];
+    const instances = [...executions, ...library.filter(item => !item.definition.instrumentScope)].filter(item => RUNNING.has(item.status));
+    void (detailed ? Promise.all(instances.map(item => getStrategyMonitor(baseUrl, item.strategyId).catch(() => undefined))) : Promise.resolve([])).then(monitors => {
+      if (!alive) return;
+      const owner = (run: SavedStrategy) => library.find(item => item.strategyId === run.definition.libraryStrategyId);
+      setRuns(instances.map((item, index) => runOf(item, owner(item), monitors[index])));
+      setMine(library.map(item => {
+        const own = instances.filter(run => (run.definition.libraryStrategyId ?? run.strategyId) === item.strategyId);
+        return { strategyId: item.strategyId, name: strategyText(item.name), plain: item.planSummary ?? null, latest: item.latestBacktest ?? null, source: item,
+          state: own.some(run => run.status === "monitoring") ? "运行中" : own.length ? "已暂停" : "没上线" };
+      }));
+      setLoaded(true);
+    });
+    return () => { alive = false; };
+  }, [active, baseUrl, detailed, list.data, list.dataUpdatedAt, list.isError]);
+  const { refetch } = list;
+  const reload = useCallback(async () => { await refetch(); }, [refetch]);
   const act = useCallback(async (strategyId: string, action: "pause" | "start" | "resume-drawdown" | "stop" | "stop-close") => {
     if (!baseUrl || busy) return;
     setBusy(strategyId);
@@ -141,7 +134,7 @@ export function useMobileStrategies({ baseUrl, rootUrl, enabled, detailed, chart
         if (state.notice) setNotices(current => ({ ...current, [strategyId]: state.notice! }));
       } else if (action === "resume-drawdown") await resumeAfterDrawdown(baseUrl, strategyId);
       else await setStrategyMonitoring(baseUrl, strategyId, action);
-      window.dispatchEvent(new Event("ai-trader-strategies-changed"));
+      void strategiesChanged();
     } catch (error) {
       setErrors(current => ({ ...current, [strategyId]: strategyError(error, action === "pause" ? "暂停尚未确认，请刷新后重试"
         : action === "start" || action === "resume-drawdown" ? "没有继续运行，请刷新后重试" : "停止尚未确认，请刷新后重试") }));
@@ -157,7 +150,7 @@ export function useMobileStrategies({ baseUrl, rootUrl, enabled, detailed, chart
     fail(item.strategyId, "");
     void runStrategyBacktest(rootUrl, { strategyId: item.strategyId, symbol: strategySymbol(item, chartSymbol),
       ...(plan.timeframeSeconds ? {} : { timeframe: chartTimeframe }) })
-      .then(result => { if (result) window.dispatchEvent(new Event("ai-trader-strategies-changed")); });
+      .then(result => { if (result) void strategiesChanged(); });
   }, [rootUrl, backtestBlocked, chartSymbol, chartTimeframe]);
   // 上线…: the card asks once (`launchFor`); 确认上线 = the 回测结果页's launch, 出卡确认 only.
   const [launchFor, setLaunchFor] = useState<string | null>(null);
@@ -175,7 +168,7 @@ export function useMobileStrategies({ baseUrl, rootUrl, enabled, detailed, chart
         { signalAction: "confirm", ...(sessionId ? { sessionId } : {}) });
       setLaunchFor(null);
       setNotices(current => ({ ...current, [id]: "已上线：出卡确认，信号来了先出卡，你点确认才下单。" }));
-      window.dispatchEvent(new Event("ai-trader-strategies-changed"));
+      void strategiesChanged();
     } catch (error) { fail(id, strategyError(error, "验证未完成，请检查规则与行情连接后重试。")); }
     finally { setBusy(null); }
   }, [baseUrl, busy, chartTimeframe, sessionId, launchSymbol]);

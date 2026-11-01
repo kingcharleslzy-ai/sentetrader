@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { InstrumentCatalogItem, MarketKlineBar, MarketWorkbenchSnapshot } from "../../api";
+import { sameContract, type InstrumentCatalogItem, type MarketKlineBar, type MarketWorkbenchSnapshot } from "../../api";
 import { readMarketWorkbench } from "../../marketCache";
 import { useDisclosureSurface } from "../../uiSurfaces";
 import type { DurationSeconds, MobileMarketPreferences } from "../../userPreferences";
@@ -184,7 +184,7 @@ export function MobileMultiChart({ baseUrl, market, layout, onLayout, onCell, cu
             <div className="fdm-mm-grid" role="group" aria-label="这一格的合约">
               {layout !== "periods" ? <button type="button" aria-pressed={editCell.auto} onClick={() => onCell(editCell.index, { symbol: null })}>自动</button> : null}
               {candidates.map(option => <button type="button" key={option.symbol}
-                aria-pressed={!editCell.auto && option.symbol.toUpperCase() === editCell.symbol?.toUpperCase()}
+                aria-pressed={!editCell.auto && sameContract(option.symbol, editCell.symbol)}
                 onClick={() => onCell(editCell.index, { symbol: option.symbol })}>{option.name}</button>)}
             </div>
             <h4 className="fdm-mm-label">周期</h4>

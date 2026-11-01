@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { startupDuration } from "../userPreferences";
 import { requestJson, type MarketWorkbenchSnapshot, type InstrumentCatalog } from "../api";
-import { allowsSymbol, loadStrategies, strategyError, strategyScope, validateAndStart, type SavedStrategy } from "../strategyApi";
+import { allowsSymbol, strategiesChanged, strategyError, strategyScope, useStrategies, validateAndStart, type SavedStrategy } from "../strategyApi";
 import { FeeEditor, StrategyDesigner } from "./StrategyWorkbench";
 import "./HistoricalReplay.css";
 import { HelpButton } from "./AppHelp";
@@ -48,7 +48,6 @@ export function HistoricalReplay({ enabled, environment = "local", children }: {
   const dayTouched = useRef(false);
   const [balance, setBalance] = useState(1_000_000);
   const [mode, setMode] = useState("manual");
-  const [plans, setPlans] = useState<SavedStrategy[]>([]);
   const [planId, setPlanId] = useState("");
   const [pendingPlan, setPendingPlan] = useState("");
   const [design, setDesign] = useState(false);
@@ -64,7 +63,7 @@ export function HistoricalReplay({ enabled, environment = "local", children }: {
     // the workspace's login state and in-flight order guards.
     setCurrentEnvironment(environment);
     setRootUrl(undefined); setWorkspaceScope(undefined); setReplay(undefined);
-    setOpen(false); setError(""); setPlans([]); setCatalog([]);
+    setOpen(false); setError(""); setCatalog([]);
     setPlanId(""); setPendingPlan(""); setDesign(false); setEditingPlan(undefined);
   }
   const onRuntimeReady = useCallback((url: string, scope?: string) => {setRootUrl(url); setWorkspaceScope(scope);}, []);
@@ -78,8 +77,8 @@ export function HistoricalReplay({ enabled, environment = "local", children }: {
   useEffect(() => {
     if (!open || rootUrl === undefined) return;
     let cancelled = false;
-    void Promise.all([loadStrategies(rootUrl), requestJson<InstrumentCatalog>(`${rootUrl}/api/instruments`)]).then(([saved, instruments]) => {
-      if (!cancelled) { setPlans(saved.items.filter(p => p.definition.plan)); setCatalog(instruments.items); }
+    void requestJson<InstrumentCatalog>(`${rootUrl}/api/instruments`).then(instruments => {
+      if (!cancelled) setCatalog(instruments.items);
     }).catch(() => !cancelled && setError("配置读取不完整，请检查连接"));
     // 默认日期 = 最近一个已结束交易日 (2026-10-03): the sidecar's calendar knows the
     // holidays and, as latestClosedTradingDay, whether today's day session has closed
@@ -138,6 +137,9 @@ export function HistoricalReplay({ enabled, environment = "local", children }: {
     } catch { setError("操作结果未确认，已保留回放；请查看状态，不要重复下单。"); }
     finally { inFlight.current = false; setBusy(false); }
   };
+  const saved = useStrategies(open ? rootUrl : undefined);
+  useEffect(() => { if (saved.isError) setError("配置读取不完整，请检查连接"); }, [saved.isError]);
+  const plans = saved.data?.items.filter(p => p.definition.plan) ?? [];
   const matchingPlans = plans.filter(p => allowsSymbol(p, symbol));
   const chosen = matchingPlans.find(p => p.strategyId === planId);
   const needsAnswers = Boolean(chosen?.definition.plan?.questions.length || chosen?.definition.plan?.clarifications?.length);
@@ -159,9 +161,9 @@ export function HistoricalReplay({ enabled, environment = "local", children }: {
     const id = chosen.strategyId; inFlight.current = true; setBusy(true); setError("");
     try {
       await requestJson(`${rootUrl}/api/strategy-plans/${id}`, {method: "DELETE"});
-      setPlans(old => old.filter(item => item.strategyId !== id)); setPlanId("");
+      setPlanId("");
       if (editingPlan?.strategyId === id) { setDesign(false); setEditingPlan(undefined); }
-      window.dispatchEvent(new Event("ai-trader-strategies-changed"));
+      void strategiesChanged();
     } catch (error) { setError(strategyError(error, "策略删除失败，请刷新后重试")); }
     finally { inFlight.current = false; setBusy(false); }
   };
@@ -177,7 +179,7 @@ export function HistoricalReplay({ enabled, environment = "local", children }: {
     <HelpButton topic="replay" /></div>{replay.notice || replay.error ? <p role="alert">{replay.notice || replay.error}</p> : null}</section>}
     {banner && !open && <p className="replay-error" role="alert">{banner}</p>}
     <dialog ref={dialog} className={`replay-setup ${design ? "strategy-design-dialog" : ""}`} onCancel={() => setOpen(false)}><header><div><h2>{design ? "设计策略" : "历史回放设置"}</h2>{!design&&<HelpButton topic="replay"/>}</div><button aria-label="关闭回放设置" onClick={() => setOpen(false)}>×</button></header>
-      {design ? <div className="replay-setup-body">          {rootUrl !== undefined && <div ref={designArea} className="replay-strategy-designer"><button type="button" className="replay-design-close" onClick={() => setDesign(false)}>返回回放设置</button><StrategyDesigner key={editingPlan?.strategyId || "new"} draftKey={editingPlan?.strategyId} initialPlan={editingPlan?.definition.plan} initialScope={editingPlan ? strategyScope(editingPlan) : undefined} workspaceScope={workspaceScope} rootUrl={rootUrl} symbol={symbol} editSession={() => editSession.current} onSaved={(item, session) => { setPlans(old => [...old.filter(p => p.strategyId !== item.strategyId), item]); window.dispatchEvent(new Event("ai-trader-strategies-changed")); if (session !== editSession.current) return; setPlanId(item.strategyId); setDesign(false); setEditingPlan(undefined); }}/></div>}</div> : replay ? <div className="replay-setup-body"><p>当前回放仍在运行。请先停盘复盘，再退出并新建。</p><button onClick={() => setOpen(false)}>返回回放</button></div> : <><div className="replay-setup-body">
+      {design ? <div className="replay-setup-body">          {rootUrl !== undefined && <div ref={designArea} className="replay-strategy-designer"><button type="button" className="replay-design-close" onClick={() => setDesign(false)}>返回回放设置</button><StrategyDesigner key={editingPlan?.strategyId || "new"} draftKey={editingPlan?.strategyId} initialPlan={editingPlan?.definition.plan} initialScope={editingPlan ? strategyScope(editingPlan) : undefined} workspaceScope={workspaceScope} rootUrl={rootUrl} symbol={symbol} editSession={() => editSession.current} onSaved={(item, session) => { void strategiesChanged(); if (session !== editSession.current) return; setPlanId(item.strategyId); setDesign(false); setEditingPlan(undefined); }}/></div>}</div> : replay ? <div className="replay-setup-body"><p>当前回放仍在运行。请先停盘复盘，再退出并新建。</p><button onClick={() => setOpen(false)}>返回回放</button></div> : <><div className="replay-setup-body">
         <div className="replay-mode-options"><button aria-pressed={mode === "manual"} className={mode === "manual" ? "selected" : ""} onClick={() => setMode("manual")}>自己交易</button><button aria-pressed={mode === "ai"} className={mode === "ai" ? "selected" : ""} onClick={() => setMode("ai")}>AI 自动策略</button></div>
         <div className="replay-fields"><label>期货合约<input list="replay-contracts" value={symbol} onChange={e => { setSymbol(e.target.value); setPlanId(""); }} placeholder="搜索或输入具体合约"/><datalist id="replay-contracts">{catalog.map(item => <option key={item.symbol} value={item.symbol}>{item.instrumentName}</option>)}</datalist></label><label>交易日<input type="date" value={day} max={latestDay} onChange={e => { dayTouched.current = true; setDay(e.target.value); }}/></label><label>初始资金 · 元<input type="number" min="100000" max="100000000" step="10000" value={balance} onChange={e => setBalance(Number(e.target.value))}/></label></div>
         {mode === "ai" && <section className="replay-strategy-picker">

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { listInstruments, setFeedFocus, type InstrumentCatalog, type MarketWorkbenchSnapshot } from "../api";
-import { setChartPeriod, strategyError } from "../strategyApi";
+import { setChartPeriod, strategiesChanged, strategyError } from "../strategyApi";
 import { feedIsLive, type RuntimeFeedState } from "../runtimeFeed";
 import type { WorkbenchDataStatus } from "./useWorkbenchStatus";
 import type { WorkspaceHandle } from "./workspaceHandle";
@@ -262,7 +262,7 @@ export function useMarketWorkbench({ handle, marketStatus, feed, replaySymbol, c
       try {
         await setChartPeriod(baseUrl, current, next);
         if (!targetIsCurrent()) return;
-        window.dispatchEvent(new Event("ai-trader-strategies-changed"));
+        void strategiesChanged();
       } catch (error) {
         if (!targetIsCurrent()) return;
         const reason = strategyError(error, "请稍后重试。").replace(/^周期尚未切换：/, "");

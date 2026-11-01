@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import type { InstrumentCatalog } from "../../api";
-import { loadStrategies, needsAnswersOf, reminderContracts, strategyError, strategySymbol, validateAndStart, type SavedStrategy } from "../../strategyApi";
+import { loadStrategies, needsAnswersOf, reminderContracts, strategiesChanged, strategyError, strategySymbol, validateAndStart, type SavedStrategy } from "../../strategyApi";
 import { EDITOR_SECTIONS, OPERATORS, SIDE_WORDS, advancedRules, missingParts, planFromForm, rowParts, sectionOfGroup, sectionSummary, usedEntryGroups,
   withLeft, withOp, findRow, listKey, rowContext, rowProblem, LIST_WORDS, type EditorSection, type GroupForm, type GroupKey, type RowContext, type RowForm } from "../../strategyEditor";
 import { isTrend, operatorProblem, usesPeriod } from "../../strategyIndicators";
@@ -353,7 +353,7 @@ export function useMobileStrategyEditor({ enabled, rootUrl, baseUrl, chartSymbol
     void reminderContracts(baseUrl, item, editorState().form.symbol || chartSymbol, instruments).then(async contracts => {
       for (const contract of contracts) await validateAndStart(baseUrl, item.strategyId, contract, chartTimeframe, undefined, { signalAction: "alert" });
     }).then(() => {
-      window.dispatchEvent(new Event("ai-trader-strategies-changed"));
+      void strategiesChanged();
       if (editorState().draftId === draft) { discardDraft(); onShowReminders(); }
     }, error => { if (editorState().draftId === draft) setEditorError(strategyError(error, "提醒没有开始，请稍后再试")); });
   };

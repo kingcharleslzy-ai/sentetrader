@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Settings2, Star } from "lucide-react";
-import { getMarketQuotes, type AccountPosition, type ForeignBoardSnapshot, type InstrumentCatalogItem, type MarketBoardRow,
+import { sameContract, getMarketQuotes, type AccountPosition, type ForeignBoardSnapshot, type InstrumentCatalogItem, type MarketBoardRow,
   type MarketBoardSnapshot } from "../../api";
 import { marketErrorMessage } from "../../hooks/useMarketWorkbench";
 import { useDisclosureSurface } from "../../uiSurfaces";
@@ -49,7 +49,7 @@ export function quoteRows({ board, boardId, positions, watchlist, instruments, e
     const rows = new Map<string, QuoteRow>();
     for (const position of positions) {
       const key = position.symbol.toUpperCase();
-      const holding = positions.filter(item => item.symbol.toUpperCase() === key)
+      const holding = positions.filter(item => sameContract(item.symbol, key))
         .map(item => `${item.direction === "long" ? "多" : "空"}${item.volume}`).join(" ");
       if (!rows.has(key)) rows.set(key, make(position.symbol, holding));
     }
@@ -280,7 +280,7 @@ export function MobileQuotes({ baseUrl, board, foreign, boardError, boardId, col
         {extra.capped ? <p className="fdm-note" role="alert">行情订阅已满，{extra.capped} 个持仓月份本次读取失败，已有报价保留，稍后自动重试。</p> : null}
         {boardId === "FOREIGN" ? null : rows.map(row => (
           <button type="button" key={row.symbol} className="fdm-quote-row" data-symbol={row.symbol} data-off-board={row.onBoard ? undefined : ""}
-            aria-current={row.symbol.toUpperCase() === currentSymbol?.toUpperCase() ? "true" : undefined}
+            aria-current={sameContract(row.symbol, currentSymbol) ? "true" : undefined}
             aria-label={`看 ${row.name} 单图`} onClick={() => onOpen(row.symbol)}>
             <span className="fdm-quote-name">
               <strong>{row.starred ? <Star aria-hidden="true" /> : null}{row.name}</strong>

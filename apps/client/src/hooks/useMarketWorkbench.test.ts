@@ -21,6 +21,7 @@ test("a contract's own condition gets its own words; everything else is the gene
 // chart refused to switch to 5 minutes with it. The chart now switches first; the rebind only warns.
 vi.mock("../strategyApi", () => ({
   setChartPeriod: vi.fn(),
+  strategiesChanged: vi.fn(),
   strategyError: (error: unknown, fallback: string) => (error instanceof Error ? error.message : fallback),
 }));
 vi.mock("../api", async () => ({
@@ -126,7 +127,7 @@ test.each([true, false])("an older period reply can finish in order without noti
   rebind.mockClear().mockResolvedValue({ strategyIds: [] } as never);
   localStorage.setItem("ai-trader:selected-instrument", "SHFE.rb2701");
   const setToast = vi.fn();
-  const changed = vi.spyOn(window, "dispatchEvent");
+  const changed = vi.mocked((await import("../strategyApi")).strategiesChanged);
   const handle = { baseUrl: "http://runtime", connection: "connected", sessionId: "s1", setToast } as never;
   const { result } = renderHook(() => useMarketWorkbench({ handle, marketStatus: "normal" as never, feed: {} as never, chartTimeframe: 60 }));
   await waitFor(() => expect(rebind).toHaveBeenCalled());
@@ -143,8 +144,7 @@ test.each([true, false])("an older period reply can finish in order without noti
   await act(async () => { finish(); await first; await second; });
   expect(rebind.mock.calls.slice(-2).map(([, , duration]) => duration)).toEqual([300, 900]);
   expect(setToast).not.toHaveBeenCalled();
-  expect(changed.mock.calls.filter(([event]) => event.type === "ai-trader-strategies-changed")).toHaveLength(1);
-  changed.mockRestore();
+  expect(changed).toHaveBeenCalledTimes(1);
   localStorage.clear();
 });
 

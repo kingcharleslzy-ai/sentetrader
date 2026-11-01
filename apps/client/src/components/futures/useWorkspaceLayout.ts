@@ -6,6 +6,7 @@ import { normalizeChartIndicators, type ChartPreferencesLike, type PaneSizes } f
 import type { FuturesDecisionWorkspaceProps } from "./props";
 import { useStrategyEditor } from "../../strategyEditorStore";
 import { clamp, defaultDockWidth, defaultEditorWidth, defaultStrategyWidth, LAYOUT_STORAGE_KEY, maxDockWidth, maxEditorWidth, maxSharedDockWidth, MIN_DOCK_WIDTH, readChartSettings, readSavedLayout, systemPrefersDark, WIDE_PANELS, type DockSide } from "./support";
+import { sameContract } from "../../api";
 
 /** The pane shares the old `chartSizes` shape names (kd / macd); a third pane keeps its own. */
 const PANE_SHARE_DEFAULTS = [19, 23, 14];
@@ -64,8 +65,8 @@ export function useWorkspaceLayout(workspace: FuturesDecisionWorkspaceProps, cha
     setPinnedSymbols(current => current.length ? current : [symbol]);
   }, [workspace.selectedSymbol, workspace.replayActive]);
   const pinSymbol = (symbol: string) => setPinnedSymbols(current =>
-    current.some(item => item.toUpperCase() === symbol.toUpperCase()) ? current : [...current, symbol].slice(-8));
-  const unpinSymbol = (symbol: string) => setPinnedSymbols(current => current.filter(item => item.toUpperCase() !== symbol.toUpperCase()));
+    current.some(item => sameContract(item, symbol)) ? current : [...current, symbol].slice(-8));
+  const unpinSymbol = (symbol: string) => setPinnedSymbols(current => current.filter(item => !sameContract(item, symbol)));
 
   // The pane list / MA lines (settings document) as the presentation document's old switches.
   const indicators = normalizeChartIndicators(chartPreferences);

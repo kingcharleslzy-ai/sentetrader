@@ -1,6 +1,6 @@
 import { useRef, useState, type ComponentProps } from "react";
 import { X } from "lucide-react";
-import type { SimulationOrder } from "../../api";
+import { sameContract, type SimulationOrder } from "../../api";
 import { TradeTicket } from "../futures/TradeTicket";
 import { formatNumber, orderStatusText, type ManualSimulationRequest } from "../futures/support";
 import { orderLegLabel, type ManualOrderOutcome } from "../../hooks/useSimulationOrders";
@@ -41,7 +41,7 @@ export function MobileOrder({ name, accountLabel, available, orders, onClose, ti
   const outcome = typeof sent?.outcome === "object" ? sent.outcome : undefined;
   const placed = !sent ? [] : outcome
     ? outcome.orders.map(order => orders.find(row => row.clientOrderId === order.clientOrderId) ?? order)
-    : orders.filter(order => !sent.before.has(order.clientOrderId) && order.request.symbol.toUpperCase() === sent.symbol.toUpperCase());
+    : orders.filter(order => !sent.before.has(order.clientOrderId) && sameContract(order.request.symbol, sent.symbol));
   const statuses = [...new Set(placed.map(order => order.displayStatus))];
   const status = placed.length === 1 ? orderStatusText(placed[0])
     : placed.length ? `共 ${placed.reduce((sum, order) => sum + order.request.volume, 0)} 手 · ${placed.length} 笔`

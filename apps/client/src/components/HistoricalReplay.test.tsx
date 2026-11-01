@@ -5,6 +5,7 @@ import { requestJson } from "../api";
 import { disclosureStates, uiSurface } from "../uiSurfaces";
 import { defaultFees, type SavedStrategy, type StrategyPlan } from "../strategyApi";
 import { HistoricalReplay, type ReplayWorkspaceProps } from "./HistoricalReplay";
+import { resetReadIdentity } from "../runtimeClient";
 
 vi.mock("../api", () => ({ requestJson: vi.fn() }));
 
@@ -15,6 +16,7 @@ function ConnectedWorkspace({ onRuntimeReady, onOpenReplay, replayControls, onCh
 
 beforeEach(() => {
   localStorage.clear();
+  resetReadIdentity();
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute("open", ""); };
   HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); };
 });
@@ -116,9 +118,11 @@ async function openAiReplay() {
 
 test("pending replay strategy has a usable completion path and only creates replay after confirmed rules are saved", async () => {
   const ready = {...saved, strategyId:"ready", version:2, definition:{...saved.definition,plan:{...draft,questions:[]}}};
+  let made = false;  // the Runtime's list holds the saved strategy once it is saved
   mockSetup((url, init) => {
     if (url.endsWith("/design-jobs") && init?.method === "POST") return {id:JSON.parse(String(init.body)).id,status:"completed",result:ready.definition.plan};
-    if (url.endsWith("/api/strategy-plans") && init?.method === "POST") return ready;
+    if (url.endsWith("/api/strategy-plans") && init?.method === "POST") { made = true; return ready; }
+    if (url.endsWith("/api/strategy-plans") && made) return {items:[saved, ready]};
     if (url.endsWith("/api/replays") && init?.method === "POST") return {replayId:"isolated",status:"loading",runtimePath:"/api/replays/isolated/runtime",symbol:"SHFE.au2612",tradingDay:"2026-09-04",playing:false,speed:1};
     if (url.endsWith("/api/replays/isolated")) return {replayId:"isolated",status:"loading",runtimePath:"/api/replays/isolated/runtime",symbol:"SHFE.au2612",tradingDay:"2026-09-04",playing:false,speed:1};
   });
@@ -137,12 +141,14 @@ test("pending replay strategy has a usable completion path and only creates repl
 });
 
 test("replay picker keeps a blocked strategy visible and removes it only after successful deletion", async () => {
-  let blocked = true;
+  let blocked = true, deleted = false;
   mockSetup((url, init) => {
     if (url.endsWith("/api/strategy-plans/pending") && init?.method === "DELETE") {
       if (blocked) throw Object.assign(new Error("blocked"), {detail:"SHFE.au2612 仍在监控，请先暂停后再删除"});
+      deleted = true;
       return {status:"deleted"};
     }
+    if (url.endsWith("/api/strategy-plans") && deleted) return {items:[]};
   });
   await openAiReplay();
   fireEvent.click(screen.getByRole("button", {name:"回放策略 的更多操作"}));

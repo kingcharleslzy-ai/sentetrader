@@ -5,6 +5,7 @@ import {
 } from "../../chartDrawingModel";
 import type { ChartDrawingsHandle, DrawingPatch } from "../../hooks/useChartDrawings";
 import { useDisclosureFamily, useDisclosureSurface, useUiSurface } from "../../uiSurfaces";
+import { sameContract } from "../../api";
 
 export type { DrawingDefaultStyle } from "../../chartDrawingModel";
 export interface DrawingPreferencePatch {
@@ -91,7 +92,7 @@ export function useDrawingDesk({ drawings, symbol, period, tick, preferences, sa
   const locked = Boolean(preferences.drawingsLocked);
   const hidden = Boolean(preferences.drawingsHidden);
 
-  const items = useMemo(() => (drawings?.items ?? []).filter(item => item.symbol.toUpperCase() === symbol?.toUpperCase()),
+  const items = useMemo(() => (drawings?.items ?? []).filter(item => sameContract(item.symbol, symbol)),
     [drawings?.items, symbol]);
   const hiddenCount = items.filter(item => item.style?.hidden).length;
   // What the chart draws: this period's, not individually hidden, nothing while 全部隐藏 — plus the

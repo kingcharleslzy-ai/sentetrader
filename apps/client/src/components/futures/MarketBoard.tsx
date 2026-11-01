@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Columns3, Search } from "lucide-react";
-import type { ForeignBoardSnapshot, MarketBoardRow, MarketBoardSnapshot } from "../../api";
+import { sameContract, type ForeignBoardSnapshot, type MarketBoardRow, type MarketBoardSnapshot } from "../../api";
 import { useDisclosureSurface } from "../../uiSurfaces";
 import { ChartPopover } from "../chartIndicatorEditor";
 import { BoardColumnsEditor } from "./BoardColumnsEditor";
@@ -256,7 +256,7 @@ export function MarketBoard({ snapshot, foreign, error, query, onQueryChange, ex
             const chart = foreignById.get(row.symbol)?.chartSymbol ?? undefined;
             const open = chart ? () => onSelect(chart) : undefined;
             return (
-              <div key={row.symbol} className={`fdw-board-row foreign ${foreignStale(row.symbol) ? "quiet" : ""} ${chart && chart.toUpperCase() === selectedSymbol?.toUpperCase() ? "active" : ""}`}
+              <div key={row.symbol} className={`fdw-board-row foreign ${foreignStale(row.symbol) ? "quiet" : ""} ${chart && sameContract(chart, selectedSymbol) ? "active" : ""}`}
                 style={{ gridTemplateColumns: gridTemplate }} aria-label={`${row.productName} ${row.exchangeId}`}
                 role={open ? "button" : undefined} tabIndex={open ? 0 : undefined} onClick={open}
                 onKeyDown={open ? event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); open(); } } : undefined}
@@ -274,7 +274,7 @@ export function MarketBoard({ snapshot, foreign, error, query, onQueryChange, ex
             // A div, not a button: the row holds the star button (HTML forbids nesting one button
             // in another); Enter and Space keep the row's own click-through reachable.
             <div role="button" tabIndex={0} key={row.symbol}
-              className={`fdw-board-row ${quiet ? "quiet" : ""} ${row.symbol.toUpperCase() === selectedSymbol?.toUpperCase() ? "active" : ""}`}
+              className={`fdw-board-row ${quiet ? "quiet" : ""} ${sameContract(row.symbol, selectedSymbol) ? "active" : ""}`}
               aria-label={`${row.productName} ${row.symbol}`}
               style={{ gridTemplateColumns: gridTemplate }}
               onClick={() => onSelect(row.symbol)}

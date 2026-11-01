@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft } from "lucide-react";
 import type { InstrumentCatalog } from "../../api";
-import { launchBlockedReason, loadStrategies, periodLabel, strategyError, validateAndStart } from "../../strategyApi";
+import { loadStrategies, launchBlockedReason, periodLabel, strategiesChanged, strategyError, validateAndStart } from "../../strategyApi";
 import { chooseLabVariant, getLab, listLabs, rankedResults, type Lab, type LabResult } from "../../strategyLab/labApi";
 import { launchDefaults } from "../StrategySignalAction";
 import { contractLabel, formatNumber, formatSigned, signClass } from "../futures/support";
@@ -103,7 +103,7 @@ export function MobileLab({ rootUrl, baseUrl, labId, instruments, chartTimeframe
         { signalAction: "confirm", ...(sessionId ? { sessionId } : {}) });
       setLaunched(true);
       setNotice("已上线：出卡确认，信号来了先出卡，你点确认才下单。");
-      window.dispatchEvent(new Event("ai-trader-strategies-changed"));
+      void strategiesChanged();
     } catch (failure) { setNotice(strategyError(failure, "验证未完成，请检查规则与行情连接后重试。")); }
     finally { setBusy(""); }
   };

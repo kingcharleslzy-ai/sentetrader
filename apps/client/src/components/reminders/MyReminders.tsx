@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronRight, Plus } from "lucide-react";
 import { chartSymbolOf, requestJson } from "../../api";
-import { loadStrategies, strategyError, validateAndStart, type SavedStrategy } from "../../strategyApi";
+import { strategiesChanged, strategyError, useStrategies, validateAndStart, type SavedStrategy } from "../../strategyApi";
 import { useDisclosureSurface, useUiSurface } from "../../uiSurfaces";
 import { alertLine, type PriceAlertsHandle } from "../../hooks/usePriceAlerts";
 import { AlertForm } from "../futures/PriceAlertsControl";
@@ -53,24 +53,14 @@ export function MyReminders({ baseUrl, contract, chartTimeframe, onNew, onEdit, 
   alerts: PriceAlertsHandle;
   alertContract?: { symbol?: string; priceTick?: number | null; lastPrice?: number | null };
   onSwitchContract?: (symbol: string) => void }) {
-  const [rows, setRows] = useState<ReminderRow[]>();
+  const list = useStrategies(baseUrl || undefined, REFRESH_MS);
+  const rows = useMemo(() => list.data && reminderRows(list.data.items, list.data.executions ?? []), [list.data]);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [formOpen, setFormOpen] = useDisclosureSurface("reminder-alert-new", { available: alerts.available });
   const [seq, setSeq] = useState(0);
-  const load = useCallback(async () => {
-    if (!baseUrl) return;
-    try {
-      const result = await loadStrategies(baseUrl);
-      setRows(reminderRows(result.items, result.executions ?? [])); setError("");
-    } catch (cause) { setError(strategyError(cause, "提醒列表读取失败")); }
-  }, [baseUrl]);
-  useEffect(() => {
-    void load();
-    const timer = window.setInterval(() => void load(), REFRESH_MS);
-    window.addEventListener("ai-trader-strategies-changed", load);
-    return () => { window.clearInterval(timer); window.removeEventListener("ai-trader-strategies-changed", load); };
-  }, [load]);
+  // A failed read keeps the last rows and says so; the next good read clears the line.
+  useEffect(() => { setError(list.isError ? strategyError(list.error, "提醒列表读取失败") : ""); }, [list.dataUpdatedAt, list.errorUpdatedAt]);
   const act = async (row: ReminderRow, action: "start" | "pause" | "resume" | "delete") => {
     if (!baseUrl || busy) return;
     setBusy(row.id); setError("");
@@ -89,7 +79,7 @@ export function MyReminders({ baseUrl, contract, chartTimeframe, onNew, onEdit, 
         }
         if (action === "delete") await requestJson(`${baseUrl}/api/strategy-plans/${row.id}`, { method: "DELETE" });
       }
-      window.dispatchEvent(new Event("ai-trader-strategies-changed"));
+      void strategiesChanged();
     } catch (cause) { setError(strategyError(cause, "没有做成，请稍后再试")); }
     finally { setBusy(null); }
   };

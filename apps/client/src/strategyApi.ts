@@ -2,7 +2,8 @@ import { foreignStrategyScope, requestJson, type AiExecutionSnapshot, type Instr
 import { normalizeWatchlist, watchlistMainSymbol } from "./components/futures/support";
 
 import type { components } from "./workbench.generated";
-import { workbenchClient, responseData } from "./runtimeClient";
+import { useQuery } from "@tanstack/react-query";
+import { readNetworkMode, readQueryClient, responseData, useReadIdentity, workbenchClient } from "./runtimeClient";
 
 type Schemas = components["schemas"];
 export type FeeRate = Schemas["FeeRate"];
@@ -308,7 +309,21 @@ export async function setChartPeriod(url: string, symbol: string, timeframeSecon
     body: { symbol, timeframeSeconds: timeframeSeconds as Schemas["ChartPeriodRequest"]["timeframeSeconds"] }
   }));
 }
-export function loadStrategies(url: string) { return requestJson<{ items: SavedStrategy[]; executions?: SavedStrategy[] }>(`${url}/api/strategy-plans`); }
+/**
+ * The strategy list (`/api/strategy-plans`): one cache entry per Runtime that every panel reads. A write calls
+ * strategiesChanged() and every panel showing the list reads it again; each panel keeps its own refresh cadence.
+ */
+export type StrategyList = { items: SavedStrategy[]; executions?: SavedStrategy[] };
+export function useStrategies(url: string | undefined, refetchInterval: number | (() => number) | false = false) {
+  const identity = useReadIdentity();
+  return useQuery({ queryKey: ["strategies", identity, url], enabled: url !== undefined, networkMode: readNetworkMode(url),
+    queryFn: () => loadStrategies(url!), refetchInterval }, readQueryClient);
+}
+/** A one-off read that must see the latest list (a strategy made a moment ago): its own request, never one already
+ *  under way that may have left before that strategy existed. Panels pick the strategy up on their next read. */
+export function loadStrategies(url: string) { return requestJson<StrategyList>(`${url}/api/strategy-plans`); }
+/** After a strategy write: every panel showing the list reads it again (resolves once they have). */
+export function strategiesChanged() { return readQueryClient.invalidateQueries({ queryKey: ["strategies"] }); }
 export function strategyScope(item: SavedStrategy): InstrumentScope { return item.definition.instrumentScope || {mode: "selected", symbols: [item.symbol]}; }
 export function scopeLabel(item: SavedStrategy): string { const scope = strategyScope(item); return scope.mode === "any" ? "全部品种" : scope.symbols.join("、"); }
 /** 能上线的具体合约（与 Runtime 的 STRATEGY_CONTRACT_PATTERN 同一写法）：国内 SHFE.rb2701、外盘月份 CME.GCEZ26，

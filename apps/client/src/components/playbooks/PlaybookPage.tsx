@@ -1,30 +1,26 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { deletePlaybook, listPlaybooks, savePlaybook, type Playbook, type PlaybookFields } from "../../api";
-import { loadStrategies } from "../../strategyApi";
+import { readNetworkMode, readQueryClient, useReadIdentity } from "../../runtimeClient";
+import { useStrategies } from "../../strategyApi";
 import { useDisclosureSurface } from "../../uiSurfaces";
 import { SectionCard } from "../Blocks";
 import { Button, Select, TextInput } from "../settings/controls";
 import "./PlaybookPage.css";
 
-const CHANGED = "ai-trader-playbooks-changed";
+const NO_PLAYBOOKS: Playbook[] = [];
+const playbooksChanged = () => readQueryClient.invalidateQueries({ queryKey: ["playbooks"] });
 
-/** 打法本 (2026-10-25): the user's setups, read once per window and re-read whenever one is saved or deleted
- *  here (the ticket's 打法 choice reads the same list). */
+/** 打法本 (2026-10-25): the user's setups, one cache entry per Runtime, re-read whenever one is saved or deleted
+ *  here (the ticket's 打法 choice reads the same entry). */
 export function usePlaybooks(baseUrl: string | undefined) {
-  const [state, setState] = useState<{ items: Playbook[]; max: number; error: string; loaded: boolean }>({ items: [], max: 20, error: "", loaded: false });
-  const reload = useCallback(() => {
-    if (!baseUrl) return;
-    // A Runtime from before 打法本 (or anything else answering) has no list: no setups, not a crash.
-    void listPlaybooks(baseUrl).then(result => setState({ items: Array.isArray(result?.playbooks) ? result.playbooks : [],
-      max: typeof result?.max === "number" ? result.max : 20, error: "", loaded: true }))
-      .catch(cause => setState(current => ({ ...current, error: cause instanceof Error ? cause.message : "交易笔记读取失败", loaded: true })));
-  }, [baseUrl]);
-  useEffect(() => {
-    reload();
-    window.addEventListener(CHANGED, reload);
-    return () => window.removeEventListener(CHANGED, reload);
-  }, [reload]);
-  return state;
+  const identity = useReadIdentity();
+  const query = useQuery({ queryKey: ["playbooks", identity, baseUrl], enabled: Boolean(baseUrl), networkMode: readNetworkMode(baseUrl),
+    queryFn: () => listPlaybooks(baseUrl!) }, readQueryClient);
+  // A Runtime from before 打法本 (or anything else answering) has no list: no setups, not a crash.
+  const result = query.data;
+  return { items: Array.isArray(result?.playbooks) ? result.playbooks : NO_PLAYBOOKS, max: typeof result?.max === "number" ? result.max : 20,
+    error: query.error ? (query.error instanceof Error ? query.error.message : "交易笔记读取失败") : "", loaded: query.isFetched };
 }
 
 const EMPTY: PlaybookFields = { name: "", entryRules: "", exitRules: "", stopRules: "", strategyId: null };
@@ -40,13 +36,7 @@ function Rules({ label, value, onChange, max }: { label: string; value: string; 
 export function PlaybookPage({ baseUrl }: { baseUrl: string }) {
   const { items, max, error, loaded } = usePlaybooks(baseUrl);
   // 关联策略: the user's strategies, not the 只提醒 ones; a failed read only leaves the choice at 不关联.
-  const [strategies, setStrategies] = useState<{ strategyId: string; name: string }[]>([]);
-  useEffect(() => {
-    let live = true;
-    void loadStrategies(baseUrl).then(result => { if (live) setStrategies((result.items ?? []).filter(item => !item.definition.plan?.reminderOnly)
-      .map(item => ({ strategyId: item.strategyId, name: item.name }))); }).catch(() => undefined);
-    return () => { live = false; };
-  }, [baseUrl]);
+  const strategies = (useStrategies(baseUrl).data?.items ?? []).filter(item => !item.definition.plan?.reminderOnly);
   const [editorOpen, setEditorOpen] = useDisclosureSurface("playbook-editor");
   const [editing, setEditing] = useState<string | null>(null);
   const [fields, setFields] = useState<PlaybookFields>(EMPTY);
@@ -65,13 +55,13 @@ export function PlaybookPage({ baseUrl }: { baseUrl: string }) {
     try {
       await savePlaybook(baseUrl, { ...fields, strategyId: fields.strategyId || null }, editing ?? undefined);
       setEditorOpen(false);
-      window.dispatchEvent(new Event(CHANGED));
+      void playbooksChanged();
     } catch (cause) { setProblem(cause instanceof Error ? cause.message : "没有保存，请重试"); }
     finally { setSaving(false); }
   };
   const remove = async (id: string) => {
     setConfirmDelete(null);
-    try { await deletePlaybook(baseUrl, id); window.dispatchEvent(new Event(CHANGED)); }
+    try { await deletePlaybook(baseUrl, id); void playbooksChanged(); }
     catch (cause) { setProblem(cause instanceof Error ? cause.message : "没有删掉，请重试"); }
   };
   const set = (key: keyof PlaybookFields) => (value: string) => setFields(current => ({ ...current, [key]: value }));

@@ -707,13 +707,13 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   // A contract tab is that contract's trade workbench: switch the view and the contract together.
   const selectContractTab = (symbol: string) => {
     if (view !== "trade") selectView("trade");
-    if (symbol.toUpperCase() !== quote?.symbol.toUpperCase()) { props.onSelectSymbol(symbol); recordAction({ action: "contract_selected", symbol, view: "trade" }); }
+    if (!sameContract(symbol, quote?.symbol)) { props.onSelectSymbol(symbol); recordAction({ action: "contract_selected", symbol, view: "trade" }); }
   };
   // Removing the current contract's tab moves to its neighbour; the last tab stays.
   const unpinContractTab = (symbol: string) => {
     if (pinnedSymbols.length <= 1) return;
-    const index = pinnedSymbols.findIndex(item => item.toUpperCase() === symbol.toUpperCase());
-    if (symbol.toUpperCase() === quote?.symbol.toUpperCase()) {
+    const index = pinnedSymbols.findIndex(item => sameContract(item, symbol));
+    if (sameContract(symbol, quote?.symbol)) {
       const neighbour = pinnedSymbols[index + 1] ?? pinnedSymbols[index - 1];
       if (neighbour) selectContractTab(neighbour);
     }
@@ -1028,7 +1028,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
         if (target.tradingDay) applyCardUi({ reviewDay: target.tradingDay });
         else if (mobile) openMobilePage("review"); else applyCardUi({ view: "review" });
       } else if (target.type === "research" || target.type === "news") {
-        if (target.symbol && target.symbol.toUpperCase() !== props.selectedSymbol?.toUpperCase()) applyCardUi({ symbol: target.symbol });
+        if (target.symbol && !sameContract(target.symbol, props.selectedSymbol)) applyCardUi({ symbol: target.symbol });
         if (mobile) selectMobileTab("research"); else applyCardUi({ news: { tab: target.type === "news" ? "flash" : target.page ?? "desk" } });
       }
     } catch (error) { setAccessNotice(error instanceof Error ? error.message : "这个界面现在打不开"); }
@@ -1449,7 +1449,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
               historyNote={props.guest ? guestHistoryNote(market?.historyTradingDays) : undefined}
               drawings={drawings.available ? drawings : undefined}
               onOpenChart={(symbol, duration) => {
-                if (symbol.toUpperCase() !== quote?.symbol.toUpperCase()) selectContract(symbol);
+                if (!sameContract(symbol, quote?.symbol)) selectContract(symbol);
                 if (duration && (duration !== props.duration || chartView !== "kline")) selectDuration(duration);
                 if (mobileMarket.market.view !== "single") mobileMarket.update({ view: "single" });
               }} />,
@@ -1461,7 +1461,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
                 symbolLabel={contractName} onStart={start => mobileEditor.onNew(start)} /> : undefined}
               onAskAi={(text, focus) => { if (!access.require("ai-chat")) return; setMobileNotice(""); setMobileSub(null); setRightDock("ai"); void chat.sendQuickPrompt(text, focus); }}
               onChart={run => {
-                if (run.symbol.toUpperCase() !== quote?.symbol.toUpperCase()) selectContract(run.symbol);
+                if (!sameContract(run.symbol, quote?.symbol)) selectContract(run.symbol);
                 if (run.timeframeSeconds && run.timeframeSeconds !== props.duration && [60, 180, 300, 900, 1800, 3600, 86400, 604800].includes(run.timeframeSeconds)) {
                   selectDuration(run.timeframeSeconds as MarketWorkbenchSnapshot["durationSeconds"]);
                 }
@@ -1591,7 +1591,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
           onAskAi={askAi} explainBlocked={signalsBlocked} backtestBlocked={backtestBlocked}
           onShowReminders={showMyReminders}
           onShowChart={(symbol, duration) => {
-            if (symbol.toUpperCase() !== quote?.symbol.toUpperCase()) props.onSelectSymbol(symbol);
+            if (!sameContract(symbol, quote?.symbol)) props.onSelectSymbol(symbol);
             if (duration !== props.duration) selectDuration(duration as MarketWorkbenchSnapshot["durationSeconds"]);
           }} /> : null}
         {!props.guest && rightDock === "positions" ? <PositionsDock account={props.account} instruments={props.instruments} quote={quote} simulationOrders={props.simulationOrders}

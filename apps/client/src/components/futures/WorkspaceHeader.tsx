@@ -2,7 +2,7 @@ import { contractLabel } from "./support";
 import { ChevronDown, History, MoreHorizontal, Play, Plus, Table2, X } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import type { InstrumentCatalog } from "../../api";
+import { sameContract, type InstrumentCatalog } from "../../api";
 import type { TradingAccountsView } from "../../hooks/useTradingAccounts";
 import { isTauriRuntime } from "../../runtimeConnection";
 import type { FuturesDecisionWorkspaceProps } from "./props";
@@ -57,7 +57,7 @@ export function WorkspaceHeader({ workspace, view, onSelectView, recoveryButton,
     return productIcon(item?.productId ?? symbol.split(".").pop()?.replace(/\d+$/, ""), item?.exchangeId ?? symbol.split(".")[0]);
   };
   const label = (symbol: string) => { const Glyph = Icon(symbol); return <><Glyph aria-hidden="true" /><span>{nameOf(symbol)}</span></>; };
-  const isCurrent = (symbol: string) => view === "trade" && !replay && symbol.toUpperCase() === current?.toUpperCase();
+  const isCurrent = (symbol: string) => view === "trade" && !replay && sameContract(symbol, current);
   // Everything that changes the header's content width restarts the fit pass.
   const poolWarning = tradingAccounts.currentPoolStatus === "connecting" || tradingAccounts.currentPoolStatus === "queued" ? tradingAccounts.currentPoolStatus : "";
   // 本站模拟合成一个账户 (2026-10-21): the 外盘 USD ledger follows the RMB one in the same chip, never summed.

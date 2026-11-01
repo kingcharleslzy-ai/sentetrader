@@ -899,7 +899,7 @@ export function chartSymbolOf(symbol: string): string {
   return (scope && foreignCharts.get(scope)) || symbol;
 }
 /** 这笔持仓（或委托）的合约是不是图表上这个合约：同一代码，或者外盘主连图表与它品种的月份合约。 */
-export function sameContract(symbol: string, chartSymbol: string | undefined): boolean {
+export function sameContract(symbol: string, chartSymbol: string | null | undefined): boolean {
   if (!chartSymbol) return false;
   if (symbol.toUpperCase() === chartSymbol.toUpperCase()) return true;
   const scope = foreignMonthScope(symbol);

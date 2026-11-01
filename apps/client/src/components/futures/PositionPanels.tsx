@@ -272,7 +272,7 @@ export function PositionRows({ positions, instruments, quote, busy, limit, onClo
     const last = positionLastPrice(position, quote);
     const openPrice = position.openPrice ?? undefined;
     const usd = position.currency === "USD";
-    const rowStops = stops?.filter(stop => stop.symbol.toUpperCase() === position.symbol.toUpperCase()
+    const rowStops = stops?.filter(stop => sameContract(stop.symbol, position.symbol)
       && stop.positionDirection === position.direction && isProtectionActive(stop.status)) ?? [];
     return (
       <li key={positionKey(position)} data-position={positionKey(position)} data-currency={usd ? "USD" : undefined}>
