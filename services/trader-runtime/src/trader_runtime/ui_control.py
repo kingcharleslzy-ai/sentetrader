@@ -2079,8 +2079,8 @@ def ui_command_index() -> str:
     """Every UiChanges field with its values (enums inline) or keys, on one compact text."""
     changes, defs = _ui_schema()
     fields = [f"{name}={_ui_value(prop, defs)}" for name, prop in changes["properties"].items()]
-    return (f"{UI_COMMAND_OPERATION} body={{commandId:新UUID,windowId,expectedRevision,changes:{{只放一个字段}}}}"
-            " query={waitMs:3000}；applied 才算生效，回执 state 已核对所改字段、observedRevision 可接着用；"
+    return (f"{UI_COMMAND_OPERATION} body={{changes:{{只放一个字段}}}}（commandId、本轮窗口、expectedRevision、waitMs 由 Runtime 补，"
+            "操作别的窗口才写 windowId）；applied 才算生效，回执 state 已核对所改字段，不用再读窗口确认；"
             "queued/dispatched 按原 commandId 查询，不重发。字段（? 为可省略键）：" + "；".join(fields)
             + "。某字段的完整定义与说明：app_capabilities operation=\"ui:<字段>\"。")
 

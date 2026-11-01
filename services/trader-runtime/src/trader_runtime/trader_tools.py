@@ -2465,6 +2465,40 @@ class TraderReadOnlyTools:
             raise not_enqueued(409, "目标窗口离线")
         return window
 
+    async def _ui_command_body(self, request: Any, *, user_id: str, session_id: str | None, task_id: str | None) -> None:
+        """The embedded AI writes only `changes` (2026-11-02: a body of just `changes` was a 422 and four
+        catalog reads before it went through): the Runtime adds commandId, the conversation's window, its
+        current revision and waitMs, and wraps UiChanges fields sent at the top level. What the model did
+        write is kept; a bad body still meets the route's own validation."""
+        from uuid import uuid4
+
+        from .ui_control import UiChanges
+        body = dict(request.body) if isinstance(request.body, dict) else {}
+        if "changes" not in body:
+            fields = {key: body.pop(key) for key in list(body) if key in UiChanges.model_fields}
+            if fields:
+                body["changes"] = fields
+        body.setdefault("commandId", str(uuid4()))
+        if not body.get("windowId") or "expectedRevision" not in body:
+            window = await self._ui_window(body.get("windowId") or None, user_id=user_id, session_id=session_id, task_id=task_id)
+            body["windowId"] = window["windowId"]
+            body.setdefault("expectedRevision", window["revision"])
+        request.body = body
+        request.query.setdefault("waitMs", 3000)
+
+    @staticmethod
+    def _ui_command_hint(result: dict[str, Any]) -> str:
+        """A 422 UI command's field errors in Chinese with one correct body, so the next call is right."""
+        words = {"missing": "缺少", "extra_forbidden": "不认识这个字段", "literal_error": "取值不在可选范围",
+                 "uuid_parsing": "不是 UUID", "int_type": "要整数", "bool_type": "要 true/false", "string_type": "要文字"}
+        errors = (result.get("data") or {}).get("detail")
+        lines = [f"{'.'.join(str(part) for part in error.get('loc') or ()) or 'body'}：{words.get(error.get('type'), error.get('msg'))}"
+                 for error in errors if isinstance(error, dict)] if isinstance(errors, list) else []
+        return ("界面命令格式不对" + (f"（{'；'.join(lines)}）" if lines else "") +
+                "。只写 changes（一次一个字段），commandId、windowId、expectedRevision、waitMs 由 Runtime 补，例如 "
+                '{"operation":"POST /api/app/ui/commands","body":{"changes":{"panel":"positions"}}}；'
+                '字段的取值看 app_capabilities operation="ui:<字段>"。')
+
     async def _ui_revision_retry(self, request: Any, result: dict[str, Any], *, user_id: str,
                                  session_id: str | None) -> dict[str, Any]:
         """A model's UI command refused only because the window's revision moved on (the user's own
@@ -3299,10 +3333,14 @@ class TraderReadOnlyTools:
                         window = decode_instruction(run["instruction"]).ui_window_id
                         if window:
                             request.query = {"windowId": window}
+                    if request.operation == "POST /api/app/ui/commands":
+                        await self._ui_command_body(request, user_id=user_id, session_id=session_id, task_id=task_id)
                     api_call_started = True
                     result = await self.app_capabilities.call(request, user=user_id, session_id=session_id)
                     if request.operation == "POST /api/app/ui/commands":
                         result = await self._ui_revision_retry(request, result, user_id=user_id, session_id=session_id)
+                        if result.get("status") == 422:
+                            result = {**result, "hint": self._ui_command_hint(result)}
                     read_only = operation_is_read_only(request.operation)
                     ok = result["ok"]
                     if not ok:

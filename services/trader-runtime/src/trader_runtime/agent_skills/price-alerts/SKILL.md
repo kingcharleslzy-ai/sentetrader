@@ -26,7 +26,7 @@ metadata:
 
 画线提醒（2026-10-31）：用户在图上自己画的线可以“碰到就提醒”（线的右键或样式条“这条线被碰到时提醒我”，接口 `POST /api/market/alerts {drawingId}`）。`list_price_alerts` 的这类提醒带 drawingId，回执写“碰到画的线”；斜线跟着线走，挪线提醒跟着改，删线提醒一起删。用户要给某条线设提醒时请他在线上右键点一下；你自己只按价位设普通到价提醒。
 
-条件提醒（2026-10-25）：用户的条件里除了价格还有别的（指标、均线、金叉死叉、放量、突破区间、几根 K 线……），就是一条条件提醒——用界面命令打开提醒编辑卡 `strategyEditor: {new: true, reminder: true, ask: 用户原话}`（app_call `POST /api/app/ui/commands`），整句原话原样交给它（价格条件也在里面），不要另外拆出一条到价提醒，也不要说“到价提醒做不到、得写成策略”。卡里只有条件和提醒时段，开始提醒由用户在卡上点；它存成 `plan.reminderOnly` 的策略，只能“只提醒”（confirm / auto 回 409 strategy_reminder_only），列在“我的提醒”，不在我的策略。用户说“只响一次 / 每根 K 线都提醒 / 今天收盘前有效 / 整张自选表都盯着”时用 `strategyEditor: {choose: {repeat, until, watchlist}}` 点选（不经 AI 设计），开始仍由用户点。条件提醒随策略功能开放（档位没开“策略管理与监控”时如实说）。
+条件提醒（2026-10-25）：用户的条件里除了价格还有别的（指标、均线、金叉死叉、放量、突破区间、几根 K 线……），就是一条条件提醒——用界面命令打开提醒编辑卡 `strategyEditor: {new: true, reminder: true, ask: 用户原话}`（app_call `POST /api/app/ui/commands`，body 只写 changes），整句原话原样交给它（价格条件也在里面），回执 applied 就算办完——卡会自己按原话填条件，不要读窗口等它填完，直接告诉用户“编辑卡已打开，填好后核对再点开始提醒”；不要另外拆出一条到价提醒，也不要说“到价提醒做不到、得写成策略”。卡里只有条件和提醒时段，开始提醒由用户在卡上点；它存成 `plan.reminderOnly` 的策略，只能“只提醒”（confirm / auto 回 409 strategy_reminder_only），列在“我的提醒”，不在我的策略。用户说“只响一次 / 每根 K 线都提醒 / 今天收盘前有效 / 整张自选表都盯着”时用 `strategyEditor: {choose: {repeat, until, watchlist}}` 点选（不经 AI 设计），开始仍由用户点。条件提醒随策略功能开放（档位没开“策略管理与监控”时如实说）。
 
 ## 何时用
 

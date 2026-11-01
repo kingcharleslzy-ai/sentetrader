@@ -24,7 +24,6 @@ def step_action(tool: str, arguments: dict[str, Any], payload: dict[str, Any]) -
     object ({success, data, …}); the caller passes only calls that succeeded."""
     data = payload.get("data")
     result: dict[str, Any] = data if isinstance(data, dict) else {}
-    request: dict[str, Any] = {}
     if tool in TOOL_OPERATIONS:
         # The agent's own tool (what the model actually picks, 2026-11-01 live check) calls its declared route and
         # hands the JSON back as the result's `data`; app_call wraps it once more ({ok, data}).
@@ -36,8 +35,7 @@ def step_action(tool: str, arguments: dict[str, Any], payload: dict[str, Any]) -
             return None
         if not isinstance(parsed, dict) or not result.get("ok"):
             return None
-        request = parsed
-        operation = str(request.get("operation") or "")
+        operation = str(parsed.get("operation") or "")
         body = result["data"] if isinstance(result.get("data"), dict) else {}
     else:
         return None
@@ -56,7 +54,8 @@ def step_action(tool: str, arguments: dict[str, Any], payload: dict[str, Any]) -
         what = f"存了提醒「{body.get('name') or ''}」（还没开始提醒）" if reminder else f"存了策略草稿「{body.get('name') or ''}」（没上线）"
         return {"text": what, "undo": {"method": "DELETE", "path": f"/api/strategy-plans/{body['strategyId']}"}}
     if operation == UI_COMMAND_OPERATION:
-        changes = (request.get("body") or {}).get("changes") if isinstance(request.get("body"), dict) else None
+        # The receipt echoes the command as sent: the Runtime may have wrapped the model's fields into `changes`.
+        changes = body.get("changes")
         if isinstance(changes, dict) and changes:
             # Moving the screen is undone by moving it back: listed, no undo.
             return {"text": "；".join(describe_ui_change({key: value}) for key, value in changes.items()), "undo": None}

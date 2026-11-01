@@ -2818,7 +2818,7 @@ class NativeAgentAdapter:
         if turn.ui_fallback:
             request["instructions"] += ("\n本轮仅处理界面请求。用正式界面工具执行，每条命令只改一个字段；"
                 "一句话要改几处（例如打开持仓面板、切到成交页签、只看 AI 下的）就把这几条命令按顺序在同一轮依次发出，"
-                "windowId 与 revision 用本轮消息里给的，不必先读窗口（版本对不上时 Runtime 会按最新版本重发一次）。"
+                "每条只写 changes，windowId、revision 由 Runtime 补，不必先读窗口（版本对不上时 Runtime 会按最新版本重发一次）。"
                 "applied只证明该步骤，继续处理其余步骤，不能把首个回执当整句完成。"
                 "最终只汇总实际生效步骤，不能声称已完成。"
                 "这句话不是界面操作（提问、分析、出卡）或要先问清目标时，不发界面命令，直接用文字结束本轮，"

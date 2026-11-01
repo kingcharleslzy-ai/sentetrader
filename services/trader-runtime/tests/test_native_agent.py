@@ -2702,7 +2702,7 @@ async def test_a_card_answer_with_an_interface_tail_keeps_the_full_toolbox(
 ESCALATED_ANSWERS = {"no_tool": "账户风险度不高，主要敞口在沪金。", "clarify": "你说的清单是持仓清单还是委托清单？"}
 
 
-@pytest.mark.parametrize("case", ["no_tool", "clarify", "positions", "two_steps", "second_rejected", "pending", "highlight", "malformed_app", "invalid_highlight", "overclaim", "empty_final", "three_applied", "schema_body", "second_pending", "pending_card", "blocked_business", "stale_retry"])
+@pytest.mark.parametrize("case", ["no_tool", "clarify", "positions", "two_steps", "second_rejected", "pending", "highlight", "malformed_app", "invalid_highlight", "overclaim", "empty_final", "three_applied", "schema_body", "second_pending", "pending_card", "blocked_business", "stale_retry", "bare_changes"])
 async def test_ui_owner_uses_real_step_receipts_without_retrying_unknown_writes(
     native_client: AsyncClient, native_application: FastAPI, responses_server: FakeResponsesServer,
     monkeypatch, case: str,
@@ -2766,6 +2766,15 @@ async def test_ui_owner_uses_real_step_receipts_without_retrying_unknown_writes(
             assert data["ok"] is True and data["data"]["status"] == "applied"
             assert data["revisionRetry"]["from"] == 7 and data["revisionRetry"]["to"] == 0
             return responses_server._text_stream("持仓清单打开了。")
+        if case == "bare_changes":
+            # 2026-11-02: the model writes only the field; the Runtime adds commandId, the turn's window,
+            # its revision and waitMs, and wraps the field into `changes` — applied on the first send.
+            if not outputs:
+                return responses_server._tool_stream([("app_call", {"requestJson": json.dumps({
+                    "operation": "POST /api/app/ui/commands", "body": wanted[0]})})])
+            data = outputs[0]["payload"]["data"]
+            assert data["ok"] is True and data["data"]["status"] == "applied" and "revisionRetry" not in data
+            return responses_server._text_stream("持仓清单打开了。")
         if case == "blocked_business" and not outputs:
             return responses_server._tool_stream([
                 ("app_call", {"requestJson": json.dumps({"operation": "POST /api/ai-execution/start",
@@ -2792,6 +2801,7 @@ async def test_ui_owner_uses_real_step_receipts_without_retrying_unknown_writes(
         if case == "schema_body" and len(outputs) == 1:
             data = outputs[0]["payload"]["data"]
             assert data["status"] == 422 and data["uiCommandAttempted"] is False and commands == []
+            assert "changes：缺少" in data["hint"] and "commands：不认识这个字段" in data["hint"]
         corrected = case in {"malformed_app", "invalid_highlight", "schema_body"}
         step = len(outputs) - int(corrected) - (7 if case == "blocked_business" else 0)
         if case == "no_tool" or step >= len(wanted):
@@ -2899,7 +2909,7 @@ async def test_ui_owner_uses_real_step_receipts_without_retrying_unknown_writes(
         else:
             assert commands == wanted
             assert pulse["state"]["panel"] == "positions"
-        if case == "stale_retry":
+        if case in {"stale_retry", "bare_changes"}:
             assert answer == "已改好：打开持仓面板。"
         if case == "two_steps":
             assert pulse["state"]["positionsTab"] == "orders"
