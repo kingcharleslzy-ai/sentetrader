@@ -10,13 +10,9 @@ from typing import Any
 
 from .chart_drawings import KIND_WORDS
 from .price_alerts import alert_line
+from .trader_tools import TOOL_OPERATIONS
 from .ui_control import UI_COMMAND_OPERATION, describe_ui_change
 
-# The agent's own tools for these (what the model actually picks, 2026-11-01 live check) call the same route and
-# hand its JSON back as the result's `data`; app_call wraps it once more ({ok, data}).
-DEDICATED_TOOLS = {"create_price_alert": "POST /api/market/alerts", "create_chart_drawing": "POST /api/market/drawings",
-                   "create_strategy_draft": "POST /api/strategy-plans",
-                   "create_strategy_from_template": "POST /api/strategy-templates/{template_id}/instantiate"}
 # A strategy or 条件提醒 the AI saves is a draft (it never starts one): taken back through 我的策略's own delete, which
 # refuses while it monitors or has orders / positions — the refusal shows beside 撤销.
 STRATEGY_SAVES = {"POST /api/strategy-plans", "POST /api/strategy-templates/{template_id}/instantiate"}
@@ -29,8 +25,10 @@ def step_action(tool: str, arguments: dict[str, Any], payload: dict[str, Any]) -
     data = payload.get("data")
     result: dict[str, Any] = data if isinstance(data, dict) else {}
     request: dict[str, Any] = {}
-    if tool in DEDICATED_TOOLS:
-        operation, body = DEDICATED_TOOLS[tool], result
+    if tool in TOOL_OPERATIONS:
+        # The agent's own tool (what the model actually picks, 2026-11-01 live check) calls its declared route and
+        # hands the JSON back as the result's `data`; app_call wraps it once more ({ok, data}).
+        operation, body = TOOL_OPERATIONS[tool], result
     elif tool == "app_call":
         try:
             parsed = json.loads(arguments.get("requestJson") or "{}")
@@ -76,3 +74,4 @@ assert (step_action("create_price_alert", {"symbol": "螺纹", "price": 3036},
                     ) or {}).get("undo") == {"method": "DELETE", "path": "/api/market/alerts/a1"}
 assert step_action("create_strategy_draft", {}, {"data": {"strategyId": "s1", "name": "突破提醒", "reminderOnly": True}}) == {
     "text": "存了提醒「突破提醒」（还没开始提醒）", "undo": {"method": "DELETE", "path": "/api/strategy-plans/s1"}}
+assert step_action("delete_chart_drawing", {"drawingId": "d1"}, {"data": {"drawing": {"id": "d1"}}}) is None

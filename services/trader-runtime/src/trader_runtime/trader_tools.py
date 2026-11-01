@@ -761,6 +761,23 @@ TOOL_ARGUMENT_MODELS: dict[str, type[ToolArguments]] = {
     "start_strategy_monitoring": StrategyStartArguments,
     "pause_strategy_monitoring": StrategyIdArguments,
 }
+# The catalog route each of these tools calls — the one app_call names for the same action. Declared once: the
+# tool's handler below builds its AppCall from it, and agent_actions (AI 指令栏 "AI 做了 N 件事" / 撤销) reads it, so a
+# dedicated tool and app_call land on the same per-route wording and undo.
+TOOL_OPERATIONS: dict[str, str] = {
+    "create_price_alert": "POST /api/market/alerts",
+    "list_price_alerts": "GET /api/market/alerts",
+    "cancel_price_alert": "DELETE /api/market/alerts/{alert_id}",
+    "list_chart_drawings": "GET /api/market/drawings",
+    "create_chart_drawing": "POST /api/market/drawings",
+    "update_chart_drawing": "PUT /api/market/drawings/{drawing_id}",
+    "delete_chart_drawing": "DELETE /api/market/drawings/{drawing_id}",
+    "clear_chart_drawings": "DELETE /api/market/drawings",
+    "create_strategy_draft": "POST /api/strategy-plans",
+    "list_strategy_templates": "GET /api/strategy-templates",
+    "preview_strategy_template": "POST /api/strategy-templates/{template_id}/preview",
+    "create_strategy_from_template": "POST /api/strategy-templates/{template_id}/instantiate",
+}
 
 BOARD_ROW_VIEW_FIELDS = (
     "symbol", "exchangeId", "instrumentId", "instrumentName", "productName",
@@ -2132,12 +2149,12 @@ class TraderReadOnlyTools:
                 body["note"] = args.note
             if session_id:
                 body["sessionId"] = session_id
-            call = AppCall(operation="POST /api/market/alerts", body=body)
+            call = AppCall(operation=TOOL_OPERATIONS[tool], body=body)
         elif tool == "cancel_price_alert":
             assert isinstance(args, PriceAlertIdArguments)
-            call = AppCall(operation="DELETE /api/market/alerts/{alert_id}", path={"alert_id": args.alertId})
+            call = AppCall(operation=TOOL_OPERATIONS[tool], path={"alert_id": args.alertId})
         else:
-            call = AppCall(operation="GET /api/market/alerts")
+            call = AppCall(operation=TOOL_OPERATIONS[tool])
         result = await self.app_capabilities.call(call, user=user_id, session_id=session_id)
         if not result.get("ok"):
             detail = str((result.get("data") or {}).get("detail") or "提醒没有设置成功")
@@ -2190,24 +2207,24 @@ class TraderReadOnlyTools:
                 body["label"] = args.label
             if args.style:
                 body["style"] = args.style
-            call = AppCall(operation="POST /api/market/drawings", body=body)
+            call = AppCall(operation=TOOL_OPERATIONS[tool], body=body)
         elif tool == "update_chart_drawing":
             assert isinstance(args, ChartDrawingUpdateArguments)
             patch = {key: value for key, value in (("points", args.points), ("label", args.label), ("style", args.style))
                      if value is not None}
             if not patch:
                 return self._response(TraderToolResult(tool=tool, readOnly=False, warning="没有要改的内容：给 points、label 或 style"), False), None
-            call = AppCall(operation="PUT /api/market/drawings/{drawing_id}", path={"drawing_id": args.drawingId}, body=patch)
+            call = AppCall(operation=TOOL_OPERATIONS[tool], path={"drawing_id": args.drawingId}, body=patch)
         elif tool == "clear_chart_drawings":
             assert isinstance(args, ChartDrawingClearArguments)
-            call = AppCall(operation="DELETE /api/market/drawings", query={"symbol": await contract(args.symbol)})
+            call = AppCall(operation=TOOL_OPERATIONS[tool], query={"symbol": await contract(args.symbol)})
         elif tool == "delete_chart_drawing":
             assert isinstance(args, ChartDrawingIdArguments)
-            call = AppCall(operation="DELETE /api/market/drawings/{drawing_id}", path={"drawing_id": args.drawingId})
+            call = AppCall(operation=TOOL_OPERATIONS[tool], path={"drawing_id": args.drawingId})
         elif isinstance(args, ChartDrawingListArguments) and args.symbol:
-            call = AppCall(operation="GET /api/market/drawings", query={"symbol": args.symbol.strip()})
+            call = AppCall(operation=TOOL_OPERATIONS[tool], query={"symbol": args.symbol.strip()})
         else:
-            call = AppCall(operation="GET /api/market/drawings")
+            call = AppCall(operation=TOOL_OPERATIONS[tool])
         result = await self.app_capabilities.call(call, user=user_id, session_id=session_id)
         if not result.get("ok"):
             detail = str((result.get("data") or {}).get("detail") or "这条线没有画上")
@@ -2293,14 +2310,12 @@ class TraderReadOnlyTools:
             return self._unavailable(tool, "invalid_tool_arguments"), None
         options = args.model_dump(exclude={"templateId", "category"}, exclude_none=True)
         if tool == "create_strategy_draft":
-            call = AppCall(operation="POST /api/strategy-plans", body=options)
+            call = AppCall(operation=TOOL_OPERATIONS[tool], body=options)
         elif tool == "list_strategy_templates":
-            call = AppCall(operation="GET /api/strategy-templates")
+            call = AppCall(operation=TOOL_OPERATIONS[tool])
         else:
             template_id = str(args.templateId)  # type: ignore[attr-defined]
-            action = "preview" if tool == "preview_strategy_template" else "instantiate"
-            call = AppCall(operation=f"POST /api/strategy-templates/{{template_id}}/{action}",
-                           path={"template_id": template_id}, body=options)
+            call = AppCall(operation=TOOL_OPERATIONS[tool], path={"template_id": template_id}, body=options)
         result = await self.app_capabilities.call(call, user=user_id, session_id=session_id)
         writes = tool in {"create_strategy_from_template", "create_strategy_draft"}
         if not result.get("ok"):
