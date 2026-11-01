@@ -1085,7 +1085,7 @@ test("网页新版本：手机下单页打开时不自动刷新、提示条在�
     expect(build.reload).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "关闭下单" }));
-    fireEvent.click(tabButton("我的"));
+    fireEvent.click(tabButton("今天")); fireEvent.click(screen.getByRole("button", { name: "我的" }));
     const version = screen.getByTestId("mobile-me-version");
     expect(version).toHaveTextContent(`版本 ${CLIENT_BUILD.version} · f8f50e5`);
     fireEvent.click(within(version).getByRole("button", { name: "检查更新" }));
@@ -2757,7 +2757,7 @@ const phoneTurns = [
     volume: 1, price: "823", status: "filled", statusLabel: "已成交", updatedAt: "2026-10-04T01:58:00Z" } }] },
 ];
 
-test("手机版：窄屏触屏进入手机布局（底部五个标签、按住说话、没有右侧工具栏）；电脑与回放保持电脑布局（游客见 GuestEntry.test）", () => {
+test("手机版：窄屏触屏进入手机布局（底部四个标签夹着说话键、我的在头像里、没有右侧工具栏）；电脑与回放保持电脑布局（游客见 GuestEntry.test）", () => {
   stubPhone(false);
   const desktop = render(<FuturesDecisionWorkspace {...props() as any} />);
   expect(screen.getByTestId("futures-decision-workspace")).toBeInTheDocument();
@@ -2775,13 +2775,17 @@ test("手机版：窄屏触屏进入手机布局（底部五个标签、按住�
   expect(screen.queryByTestId("futures-decision-workspace")).toBeNull();
   expect(screen.queryByLabelText("K 线图")).toBeNull();
   const nav = screen.getByRole("navigation", { name: "主导航" });
-  expect(within(nav).getAllByRole("button").map(button => button.textContent)).toEqual(["AI", "调研", "看盘", "策略", "我的"]);
-  expect(within(nav).getByRole("button", { name: "AI" })).toHaveAttribute("aria-current", "page");
-  expect(screen.getByText("AI", { selector: ".fdm-head > strong" })).toBeVisible();
+  expect(within(nav).getAllByRole("button").map(button => button.getAttribute("aria-label") ?? button.textContent)).toEqual(["今天", "调研", "按住说话，点一下打字", "看盘", "策略"]);
+  expect(within(nav).getByRole("button", { name: "今天" })).toHaveAttribute("aria-current", "page");
+  expect(screen.getByText("今天", { selector: ".fdm-head > strong" })).toBeVisible();
   expect(screen.getByRole("button", { name: /^看盘：沪金2612 824/ })).toBeVisible();
   expect(screen.getByRole("button", { name: "看提醒" })).toBeVisible();
-  expect(screen.getByRole("button", { name: "打字问 AI" })).toBeVisible();
-  expect(screen.getByRole("button", { name: "按住说话，松开发送" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "AI 对话" })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "我的" }));
+  expect(screen.getByTestId("mobile-me")).toBeVisible();
+  expect(within(nav).getByRole("button", { name: "今天" })).toHaveAttribute("aria-current", "page");
+  fireEvent.click(screen.getByRole("button", { name: "返回今天" }));
+  expect(screen.getByText("今天", { selector: ".fdm-head > strong" })).toBeVisible();
 });
 
 test("手机版标签与界面命令 mobileTab：对话即 panel: ai，侧边面板与视图命令被拒绝，快照上报 mobileLayout / mobileTab", () => {
@@ -2798,10 +2802,10 @@ test("手机版标签与界面命令 mobileTab：对话即 panel: ai，侧边面
     expect(state()).toMatchObject({ mobileTab: "research" });
     apply({ mobileTab: "chat" });
     expect(screen.getByRole("region", { name: "AI 对话" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "按住说话，松开发送" })).toBeVisible();
-    expect(within(nav()).getByRole("button", { name: "AI" })).toHaveAttribute("aria-current", "page");
+    expect(within(nav()).getByRole("button", { name: "按住说话，点一下打字" })).toBeVisible();
+    expect(within(nav()).getByRole("button", { name: "今天" })).toHaveAttribute("aria-current", "page");
     expect(state()).toMatchObject({ mobileTab: "chat", panel: "ai" });
-    fireEvent.click(screen.getByRole("button", { name: "返回 AI 首页" }));
+    fireEvent.click(screen.getByRole("button", { name: "返回今天" }));
     expect(state()).toMatchObject({ mobileTab: "ai", panel: null });
     apply({ panel: "ai" });
     expect(state()).toMatchObject({ mobileTab: "chat" });
@@ -2935,7 +2939,7 @@ const deskReport = {
 };
 const tabButton = (name: string) => within(screen.getByRole("navigation", { name: "主导航" })).getByRole("button", { name: new RegExp(`^${name}`) });
 
-test("手机版调研：调研台手机版——立场与可能过时、4 格关键数据、两栏上下排、新闻面一行，其余折叠；相关快讯竖排；自选品种切换合约，就这份判断问 AI", async () => {
+test("手机版调研：调研台手机版——立场与可能过时、4 格关键数据、两栏上下排、新闻面一行，其余折叠；相关快讯竖排；自选品种切换合约，就这份判断问 AI（留在调研页）", async () => {
   stubPhone(true);
   const ai = { event: "价格", direction: "偏多", strength: "中", reason: "避险买盘推高金价", transmission: "避险买盘直接推高沪金", product: "au" };
   const report = (id: string, source: string, text: string, extra: Record<string, unknown> = {}) =>
@@ -3022,7 +3026,9 @@ test("手机版调研：调研台手机版——立场与可能过时、4 格关
   fireEvent.click(within(chips).getByRole("button", { name: "螺纹钢" }));
   expect(values.onSelectSymbol).toHaveBeenCalledWith("SHFE.rb2610");
   fireEvent.click(within(page()).getByRole("button", { name: "就这份判断问 AI" }));
-  expect(screen.getByRole("region", { name: "AI 对话" })).toBeVisible();
+  // 方案 B: the question goes out from the page; the 回执条's result shows above the bar, the chat page stays shut.
+  expect(screen.getByRole("region", { name: "AI 指令结果" })).toBeVisible();
+  expect(screen.queryByRole("region", { name: "AI 对话" })).toBeNull();
   await waitFor(() => expect(values.onPrompt).toHaveBeenCalled());
   expect((values.onPrompt.mock.calls[0] as unknown[])[0]).toContain("沪金今天这份判断（库存回落）");
 });
@@ -3114,7 +3120,7 @@ test("手机版策略编辑卡：strategyEditor 命令在手机布局打开整�
   try {
     apply({ strategyEditor: { new: true } });
     expect(await screen.findByTestId("mobile-strategy-editor")).toBeVisible();
-    expect(document.querySelector("nav.fdm-tabs")).toHaveAttribute("hidden");
+    expect(document.querySelector("footer.fdm-foot")).toHaveAttribute("hidden");
     // 线上验收 (2026-10-08): while the trades load, `new` is not applied yet — the state is still about to change, and
     // a command sent on an early receipt was refused as stale. Once loaded, the next command lands at once.
     await waitFor(() => expect(state()).toMatchObject({ strategyEditor: { open: true, loading: "正在读你的成交…" } }));
@@ -3295,7 +3301,7 @@ test("手机版提醒（统一提醒 #932）：AI 标签与铃铛带服务端的
   const apply = (changes: Record<string, unknown>) => act(() => { control.mock.calls.at(-1)?.[3](changes as any); });
   const home = () => screen.getByTestId("mobile-feed");
   try {
-    await waitFor(() => expect(tabButton("AI")).toHaveAccessibleName("AI（2 条未读）"));
+    await waitFor(() => expect(tabButton("今天")).toHaveAccessibleName("今天（2 条未读）"));
     expect(screen.getByTestId("notify-dot")).toHaveTextContent("2");
     expect(state()).toMatchObject({ mobileUnread: 2, reminderCenter: { open: false, filter: "all", unread: 2, today: 2 } });
     await waitFor(() => expect(vi.mocked(fetch).mock.calls.filter(([input]) => String(input instanceof Request ? input.url : input).includes("before=more")).length).toBe(9));
@@ -3309,9 +3315,9 @@ test("手机版提醒（统一提醒 #932）：AI 标签与铃铛带服务端的
     fireEvent.click(within(within(home()).getByRole("region", { name: "最新提醒" })).getByRole("button", { name: /^到价 沪金2612/ }));
     expect(screen.getByRole("region", { name: "AI 对话" })).toBeVisible();
     await waitFor(() => expect(posts).toEqual([{ ids: ["a"] }]));
-    await waitFor(() => expect(tabButton("AI")).toHaveAccessibleName("AI（1 条未读）"));
+    await waitFor(() => expect(tabButton("今天")).toHaveAccessibleName("今天（1 条未读）"));
     // The bell: the full-screen 提醒 page; 全部已读 there clears the badge everywhere.
-    fireEvent.click(tabButton("AI"));
+    fireEvent.click(tabButton("今天"));
     fireEvent.click(screen.getByRole("button", { name: "看提醒（1 条未读）" }));
     const page = screen.getByTestId("mobile-reminders");
     expect(state()).toMatchObject({ mobilePage: "reminders", reminderCenter: { open: true } });
@@ -3364,11 +3370,11 @@ test("手机版 AI 首页按订阅品种：今日判断胶囊与简报品种胶�
     expect(within(screen.getByTestId("mobile-feed")).queryByTestId("research-judgment-card")).toBeNull();
     fireEvent.click(tabButton("调研"));
     expect(await within(screen.getByTestId("mobile-research")).findByText(/金价偏强/)).toBeVisible();
-    fireEvent.click(tabButton("AI"));
+    fireEvent.click(tabButton("今天"));
     fireEvent.click(screen.getByRole("button", { name: "螺纹钢 今日判断" }));
     expect(values.onSelectSymbol).toHaveBeenLastCalledWith("SHFE.rb2601");
     expect(screen.getByTestId("mobile-research")).toBeVisible();
-    fireEvent.click(tabButton("AI"));
+    fireEvent.click(tabButton("今天"));
     const page = screen.getByTestId("mobile-feed");
     fireEvent.click(within(page).getByRole("button", { name: "AI 简报" }));
     const chips = within(page).getByRole("group", { name: "简报品种" });
@@ -3444,7 +3450,7 @@ test("手机版我的：各子页进入与返回，mobilePage 命令与快照、
   const help = vi.fn();
   window.addEventListener("ai-trader-help", help);
   try {
-    fireEvent.click(tabButton("我的"));
+    fireEvent.click(tabButton("今天")); fireEvent.click(screen.getByRole("button", { name: "我的" }));
     const page = screen.getByTestId("mobile-me");
     expect(page).toHaveTextContent("快期模拟账户 · 权益 1,026,580");
     expect(page).toHaveTextContent("回放和画线请在电脑上使用。");

@@ -4,6 +4,7 @@ import { usePushToTalk } from "../futures/PushToTalk";
 import { PTT_NOTICE_MS, pushToTalkStore } from "../../pushToTalk";
 import { resetShortcutStore } from "../../shortcuts";
 import { FakeWebSocket, installPttFakes, removePttFakes, speak } from "../../../tests/support/pttFakes";
+import { useAiCommand } from "../futures/useAiCommand";
 import { HoldToTalk, HoldToTalkLive, PTT_SLID_AWAY, PTT_TOO_SHORT } from "./HoldToTalk";
 import { MobileWorkspace, type MobileTab } from "./MobileWorkspace";
 
@@ -129,22 +130,22 @@ test("不能按住说话时（通话中）不录音并说明原因；麦克风�
   expect(onSend).not.toHaveBeenCalled();
 });
 
-function PhoneHarness({ onSend }: { onSend: (text: string) => void }) {
+function PhoneHarness({ onSend }: { onSend: (text: string, spoken?: boolean) => void }) {
   const [tab, setTab] = useState<MobileTab>("ai");
-  // As in the workspace: a sent hold opens the chat page, whose composer carries the round button.
-  const ptt = usePushToTalk({ baseUrl: "http://runtime", blockedReason: "", sendOnRelease: true, onSend: text => { setTab("chat"); onSend(text); }, onFill: vi.fn() });
+  const ptt = usePushToTalk({ baseUrl: "http://runtime", blockedReason: "", sendOnRelease: true, onSend: vi.fn(), onFill: vi.fn() });
+  // As in the workspace (方案 B): the bar's key sends from the page on screen through the AI 指令栏's result.
+  const command = useAiCommand({ baseUrl: "http://runtime", turns: [], busy: false, blockedReason: null, onSend: async (text, spoken) => onSend(text, spoken) });
   return <MobileWorkspace tab={tab} onTab={setTab} onOpenChat={() => setTab("chat")} onBell={vi.fn()} quote={undefined} decimals={0} feed={null} ptt={ptt} unread={0}
-    chat={hold => <section className="fdw-ai open fdm-chat"><form className="fdw-ai-composer"><input aria-label="向 AI 决策流提问" />{hold}</form></section>}
-    pages={{ research: null, market: null, strategy: null, me: null }} />;
+    command={command} context="今天" chat={<section className="fdm-chat">对话</section>} pages={{ research: null, market: null, strategy: null, me: null }} />;
 }
 
-test("连续四轮按住（第一轮在 AI 首页，之后在对话页）：每轮都有声波和随识别更新的实时文字", async () => {
+const key = () => screen.getByRole("button", { name: "按住说话，点一下打字" });
+
+test("中间的说话键连按四轮：留在今天页不跳对话，每轮都有声波、按哪一页理解和随识别更新的实时文字", async () => {
   const onSend = vi.fn();
   const { container } = render(<PhoneHarness onSend={onSend} />);
   for (const round of [1, 2, 3, 4]) {
-    const hold = screen.getByRole("button", { name: "按住说话，松开发送" });
-    expect(container.querySelector(".fdm-body")).toHaveAttribute("data-mobile-tab", round === 1 ? "ai" : "chat");
-    fireEvent.pointerDown(hold, { button: 0, pointerId: 1, clientY: 700 });
+    fireEvent.pointerDown(key(), { button: 0, pointerId: 1, clientY: 700 });
     await flush();
     const socket = FakeWebSocket.latest!;
     act(() => { socket.open(); speak(); });
@@ -152,44 +153,58 @@ test("连续四轮按住（第一轮在 AI 首页，之后在对话页）：每�
     expect(live()).not.toBeNull();
     expect(live()!.closest("[hidden]")).toBeNull();
     expect(live()!.querySelector(".fdm-wave")!.children).toHaveLength(16);
-    act(() => socket.receive({ type: "partial", text: `第${round}轮` }));
-    expect(live()).toHaveTextContent(`第${round}轮正在听… 松开发送，上滑取消`);
+    expect(live()).toHaveTextContent("按 今天 理解");
     act(() => socket.receive({ type: "partial", text: `第${round}轮螺纹` }));
     expect(live()!.querySelector(".fdm-live-text")).toHaveTextContent(`第${round}轮螺纹`);
     advance(600);
-    fireEvent.pointerUp(hold, { pointerId: 1, clientY: 700 });
+    fireEvent.pointerUp(key(), { pointerId: 1, clientY: 700 });
     advance(200);
     act(() => socket.receive({ type: "final", text: `第${round}轮螺纹怎么样` }));
     expect(live()).toBeNull();
+    expect(container.querySelector(".fdm-body")).toHaveAttribute("data-mobile-tab", "ai");
   }
-  expect(onSend.mock.calls.map(([text]) => text)).toEqual([1, 2, 3, 4].map(round => `第${round}轮螺纹怎么样`));
+  expect(onSend.mock.calls).toEqual([1, 2, 3, 4].map(round => [`第${round}轮螺纹怎么样`, true]));
+  // What came back shows above the bar; the open result names the line sent.
+  expect(screen.getByRole("region", { name: "AI 指令结果" })).toHaveTextContent("第4轮螺纹怎么样");
 });
 
-test("AI 首页：点“打字问 AI”进对话页且输入框获得焦点", () => {
-  const { container } = render(<PhoneHarness onSend={vi.fn()} />);
-  const body = () => container.querySelector(".fdm-body");
-  expect(body()).toHaveAttribute("data-mobile-tab", "ai");
-  fireEvent.click(screen.getByRole("button", { name: "打字问 AI" }));
-  expect(body()).toHaveAttribute("data-mobile-tab", "chat");
-  expect(screen.getByRole("textbox", { name: "向 AI 决策流提问" })).toHaveFocus();
-});
-
-test("AI 首页的提示点一下立即消失，不点 3 秒后也消失", async () => {
-  const { container } = render(<PhoneHarness onSend={vi.fn()} />);
-  const notice = () => container.querySelector(".fdm-talk-notice");
-  const hold = () => screen.getByRole("button", { name: "按住说话，松开发送" });
-  fireEvent.pointerDown(hold(), { button: 0, pointerId: 1, clientY: 700 });
+test("点一下说话键：弹出打字框（写着按哪一页理解）且输入框获得焦点，发送后收起、不跳页", async () => {
+  const onSend = vi.fn();
+  const { container } = render(<PhoneHarness onSend={onSend} />);
+  fireEvent.pointerDown(key(), { button: 0, pointerId: 1, clientY: 700 });
   await flush();
   advance(120);
-  fireEvent.pointerUp(hold(), { pointerId: 1, clientY: 700 });
-  expect(notice()).toHaveTextContent(PTT_TOO_SHORT);
+  fireEvent.pointerUp(key(), { pointerId: 1, clientY: 700 });
+  expect(pushToTalkStore.snapshot().state).toBe("idle");
+  expect(container.querySelector(".fdm-talk-notice")).toBeNull();
+  const input = screen.getByRole("textbox", { name: "按 今天 理解" });
+  expect(input).toHaveFocus();
+  fireEvent.change(input, { target: { value: "螺纹今天怎么看" } });
+  fireEvent.click(screen.getByRole("button", { name: "发送" }));
+  expect(onSend).toHaveBeenCalledWith("螺纹今天怎么看", false);
+  expect(screen.queryByRole("textbox", { name: "按 今天 理解" })).toBeNull();
+  expect(container.querySelector(".fdm-body")).toHaveAttribute("data-mobile-tab", "ai");
+  // The result collapses to the 回执条; a tap on it opens the result again.
+  fireEvent.click(screen.getByRole("button", { name: "收起 AI 指令结果" }));
+  fireEvent.click(screen.getByRole("button", { name: /^AI 指令结果：/ }));
+  expect(screen.getByRole("region", { name: "AI 指令结果" })).toBeVisible();
+});
+
+test("上滑取消的提示点一下立即消失，不点 3 秒后也消失", async () => {
+  const { container } = render(<PhoneHarness onSend={vi.fn()} />);
+  const notice = () => container.querySelector(".fdm-talk-notice");
+  fireEvent.pointerDown(key(), { button: 0, pointerId: 1, clientY: 700 });
+  await flush();
+  fireEvent.pointerMove(key(), { pointerId: 1, clientY: 600 });
+  fireEvent.pointerUp(key(), { pointerId: 1, clientY: 600 });
+  expect(notice()).toHaveTextContent(PTT_SLID_AWAY);
   fireEvent.click(notice()!);
   expect(notice()).toBeNull();
 
-  fireEvent.pointerDown(hold(), { button: 0, pointerId: 1, clientY: 700 });
+  fireEvent.pointerDown(key(), { button: 0, pointerId: 1, clientY: 700 });
   await flush();
-  fireEvent.pointerMove(hold(), { pointerId: 1, clientY: 600 });
-  fireEvent.pointerUp(hold(), { pointerId: 1, clientY: 600 });
+  fireEvent.pointerMove(key(), { pointerId: 1, clientY: 600 });
+  fireEvent.pointerUp(key(), { pointerId: 1, clientY: 600 });
   expect(notice()).toHaveTextContent(PTT_SLID_AWAY);
   advance(PTT_NOTICE_MS);
   expect(notice()).toBeNull();

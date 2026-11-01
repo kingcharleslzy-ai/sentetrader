@@ -61,7 +61,7 @@
     "history": {"label": "提醒记录"}
   },
   "mobileTabs": {
-    "ai": {"guest": true, "words": "AI动态|动态|AI首页"},
+    "ai": {"guest": true, "words": "今天|AI动态|动态|AI首页"},
     "chat": {},
     "research": {"guest": true, "words": "调研|调研台"},
     "market": {"guest": true, "words": "看盘"},
@@ -132,7 +132,7 @@
     "review-how": {"desc": "今日复盘 (2026-10-06): the block's 怎么算的 fold (the tag rule in the owner's words)."},
     "habits-how": {"desc": "习惯对照 (2026-10-25): the block's 怎么算的 fold (how 只做计划内 and the two holding estimates are computed)."},
     "chat-history": {"desc": "The AI dock's 历史对话 list (open = the list is shown; `chatHistory` in the state carries it)."},
-    "ai-command-result": {"desc": "AI 指令栏 (改版第二步 2026-11-01): the header bar's result drop-down — what the AI did for the last line sent there (each action with 撤销 where it can be undone) and the answer's first lines; available once a line was sent from the bar in this window."},
+    "ai-command-result": {"desc": "AI 指令栏 (改版第二步 2026-11-01): the header bar's result drop-down — what the AI did for the last line sent there (each action with 撤销 where it can be undone) and the answer's first lines; available once a line was sent from the bar in this window. On the phone (方案 B 2026-11-01) the same result opens from the 回执条 above the bottom bar (closed = the one-line 回执条), for lines sent from the 按住说话 key or its typing."},
     "activity-clear": {"desc": "AI 动态卡 “清空显示”: open = hide the finished records (state true = nothing left to clear)."},
     "strategy-guide": {"desc": "策略面板: a 运行中 card's 运行日志 (per strategy, `id` = its id). strategy-new opens the 策略编辑卡 on a new strategy (open) or closes it (= strategyEditor {new} / {close}). strategy-guide (the AI 引导 设计卡) was retired 2026-10-08 with the guided design: the value stays accepted for older agents, the client rejects it."},
     "strategy-new": {},

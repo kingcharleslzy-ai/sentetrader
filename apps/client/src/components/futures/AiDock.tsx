@@ -60,7 +60,7 @@ interface Props {
   symbolName?: string;
   /** 手机版 (2026-10-04): the page form — a back arrow to AI 首页 instead of 收起, the account in the
    *  head, and the big hold-to-talk button in the composer (the send button replaces it while typing). */
-  mobile?: { onBack: () => void; accountLabel?: string; holdButton: ReactNode };
+  mobile?: { onBack: () => void; accountLabel?: string; holdButton?: ReactNode };
 }
 
 /** One chip of the 快捷技能栏: the pinned skill's label, the fixed prompt it
@@ -147,7 +147,7 @@ export function AiDock({ workspace, chat, focus, appWorkbench, call, voiceUnavai
     <section className={`fdw-ai open${mobile ? " fdm-chat" : ""}`} aria-label="AI 对话" data-agent-target="panel:ai">
       {mobile ? (
         <header>
-          <button type="button" className="fdm-back" aria-label="返回 AI 首页" onClick={mobile.onBack}><ChevronLeft /></button>
+          <button type="button" className="fdm-back" aria-label="返回今天" onClick={mobile.onBack}><ChevronLeft /></button>
           <span className="fdm-chat-title"><strong>AI 交易助理</strong>{mobile.accountLabel ? <small>{mobile.accountLabel}</small> : null}</span>
           {workspace.onChangeChat ? <div className="fdw-ai-head-actions">
             <button type="button" aria-label="新对话" title="新对话" disabled={chatBlocked || workspace.connection !== "connected"} onClick={() => void selectChat()}><Plus /></button>
@@ -217,7 +217,7 @@ export function AiDock({ workspace, chat, focus, appWorkbench, call, voiceUnavai
         {(promptError || promptSaveError) && <small role="alert">{promptError || "草稿暂未保存，请勿关闭页面"}</small>}
         {ptt?.status.notice && ptt.status.state === "idle" ? <small role="status" className="fdw-ptt-notice" title="点一下关闭" onClick={() => pushToTalkStore.dismiss()}>{ptt.status.notice}</small> : null}
         {ptt && ptt.status.state !== "idle" && !mobile ? <PttLive status={ptt.status} /> : composerInput}
-        {mobile ? prompt.trim() ? sendButton : mobile.holdButton : <>{ptt ? <PttButton ptt={ptt} /> : null}{sendButton}</>}
+        {mobile ? prompt.trim() || !mobile.holdButton ? sendButton : mobile.holdButton : <>{ptt ? <PttButton ptt={ptt} /> : null}{sendButton}</>}
       </form>
     </section>
   );

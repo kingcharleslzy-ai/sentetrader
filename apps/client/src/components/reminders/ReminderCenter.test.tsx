@@ -98,7 +98,7 @@ it("未读 shows only the unread rows; with none left it says so and offers the 
 it("the phone page is the same list full screen; 最新提醒 shows today's two newest and 全部 opens the page", () => {
   render(<Center mobile />);
   const page = screen.getByRole("region", { name: "提醒" });
-  expect(within(page).getByRole("button", { name: "返回 AI 首页" })).toBeVisible();
+  expect(within(page).getByRole("button", { name: "返回今天" })).toBeVisible();
   expect(within(page).getByRole("tab", { name: "通用提醒" })).toBeVisible();
   expect(within(page).getByRole("radiogroup", { name: "显示" })).toBeVisible();
   const onAll = vi.fn();

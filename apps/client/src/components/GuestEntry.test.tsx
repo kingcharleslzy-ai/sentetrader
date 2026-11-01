@@ -365,17 +365,17 @@ function phone() {
     judgment:{status:"signin_required"} })) : shared(input, init));
 }
 const closeLogin = () => { expect(screen.getByRole("dialog",{name:"登录"})).toBeVisible(); fireEvent.click(screen.getByText("取消登录")); };
-it("手机竖屏的游客进入手机布局：默认看盘、没有按住说话；AI / 策略 / 我的是登录后使用页；下单、设提醒、问 AI 打开登录框",async()=>{
+it("手机竖屏的游客进入手机布局：默认看盘、底部四个标签没有说话键；今天 / 策略是登录后使用页；下单、设提醒、问 AI 打开登录框",async()=>{
   phone(); await enter();
   expect(screen.queryByRole("navigation",{name:"主要工作区"})).toBeNull();
   const nav=screen.getByRole("navigation",{name:"主导航"});
-  expect(within(nav).getAllByRole("button").map(button=>button.textContent)).toEqual(["AI","调研","看盘","策略","我的"]);
+  expect(within(nav).getAllByRole("button").map(button=>button.textContent)).toEqual(["今天","调研","看盘","策略"]);
   expect(within(nav).getByRole("button",{name:"看盘"})).toHaveAttribute("aria-current","page");
   expect(screen.getByTestId("mobile-market")).toHaveTextContent("螺纹2610");
   expect(screen.queryByText(/快期账户/)).toBeNull();
   for(const name of ["下单","设提醒","问 AI 这根K线"]) { fireEvent.click(screen.getByRole("button",{name})); closeLogin(); }
   expect(screen.queryByRole("dialog",{name:"下单"})).toBeNull();
-  for(const [tab,title] of [["AI","AI"],["策略","策略"],["我的","我的"]]) {
+  for(const [tab,title] of [["今天","今天"],["策略","策略"]]) {
     fireEvent.click(within(nav).getByRole("button",{name:tab}));
     const page=screen.getByTestId("mobile-signin");
     expect(page).toHaveAccessibleName(title);

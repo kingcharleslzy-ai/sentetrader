@@ -1,4 +1,4 @@
-import { ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { ReactNode } from "react";
 import { CLIENT_BUILD, shortCommit } from "../../clientBuild";
 import { useWebUpdateCheck } from "../WebUpdate";
@@ -16,10 +16,10 @@ function Row({ label, value, onOpen }: { label: string; value?: ReactNode; onOpe
  * 锁屏提醒 on the web, AI 简报推送) and 设置 (添加到手机桌面 on the web, 外观与字号, AI 与记忆, 帮助). Each row opens the
  * existing panel or settings page in its phone form (AI 简报推送 its own page: the switch and the subscribed
  * products). The foot names this build and, on the web, offers
- * 检查更新 (a newer deployed build reloads the page).
+ * 检查更新 (a newer deployed build reloads the page). 方案 B (2026-11-01): opened from the avatar on 今天, back returns there.
  */
 export function MobileMe({ userName, accountLabel, equity, positionCount, todayPnl, alertCount, appearance, onOpenPage, onOpenAlerts,
-  notify, onOpenReminderSettings, installed, pushValue }: {
+  notify, onOpenReminderSettings, installed, pushValue, onBack }: {
   userName: string;
   accountLabel: string;
   equity: string;
@@ -42,10 +42,13 @@ export function MobileMe({ userName, accountLabel, equity, positionCount, todayP
   installed?: boolean;
   /** 锁屏提醒 (web only, 2026-10-06): 已开 / 未开 / 先装到桌面 / 不支持. */
   pushValue?: string;
+  /** Back to 今天. */
+  onBack?: () => void;
 }) {
   const update = useWebUpdateCheck();
   return (
     <section className="fdm-page fdm-me" aria-label="我的" data-testid="mobile-me" data-agent-target="mobile-me">
+      {onBack ? <header className="fdm-head"><button type="button" className="fdm-back" aria-label="返回今天" onClick={onBack}><ChevronLeft /></button><strong>我的</strong></header> : null}
       <main className="fdm-content">
         <header className="fdm-me-profile">
           <span className="fdm-avatar" aria-hidden="true">{[...(userName || "我")][0]}</span>

@@ -96,7 +96,7 @@ export const COMMANDABLE: Rule[] = [
   { match: /^关闭提醒面板$/, via: "panel: null" },
   { match: control => REMINDER_GROUPS.has(control.group ?? "") && control.role === "tab" && /^(我的提醒|通用提醒|提醒记录)$/.test(control.label),
     via: "reminders: {tab: mine | general | history}（快照 state.reminders.tab）" },
-  { match: control => REMINDER_GROUPS.has(control.group ?? "") && control.label === "返回 AI 首页", via: "reminderCenter: {open: false}（手机提醒页也可 mobilePage: null）" },
+  { match: control => REMINDER_GROUPS.has(control.group ?? "") && control.label === "返回今天", via: "reminderCenter: {open: false}（手机提醒页也可 mobilePage: null）" },
   { match: control => REMINDER_GROUPS.has(control.group ?? "") && control.role === "radio" && /^(未读|全部) ?\d+$/.test(control.label),
     via: "reminderCenter: {filter: unread | all}（快照 state.reminderCenter.filter / unread / today）" },
   { match: control => REMINDER_GROUPS.has(control.group ?? "") && /^看今天全部 \d+ 条$/.test(control.label), via: "reminderCenter: {filter: all}" },
@@ -119,10 +119,10 @@ export const COMMANDABLE: Rule[] = [
   { match: control => control.group === "mobile-ai" && /^持仓/.test(control.label), via: "mobilePage: positions（AI 首页 · 今天概况的持仓格）" },
   { match: control => control.group === "mobile-ai" && /^今天提醒/.test(control.label), via: "reminderCenter: {open: true}（AI 首页 · 今天提醒格：进提醒页；条数在快照 state.reminderCenter.today / unread）" },
   { match: control => control.group === "mobile-ai" && / (今日判断|暂无|读取中)$/.test(control.label), via: "symbol + mobileTab: research（今日判断胶囊：切到该品种主力合约并打开调研；判断还没读回时显示“读取中”）" },
-  { match: /^看提醒(（\d+ 条未读）)?$/, via: "reminderCenter: {open: true}（AI 首页右上角铃铛进提醒页；未读数在快照 state.reminderCenter.unread / state.mobileUnread）" },
+  { match: /^看提醒(（\d+ 条未读）)?$/, via: "reminderCenter: {open: true}（今天页右上角铃铛进提醒页；未读数在快照 state.reminderCenter.unread / state.mobileUnread）" },
   { match: control => control.group === "mobile-strategy" && /^(暂停|继续运行|正在暂停…|正在继续…)$/.test(control.label), via: "POST /api/strategies/{id}/monitor/pause | …/monitor/start（策略卡的暂停 / 继续运行，与电脑运行中卡同一接口）" },
   { match: control => control.group === "mobile-strategy" && control.label === "看图表", via: "symbol + duration + mobileTab: market（策略卡：切到它的合约与周期看盘）" },
-  // 手机版 策略 (第八批, 2026-10-08): 正在运行 / 我的策略, 停止并平仓 and 跟 AI 说…….
+  // 手机版 策略 (第八批, 2026-10-08): 正在运行 / 我的策略, 停止并平仓; what is said on the page is about the selected card.
   { match: control => control.group === "mobile-strategy-tabs" && /^(正在运行|我的策略)( \d+)?$/.test(control.label), via: "mobileStrategyTab: running | mine（快照 state.mobileStrategyTab）" },
   { match: control => control.group === "mobile-strategy" && control.label === "停止并平仓", via: "卡内二次确认（确认后 = POST /api/strategies/{id}/monitor/stop {closePositions: true}，出平仓卡等确认，从不直接下单）" },
   { match: control => control.group === "mobile-strategy" && /^(确认停止并平仓|取消)$/.test(control.label), via: "POST /api/strategies/{id}/monitor/stop {closePositions: true} / 取消不发请求" },
@@ -133,8 +133,7 @@ export const COMMANDABLE: Rule[] = [
   { match: control => control.group === "mobile-strategy" && /^(确认上线|正在验证并上线…)$/.test(control.label),
     via: "POST /api/strategy-plans/{id}/validate + /api/strategies/{id}/monitor/start {signalAction: confirm}（与回测结果页的上线同一校验）" },
   { match: control => control.group === "mobile-strategy" && control.label === "看运行中", via: "mobileStrategyTab: running" },
-  { match: control => control.group === "mobile-strategy" && control.label === "发送", via: "chat:send（跟 AI 说……：workspaceContext.focus = {kind: strategy_edit, id: 选中的策略}）" },
-  { match: control => control.group === "mobile-strategy" && control.role === "button", via: "chat:send 的 focus（点一张策略卡＝把它设为“跟 AI 说”的上下文；卡片内容读 GET /api/strategy-plans 与 …/monitor）" },
+  { match: control => control.group === "mobile-strategy" && control.role === "button", via: "chat:send 的 focus（点一张策略卡＝把它设为在策略页说的话的上下文；卡片内容读 GET /api/strategy-plans 与 …/monitor）" },
   { match: /^返回策略$/, via: "mobilePage: null（回测结果页左上角返回）" },
   { match: control => control.group === "mobile-lab" && /^(选用这一组|正在复核并保存…)$/.test(control.label), via: "POST /api/strategy-labs/{labId}/choose {variantId}（服务端先复核回测再存为我的策略；快照 state.mobileLab.chosen）" },
   { match: control => control.group === "mobile-lab" && /^(上线运行|正在验证并上线…|已上线)$/.test(control.label),
@@ -318,7 +317,7 @@ export const COMMANDABLE: Rule[] = [
   { match: /^(新对话|历史对话)$/, via: "chatSession: {new: true} / disclosure: chat-history" },
   // AI 指令栏 (改版第二步 2026-11-01): the header bar's input is a chat send (the /^问 AI/ rule below); its result drop-down.
   { match: /^收起 AI 指令结果$/, via: "disclosure: {name: ai-command-result, open: false}" },
-  { match: control => control.group === "ai-command-bar" && /撤销$/.test(control.label),
+  { match: control => ["ai-command-bar", "mobile-ai-result"].includes(control.group ?? "") && /撤销$/.test(control.label),
     via: "DELETE /api/market/alerts/{alert_id} | DELETE /api/market/drawings/{drawing_id} | DELETE /api/strategy-plans/{identifier}（任务步骤 step.action.undo 写明的那个业务接口）" },
   { match: /^(在对话里看全文|到对话里确认)$/, via: "panel: ai" },
   // AI 正在盯 (改版第二步): the line under the chart only opens where each watched item is managed.
@@ -580,12 +579,15 @@ export const COMMANDABLE: Rule[] = [
   // 回答卡片化 (2026-10-14): 回答卡 / 数据卡's folded 依据 and the 快讯数据卡's way to the news panel.
   { match: control => control.role === "summary" && control.label === "依据", via: "disclosure: {name: card-details, id: 卡id}（回答卡 / 数据卡底部的依据：读取时间与来源）" },
   { match: /^打开新闻$/, via: "news: {tab: flash|news}（快讯 / 消息面数据卡；手机打开调研）" },
-  // 手机版 (2026-10-04): the phone layout's bottom tabs, the AI 动态 price chip and the chat page's back arrow.
-  { match: control => control.group === "mobile-tabs", via: "mobileTab: ai|research|market|strategy|me（手机版底部标签；旧值 notify = ai；AI 标签下的对话页是 mobileTab: chat = panel: ai；快照 state.mobileLayout、state.mobileTab）" },
-  { match: /^看盘：/, via: "mobileTab: market（手机版 AI 首页顶部的合约价格胶囊）" },
-  { match: /^返回 AI 首页$/, via: "mobileTab: ai（手机版对话页左上角返回）" },
-  // 10-05: AI 首页's bottom 打字问 AI field (opens the chat with its input focused).
-  { match: /^打字问 AI$/, via: "mobileTab: chat（手机版 AI 首页底部“打字问 AI”输入框；agent 要说话直接 chat:send）" },
+  // 手机版 (2026-10-04; 方案 B 2026-11-01): the bottom tabs (the 按住说话 key between them is exempt), 今天's head
+  // (avatar = 我的, price chip, 对话 icon), the back arrows, and the key's typing sheet and 回执条.
+  { match: control => control.group === "mobile-tabs" && control.label !== "按住说话，点一下打字", via: "mobileTab: ai|research|market|strategy（手机版底部标签；旧值 notify = ai；今天页下的对话页是 mobileTab: chat = panel: ai，我的是 mobileTab: me；快照 state.mobileLayout、state.mobileTab）" },
+  { match: /^看盘：/, via: "mobileTab: market（手机版今天页顶部的合约价格胶囊）" },
+  { match: /^我的$/, via: "mobileTab: me（手机版今天页左上角头像）" },
+  { match: /^AI 对话$/, via: "mobileTab: chat（手机版今天页头部的对话图标）" },
+  { match: /^返回今天$/, via: "mobileTab: ai（手机版对话页 / 我的页左上角返回）" },
+  { match: control => control.group === "mobile-ai-type" && control.label === "发送", via: "chat:send（手机说话键的打字框；workspaceContext 是当前页，策略页带 focus = {kind: strategy_edit}）" },
+  { match: /^AI 指令结果：/, via: "disclosure: {name: ai-command-result, open: true}（手机标签上方的回执条展开）" },
 ];
 
 /** Controls the catalog covers with a business capability instead of a UI command. */
@@ -714,7 +716,8 @@ export const EXEMPT: Exemption[] = [
   { match: /^(打开锁屏提醒|这台 .+ 收锁屏提醒)$/,
     reason: "开启锁屏提醒必须由用户在这台设备上点、在系统询问里允许，浏览器才给推送订阅（PUT /api/app/push/subscription 不在能力目录）；状态在快照 state.pushSubscribed 与 GET /api/app/push" },
   { match: /^(录制.+|恢复默认快捷键)$/, reason: "本机快捷键由键盘录制，不进账号偏好；当前绑定在快照 settings.shortcuts" },
-  { match: /^(按住说话(，松开发送)?|按住对 AI 说)$/, reason: "按住说话是用户的物理语音输入（与快捷键同类），没有命令；状态在快照 context.voice.ptt，按住键在 settings.shortcuts.ptt" },
+  { match: /^(按住说话(，松开发送|，点一下打字)?|按住对 AI 说)$/, reason: "按住说话是用户的物理语音输入（与快捷键同类），没有命令；状态在快照 context.voice.ptt，按住键在 settings.shortcuts.ptt；手机说话键点一下只弹出本机打字框，打字发出＝chat:send" },
+  { match: /^(收起打字|关掉回执)$/, reason: "只收起手机本机的打字框 / 回执条显示，不改对话或业务状态；回执的结果另有 disclosure ai-command-result" },
   { match: /^(清除本地缓存|诊断 JSON)$/, reason: "本机维护动作（清 localStorage / 下载诊断文件），不对应业务能力" },
   { match: control => control.group === "mobile-notify" && control.label === "全部已读", reason: "手机版 AI 首页时间线的已读标记只存在本机浏览器（按用户），不对应业务能力；未读数在快照 state.mobileUnread" },
   { match: control => control.group === "mobile-ai" && /^(还有 \d+ 张待确认|收起其余待确认)$/.test(control.label),

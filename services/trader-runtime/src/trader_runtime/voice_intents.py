@@ -80,7 +80,7 @@ _DRAW_PRICE = r"(\d{1,6}(?:D\d{1,4})?)"
 _MOBILE_TAB_WORDS = tuple((tab, entry["words"]) for tab, entry in SURFACES["mobileTabs"].items() if "words" in entry)
 _NOTIFY_WORDS = r"时间线"
 _REMINDER_WORDS = r"提醒中心|提醒列表|通知中心|通知列表|通知|消息中心"
-_MOBILE_SAY = {"ai": "到 AI 首页了", "chat": "对话打开了", "research": "调研打开了", "market": "到看盘了",
+_MOBILE_SAY = {"ai": "到今天页了", "chat": "对话打开了", "research": "调研打开了", "market": "到看盘了",
                "strategy": "策略打开了", "me": "到“我的”了"}
 # A phone-tab intent on a desktop-layout window: the desktop surface that shows the same thing
 # (我的 and the AI 首页 timeline's filter have none — the caller falls back to the agent).

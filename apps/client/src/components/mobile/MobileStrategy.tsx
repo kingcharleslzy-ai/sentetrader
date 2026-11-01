@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { FlaskConical, Plus, Send } from "lucide-react";
+import { FlaskConical, Plus } from "lucide-react";
 import { getStrategyMonitor, setStrategyMonitoring, stopStrategyMonitoring, type InstrumentCatalog, type StrategyDrawdown,
   type StrategyFunds, type StrategyMonitorSnapshot } from "../../api";
 import { DrawdownStatus, FundsLines } from "../StrategyRiskBlocks";
@@ -261,12 +261,12 @@ function MineCard({ item, selected, onSelect, busy, error, notice, launching, la
 /**
  * 策略 (手机版; 第八批 2026-10-08, the approved mockup): two tabs — 正在运行 (暂停 / 继续运行 / 停止并平仓 and
  * 看图表 on each card, the 今日判断 clash in yellow) and 我的策略 (state, the one sentence, the latest
- * backtest) — and at the bottom 跟 AI 说……: the text goes to the conversation with the selected
- * strategy as focus, and the AI changes it with the existing tools (a new version, then a backtest).
+ * backtest). What is said or typed on this page (方案 B 2026-11-01: the bar's 按住说话 key, `onFocusChange`) is about
+ * the selected strategy, and the AI changes it with the existing tools (a new version, then a backtest).
  * 手机编辑卡 (2026-10-08): 我的策略 starts with 新建策略 (继续编辑 while a changed draft is hidden) and each card
  * has 编辑 (the 策略编辑卡 full screen) / 回测 / 上线… (出卡确认 only, as on the 回测结果页).
  */
-export function MobileStrategy({ strategies, instruments, blocked, tab, onTabChange, onChart, onAskAi, draftName, onNew, onResumeDraft, onEdit, starts }: {
+export function MobileStrategy({ strategies, instruments, blocked, tab, onTabChange, onChart, onFocusChange, draftName, onNew, onResumeDraft, onEdit, starts }: {
   strategies: MobileStrategies;
   instruments?: InstrumentCatalog;
   /** The tier's reason line when strategies are not part of it. */
@@ -274,8 +274,8 @@ export function MobileStrategy({ strategies, instruments, blocked, tab, onTabCha
   tab: "running" | "mine";
   onTabChange: (tab: "running" | "mine") => void;
   onChart: (run: MobileStrategyRun) => void;
-  /** 跟 AI 说……: the text as the user's turn, about the selected strategy when there is one. */
-  onAskAi: (text: string, focus?: AiFocus) => void;
+  /** The selected strategy, as the focus of what is said or typed on this page (none: no strategy yet). */
+  onFocusChange: (focus: AiFocus | undefined) => void;
   /** A hidden draft with changes (继续编辑：name); null when there is none. */
   draftName?: string | null;
   onNew?: () => void;
@@ -286,17 +286,12 @@ export function MobileStrategy({ strategies, instruments, blocked, tab, onTabCha
 }) {
   const pull = usePullToRefresh(strategies.reload, !blocked);
   const [picked, setPicked] = useState<string | null>(null);
-  const [text, setText] = useState("");
   const fallback = strategies.runs[0]?.libraryId ?? strategies.mine[0]?.strategyId ?? null;
   const context = (picked && strategies.mine.some(item => item.strategyId === picked) ? picked : null) ?? fallback;
   const contextName = strategies.mine.find(item => item.strategyId === context)?.name
     ?? strategies.runs.find(run => run.libraryId === context)?.name;
-  const send = () => {
-    const value = text.trim();
-    if (!value) return;
-    onAskAi(value, context && contextName ? { kind: "strategy_edit", id: context, label: contextName } : undefined);
-    setText("");
-  };
+  useEffect(() => { onFocusChange(context && contextName ? { kind: "strategy_edit", id: context, label: contextName } : undefined); },
+    [context, contextName, onFocusChange]);
   const running = strategies.runs;
   return (
     <section className="fdm-page fdm-strategy" aria-label="策略" data-testid="mobile-strategy" data-agent-target="mobile-strategy">
@@ -339,16 +334,10 @@ export function MobileStrategy({ strategies, instruments, blocked, tab, onTabCha
               onEdit={() => onEdit?.(item.source)} onBacktest={() => strategies.backtest(item.source)}
               onLaunchAsk={open => strategies.askLaunch(open ? item.strategyId : null)} onLaunch={() => void strategies.launch(item.source)}
               onRunning={() => onTabChange("running")} />)}
-            {!strategies.mine.length && strategies.loaded ? starts ?? <div className="fdm-empty"><FlaskConical aria-hidden="true" /><strong>还没有策略</strong><span>点“新建策略”，或在下面跟 AI 说一句你想怎么做。</span></div> : null}
+            {!strategies.mine.length && strategies.loaded ? starts ?? <div className="fdm-empty"><FlaskConical aria-hidden="true" /><strong>还没有策略</strong><span>点“新建策略”，或按住下面的说话键说一句你想怎么做。</span></div> : null}
           </>}
         </>}
       </main>
-      {!blocked ? <form className="fdm-talk fdm-strat-talk" aria-label="跟 AI 说" onSubmit={event => { event.preventDefault(); send(); }}>
-        {contextName ? <small className="fdm-strat-context">关于：{contextName}</small> : null}
-        <input className="fdm-ask" value={text} maxLength={500} onChange={event => setText(event.target.value)}
-          aria-label="跟 AI 说" placeholder={contextName ? "跟 AI 说：“把止损放宽一点再测一次”" : "跟 AI 说你想怎么做"} />
-        <button type="submit" className="fdm-strat-send" aria-label="发送" disabled={!text.trim()}><Send aria-hidden="true" /></button>
-      </form> : null}
     </section>
   );
 }

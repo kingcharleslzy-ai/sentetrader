@@ -30,10 +30,10 @@ const monitor = (id: string) => id === "run-1" ? { strategyId: id, status: "moni
   recentAttempts: [{ attemptId: "a1", action: "open_long", volume: 2, status: "SKIPPED", cardProposalIds: ["c1"], updatedAt: "2026-10-06T01:58:00Z" }] }
   : { strategyId: id, status: "paused", signalAction: "alert", today: null, recentAttempts: [] };
 
-function Page({ onChart = vi.fn(), onAskAi = vi.fn() }: { onChart?: (run: MobileStrategyRun) => void; onAskAi?: (text: string, focus?: unknown) => void }) {
+function Page({ onChart = vi.fn(), onFocusChange = vi.fn() }: { onChart?: (run: MobileStrategyRun) => void; onFocusChange?: (focus?: unknown) => void }) {
   const strategies = useMobileStrategies({ baseUrl: "http://runtime", rootUrl: "http://root", enabled: true, detailed: true });
   const [tab, setTab] = useState<"running" | "mine">("running");
-  return <MobileStrategy strategies={strategies} tab={tab} onTabChange={setTab} onChart={onChart} onAskAi={onAskAi} />;
+  return <MobileStrategy strategies={strategies} tab={tab} onTabChange={setTab} onChart={onChart} onFocusChange={onFocusChange} />;
 }
 
 let startFails = false;
@@ -131,17 +131,14 @@ it("回撤停机（手机卡）：暂时算不出也用“恢复运行”，只�
   expect(start[1].body).toBe(JSON.stringify({ resetDrawdown: true }));
 });
 
-it("跟 AI 说……：发到对话，带上选中的策略作为上下文（默认第一条正在运行的）", async () => {
-  const onAskAi = vi.fn();
-  render(<Page onAskAi={onAskAi} />);
+it("这一页说的话关于选中的策略（默认第一条正在运行的），点另一张卡就换成它", async () => {
+  const onFocusChange = vi.fn();
+  render(<Page onFocusChange={onFocusChange} />);
   await screen.findByRole("article", { name: "均线金叉 10/30" });
-  expect(screen.getByText("关于：均线金叉 10/30")).toBeVisible();
-  fireEvent.change(screen.getByRole("textbox", { name: "跟 AI 说" }), { target: { value: "把止损放宽一点再测一次" } });
-  fireEvent.click(screen.getByRole("button", { name: "发送" }));
-  expect(onAskAi).toHaveBeenCalledWith("把止损放宽一点再测一次", { kind: "strategy_edit", id: "lib-1", label: "均线金叉 10/30" });
-  // Tapping another card makes it the context.
+  await waitFor(() => expect(onFocusChange).toHaveBeenLastCalledWith({ kind: "strategy_edit", id: "lib-1", label: "均线金叉 10/30" }));
+  expect(screen.queryByRole("textbox", { name: "跟 AI 说" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: /^甲醇突破/ }));
-  expect(screen.getByText("关于：甲醇突破")).toBeVisible();
+  expect(onFocusChange).toHaveBeenLastCalledWith({ kind: "strategy_edit", id: "lib-2", label: "甲醇突破" });
 });
 
 it("暂停与继续运行走运行中卡同一个接口（继续先查 AI 模拟执行）；没成功时原因写在那张卡里", async () => {
@@ -178,7 +175,7 @@ it("AI 模拟执行已停止时继续运行不发启动请求，卡里说明原�
 
 it("档位不含策略时是有说明的空状态：这一页做什么、为什么空、去哪看档位（10-06 实测整页空白）", () => {
   const strategies = { runs: [], mine: [], loaded: true, failed: false, busy: null, errors: {}, notices: {}, reload: vi.fn(), pause: vi.fn(), resume: vi.fn(), stop: vi.fn() };
-  render(<MobileStrategy strategies={strategies as never} blocked="当前档位未开通「策略管理与监控」" tab="running" onTabChange={vi.fn()} onChart={vi.fn()} onAskAi={vi.fn()} />);
+  render(<MobileStrategy strategies={strategies as never} blocked="当前档位未开通「策略管理与监控」" tab="running" onTabChange={vi.fn()} onChart={vi.fn()} onFocusChange={vi.fn()} />);
   const empty = screen.getByTestId("mobile-strategy-blocked");
   expect(empty).toHaveTextContent("策略这一页看运行中的策略和我的策略");
   expect(empty).toHaveTextContent("当前档位未开通「策略管理与监控」");

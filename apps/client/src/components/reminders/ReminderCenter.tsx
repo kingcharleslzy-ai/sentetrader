@@ -144,7 +144,7 @@ export function ReminderBell({ open, onOpenChange, unread }: { open: boolean; on
 export function MobileReminders({ onClose, tabs, children }: { onClose: () => void; tabs: ReactNode; children: ReactNode }) {
   return <section className="fdm-overlay fdm-page rc-mobile reminders-panel" aria-label="提醒" data-testid="mobile-reminders" data-agent-target="mobile-reminders">
     <header className="fdm-head">
-      <button type="button" className="fdm-back" aria-label="返回 AI 首页" onClick={onClose}><ChevronLeft /></button>
+      <button type="button" className="fdm-back" aria-label="返回今天" onClick={onClose}><ChevronLeft /></button>
       <strong>提醒</strong>
     </header>
     {tabs}

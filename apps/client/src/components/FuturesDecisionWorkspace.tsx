@@ -22,7 +22,7 @@ import { AppHelp, openAppHelp } from "./AppHelp";
 import { marketClosedNow, marketSessionDisplay } from "../marketSession";
 import "./FuturesDecisionWorkspace.css";
 import "./futures/DockPanels.css";
-import { decimalsForTick, formatNumber, formatSigned, isProtectionActive, maxSharedDockWidth, EDITOR_CHART_MIN, isForeignSymbol, ownPositions, positionKey, WIDE_PANELS,
+import { decimalsForTick, formatNumber, formatSigned, isProtectionActive, maxSharedDockWidth, EDITOR_CHART_MIN, isForeignSymbol, ownPositions, periods, positionKey, WIDE_PANELS,
   FOREIGN_BOARD, isForeignProductKey, normalizeBoardColumns, normalizeBoardExchange, normalizeBoardSort, normalizeWatchlist, watchlistKey, WATCHLIST_MAX,
   type BoardColumn, type BoardExchange, type BoardSort, type FuturesWorkspaceView, type ManualSimulationRequest,
   type RecentWorkspaceAction, type RightDock, type StrategyTab, type TicketDraft } from "./futures/support";
@@ -40,6 +40,7 @@ import { routineRunPrompt, type RoutineRef } from "../routines";
 import { ContractDrawer } from "./futures/WorkspaceDrawers";
 import { AiDock } from "./futures/AiDock";
 import { AiCommandBar } from "./futures/AiCommandBar";
+import { useAiCommand } from "./futures/useAiCommand";
 import { AiWatching } from "./futures/AiWatching";
 import { NewsPanel, type NewsTab } from "./NewsPanel";
 import { useDebateHost } from "./ResearchDebate";
@@ -339,6 +340,8 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   const [mobileLabId, setMobileLabId] = useState<string | null>(null);
   // 手机版 策略 (2026-10-08): its two tabs (`mobileStrategyTab`).
   const [mobileStrategyTab, setMobileStrategyTab] = useState<"running" | "mine">("running");
+  // 方案 B (2026-11-01): what is said or typed on 策略 is about its selected strategy.
+  const [mobileStrategyFocus, setMobileStrategyFocus] = useState<AiFocus | undefined>(undefined);
   const [mobileLab, setMobileLab] = useState<MobileLabReport | null>(null);
   // Bumped to scroll AI 首页 to its timeline (the filter commands, "看看时间线").
   const [timelineFocus, setTimelineFocus] = useState(0);
@@ -768,7 +771,6 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     sendOnRelease: Boolean(props.guest) || mobile || preferences.voice.pttSendOnRelease !== false,
     onSend: text => {
       if (props.guest) { void props.guest.voice(text); return; }
-      if (mobile) openChat();
       if (props.chatBusy || chat.sendingPrompt) { fillPrompt(text); return; }
       // Held words are answered out loud (09-28): the reply's spoken summary is read in the call's voice.
       if (connectedRuntimeUrl) voiceReply.expect(connectedRuntimeUrl, props.state.turns.map(turn => turn.id));
@@ -777,6 +779,16 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     onFill: fillPrompt,
     onKeyPress: props.guest ? undefined : openChat,
     chatSessionId: props.chatSessionId });
+  // 手机版 方案 B (owner 2026-11-01): the bar's 按住说话 key and its typing send from the page on screen, without opening
+  // the AI 对话 page; the 回执条 shows what came back (the AI 指令栏's result).
+  const aiBlocked = !connectedRuntimeUrl ? "连接后可以问 AI" : props.agentAccount && !props.agentAccount.authenticated ? "模型尚未就绪，请在设置里选择模型"
+    : accessRef.current?.reason("ai-chat") || null;
+  const aiCommand = useAiCommand({ baseUrl: connectedRuntimeUrl, turns: props.state.turns, busy: Boolean(props.chatBusy || chat.sendingPrompt),
+    blockedReason: aiBlocked, available: mobile && !isGuest,
+    onSend: (text, spoken) => {
+      if (spoken && connectedRuntimeUrl) voiceReply.expect(connectedRuntimeUrl, props.state.turns.map(turn => turn.id));
+      return chat.sendQuickPrompt(text, mobileTab === "strategy" ? mobileStrategyFocus : undefined, spoken ? { origin: "ptt" } : undefined);
+    } });
   useEffect(() => { voiceReply.offer(props.state.turns); }, [props.state.turns]);
   useEffect(() => { if (ptt.status.state === "recording" || call.inCall) voiceReply.stop(); }, [ptt.status.state, call.inCall]);
   // Another chat is shown: its older answers must not be read out as the awaited spoken reply.
@@ -1262,7 +1274,19 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     const contractName = quoteEntry?.instrumentName || quote?.name || quote?.symbol || "";
     // A 我的 row or 下单 tapped by the user: a refusal (tier, no quote yet) shows as the toast.
     const tapPage = (page: MobilePage) => { try { openMobilePage(page); } catch (error) { setAccessNotice(error instanceof Error ? error.message : "这个界面现在打不开"); } };
-    const askMobile = (text: string) => { if (!access.require("ai-chat")) return; setMobileNotice(""); setMobileSub(null); setRightDock("ai"); void chat.sendQuickPrompt(text); };
+    // 方案 B: a card's 问 AI stays on the page; the 回执条 shows the answer (the chat while the AI is still answering).
+    const askMobile = (text: string) => {
+      if (!access.require("ai-chat")) return;
+      setMobileNotice(""); setMobileSub(null);
+      if (!aiCommand.send(text)) { setRightDock("ai"); void chat.sendQuickPrompt(text); }
+    };
+    const researchProduct = quoteEntry ? quoteEntry.instrumentName.replace(/\d+$/, "") || quoteEntry.productId.toUpperCase() : undefined;
+    const marketView = mobileMarket.market.view;
+    const mobileContext = mobileSub === "reminders" ? "提醒" : mobileTab === "research" ? `调研${researchProduct ? ` · ${researchProduct}` : ""}`
+      : mobileTab === "market" ? marketView === "quotes" ? "看盘 · 报价" : marketView === "multi" ? "看盘 · 多图"
+        : `看盘 · ${contractName} ${chartView === "kline" ? periods.find(item => item.value === props.duration)?.label ?? "" : "分时"}`.trim()
+      : mobileTab === "strategy" ? mobileStrategyFocus ? `策略 · ${mobileStrategyFocus.label}` : "策略"
+      : mobileTab === "chat" ? "对话" : mobileTab === "me" ? "我的" : "今天";
     // A card's buttons on the phone: 问 AI opens the chat and sends; 打开调研 / 看图表 / 打开持仓 /
     // 打开委托 / 打开下单台 land on their tab or page; anything else goes through the UI-command
     // path (a desktop-only panel says so).
@@ -1399,6 +1423,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
         {dialogs}
         <WebUpdateBanner />
         <MobileWorkspace tab={mobileTab} onTab={selectMobileTab} onOpenChat={openChat} quote={quote} symbolName={quoteEntry?.instrumentName} decimals={decimals} ptt={ptt}
+          command={isGuest ? undefined : aiCommand} context={mobileContext} aiBlocked={aiBlocked} aiBusy={Boolean(props.chatBusy || chat.sendingPrompt)}
           notices={<>
             {!props.guest && !props.replayActive ? <ConnectionProgress connection={props.connection} runtime={props.state.runtime} agent={props.agentAccount} hasMarket={Boolean(market)} runtimeUsable={props.status.runtimeUsable} onSettings={() => setSettingsOpen(true)} /> : null}
             {props.state.connectionError || props.state.runtime?.agentNotice ? <div className="fdw-runtime-notice" role={props.state.connectionError ? "alert" : "status"}>{props.state.connectionError || props.state.runtime?.agentNotice}</div> : null}
@@ -1417,12 +1442,12 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
             latest={<LatestReminders reminders={reminders} onOpen={openReminder} onBreakeven={props.proposalActions?.breakeven} accountName={reminderAccountName} onAll={showReminders} />}
             notice={mobileNotice} refreshError={flowBriefs.refreshError} focus={timelineFocus}
             loading={desk.loading && Boolean(quote?.symbol)} />}
-          chat={holdButton => aiDock({ onBack: () => selectMobileTab("ai"), accountLabel: currentAccount?.displayName, holdButton })}
+          chat={aiDock({ onBack: () => selectMobileTab("ai"), accountLabel: currentAccount?.displayName })}
           onBell={showReminders} unread={reminders.unread} overlay={overlay} overlayTabs={mobileSub === "reminders" && !mobileEditorOpen} onCloseOverlay={() => { if (mobileEditorOpen) hideDraft(); else setMobileSub(null); }} onRefreshFeed={props.guest ? undefined : refreshFeed}
           pages={{
-            ai: props.guest ? signIn("AI", "登录后 AI 帮你盯盘、给出判断，按住就能和它说话。") : undefined,
+            ai: props.guest ? signIn("今天", "登录后 AI 帮你盯盘、给出判断，按住就能和它说话。") : undefined,
             research: <MobileResearch baseUrl={connectedRuntimeUrl} symbol={quote?.symbol ?? props.selectedSymbol}
-              productName={quoteEntry ? quoteEntry.instrumentName.replace(/\d+$/, "") || quoteEntry.productId.toUpperCase() : undefined}
+              productName={researchProduct}
               judgment={desk.card} watchlist={watchlist} instruments={props.instruments?.items ?? []}
               onSelectSymbol={selectContract} onOpenContracts={() => setContractOpen(true)} handlers={mobileCardHandlers}
               guest={props.guest && { baseUrl: props.guest.baseUrl, onExpired: props.guest.reportExpired }} onRefresh={reloadQuoteDesk} />,
@@ -1449,7 +1474,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
               onNew={connectedRuntimeUrl ? mobileEditor.onNew : undefined} onResumeDraft={mobileEditor.onResumeDraft} onEdit={mobileEditor.onEdit}
               starts={mobileRootUrl ? <StrategyStarts compact rootUrl={mobileRootUrl} symbol={quote?.symbol ?? props.selectedSymbol ?? ""}
                 symbolLabel={contractName} onStart={start => mobileEditor.onNew(start)} /> : undefined}
-              onAskAi={(text, focus) => { if (!access.require("ai-chat")) return; setMobileNotice(""); setMobileSub(null); setRightDock("ai"); void chat.sendQuickPrompt(text, focus); }}
+              onFocusChange={setMobileStrategyFocus}
               onChart={run => {
                 if (!sameContract(run.symbol, quote?.symbol)) selectContract(run.symbol);
                 if (run.timeframeSeconds && run.timeframeSeconds !== props.duration && [60, 180, 300, 900, 1800, 3600, 86400, 604800].includes(run.timeframeSeconds)) {
@@ -1468,7 +1493,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
               installed={installDetection.environment === "installed"}
               pushValue={pushRowValue(push.fcm ? { ...push.support, support: "unsupported" } : push.support, Boolean(push.thisDevice))}
               notify={{ briefs: appWorkbench.config.showMarketBriefs, briefCount: briefSubscriptions.data?.products.length }}
-              onOpenReminderSettings={openReminderSettings} />,
+              onOpenReminderSettings={openReminderSettings} onBack={() => selectMobileTab("ai")} />,
           }} />
         {trailing}
       </div></UiNavigationContext.Provider></AccountAccessContext.Provider>
