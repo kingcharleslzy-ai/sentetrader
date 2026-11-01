@@ -17,6 +17,7 @@ import { formatNumber, formatSigned, signClass } from "./support";
 import type { WorkspaceChat } from "./useWorkspaceChat";
 import { AiAvatar } from "../AiAvatar";
 import { useStickToBottom } from "../../hooks/useStickToBottom";
+import { useFitHeight } from "../../hooks/useFitHeight";
 import type { AiAvatar as AiAvatarKind } from "./support";
 import type { ChartFocus } from "./useChartFocus";
 
@@ -107,7 +108,9 @@ export function AiDock({ workspace, chat, focus, appWorkbench, call, voiceUnavai
   const flow = useMemo(() => buildFlowItems({ briefs, symbol: quote?.symbol, symbolName: briefName }), [briefs, quote?.symbol, briefName]);
   // Structured cards ask through the composer's path and open panels through the UI-command path;
   // a refused command (no access, replay ended) says why under the conversation.
+  // The phone keeps its one-line input (its page is restyled apart); the desktop composer grows with its text.
   const input = useRef<HTMLInputElement>(null);
+  const area = useFitHeight(prompt, !mobile);
   const cardActions = useMemo(() => ({
     ...workspace.proposalActions,
     askAi: onQuickPrompt,
@@ -116,8 +119,8 @@ export function AiDock({ workspace, chat, focus, appWorkbench, call, voiceUnavai
       catch (error) { setAccessNotice(error instanceof Error ? error.message : "这个界面现在打不开"); }
     } : undefined,
     // 流程卡's 改一下: the user finishes the sentence; nothing is sent.
-    fillPrompt: (text: string) => { pushToTalkStore.dismiss(); setPrompt(text); input.current?.focus(); },
-  }), [workspace.proposalActions, onQuickPrompt, applyUi, setPrompt]);
+    fillPrompt: (text: string) => { pushToTalkStore.dismiss(); setPrompt(text); (input.current ?? area.current)?.focus(); },
+  }), [workspace.proposalActions, onQuickPrompt, applyUi, setPrompt, area]);
   const turns = decisionTurns;
   // Follow the newest message; whatever the user just sent or said always brings it back down.
   const lastUserTurnId = useMemo(() => [...turns].reverse().find(turn => turn.role === "user")?.id, [turns]);
@@ -129,19 +132,33 @@ export function AiDock({ workspace, chat, focus, appWorkbench, call, voiceUnavai
     <div className="fdw-chat-examples" data-agent-target="chat-examples" aria-label="建议问题" key={suggestions.items.join("\n")}>
       {suggestions.items.map(text => (
         <button type="button" key={text} title={`填入输入框：${text}`}
-          onClick={() => { pushToTalkStore.dismiss(); setPrompt(text); input.current?.focus(); }}>{text}</button>
+          onClick={() => { pushToTalkStore.dismiss(); setPrompt(text); (input.current ?? area.current)?.focus(); }}>{text}</button>
       ))}
     </div>
   ) : null;
   const positionTag = currentPositions.length
     ? currentPositions.map(position => `${position.direction === "long" ? "多" : "空"} ${position.volume} 手 ${formatSigned(position.unrealizedPnl, 0)}`).join(" · ")
     : workspace.account ? "空仓" : "持仓读取中";
-  const composerInput = <input ref={input} aria-label="向 AI 决策流提问" value={prompt} onChange={(event) => { pushToTalkStore.dismiss(); setPrompt(event.target.value); }}
+  const composerProps = {
+    "aria-label": "向 AI 决策流提问", value: prompt,
+    placeholder: workspace.agentAccount && !workspace.agentAccount?.authenticated ? "模型尚未就绪，请在设置里选择模型" : mobile ? "打字问 AI" : view === "review" ? "问 AI：这次交易哪里还能改进…" : "向 AI 提问，或输入你的交易思路…",
+    disabled: workspace.connection !== "connected" || (workspace.agentAccount && !workspace.agentAccount?.authenticated),
+  };
+  const composerInput = mobile ? <input ref={input} {...composerProps} onChange={(event) => { pushToTalkStore.dismiss(); setPrompt(event.target.value); }}
     onKeyDown={event => {
       if (event.key !== "Enter" || sendKey !== "ctrlEnter") return;
       event.preventDefault();
       if (event.ctrlKey || event.metaKey) event.currentTarget.form?.requestSubmit();
-    }} placeholder={workspace.agentAccount && !workspace.agentAccount?.authenticated ? "模型尚未就绪，请在设置里选择模型" : mobile ? "打字问 AI" : view === "review" ? "问 AI：这次交易哪里还能改进…" : "向 AI 提问，或输入你的交易思路…"} disabled={workspace.connection !== "connected" || (workspace.agentAccount && !workspace.agentAccount?.authenticated)} />;
+    }} />
+    // 发送键 Enter: Enter sends and Shift+Enter breaks the line; Ctrl / Cmd + Enter: that sends and Enter breaks the line.
+    // Never on the Enter that picks an input method's candidate (keyCode 229 in Safari).
+    : <textarea ref={area} rows={1} {...composerProps} onChange={(event) => { pushToTalkStore.dismiss(); setPrompt(event.target.value); }}
+      onKeyDown={event => {
+        if (event.key !== "Enter" || event.nativeEvent.isComposing || event.keyCode === 229) return;
+        if (sendKey === "ctrlEnter" ? !(event.ctrlKey || event.metaKey) : event.shiftKey) return;
+        event.preventDefault();
+        event.currentTarget.form?.requestSubmit();
+      }} />;
   const sendButton = <button type="submit" aria-label="发送给AI" disabled={sendingPrompt || workspace.chatBusy || !prompt.trim() || Boolean(workspace.agentAccount && !workspace.agentAccount?.authenticated)}><Send /></button>;
   return (
     <section className={`fdw-ai open${mobile ? " fdm-chat" : ""}`} aria-label="AI 对话" data-agent-target="panel:ai">
@@ -215,8 +232,8 @@ export function AiDock({ workspace, chat, focus, appWorkbench, call, voiceUnavai
       {accessNotice && <small role="status">{accessNotice}</small>}
       <form className="fdw-ai-composer" onSubmit={(event) => void submitPrompt(event)}>
         {(promptError || promptSaveError) && <small role="alert">{promptError || "草稿暂未保存，请勿关闭页面"}</small>}
-        {ptt?.status.notice && ptt.status.state === "idle" ? <small role="status" className="fdw-ptt-notice" title="点一下关闭" onClick={() => pushToTalkStore.dismiss()}>{ptt.status.notice}</small> : null}
-        {ptt && ptt.status.state !== "idle" && !mobile ? <PttLive status={ptt.status} /> : composerInput}
+        {ptt?.status.notice && ptt.status.state === "idle" && !ptt.status.target ? <small role="status" className="fdw-ptt-notice" title="点一下关闭" onClick={() => pushToTalkStore.dismiss()}>{ptt.status.notice}</small> : null}
+        {ptt && ptt.status.state !== "idle" && !ptt.status.target && !mobile ? <PttLive status={ptt.status} /> : composerInput}
         {mobile ? prompt.trim() || !mobile.holdButton ? sendButton : mobile.holdButton : <>{ptt ? <PttButton ptt={ptt} /> : null}{sendButton}</>}
       </form>
     </section>

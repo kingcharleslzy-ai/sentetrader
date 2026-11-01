@@ -1,15 +1,45 @@
-/* AI 指令栏 (改版第二步 2026-11-01): one input in the header and its result drop-down. Theme tokens only. */
+/* AI 指令栏 (改版第二步 2026-11-01): one input in the header; its result is a bubble beside the AI 球. Theme tokens only. */
 /* The header grid gets a fourth column for it (brand | tabs | bar | status); the tabs keep the free space. */
 .fdw-header:has(> .ai-bar) { grid-template-columns: auto minmax(0, 1fr) fit-content(320px) auto; }
-.ai-bar { position: relative; min-width: 0; }
-.ai-bar-input { display: flex; align-items: center; gap: var(--space-2); height: 30px; padding: 0 var(--space-2) 0 var(--space-3);
-  border: 1px solid var(--line-strong); border-radius: var(--radius-control); background: var(--soft); }
-.ai-bar-input:focus-within { border-color: var(--accent); box-shadow: var(--glow); }
-.ai-bar-input > svg { flex: none; width: 15px; height: 15px; color: var(--accent); }
-.ai-bar-input input { flex: 1; width: 220px; min-width: 0; border: 0; background: none; color: var(--ink); font-size: var(--font-md); outline: none; }
-.ai-bar-input input::placeholder { color: var(--muted); }
-.ai-bar-input kbd { flex: none; padding: 0 var(--space-1); border: 1px solid var(--line); border-radius: 4px; color: var(--muted);
+/* The cell keeps one line's height: a focused input grows down over the page, never the header. */
+.ai-bar { position: relative; min-width: 0; height: 30px; }
+.ai-bar-input { position: relative; display: flex; align-items: flex-start; gap: var(--space-2); min-height: 30px; box-sizing: border-box;
+  padding: 4px var(--space-2) 4px var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-control); background: var(--soft); }
+.ai-bar-input:focus-within { z-index: 41; border-color: var(--accent); background: var(--panel); box-shadow: var(--glow), var(--shadow); }
+.ai-bar-input > svg { flex: none; width: 15px; height: 15px; margin-top: 3px; color: var(--accent); }
+/* One line (20px) unfocused; focused, useFitHeight sets the height up to six lines, then it scrolls inside. */
+.ai-bar-input textarea { flex: 1; width: 220px; min-width: 0; height: 20px; max-height: 120px; margin: 0; padding: 0; border: 0; background: none;
+  color: var(--ink); font: inherit; font-size: var(--font-md); line-height: 20px; resize: none; overflow: hidden; outline: none; }
+.ai-bar-input:focus-within textarea { overflow-y: auto; }
+.ai-bar-input textarea::placeholder { color: var(--muted); }
+.ai-bar-input kbd { flex: none; margin-top: 2px; padding: 0 var(--space-1); border: 1px solid var(--line); border-radius: 4px; color: var(--muted);
   font-family: inherit; font-size: var(--font-xs); }
+/* Header fit level 1 (useHeaderFit): the bar gives way before anything else and shrinks to a ✦ ⌘K button;
+   focusing it (click, ⌘K, Tab) floats the full input down over the header, blurring shrinks it back. */
+.fdw-fit-compact-ai > .ai-bar .ai-bar-input { cursor: pointer; }
+.fdw-fit-compact-ai > .ai-bar .ai-bar-input textarea { flex: 0; width: 0; }
+.fdw-fit-compact-ai > .ai-bar .ai-bar-input:focus-within { position: absolute; top: 0; right: 0; width: min(360px, 70vw); cursor: text; }
+.fdw-fit-compact-ai > .ai-bar .ai-bar-input:focus-within textarea { flex: 1; }
+/* 按住说话 in the bar: the workspace's one hold; while held here its level bars stand in for the input. */
+.ai-bar-input .fdw-ptt-button { flex: none; display: inline-flex; padding: 2px; border: 0; border-radius: var(--radius-control);
+  background: none; color: var(--muted); cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; }
+.ai-bar-input .fdw-ptt-button svg { width: 15px; height: 15px; }
+.ai-bar-input .fdw-ptt-button.active { color: var(--danger); background: var(--danger-soft); }
+.ai-bar-input .fdw-ptt-live { flex: 1; min-width: 0; height: 20px; overflow: hidden; white-space: nowrap; font-size: var(--font-sm); }
+.fdw-fit-compact-ai > .ai-bar .ai-bar-input:not(:focus-within) .fdw-ptt-button { display: none; }
+
+.ai-bar-input > small.fdw-ptt-notice {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--warning);
+  line-height: 20px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+/* The result body the phone's 回执条 shows (AiCommandResult; MobileWorkspace.css places it). */
 .ai-bar-result { position: absolute; z-index: 40; top: calc(100% + var(--space-1)); left: 0; right: 0; min-width: 320px;
   display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--line-strong);
   border-radius: var(--radius-card); background: var(--panel); color: var(--ink); box-shadow: var(--shadow); font-size: var(--font-md); }
@@ -32,28 +62,22 @@
 .ai-bar-card { margin: 0; color: var(--warning); }
 .ai-bar-result footer { display: flex; justify-content: flex-end; }
 .ai-bar-chat { padding: 0; border: 0; background: none; color: var(--accent); font-size: var(--font-sm); cursor: pointer; }
-/* Header fit level 1 (useHeaderFit): the bar gives way before anything else and shrinks to a ✦ ⌘K button;
-   focusing it (click, ⌘K, Tab) floats the full input over the header, blurring shrinks it back. */
-.fdw-fit-compact-ai > .ai-bar .ai-bar-input { cursor: pointer; }
-.fdw-fit-compact-ai > .ai-bar .ai-bar-input input { flex: 0; width: 0; }
-.fdw-fit-compact-ai > .ai-bar .ai-bar-input:focus-within { position: absolute; z-index: 41; top: 50%; right: 0; width: min(360px, 70vw);
-  transform: translateY(-50%); background: var(--panel); box-shadow: var(--shadow); cursor: text; }
-.fdw-fit-compact-ai > .ai-bar .ai-bar-input:focus-within input { flex: 1; }
-.fdw-fit-compact-ai > .ai-bar .ai-bar-result { left: auto; width: min(360px, 70vw); }
-/* 按住说话 in the bar: the workspace's one hold; while held its level bars stand in for the input. */
-.ai-bar-input .fdw-ptt-button { flex: none; display: inline-flex; padding: 2px; border: 0; border-radius: var(--radius-control);
-  background: none; color: var(--muted); cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; }
-.ai-bar-input .fdw-ptt-button svg { width: 15px; height: 15px; }
-.ai-bar-input .fdw-ptt-button.active { color: var(--danger); background: var(--danger-soft); }
-.ai-bar-input .fdw-ptt-live { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; font-size: var(--font-sm); }
-.fdw-fit-compact-ai > .ai-bar .ai-bar-input:not(:focus-within) .fdw-ptt-button { display: none; }
 
-.ai-bar-input > small.fdw-ptt-notice {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  color: var(--warning);
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  cursor: pointer;
-}
+/* The desktop result bubble beside the AI 球 (AiCommandBubble): one line and 撤销, fading out on its own (data-fading). */
+.ai-orb-result { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line-strong); border-radius: var(--radius-card); background: var(--panel); color: var(--ink);
+  box-shadow: var(--shadow); font-size: var(--font-md); transition: opacity 300ms var(--ease-out); }
+.ai-orb-result[data-fading] { opacity: 0; }
+.ai-orb-result > p { display: flex; align-items: flex-start; gap: var(--space-2); margin: 0; }
+.ai-orb-result > p > i { flex: none; width: 8px; height: 8px; margin-top: 7px; border-radius: 50%; background: var(--accent); }
+.ai-orb-result[data-tone="done"] > p > i { background: var(--positive); }
+.ai-orb-result[data-tone="card"] > p > i { background: var(--warning); }
+.ai-orb-result[data-tone="undone"] > p > i { background: var(--muted); }
+.ai-orb-result > p > span { flex: 1; min-width: 0; line-height: 1.6; overflow-wrap: anywhere; }
+.ai-orb-result[data-tone="undone"] > p > span { color: var(--muted); text-decoration: line-through; }
+.ai-orb-result > p > .app-button { display: inline-flex; align-items: center; gap: var(--space-1); min-height: 26px; padding: 0 var(--space-2); font-size: var(--font-sm); }
+.ai-orb-result > p > .app-button svg { width: 12px; height: 12px; }
+.ai-orb-result > .ai-orb-result-card { margin: 0; color: var(--warning); font-size: var(--font-sm); }
+.ai-orb-result > small { color: var(--danger); }
+.ai-orb-result > footer { display: flex; justify-content: flex-end; }
+@media (prefers-reduced-motion: reduce) { .ai-orb-result { transition: none; } }

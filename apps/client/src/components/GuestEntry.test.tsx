@@ -243,7 +243,7 @@ it("游客只控制和回读诊断预览折叠，不应用或上报私人折叠"
 it("游客语音只走游客意图接口，不继承已存成员令牌",async()=>{
   setOwnerSessionToken(base,"owner.secret"); await enter();
   fireEvent.keyDown(window,{key:"Alt",code:"AltRight"});
-  expect(mocks.press).toHaveBeenCalledWith(base,expect.any(Function),true);
+  expect(mocks.press).toHaveBeenCalledWith(base,expect.any(Function),true,undefined,undefined);
   await act(async()=>mocks.press.mock.calls.at(-1)![1]("买入十手黄金"));
   expect(requests.some(url=>url.endsWith("/api/guest/voice/intent"))).toBe(true);
   for(const [,init] of vi.mocked(fetch).mock.calls) expect((new Headers(init?.headers).get("Authorization") ?? "")).not.toContain("owner.secret");

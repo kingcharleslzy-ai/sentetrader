@@ -322,11 +322,12 @@ export const COMMANDABLE: Rule[] = [
   { match: control => control.surface === "dialog-strategy-launch" && /^(取消|关闭上线运行)$/.test(control.label), via: "dialog: {name: strategy-launch, open: false}" },
   { match: /^验证并上线$/, via: "POST /api/strategy-plans/{id}/validate + POST /api/strategies/{id}/monitor/start {signalAction, sessionId}（用户点；字段用 strategyLaunch 填）" },
   { match: /^(新对话|历史对话)$/, via: "chatSession: {new: true} / disclosure: chat-history" },
-  // AI 指令栏 (改版第二步 2026-11-01): the header bar's input is a chat send (the /^问 AI/ rule below); its result drop-down.
+  // AI 指令栏 (改版第二步 2026-11-01): the header bar's input is a chat send (the /^问 AI/ rule below); its result is a
+  // bubble beside the AI 球 that fades on its own (`disclosure: ai-command-result`); the phone's 回执条 has a 收起.
   { match: /^收起 AI 指令结果$/, via: "disclosure: {name: ai-command-result, open: false}" },
-  { match: control => ["ai-command-bar", "mobile-ai-result"].includes(control.group ?? "") && /撤销$/.test(control.label),
+  { match: control => ["ai-command-result", "mobile-ai-result"].includes(control.group ?? "") && /撤销$/.test(control.label),
     via: "DELETE /api/market/alerts/{alert_id} | DELETE /api/market/drawings/{drawing_id} | DELETE /api/strategy-plans/{identifier}（任务步骤 step.action.undo 写明的那个业务接口）" },
-  { match: /^(在对话里看全文|到对话里确认)$/, via: "panel: ai" },
+  { match: /^(看全文|在对话里看明细|在对话里确认|在对话里看全文|到对话里确认)$/, via: "panel: ai" },
   // AI 正在盯 (改版第二步): the line under the chart only opens where each watched item is managed.
   { match: control => control.group === "ai-watching" && /今天提醒过 \d+ 次$/.test(control.label), via: "reminders: {tab: history}" },
   { match: control => control.group === "ai-watching" && /提醒中$/.test(control.label), via: "reminders: {tab: mine}" },

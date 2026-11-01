@@ -680,7 +680,8 @@
 
 .fdw-ai-composer > small[role="alert"] { color: var(--danger); }
 
-.fdw-ai-composer input {
+.fdw-ai-composer input,
+.fdw-ai-composer textarea {
   min-width: 0;
   border: 0;
   outline: 0;
@@ -688,6 +689,11 @@
   background: transparent;
   font-size: var(--font-md);
 }
+
+/* The desktop composer (a textarea; the phone keeps its input) grows with its text up to about a third of the
+   window, then scrolls inside; its buttons stay on the bottom line. */
+.fdw-ai-composer textarea { align-self: center; height: 20px; max-height: 30vh; margin: 0; padding: 0 2px; font-family: inherit; line-height: 20px; resize: none; }
+.fdw-ai-composer:has(> textarea) > button { align-self: end; height: 30px; }
 
 .fdw-ai-composer button {
   display: grid;
@@ -1965,7 +1971,8 @@
 .fdw-dock-rows > li.fdw-dock-empty { color: var(--fdw-muted); }
 .fdw-ai-scroll,
 .fdw-ai-composer { border-color: var(--fdw-line); background: var(--fdw-surface); }
-.fdw-ai-composer input { color: var(--fdw-text); background: transparent; }
+.fdw-ai-composer input,
+.fdw-ai-composer textarea { color: var(--fdw-text); background: transparent; }
 .fdw-ai-empty,
 .fdw-agent-login,
 .fdw-ticket,

@@ -36,6 +36,9 @@ export interface PttStatus {
   /** One line under the composer after a hold that produced nothing ("没听清，再说一次", a refusal);
    *  gone PTT_NOTICE_MS later. */
   notice?: string;
+  /** Where this hold's words go (and its notice shows): a surface's own handler (the AI 指令栏, the phone editor's
+   *  补一句), or undefined for the 对话面板. Only that surface shows the hold (owner 2026-11-01: two inputs showed it). */
+  target?: PttTarget;
 }
 
 export const PTT_MIN_HOLD_MS = 300;
@@ -103,7 +106,7 @@ class PushToTalkStore {
   }
 
   /** Press: open the microphone and the socket. `onFinal` gets a non-empty final text. */
-  async press(baseUrl: string, onFinal: FinalHandler, guest = false, input?: PttCaptureFactory) {
+  async press(baseUrl: string, onFinal: FinalHandler, guest = false, input?: PttCaptureFactory, target?: PttTarget) {
     if (this.status.state !== "idle") return;
     // Still inside the press gesture: nothing above the first await may be moved below it.
     if (!input) setAudioSession("play-and-record");
@@ -113,7 +116,7 @@ class PushToTalkStore {
     this.outbox = [];
     this.micReady = false;
     this.heard = false;
-    this.publish({ state: "recording", level: 0, startedAt: Date.now(), partial: "", notice: undefined });
+    this.publish({ state: "recording", level: 0, startedAt: Date.now(), partial: "", notice: undefined, target });
     const frame = (pcm: Int16Array) => { if (session === this.session) this.frame(pcm); };
     const meter = (samples: Float32Array) => { if (session === this.session) this.meter(samples); };
     const capture = input ? input(frame, meter) : new MicCapture(frame, meter);
@@ -151,7 +154,7 @@ class PushToTalkStore {
   release() {
     if (this.status.state !== "recording") return;
     const held = Date.now() - (this.status.startedAt ?? Date.now());
-    if (held < PTT_MIN_HOLD_MS) { this.cancel(); this.showNotice(PTT_TOO_SHORT); return; }
+    if (held < PTT_MIN_HOLD_MS) { this.cancel(); this.showNotice(PTT_TOO_SHORT, this.status.target); return; }
     if (!this.micReady) { this.cancel(); return; }
     const session = this.session;
     this.publish({ state: "transcribing", level: 0, notice: undefined });
@@ -173,7 +176,7 @@ class PushToTalkStore {
   }
 
   /** A hold key pressed while push-to-talk is blocked: nothing records, the reason shows in the input row. */
-  showNotice(text: string) { if (this.status.state === "idle") this.publish({ notice: text }); }
+  showNotice(text: string, target?: PttTarget) { if (this.status.state === "idle") this.publish({ notice: text, target }); }
 
   /** Clear the notice line: a tap on it (the next hold and PTT_NOTICE_MS also clear it). */
   dismiss() { if (this.status.notice) this.publish({ notice: undefined }); }
@@ -244,7 +247,7 @@ class PushToTalkStore {
   }
 
   /** Tests only. */
-  reset() { this.teardown(); this.context = undefined; this.publish({ state: "idle", level: 0, startedAt: undefined, partial: "", notice: undefined }); }
+  reset() { this.teardown(); this.context = undefined; this.publish({ state: "idle", level: 0, startedAt: undefined, partial: "", notice: undefined, target: undefined }); }
 }
 
 export const pushToTalkStore = new PushToTalkStore();
@@ -254,8 +257,9 @@ export function usePushToTalkStatus(): PttStatus {
 }
 
 /**
- * A surface that takes the held words instead of the 对话面板: the desktop AI 指令栏 (2026-11-01). While one is
- * registered the hold key sends its text there and does not open the 对话面板, so the panel the words are about stays.
+ * A surface that takes the held words instead of the 对话面板: the desktop AI 指令栏 while the 对话面板 is closed
+ * (2026-11-01). While one is registered the hold key sends its text there and does not open the 对话面板, so the panel
+ * the words are about stays; with the 对话面板 open none is registered and the words go to its input.
  */
 export type PttTarget = (text: string) => void;
 let pttTarget: PttTarget | undefined;

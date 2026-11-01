@@ -54,15 +54,14 @@ export function usePushToTalk({ baseUrl, blockedReason, sendOnRelease, onSend, o
     // A button that names its own target (the phone editor's 补一句 microphone) gets the words.
     const target = explicit ?? (fromKey && !latest.current.guest ? currentPttTarget() : undefined);
     if (!url || blocked) {
-      if (fromKey) pushToTalkStore.showNotice(blocked || "连接后可用");
+      if (fromKey) pushToTalkStore.showNotice(blocked || "连接后可用", target);
     } else {
       const final = (text: string) => {
         if (target) return target(text);
         const { sendOnRelease: send, onSend: sendText, onFill: fill, chatSessionId: shownChat } = latest.current;
         (send && shownChat === pressedChat ? sendText : fill)(text);
       };
-      if (input) void pushToTalkStore.press(url, final, latest.current.guest, input);
-      else void pushToTalkStore.press(url, final, latest.current.guest);
+      void pushToTalkStore.press(url, final, latest.current.guest, input, target);
     }
     // After the store has started (its microphone is already opening): the panel renders next.
     // A registered target (the guide card) keeps the words where they are asked for.

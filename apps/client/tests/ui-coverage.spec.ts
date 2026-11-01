@@ -445,13 +445,13 @@ test("every user-operable control is commandable or reachable, and visible to th
     const raw = await collectControls(target);
     // The observation rides on the heartbeat: content that does not change UiState (a new card) reaches
     // the Runtime with the next idle pulse, up to 10 s later. Wait for a snapshot that has caught up.
-    // Inputs and plain anchors never appear in observation.controls (its selector lists buttons, selects,
+    // Inputs, textareas (the AI 指令栏 and the 对话 composer, 2026-11-01) and plain anchors never appear in observation.controls (its selector lists buttons, selects,
     // summary, tabs and separators only) — waiting for them cannot succeed; the gap assertion below still
     // flags a non-exempt anchor the snapshot cannot see.
     let snapshot = await detail(device);
     for (let waited = 0; waited < 11_000; waited += 1000) {
       const labels = new Set<string>((snapshot.observation.controls as { label: string }[]).map(item => item.label));
-      if (raw.every(item => item.role.startsWith("input:") || item.role === "a" || labels.has(item.label))) break;
+      if (raw.every(item => item.role.startsWith("input:") || item.role === "textarea" || item.role === "a" || labels.has(item.label))) break;
       await target.waitForTimeout(1000);
       snapshot = await detail(device);
     }
@@ -474,7 +474,7 @@ test("every user-operable control is commandable or reachable, and visible to th
     for (let waited = 0; waited < 12_000; waited += 1000) {
       const seen = (await detail()).observation.controls as { label: string }[];
       const labels = new Set<string>(seen.map(item => item.label));
-      if (seen.length >= 150 || base.every(item => item.role.startsWith("input:") || item.role === "a" || labels.has(item.label))) break;
+      if (seen.length >= 150 || base.every(item => item.role.startsWith("input:") || item.role === "textarea" || item.role === "a" || labels.has(item.label))) break;
       await page.waitForTimeout(1000);
     }
   }

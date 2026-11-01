@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Undo2, X } from "lucide-react";
 import type { AgentTask } from "@ai-trader/ui-events";
 import { requestJson } from "../../api";
@@ -12,7 +12,8 @@ const ANSWER_CHARS = 140;
  * The AI 指令栏's result (改版第二步): the line sent, the first assistant turn after it, what the AI did — each step
  * the Runtime marked as an action (`step.action`) with 撤销 where it can be taken back through the same business call
  * the UI uses — and the answer's first lines. The desktop header bar and the phone's 回执条 (方案 B, 2026-11-01) share
- * it; `available` says which one holds the `ai-command-result` disclosure in this window.
+ * it (the desktop shows it as `AiCommandBubble` beside the AI 球); `available` says whether this window holds the
+ * `ai-command-result` disclosure.
  */
 export function useAiCommand({ baseUrl, turns, busy, blockedReason, onSend, available = true }: {
   baseUrl: string | undefined;
@@ -62,7 +63,7 @@ export function useAiCommand({ baseUrl, turns, busy, blockedReason, onSend, avai
 
 export type AiCommand = ReturnType<typeof useAiCommand>;
 
-/** The result drop-down's body (desktop under the bar, phone above the tabs). */
+/** The phone's 回执条 body (above the tabs). */
 export function AiCommandResult({ command, className, target, onOpenChat }: { command: AiCommand; className: string; target?: string; onOpenChat: () => void }) {
   const { asked, actions, working, hasCard, answer, undone, undo, setOpen } = command;
   if (!asked) return null;
@@ -93,5 +94,70 @@ export function AiCommandResult({ command, className, target, onOpenChat }: { co
     <footer>
       <button type="button" className="ai-bar-chat" onClick={() => { setOpen(false); onOpenChat(); }}>{hasCard ? "到对话里确认" : "在对话里看全文"}</button>
     </footer>
+  </section>;
+}
+
+/** How long the desktop bubble stays (owner 2026-11-01): a plain result fades on its own; one with a card to confirm
+ *  or something to undo waits longer. A pointer or focus on it holds it. */
+const LINGER_MS = 8_000;
+const LINGER_LONG_MS = 20_000;
+const FADE_MS = 300;
+const BUBBLE_CHARS = 60;
+
+/**
+ * The AI 指令栏's result on the desktop, a small bubble beside the AI 球 (owner 2026-11-01, replacing the drop-down
+ * under the bar): one line — what the AI did, joined, with one 撤销 for all that can be taken back; a waiting order
+ * card; or the answer's first words — and a button into the chat for the rest. Orders are confirmed in the chat.
+ * Fades after LINGER_MS (LINGER_LONG_MS with a card or an undo) unless the pointer or focus is on it. Keyed per line
+ * sent, so its timer and hold start over.
+ */
+export function AiCommandBubble({ command, failed, onOpenChat }: {
+  command: AiCommand;
+  /** The send itself failed (the chat's own line, e.g. 发送未确认): said here instead of waiting forever. */
+  failed?: string;
+  onOpenChat: () => void;
+}) {
+  const { asked, open, setOpen, actions, hasCard, answer, undone, undo } = command;
+  const [held, setHeld] = useState(false);
+  const [fading, setFading] = useState(false);
+  const lost = Boolean(failed) && command.working && !answer && !actions.length;
+  const working = command.working && !lost;
+  const undoable = actions.filter(step => step.action!.undo);
+  const linger = hasCard || undoable.length ? LINGER_LONG_MS : LINGER_MS;
+  useEffect(() => {
+    if (!open || working || held) return;
+    const fade = window.setTimeout(() => setFading(true), linger);
+    const close = window.setTimeout(() => setOpen(false), linger + FADE_MS);
+    return () => { window.clearTimeout(fade); window.clearTimeout(close); setFading(false); };
+  }, [open, working, held, linger, setOpen]);
+  if (!open || !asked) return null;
+
+  const states = undoable.map(step => undone[step.id]);
+  const allUndone = undoable.length > 0 && states.every(state => state === "done");
+  const busy = states.includes("busy");
+  const error = states.find(state => state && state !== "busy" && state !== "done");
+  const undoAll = async () => { for (const step of undoable) if (undone[step.id] !== "done") await undo(step.id, step.action!.undo!.path); };
+  const did = actions.map(step => step.action!.text).join("；");
+  const line = actions.length ? `${allUndone ? "已撤销：" : ""}${did}${working ? "，还在继续…" : ""}`
+    : lost ? failed!
+    : working ? "AI 正在处理…"
+    : hasCard ? "有一张下单确认卡，确认后才会下单"
+    : answer.length > BUBBLE_CHARS ? `${answer.slice(0, BUBBLE_CHARS)}…` : answer;
+  const tone = allUndone ? "undone" : working ? "working" : hasCard || lost ? "card" : actions.length ? "done" : "answer";
+  const more = hasCard ? "在对话里确认" : actions.length > 1 ? "在对话里看明细" : !actions.length && !working && !lost ? "看全文" : "";
+  const hold = () => setHeld(true);
+  const release = () => setHeld(false);
+
+  return <section className="ai-orb-result" aria-label="AI 指令结果" aria-live="polite" data-agent-target="ai-command-result"
+    data-tone={tone} data-fading={fading || undefined} title={asked.text}
+    onPointerEnter={hold} onPointerLeave={release} onFocus={hold} onBlur={release}>
+    <p>
+      <i aria-hidden="true" />
+      <span role={working ? "status" : undefined}>{line}</span>
+      {undoable.length && !allUndone && !working ? <button type="button" className="app-button" disabled={busy} onClick={() => void undoAll()}><Undo2 aria-hidden="true" />撤销</button> : null}
+    </p>
+    {actions.length && hasCard ? <p className="ai-orb-result-card">有一张下单确认卡，确认后才会下单</p> : null}
+    {error ? <small role="alert">{error}</small> : null}
+    {more ? <footer><button type="button" className={hasCard ? "app-button primary" : "app-button"} onClick={() => { setOpen(false); onOpenChat(); }}>{more}</button></footer> : null}
   </section>;
 }

@@ -1,4 +1,5 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { useFitHeight } from "../../hooks/useFitHeight";
 import { openExternal } from "../../externalLinks";
 import { useDisclosureSurface } from "../../uiSurfaces";
 import { SettingRow, SettingsSection } from "../SettingsPanel";
@@ -8,23 +9,6 @@ import {
   readFeedbackBrowser, type FeedbackEnvironment, type FeedbackKind,
 } from "./feedback";
 import "./FeedbackSettings.css";
-
-/** Grow a read-only text to its content, so the page keeps its one scroll region. */
-function useFitHeight(value: string) {
-  const ref = useRef<HTMLTextAreaElement>(null);
-  useLayoutEffect(() => {
-    const fit = () => {
-      const area = ref.current;
-      if (!area || area.offsetParent === null) return;
-      area.style.height = "auto";
-      area.style.height = `${area.scrollHeight + 2}px`;
-    };
-    fit();
-    window.addEventListener("resize", fit);
-    return () => window.removeEventListener("resize", fit);
-  }, [value]);
-  return ref;
-}
 
 /**
  * 设置 → 关于 → 问题与建议 (2026-10-06): a feedback mail draft to the fixed support address. The

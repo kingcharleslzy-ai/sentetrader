@@ -3,7 +3,7 @@ import { listProductBriefs, refreshProductBriefs, requestJson, type ProductBrief
 import { LONG_READ_TIMEOUT_MS } from "../requestTimeout";
 import { useActivityFresh, useFillFeedback } from "../hooks/useActivityMotion";
 import { usePersistentDraft } from "../hooks/usePersistentDraft";
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 
 /** The trading account the session acts on now; account-scoped reads key on it (#526). */
 function useActiveTradingAccount() { return useSyncExternalStore(onTradingAccountChange, activeTradingAccount); }
@@ -216,7 +216,7 @@ const LONG_PRESS_MS = 500;
  * news pops the card above the orb for a few seconds even mid-call; long-press / right-click opens
  * 静音 / 挂断 / 切文字 / AI 动态. Commandable: `aiActivityCard`, `disclosure: voice-call|voice-mute|voice-menu`.
  */
-export function AiOrb({ baseUrl, symbol, replay, activity, error, config, onBriefStatusChange, onOpenChat, sessionId, voiceAvailable, avatar = "kline" }: {
+export function AiOrb({ baseUrl, symbol, replay, activity, error, config, onBriefStatusChange, onOpenChat, sessionId, voiceAvailable, avatar = "kline", beside }: {
   baseUrl?: string; symbol?: string; name?: string; replay: boolean; activity?: ActivitySnapshot; error: string;
   config: typeof defaultConfig; onConfigChange: (patch: Partial<typeof defaultConfig>) => Promise<void>; onOpenChat: () => void; onBriefStatusChange?: (status: string) => void;
   /** The chat session voice turns join. */
@@ -225,6 +225,8 @@ export function AiOrb({ baseUrl, symbol, replay, activity, error, config, onBrie
   voiceAvailable?: boolean;
   /** 设置 → 界面 → AI 形象. */
   avatar?: AiAvatarKind;
+  /** A short message beside the orb (the AI 指令栏's result), on the side with more room: away from the price axis. */
+  beside?: ReactNode;
 }) {
   const identity = useReadIdentity();
   const area = useRef<HTMLDivElement>(null); const bubble = useRef<HTMLButtonElement>(null);
@@ -322,6 +324,10 @@ export function AiOrb({ baseUrl, symbol, replay, activity, error, config, onBrie
   const cardWidth = Math.min(348, size.width), cardHeight = Math.min(440, size.height);
   const cardLeft=Math.max(0,Math.min(left+56-cardWidth,size.width-cardWidth));
   const cardTop=Math.max(0,Math.min(top-cardHeight-8,size.height-cardHeight));
+  const besideWidth = Math.min(304, size.width);
+  const besideLeft = Math.max(0, Math.min(left + 28 > size.width / 2 ? left - 8 - besideWidth : left + 64, size.width - besideWidth));
+  // Bottom-aligned with the orb, growing upwards; an orb near the top grows it downwards instead.
+  const besidePlace = top < 120 ? { top } : { bottom: Math.max(0, size.height - top - 56) };
   const menuLeft = Math.max(0, Math.min(left + 56 - 148, size.width - 148));
   const menuTop = Math.max(0, top - 8 - (inCall ? 4 : 2) * 34 - 8);
   return <div className="ai-floating-area" ref={area}>
@@ -342,6 +348,7 @@ export function AiOrb({ baseUrl, symbol, replay, activity, error, config, onBrie
       {inCall ? <span className="ai-orb-badge" aria-hidden="true">{callStatus.muted ? <MicOff /> : <Mic />}</span> : null}
       {unread && <i className="ai-orb-dot" />}
     </button>
+    {beside ? <div className="ai-orb-beside" style={{ left: besideLeft, width: besideWidth, ...besidePlace }}>{beside}</div> : null}
     {voice && (inCall || callStatus.state === "error") ? <span className="ai-orb-label" role="status" data-state={callStatus.state} style={{ left: left + 28, top: top + 60 > size.height - 24 ? top - 26 : top + 60 }}>{callLabel}</span> : null}
     {menuOpen ? (
       <menu className="ai-orb-menu" role="menu" aria-label="AI 球菜单" style={{ left: menuLeft, top: menuTop }}>

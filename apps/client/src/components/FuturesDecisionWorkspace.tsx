@@ -40,7 +40,7 @@ import { routineRunPrompt, type RoutineRef } from "../routines";
 import { ContractDrawer } from "./futures/WorkspaceDrawers";
 import { AiDock } from "./futures/AiDock";
 import { AiCommandBar } from "./futures/AiCommandBar";
-import { useAiCommand } from "./futures/useAiCommand";
+import { AiCommandBubble, useAiCommand } from "./futures/useAiCommand";
 import { AiWatching } from "./futures/AiWatching";
 import { NewsPanel, type NewsTab } from "./NewsPanel";
 import { useDebateHost } from "./ResearchDebate";
@@ -780,14 +780,15 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     onKeyPress: props.guest ? undefined : openChat,
     chatSessionId: props.chatSessionId });
   // 手机版 方案 B (owner 2026-11-01): the bar's 按住说话 key and its typing send from the page on screen, without opening
-  // the AI 对话 page; the 回执条 shows what came back (the AI 指令栏's result).
+  // the AI 对话 page; the 回执条 shows what came back (the AI 指令栏's result). On the desktop the same line comes from
+  // the AI 指令栏 and its result shows beside the AI 球 (which is on every desktop page for it).
   const aiBlocked = !connectedRuntimeUrl ? "连接后可以问 AI" : props.agentAccount && !props.agentAccount.authenticated ? "模型尚未就绪，请在设置里选择模型"
     : accessRef.current?.reason("ai-chat") || null;
   const aiCommand = useAiCommand({ baseUrl: connectedRuntimeUrl, turns: props.state.turns, busy: Boolean(props.chatBusy || chat.sendingPrompt),
-    blockedReason: aiBlocked, available: mobile && !isGuest,
+    blockedReason: aiBlocked, available: !isGuest,
     onSend: (text, spoken) => {
       if (spoken && connectedRuntimeUrl) voiceReply.expect(connectedRuntimeUrl, props.state.turns.map(turn => turn.id));
-      return chat.sendQuickPrompt(text, mobileTab === "strategy" ? mobileStrategyFocus : undefined, spoken ? { origin: "ptt" } : undefined);
+      return chat.sendQuickPrompt(text, mobile && mobileTab === "strategy" ? mobileStrategyFocus : undefined, spoken ? { origin: "ptt" } : undefined);
     } });
   useEffect(() => { voiceReply.offer(props.state.turns); }, [props.state.turns]);
   useEffect(() => { if (ptt.status.state === "recording" || call.inCall) voiceReply.stop(); }, [ptt.status.state, call.inCall]);
@@ -1213,7 +1214,8 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   // The floating AI orb rides inside the chart area, so it only ever covers the chart —
   // never the 复盘 list or a side panel. Without a quote (no chart) it floats over the
   // whole market area; its key changes with the symbol, so the move remounts nothing extra.
-  const aiOrb = !props.guest ? <AiOrb key={String(props.runtimeBaseUrl) + quote?.symbol} baseUrl={connectedRuntimeUrl} symbol={quote?.symbol} name={quote?.name} replay={Boolean(props.replayActive)} activity={appWorkbench.activity} error={appWorkbench.error} config={appWorkbench.config} onConfigChange={appWorkbench.updateConfig} onBriefStatusChange={setBriefStatus} onOpenChat={openChat} sessionId={props.chatSessionId} voiceAvailable={voiceAvailable} avatar={preferences.ui?.aiAvatar ?? "kline"} /> : null;
+  const aiOrb = !props.guest ? <AiOrb key={String(props.runtimeBaseUrl) + quote?.symbol} baseUrl={connectedRuntimeUrl} symbol={quote?.symbol} name={quote?.name} replay={Boolean(props.replayActive)} activity={appWorkbench.activity} error={appWorkbench.error} config={appWorkbench.config} onConfigChange={appWorkbench.updateConfig} onBriefStatusChange={setBriefStatus} onOpenChat={openChat} sessionId={props.chatSessionId} voiceAvailable={voiceAvailable} avatar={preferences.ui?.aiAvatar ?? "kline"}
+    beside={aiCommand.asked ? <AiCommandBubble key={`${aiCommand.asked.after}:${aiCommand.asked.text}`} command={aiCommand} failed={chat.promptError || undefined} onOpenChat={openChat} /> : undefined} /> : null;
 
   // Shared by both layouts: the confirmations, help and tour overlays before the body, the drawers,
   // settings and notices after it, and the 对话面板 (the phone's AI 对话 page passes `mobileChat`).
@@ -1519,12 +1521,8 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
         onVisibleCurrentContractChange={setHeaderCurrentContract}
         pinnedSymbols={pinnedSymbols} onSelectContract={selectContractTab} onPinContract={() => { setContractPinMode(true); setContractOpen(true); }} onUnpinContract={unpinContractTab} replayBlocked={replayBlocked}
         guestActions={props.guest ? <PttButton ptt={ptt} /> : undefined}
-        aiBar={props.guest || mobile ? undefined : <AiCommandBar baseUrl={connectedRuntimeUrl} turns={props.state.turns} busy={Boolean(props.chatBusy || chat.sendingPrompt)}
-          blockedReason={!connectedRuntimeUrl ? "连接后可以问 AI" : props.agentAccount && !props.agentAccount.authenticated ? "模型尚未就绪，请在设置里选择模型" : null}
-          onSend={(text, spoken) => {
-            if (spoken && connectedRuntimeUrl) voiceReply.expect(connectedRuntimeUrl, props.state.turns.map(turn => turn.id));
-            return chat.sendQuickPrompt(text, undefined, spoken ? { origin: "ptt" } : undefined);
-          }} onOpenChat={openChat} ptt={ptt} />} />
+        aiBar={props.guest || mobile ? undefined : <AiCommandBar busy={Boolean(props.chatBusy || chat.sendingPrompt)} chatOpen={rightDock === "ai"}
+          blockedReason={aiBlocked} send={aiCommand.send} ptt={ptt} />} />
 
       {dialogs}
       <WebUpdateBanner />
@@ -1532,7 +1530,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
 
       <div className="fdw-body">
         <main className="fdw-market" data-testid="market-workspace">
-          {market || (!props.guest && view === "review") ? null : aiOrb}
+          {(market || (!props.guest && view === "review")) && view !== "board" ? null : aiOrb}
           {!props.guest && !props.replayActive ? <ConnectionProgress connection={props.connection} runtime={props.state.runtime} agent={props.agentAccount} hasMarket={Boolean(market)} runtimeUsable={props.status.runtimeUsable} onSettings={() => setSettingsOpen(true)} /> : null}
           {props.guest && (props.guest.status || props.guest.notice || ptt.status.notice || ptt.status.partial) ? <div className="fdw-runtime-notice" role="status">
             {props.guest.status || props.guest.notice}<PttLive status={ptt.status} />

@@ -1,0 +1,17 @@
+{
+  "about": "电脑版指令栏三处改动（#1249）：报价页也有 AI 球；顶栏指令栏打长句时往下展开、顶栏不变高；对话输入框随字长高。只填字不发送（结果气泡另用测试账号在顶栏发一句核对），最后把两处输入框清空。",
+  "steps": [
+    {"ui": {"view": "board"}, "expect": {"view": "board", "observation.controls": {"includes": "可拖动"}}},
+    {"screenshot": "01-board-orb"},
+    {"ui": {"view": "trade"}, "expect": {"view": "trade"}},
+    {"fill": {"label": "问 AI，或说一句要做的事", "value": "回读：看一下螺纹今天夜盘的走势，如果回踩前低不破就提醒我，另外把昨天画的那条下降趋势线删掉，顺便算一下现在离保本还差多少点，再说说明天要注意的数据"}},
+    {"screenshot": "02-bar-expanded"},
+    {"ui": {"panel": "ai"}, "expect": {"panel": "ai"}},
+    {"fill": {"label": "向 AI 决策流提问", "value": "回读：按这个思路写个策略：\n1. 15 分钟线回踩均线不破开多 1 手；\n2. 跌破前低止损；\n3. 到前高先平一半，剩下的跟踪止盈。"}},
+    {"screenshot": "03-composer-grown"}
+  ],
+  "cleanup": [
+    {"fill": {"label": "向 AI 决策流提问", "value": ""}},
+    {"fill": {"label": "问 AI，或说一句要做的事", "value": ""}}
+  ]
+}
