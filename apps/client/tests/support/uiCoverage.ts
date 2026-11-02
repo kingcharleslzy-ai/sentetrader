@@ -393,6 +393,8 @@ export const COMMANDABLE: Rule[] = [
   { match: control => control.group === "news:flash" && /^(当前品种|持仓与自选|宏观|全部)$/.test(control.label),
     via: "news: {flashFilter: product|watch|macro|all}（只给筛选也会切到快讯页；快照 state.news.flashFilter 与 state.news.flash.count）" },
   { match: control => control.group === "news:flash" && /^切到 .+ 主力合约$/.test(control.label), via: "symbol（快讯品种标签：该品种的主力合约，title 带合约代码）" },
+  // 今日作战表 (2026-10-25 第 5 批): a row's 看调研 switches the chart to that contract and opens its 调研 (the phone's row is the 调研 chip rule).
+  { match: control => control.group === "news:sheet" && control.label === "看调研", via: "symbol + news: {tab: desk}（作战表一行的“看调研”：切到该行合约并打开品种调研；各行合约是 GET /api/research/sheet 的 rows[].symbol）" },
   { match: control => control.group === "news:flash" && /^(展开全部 \d+ 条|收起)$/.test(control.label),
     via: "disclosure: flash-calendar（本周重要数据展开全部；快照 disclosures.flash-calendar 与 state.news.flash.calendarCount）" },
   // 新闻 AI 筛选 (2026-10-07): the 快讯 sort switch and the folded “筛掉了 N 条” row (快讯 / 资讯 / 手机调研).

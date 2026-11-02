@@ -687,6 +687,8 @@ def screen_view(screener: NewsScreener | None, product: str, name: str, candidat
             screener.touch(product, name)
         if queue:
             screener.want(queue, urgent=urgent)
+        elif urgent and pending:  # queued earlier by a background read (作战表推送, the poller): the reader still waits 10 s, not 5 min
+            screener.wake()
     return {"kept": kept, "dropped": dropped, "pending": pending, "unscreened": unscreened,
             "mode": "ai" if usable else "keyword", "reason": reason}
 
