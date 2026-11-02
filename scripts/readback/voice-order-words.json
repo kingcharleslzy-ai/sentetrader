@@ -1,0 +1,35 @@
+{
+  "about": "语音下单听得懂（#1279）与作战表“看调研”（#1277）。测试账号、原油图表、没有原油持仓：所有者原话“下 5 单多单”“开一单多单”“下一单多单”各在一个新对话里说一遍，都出买开确认卡（回答念出“买开 N 手”）；“开多原油”先被问“开几手？”，同一对话答“一手”直接出买开 1 手的卡。只看卡、不点确认（卡过期作废，不下单）。最后作战表一行的“看调研”= symbol + news: {tab: desk}。截图 01–05 要看。按住说话 / 通话的声音修复（#1276）不在本计划，待所有者真机试。",
+  "steps": [
+    {"ui": {"view": "trade", "symbol": "INE.sc2612"}, "expect": {"view": "trade", "symbol": "INE.sc2612"}},
+
+    {"api": "POST /api/sessions?chat=true", "body": {"mode": "cloud"}, "status": 201, "save": {"s1": "body.sessionId"}},
+    {"ui": {"panel": "chat", "chatSession": {"sessionId": "{{s1}}"}}, "expect": {"panel": "chat"}},
+    {"api": "POST /api/sessions/{{s1}}/messages", "body": {"text": "下 5 单多单", "origin": "voice", "uiWindowId": "{{windowId}}"}, "status": 202},
+    {"ui": {"panel": "chat"}, "expect": {"observation.text": {"includes": "买开 5 手"}}, "timeoutMs": 45000},
+    {"screenshot": "01-five-lots"},
+
+    {"api": "POST /api/sessions?chat=true", "body": {"mode": "cloud"}, "status": 201, "save": {"s2": "body.sessionId"}},
+    {"ui": {"panel": "chat", "chatSession": {"sessionId": "{{s2}}"}}, "expect": {"panel": "chat"}},
+    {"api": "POST /api/sessions/{{s2}}/messages", "body": {"text": "开一单多单。", "origin": "voice", "uiWindowId": "{{windowId}}"}, "status": 202},
+    {"ui": {"panel": "chat"}, "expect": {"observation.text": {"includes": "买开 1 手"}}, "timeoutMs": 45000},
+    {"screenshot": "02-open-one"},
+
+    {"api": "POST /api/sessions?chat=true", "body": {"mode": "cloud"}, "status": 201, "save": {"s3": "body.sessionId"}},
+    {"ui": {"panel": "chat", "chatSession": {"sessionId": "{{s3}}"}}, "expect": {"panel": "chat"}},
+    {"api": "POST /api/sessions/{{s3}}/messages", "body": {"text": "下一单多单", "origin": "voice", "uiWindowId": "{{windowId}}"}, "status": 202},
+    {"ui": {"panel": "chat"}, "expect": {"observation.text": {"includes": "买开 1 手"}}, "timeoutMs": 45000},
+    {"screenshot": "03-place-one"},
+
+    {"api": "POST /api/sessions?chat=true", "body": {"mode": "cloud"}, "status": 201, "save": {"s4": "body.sessionId"}},
+    {"ui": {"panel": "chat", "chatSession": {"sessionId": "{{s4}}"}}, "expect": {"panel": "chat"}},
+    {"api": "POST /api/sessions/{{s4}}/messages", "body": {"text": "开多原油", "origin": "voice", "uiWindowId": "{{windowId}}"}, "status": 202},
+    {"ui": {"panel": "chat"}, "expect": {"observation.text": {"includes": "开几手"}}, "timeoutMs": 45000},
+    {"api": "POST /api/sessions/{{s4}}/messages", "body": {"text": "一手。", "origin": "voice", "uiWindowId": "{{windowId}}"}, "status": 202},
+    {"ui": {"panel": "chat"}, "expect": {"observation.text": {"includes": "买开 1 手"}}, "timeoutMs": 45000},
+    {"screenshot": "04-answer-one-lot"},
+
+    {"ui": {"symbol": "INE.sc2612", "news": {"tab": "desk"}}, "expect": {"panel": "news", "news.tab": "desk", "symbol": "INE.sc2612"}},
+    {"screenshot": "05-sheet-desk"}
+  ]
+}

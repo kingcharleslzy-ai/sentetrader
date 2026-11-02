@@ -25,7 +25,8 @@
 //    "expect": {"body.playbookName": "验收打法"}, "save": {"roundId": "body.trades.0.id"}}
 //   {"screenshot": "01-review", "scrollTo": "这笔的打法"}      (scrollTo: a control's accessible name)
 //   {"fill": {"label": "止损价", "value": "3000"}}              (types into a field by its accessible name; never submits)
-// `{{name}}` anywhere in a step is replaced by a value an earlier step saved; expect paths are dotted (array
+// `{{name}}` anywhere in a step is replaced by a value an earlier step saved (`{{windowId}}` is the run's own web
+// window); expect paths are dotted (array
 // indexes allowed); an expected value of {"exists": true} only asks that the path be there, {"includes": "x"}
 // that its text (an object's JSON, e.g. `observation.controls` with selects' options) contain x. A plan's
 // "device": "phone" runs the window in the phone layout. A UI step's paths read the window state, plus `observation.text` (the snapshot's
@@ -232,6 +233,7 @@ async function run({ plan, expected, out, monitorSeconds }) {
     original = await until(async () => { const current = await detail(); return { ok: Boolean(current?.state?.view && current.state.tradingAccount), value: current?.state }; }, "网页窗口登记", 60_000);
     account = original.tradingAccount;
     result.account = account;
+    saved.windowId = windowId;  // `{{windowId}}`: this run's web window (a chat message sent with it reads its chart)
     for (const raw of plan.steps ?? []) await step(raw, result.steps);
   } catch (error) {
     result.failure = String(error.message ?? error);
