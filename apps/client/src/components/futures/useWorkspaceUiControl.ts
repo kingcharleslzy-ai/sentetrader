@@ -31,6 +31,7 @@ import type { MobilePage, MobileTab } from "../mobile/MobileWorkspace";
 import type { NotifyFilter } from "../mobile/notifyItems";
 import type { InstallEnvironment } from "../mobile/installEnvironment";
 import type { MobileMarketChange } from "../mobile/mobileMarketPrefs";
+import type { DesktopChartsChange } from "./desktopCharts";
 
 interface Input {
   workspace: FuturesDecisionWorkspaceProps;
@@ -132,6 +133,8 @@ export interface WorkspaceSurfaces {
   setContractProduct: (product: string | null) => void;
   quickSkipConfirm: boolean;
   setQuickSkipConfirm: (value: boolean) => void;
+  /** 电脑版多图 (2026-11-02): the `desktopCharts` command; absent where there is no grid (phone, visitor, replay). */
+  desktopCharts?: (change: DesktopChartsChange) => void;
   currentPositions: AccountPosition[];
   selectedPosition: AccountPosition | undefined;
   selectPosition: (position: AccountPosition | null) => void;
@@ -304,6 +307,11 @@ export function useWorkspaceUiControl({ workspace, connectedRuntimeUrl, market, 
     }
     if (changes.duration != null) selectDuration(changes.duration);
     if (changes.chartView != null) selectChartView(changes.chartView);
+    if (changes.desktopCharts != null) {
+      if (mobile) throw new Error("这个窗口是手机布局，没有电脑版多图");
+      if (!surfaces.desktopCharts) throw new Error(workspace.guest ? "多图要登录后用" : "回放里不能切多图");
+      surfaces.desktopCharts(changes.desktopCharts as DesktopChartsChange);
+    }
     if (changes.view === "review" && workspace.access?.reason("review-summary")) throw new Error(workspace.access.reason("review-summary"));
     if (changes.view === "board" && workspace.guest) throw new Error("游客暂无报价总表");
     if (changes.view != null) {

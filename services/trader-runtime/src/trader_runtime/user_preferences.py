@@ -365,6 +365,27 @@ class MobileMarketPreferences(BaseModel):
         return self
 
 
+# 电脑版多图 (2026-11-02): 单图 / 左右 2 格 / 2×2 四格. The selected cell (`active`) is the chart's own contract and
+# period; the other cells keep theirs here (symbol null = 自动补位: 钉住的合约标签, then the main contracts). The three
+# switches link the whole grid: 同步周期 / 同步品种 (every cell takes the selected cell's) and 同步十字线.
+DESKTOP_CHART_LAYOUTS = Literal["single", "two", "four"]
+DESKTOP_CHART_CELLS = 4
+
+
+def _default_desktop_cells() -> list[MobileChartCell]:
+    return [MobileChartCell() for _ in range(DESKTOP_CHART_CELLS)]
+
+
+class DesktopChartsPreferences(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    layout: DESKTOP_CHART_LAYOUTS = "single"
+    cells: list[MobileChartCell] = Field(default_factory=_default_desktop_cells, max_length=DESKTOP_CHART_CELLS)
+    active: int = Field(default=0, ge=0, lt=DESKTOP_CHART_CELLS)
+    syncDuration: bool = False
+    syncSymbol: bool = False
+    syncCrosshair: bool = True
+
+
 class UiPreferences(BaseModel):
     model_config = ConfigDict(extra="forbid")
     quickSkills: list[str] = Field(default_factory=lambda: list(DEFAULT_QUICK_SKILLS),
@@ -377,6 +398,8 @@ class UiPreferences(BaseModel):
     autoHidePositionsBar: bool = True
     # 手机看盘 (2026-10-09): 报价 / 多图 / 单图 and each one's own settings, remembered per account.
     mobileMarket: MobileMarketPreferences = Field(default_factory=MobileMarketPreferences)
+    # 电脑版多图 (2026-11-02): the desktop chart grid, remembered per account.
+    desktopCharts: DesktopChartsPreferences = Field(default_factory=DesktopChartsPreferences)
 
     @field_validator("quickSkills")
     @classmethod

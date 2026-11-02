@@ -40,6 +40,8 @@ interface Props {
   /** 提醒中心 (#932, 2026-10-15): the bell right of the period buttons (it opens the 提醒 panel on 提醒记录); absent
    *  for a guest. */
   reminderBell?: ReactNode;
+  /** 电脑版多图 (2026-11-02): the layout buttons and sync switches, after the periods. */
+  chartLayout?: ReactNode;
   /** 用户画线: the workspace's handle, only for its receipt line under the bar (清空 / 拒绝的原因);
    *  the tools themselves are the chart's left toolbar since 画线第二版 (2026-10-09). */
   drawings?: ChartDrawingsHandle;
@@ -60,7 +62,7 @@ function ContractName({ name }: { name?: string }) {
 }
 
 /** Instrument, quote summary, period switch and chart tools above the chart. */
-export function MarketCommand({ workspace, market, headerCurrentContract, chartView, decimals, onOpenContracts, onSelectDuration, onSelectChartView, alerts, reminderBell, drawings,
+export function MarketCommand({ workspace, market, headerCurrentContract, chartView, decimals, onOpenContracts, onSelectDuration, onSelectChartView, alerts, reminderBell, chartLayout, drawings,
   watchlistStar, onToggleWatchlist, watchlistStatus }: Props) {
   const quote = market.quote;
   const tick = usePriceTick(quote?.symbol, quote?.lastPrice);
@@ -108,6 +110,7 @@ export function MarketCommand({ workspace, market, headerCurrentContract, chartV
           </div>
           <div className="fdw-chart-tools">
             <PeriodSwitch chartView={chartView} duration={workspace.duration} onSelectDuration={onSelectDuration} onSelectChartView={onSelectChartView} />
+            {chartLayout}
             {reminderBell}
             <div className="fdw-chart-health" title={`${formatTime(quote?.quoteDatetime)} · ${formatAge(market.ageSeconds)} · 最小变动价位 ${formatNumber(quote?.priceTick, decimals)}`}>
               <MarketSessionCard key={`${workspace.runtimeBaseUrl}:${quote?.symbol}:${workspace.replayActive}`} market={market} replayActive={workspace.replayActive}/>

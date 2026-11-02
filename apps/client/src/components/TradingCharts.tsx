@@ -27,6 +27,7 @@ import { AddPaneChooser, ChartPopover, MaLinesEditor, SubPaneEditor, type ChartI
 import { useDisclosureSurface } from "../uiSurfaces";
 import { rumChartPainted } from "../rum";
 import { refitWhenWidened } from "./chartRefit";
+import { useCursorLink } from "./chartCursorLink";
 import { contractPriceFormat, contractTickmarks, formatCciPrice, formatIntegerPrice, formatMacdPrice } from "./chartPriceFormat";
 import {
   BOLL_LINE_COLOR, CCI_LINE_COLOR, MA_LINE_COLORS, OI_LINE_COLOR, RSI_LINE_COLOR, SAR_POINT_COLOR, SUB_PANE_NAMES, SUB_PANES_MAX,
@@ -71,6 +72,9 @@ export interface TradingChartSettings {
 export type ContextDrawing = ChartDrawing;
 
 interface TradingChartsProps {
+  /** 电脑版多图 (2026-11-02): a cell other than the selected one — it publishes no chart observation and no
+   *  `data-region`, so the snapshot, highlights and the AI's chart context keep reading the selected chart. */
+  passive?: boolean;
   helpAvailable?: boolean;
   onHelp?: () => void;
   historyRestricted?: boolean;
@@ -324,6 +328,7 @@ export function barReadout(bars: readonly { time: number; open: number; high: nu
 }
 
 export function TradingCharts({
+  passive = false,
   helpAvailable = true,
   onHelp,
   historyRestricted = false,
@@ -491,9 +496,11 @@ export function TradingCharts({
   const setSizes = (paneSizes: PaneSizes) => onSettingsChange({ ...settings, paneSizes });
   const [cursorX, setCursorX] = useState<number>();
   const [cursorTime, setCursorTime] = useState<number>();
+  // 多图 · 同步十字线: the grid's other charts hover here as a line on the bar holding their time.
+  const cursorLink = useCursorLink();
   // Clears our synced line and the library's own crosshair on every pane.
   const clearCursor = () => {
-    setCursorX(undefined); setCursorTime(undefined);
+    setCursorX(undefined); setCursorTime(undefined); cursorLink.publish(undefined);
     [mainChartRef.current?.chart, ...paneCharts()]
       .forEach((chart) => { try { chart?.clearCrosshairPosition(); } catch { /* A disposed chart has nothing to clear. */ } });
   };
@@ -523,7 +530,7 @@ export function TradingCharts({
   priceTickRef.current = priceTick;
 
   const publishChartObservation = (source: IChartApi) => {
-    if (!stackRef.current) return;
+    if (!stackRef.current || passive) return;
     const timeRange = source.timeScale().getVisibleRange();
     const logicalRange = source.timeScale().getVisibleLogicalRange();
     const current = observationData.current;
@@ -1001,8 +1008,11 @@ export function TradingCharts({
   };
 
   const rows = paneGridRows(sizes);
-  const readout = settings.crosshair && cursorX !== undefined
-    ? barReadout(chartBars, cursorTime, { decimals: decimalsForTick(priceTick), daily: durationSeconds >= 86400, timeZone }) : null;
+  const linked = cursorX === undefined ? linkedBar(chartBars, cursorLink.linkedTime, durationSeconds, mainChartRef.current?.chart) : undefined;
+  const shownX = cursorX ?? linked?.x;
+  const shownTime = cursorX !== undefined ? cursorTime : linked?.time;
+  const readout = settings.crosshair && shownX !== undefined
+    ? barReadout(chartBars, shownTime, { decimals: decimalsForTick(priceTick), daily: durationSeconds >= 86400, timeZone }) : null;
   const editorStatus = editable ? indicatorStatus : undefined;
   const addPaneSlot = paneTypes.length;  // The ＋副图 button sits on the last label row (the price label when there are no panes).
   const addPaneButton = editable && paneTypes.length < SUB_PANES_MAX
@@ -1029,16 +1039,17 @@ export function TradingCharts({
         const rect = stackRef.current?.getBoundingClientRect();
         if (!rect) return;
         const x = event.clientX - rect.left;
-        if (x < 0 || x > rect.width - 75) { setCursorX(undefined); setCursorTime(undefined); return; }
+        if (x < 0 || x > rect.width - 75) { setCursorX(undefined); setCursorTime(undefined); cursorLink.publish(undefined); return; }
         setCursorX(x);
         const time = mainChartRef.current?.chart.timeScale().coordinateToTime(x);
         setCursorTime(typeof time === "number" ? time : undefined);
+        cursorLink.publish(typeof time === "number" ? time : undefined);
       }}
       onPointerCancel={clearCursor}
     >
-      {settings.crosshair && cursorX !== undefined ? <span className="fdw-synced-crosshair" style={{ left: cursorX }} /> : null}
-      {settings.crosshair && cursorX !== undefined && cursorTime !== undefined ? <output className="fdw-crosshair-time" style={{ left: Math.max(66, Math.min(cursorX, (stackRef.current?.clientWidth ?? 300) - 144)) }}>{new Intl.DateTimeFormat("zh-CN", { timeZone, month: "2-digit", day: "2-digit", ...(durationSeconds >= 86400 ? {} : { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }) }).format(new Date(cursorTime * 1000))}</output> : null}
-      <section className="fdw-chart-pane" data-region="chart.main">
+      {settings.crosshair && shownX !== undefined ? <span className="fdw-synced-crosshair" style={{ left: shownX }} /> : null}
+      {settings.crosshair && shownX !== undefined && shownTime !== undefined ? <output className="fdw-crosshair-time" style={{ left: Math.max(66, Math.min(shownX, (stackRef.current?.clientWidth ?? 300) - 144)) }}>{new Intl.DateTimeFormat("zh-CN", { timeZone, month: "2-digit", day: "2-digit", ...(durationSeconds >= 86400 ? {} : { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }) }).format(new Date(shownTime * 1000))}</output> : null}
+      <section className="fdw-chart-pane" data-region={passive ? undefined : "chart.main"}>
         <div className="fdw-chart-pane-label">
           <strong>价格</strong>
           {editable
@@ -1061,7 +1072,7 @@ export function TradingCharts({
         <button type="button" className="fdw-pane-resizer"
           aria-label={index === 0 ? `调整价格图和${SUB_PANE_NAMES[type]}副图高度` : `调整${SUB_PANE_NAMES[paneTypes[index - 1]]}副图和${SUB_PANE_NAMES[type]}副图高度`}
           onPointerDown={(event) => resizePane(index, event)} />
-        <section className="fdw-chart-pane" data-region={`chart.${type}`}>
+        <section className="fdw-chart-pane" data-region={passive ? undefined : `chart.${type}`}>
           <div className="fdw-chart-pane-label">
             {editable
               ? <button type="button" className="fdw-ind-label" ref={(element) => { if (element) paneLabelRefs.current.set(type, element); else paneLabelRefs.current.delete(type); }}
@@ -1093,6 +1104,15 @@ export function TradingCharts({
       </ChartPopover> : null}
     </div>
   );
+}
+
+/** 同步十字线: the bar holding another chart's hovered time (a 日线 cell takes the day a 5 分 time falls in) and its x. */
+function linkedBar(bars: readonly ChartBar[], time: number | undefined, duration: number, chart: IChartApi | undefined) {
+  if (time === undefined || !chart || !bars.length || time < bars[0].time || time >= bars.at(-1)!.time + duration) return undefined;
+  let low = 0, high = bars.length - 1;
+  while (low < high) { const mid = (low + high + 1) >> 1; if (bars[mid].time <= time) low = mid; else high = mid - 1; }
+  const x = chart.timeScale().timeToCoordinate(bars[low].time);
+  return x === null ? undefined : { x, time: bars[low].time as number };
 }
 
 /** Lays one sub pane's series on the loaded bars (the workspace chart's data effect and the pane's own

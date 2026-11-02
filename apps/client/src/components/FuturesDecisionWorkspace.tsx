@@ -51,6 +51,8 @@ import type { AiFocus } from "./AiMenu";
 import { PositionsDock } from "./futures/PositionsDock";
 import { MarketCommand } from "./futures/MarketCommand";
 import { ChartStage } from "./futures/ChartStage";
+import { ChartGrid, ChartLayoutControls } from "./futures/ChartGrid";
+import { useDesktopCharts } from "./futures/desktopCharts";
 import { HighlightLayer } from "./HighlightLayer";
 import { TourIndicator } from "./TourIndicator";
 import { ToolsRail } from "./futures/ToolsRail";
@@ -670,6 +672,16 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     update: updatePreferences, panes: chartIndicators.subPaneList, updateChartIndicators: chartIndicatorsChange,
     resolveSymbol: symbol => props.instruments?.items.find(item => item.symbol.toUpperCase() === symbol.toUpperCase())?.symbol,
     selectSymbol: symbol => selectContract(symbol), available: mobile && mobileTab === "market" && !mobileSub });
+  // 电脑版多图 (2026-11-02): the chart grid (account preference ui.desktopCharts); its selected cell is this chart, so
+  // the contract tabs, the order ticket and the AI follow it. Automatic cells take the pinned tabs, then main contracts.
+  const gridAvailable = !mobile && !isGuest && !props.replayActive;
+  const chartCurrent = useMemo(() => ({ symbol: props.selectedSymbol ?? quote?.symbol, duration: props.duration }), [props.selectedSymbol, quote?.symbol, props.duration]);
+  const gridAuto = useMemo(() => [...pinnedSymbols, ...(props.instruments?.items ?? []).filter(item => item.isMain).map(item => item.symbol)].slice(0, 40),
+    [pinnedSymbols, props.instruments]);
+  const desktopCharts = useDesktopCharts({ document: prefs.preferences.ui?.desktopCharts, connected: Boolean(connectedRuntimeUrl), update: updatePreferences,
+    current: chartCurrent, autoSymbols: gridAuto,
+    resolveSymbol: symbol => props.instruments?.items.find(item => item.symbol.toUpperCase() === symbol.toUpperCase())?.symbol,
+    select: (symbol, duration) => { if (symbol) selectContract(symbol); if (duration) selectDuration(duration); } });
   // The phone's 报价 · 外盘 板块 has its own read too: only that board open means no domestic board.
   const phoneForeignOnly = phoneMarket && mobileMarket.market.view === "quotes" && mobileMarket.market.board === "FOREIGN";
   const boardWant = useMemo<BoardWant>(() => contractOpen || phoneMarket || boardExchange === "all" ? { all: true }
@@ -968,6 +980,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
       boardExchange, setBoardExchange, boardSort, setBoardSort, boardWatchlistCount: watchlist.length, contractProduct, setContractProduct,
       chatSessionId: props.chatSessionId, chatHistory: chat.chatHistory, selectChat: chat.selectChat, chatBlocked: chat.chatBlocked,
       quickSkipConfirm, setQuickSkipConfirm,
+      desktopCharts: gridAvailable ? desktopCharts.apply : undefined,
       currentPositions: props.account?.positions ?? [], selectedPosition,
       selectPosition: position => { if (position) closePosition(position); else { setSelectedPositionKey(undefined); setCloseRequest(undefined); } },
       dialogs: {
@@ -1554,6 +1567,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
                 onSelectDuration={selectDuration} onSelectChartView={selectChartView}
                 alerts={alerts.available ? alerts : undefined}
                 reminderBell={reminderAvailable ? <ReminderBell open={reminderShown} onOpenChange={showReminderCenter} unread={reminders.unread} /> : undefined}
+                chartLayout={gridAvailable ? <ChartLayoutControls handle={desktopCharts} onError={setAccessNotice} /> : undefined}
                 drawings={drawings.available ? drawings : undefined}
                 watchlistStar={watchlistHead} onToggleWatchlist={watchlistChange} watchlistStatus={watchlistStatus || undefined}
  />}
@@ -1566,7 +1580,9 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
                   watchlist={watchlist} productNames={boardProductNames} onToggleWatchlist={watchlistChange} watchlistStatus={watchlistStatus || undefined} /> : (
                 <div className="fdw-chart-area">
                 {blockingMarketState}
-                {market && <ChartStage workspace={workspace} market={market} chartView={chartView} decimals={decimals} chartSettings={chartSettings} setChartSettings={setChartSettings}
+                {market && <ChartGrid enabled={gridAvailable} handle={desktopCharts} baseUrl={connectedRuntimeUrl} own={{ market, error: props.marketError }}
+                  nameOf={symbol => contractLabel(symbol, props.instruments)} chartSettings={chartSettings} setChartSettings={setChartSettings}
+                  chartPreferences={chartPreferences} resolvedTheme={resolvedTheme} onError={setAccessNotice}><ChartStage workspace={workspace} market={market} chartView={chartView} decimals={decimals} chartSettings={chartSettings} setChartSettings={setChartSettings}
                   chartPreferences={chartPreferences} onChartIndicatorsChange={updateChartPreferences} chartIndicatorStatus={prefs.status}
                   annotationsVisible={preferences.chart.aiAnnotationsVisible} resolvedTheme={resolvedTheme} appWorkbench={appWorkbench} focus={focus}
                   alerts={alerts.available ? alerts : undefined}
@@ -1575,7 +1591,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
                   onSelectDuration={selectDuration} onSelectChartView={selectChartView}
                   openFills={openFills} openChat={openChat} setPrompt={setPrompt}
                   onReminder={mobile || props.guest ? undefined : playbook => openReminderEditor({ new: true, reminder: true,
-                    ...(playbook ? { ask: `按我的交易笔记「${playbook.name}」设提醒：${playbook.entryRules.trim() || playbook.name}`.slice(0, 500) } : {}) })} />}
+                    ...(playbook ? { ask: `按我的交易笔记「${playbook.name}」设提醒：${playbook.entryRules.trim() || playbook.name}`.slice(0, 500) } : {}) })} /></ChartGrid>}
                 {market && !props.guest && !mobile && !props.replayActive ? <AiWatching
                   alerts={alerts.active.filter(alert => sameContract(alert.symbol, quote?.symbol))} strategies={appWorkbench.activity?.strategies ?? []}
                   todayReminders={reminders.today.length} onOpen={target => {

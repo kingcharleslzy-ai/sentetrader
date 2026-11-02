@@ -175,10 +175,16 @@ def intent_for_window(intent: Intent, state: dict[str, Any]) -> Intent | None:
         # 2026-10-08: the phone has the 策略编辑卡 too (a full-screen page); the same command opens it.
         return intent
     if "mobileMarket" in intent.changes:
-        # 手机看盘 (2026-10-09): a computer window has the 报价总表 for 报价列表; the rest is the agent's.
+        # 手机看盘 (2026-10-09): a computer window has the 报价总表 for 报价列表 and (2026-11-02) its own 多图 for
+        # 多图 / 多周期 / 单图; the rest is the agent's.
         if state.get("mobileTab") is not None:
             return intent
-        return Intent("view", {"view": "board"}, "到报价总表了") if intent.changes["mobileMarket"].get("view") == "quotes" else None
+        market = intent.changes["mobileMarket"]
+        if market.get("view") == "quotes":
+            return Intent("view", {"view": "board"}, "到报价总表了")
+        desk = ({"layout": "four"} if market.get("view") == "multi" else {"preset": "periods"} if market.get("layout") == "periods"
+                else {"layout": "single"} if market.get("view") == "single" else None)
+        return Intent("desktopCharts", {"desktopCharts": desk}, intent.say) if desk else None
     if state.get("mobileTab") is not None:
         page = _phone_page(intent, state) if tab is None else None
         if page is not None:

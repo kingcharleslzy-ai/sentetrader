@@ -1,0 +1,17 @@
+{
+  "about": "电脑版多图（改版第三步第一批，#1258）：左右 2 格、同合约 4 周期（四格 5 分 / 15 分 / 1 小时 / 日线）、选中第 3 格后图表换成 1 小时，选中格标题上的三个同步开关。只改测试账号自己的多图偏好，最后回到单图。",
+  "steps": [
+    {"ui": {"view": "trade"}, "expect": {"view": "trade"}},
+    {"ui": {"desktopCharts": {"layout": "two"}}, "expect": {"preferences.ui.desktopCharts.layout": "two", "observation.controls": {"includes": "同步十字线"}}},
+    {"screenshot": "01-two"},
+    {"ui": {"desktopCharts": {"preset": "periods"}}, "expect": {"preferences.ui.desktopCharts.layout": "four", "preferences.ui.desktopCharts.syncSymbol": true,
+     "preferences.ui.desktopCharts.cells.3.duration": 86400, "duration": 300}},
+    {"screenshot": "02-periods"},
+    {"ui": {"desktopCharts": {"active": 2}}, "expect": {"preferences.ui.desktopCharts.active": 2, "duration": 3600}},
+    {"screenshot": "03-active-hour"}
+  ],
+  "cleanup": [
+    {"ui": {"desktopCharts": {"active": 0}}, "expect": {"preferences.ui.desktopCharts.active": 0}},
+    {"ui": {"desktopCharts": {"layout": "single", "syncSymbol": false}}, "expect": {"preferences.ui.desktopCharts.layout": "single"}}
+  ]
+}

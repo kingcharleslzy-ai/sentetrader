@@ -20,6 +20,8 @@ from .ui_captures import ONLINE_SECONDS, CaptureReceipt, CaptureRequest, registe
 from .ui_surfaces import surface_aliases, surface_ids, surface_labels, surfaces_with
 from .user_preferences import (
     CATEGORIES,
+    DESKTOP_CHART_CELLS,
+    DESKTOP_CHART_LAYOUTS,
     MOBILE_CHART_DURATIONS,
     MOBILE_MARKET_VIEWS,
     MOBILE_MULTI_LAYOUTS,
@@ -344,6 +346,44 @@ class MobileMarketChange(BaseModel):
             raise ValueError("mobileMarket 一次只改一项：view / board / columns / layout / cell / subPane / subPanes")
         if self.columns is not None and len(set(self.columns)) != len(self.columns):
             raise ValueError("报价列不能重复")
+        return self
+
+
+class DesktopChartCellChange(BaseModel):
+    """电脑版多图 (2026-11-02): one cell's contract (null = 自动补位) and/or period. The selected cell is the chart
+    itself, so a change to it switches the chart's contract / period."""
+    model_config = ConfigDict(extra="forbid")
+    index: int = Field(ge=0, lt=DESKTOP_CHART_CELLS, strict=True)
+    symbol: str | None = Field(default=None, pattern=SYMBOL_PATTERN, max_length=40)
+    duration: MOBILE_CHART_DURATIONS | None = None
+
+    @model_validator(mode="after")
+    def something(self):
+        if "symbol" not in self.model_fields_set and self.duration is None:
+            raise ValueError("cell 需要 symbol 或 duration")
+        return self
+
+
+class DesktopChartsChange(BaseModel):
+    """电脑版多图 (2026-11-02), desktop layout only. Keys combine and apply in this order: preset → layout → cells
+    → active → the three switches. preset periods = 2×2 四格、同步品种、四个周期 5 分 / 15 分 / 1 小时 / 日线. The values
+    are the account preference ui.desktopCharts reported in state.preferences; the selected cell's contract and
+    period are state.symbol / state.duration."""
+    model_config = ConfigDict(extra="forbid")
+    preset: Literal["periods"] | None = None
+    layout: DESKTOP_CHART_LAYOUTS | None = None
+    cells: list[DesktopChartCellChange] | None = Field(default=None, min_length=1, max_length=DESKTOP_CHART_CELLS)
+    active: int | None = Field(default=None, ge=0, lt=DESKTOP_CHART_CELLS, strict=True)
+    syncDuration: bool | None = None
+    syncSymbol: bool | None = None
+    syncCrosshair: bool | None = None
+
+    @model_validator(mode="after")
+    def something(self):
+        if not any(getattr(self, key) is not None for key in self.model_fields_set):
+            raise ValueError("desktopCharts 至少改一项")
+        if self.cells and len({cell.index for cell in self.cells}) != len(self.cells):
+            raise ValueError("同一格只能出现一次")
         return self
 
 
@@ -1231,6 +1271,7 @@ class UiChanges(BaseModel):
                        "mobileLab {labId} 打开手机版回测结果页看指定的一次比较（labId 来自 GET /api/strategy-labs；快照 state.mobilePage lab、state.mobileLab {labId, chosen}——chosen 是已选用的变体，未选为 null）。"
                        "mobileStrategyTab 切手机版策略页的分页（running 正在运行：暂停 / 继续 / 停止并平仓；mine 我的策略：顶上“新建策略”，每个策略一张卡带“编辑 / 回测 / 上线…”，一条没有时是三种开始方式与常用模板），先切到策略标签（快照 state.mobileStrategyTab）。"
                        "mobileMarket 改手机版看盘（只对手机布局有效，先切到看盘标签；一次一项）：view quotes 报价列表 / multi 多图 / single 单图；board 报价板块 watchlist 自选 / main 主力 / SHFE 上期所 / DCE 大商所 / CZCE 郑商所 / CFFEX 中金所 / GFEX 广期所 / INE 能源中心 / FOREIGN 外盘（点一行打开它的单图；切到报价）；columns 报价的数值列 1–4 个（last 最新 / changePercent 涨跌幅 / change 涨跌 / openInterest 持仓量 / bid 买价 / ask 卖价 / volume 成交量 / openInterestChange 日增仓）；layout 多图布局 four 4 合约 / periods 同合约 4 周期 / six 6 图（切到多图）；cell {index, symbol?, duration?} 改多图当前布局的一格（symbol null＝自动补位；同合约 4 周期里 symbol 切当前合约）；subPane 单图下面显示哪个副图（kd / macd / rsi / oi 持仓量 / cci / volume 成交量，未选的替换正在显示的那个）；subPanes true/false 开关副图设置面板（选 0–3 个副图、主图指标 均线 / 布林 / SAR、各指标参数，快照 disclosures.mobile-subpanes）。都记在账号偏好 ui.mobileMarket 与 chart.subPaneList，快照 state.preferences。"
+                       "desktopCharts 改电脑版多图（只对电脑布局有效；几项可一起给，按 preset → layout → cells → active → 开关的顺序生效）：layout single 单图 / two 左右 2 格 / four 2×2 四格；preset periods 同合约 4 周期（四格、同步品种、5 分 / 15 分 / 1 小时 / 日线）；cells [{index 0–3, symbol?, duration?}] 改格子的合约（null＝自动补位）与周期，选中格就是图表本身；active 选中哪一格（它成为当前合约：下单票、合约标签、AI 都跟它）；syncDuration / syncSymbol 所有格跟选中格的周期 / 合约；syncCrosshair 十字线对齐同一时间。记在账号偏好 ui.desktopCharts，快照 state.preferences；格子 data-agent-target=\"chart-cell:<序号>\"。"
                        "researchDebate 操作“多 AI 辩论”页（电脑是调研面板“品种”下的辩论子页，同 panel: debate；手机是调研页上的整屏子页；一次一项）：start 发起或打开辩论——start: \"desk\" 等于今日判断旁的“让 AI 们辩一轮”（今日议题），start: \"event\" 辩当前品种最新一条重要快讯，start: <事件 id>（快讯接口 events[].id）等于快讯行的“研讨”；同一事件同一品种当天只辩一次、今日议题资料没变时直接打开已有结果；open: <研讨 id> 打开一次辩论（也是“以前的辩论”里的一格）；rerun: true 是结果页的“再辩一轮”（新跑一次，计入当日次数）；close: true 收起辩论页。辩论本身走 POST /api/research/debates（技术面、供需基本面、资金持仓、新闻宏观四位分析师先同时写报告，再多方开场、空方回应、多方反驳、空方反驳，一句一句流式出现，最后裁判匿名裁决，约 2 到 3 分钟；写完的报告卡片用 disclosure: debate-analyst-technical / supply / flow / news 展开收起），写进今日判断走 POST /api/research/debates/{id}/adopt，停止走 POST /api/research/debates/{id}/cancel（快照 state.researchDebate：id、status queued/running/done/review 需复核/failed/cancelled、step（collect / analysts / turn1…turn4 / judge）、analysts（四份报告写完几份，没写成也算）、lesson（上次复盘）、speaking（正在说的一方）、topic、stance、confidence、canAdopt、adopted、request）。游客不能发起。",
     })
     symbol: str | None = Field(default=None, pattern=SYMBOL_PATTERN, max_length=40)
@@ -1341,6 +1382,8 @@ class UiChanges(BaseModel):
     mobileStrategyTab: MOBILE_STRATEGY_TAB | None = None
     # 手机看盘 (2026-10-09): 报价 / 多图 / 单图 and their settings; opens the 看盘 tab first.
     mobileMarket: MobileMarketChange | None = None
+    # 电脑版多图 (2026-11-02): 单图 / 左右 2 格 / 2×2 四格, its cells and the three sync switches.
+    desktopCharts: DesktopChartsChange | None = None
     # 提醒中心 (2026-10-15): the bell's popover on a computer, the 提醒 page on a phone.
     reminderCenter: ReminderCenterChange | None = None
 
@@ -1848,6 +1891,33 @@ def _surface_matches(state, key, value) -> bool:
     return False
 
 
+def _desktop_charts_matches(state, value) -> bool:
+    """电脑版多图: the account document the window reports holds every given value; the selected cell is the
+    window's own contract and period (a window without the document is judged by its own receipt)."""
+    preferences = state.get("preferences")
+    charts = preference_value(preferences, "ui.desktopCharts") if isinstance(preferences, dict) else None
+    if not isinstance(charts, dict):
+        return True
+    wanted = dict(value)
+    if wanted.pop("preset", None) == "periods":
+        wanted.setdefault("layout", "four")
+        wanted.setdefault("syncSymbol", True)
+    for key in ("layout", "active", "syncDuration", "syncSymbol", "syncCrosshair"):
+        if key in wanted and charts.get(key) != wanted[key]:
+            return False
+    stored = charts.get("cells") or []
+    for cell in wanted.get("cells") or []:
+        if cell["index"] == charts.get("active"):
+            shown = {"symbol": state.get("symbol"), "duration": state.get("duration")}
+        else:
+            shown = stored[cell["index"]] if cell["index"] < len(stored) else {}
+        if cell.get("duration") is not None and shown.get("duration") != cell["duration"]:
+            return False
+        if cell.get("symbol") and str(shown.get("symbol") or "").upper() != cell["symbol"].upper():
+            return False
+    return True
+
+
 def _mobile_market_matches(state, value) -> bool:
     """手机看盘: the 看盘 tab shows, and the account document the window reports holds the value (a
     window without the document — a guest — is judged by its own receipt)."""
@@ -1966,6 +2036,9 @@ def changes_match(state, changes):
                 return False
         elif key == "mobileMarket":
             if not _mobile_market_matches(state, value):
+                return False
+        elif key == "desktopCharts":
+            if not _desktop_charts_matches(state, value):
                 return False
         elif key == "positionsTab":
             wanted = POSITIONS_TAB_ALIASES.get(value, value)

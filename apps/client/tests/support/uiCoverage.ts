@@ -234,6 +234,11 @@ export const COMMANDABLE: Rule[] = [
   { match: control => control.group === "mobile-multi" && /^看 .+ 单图$/.test(control.label), via: "symbol + duration + mobileMarket: {view: single}（多图格子：进它的单图）" },
   { match: control => control.group === "mobile-multi" && control.label === "完成", via: "disclosure: {name: mobile-chart-cell, open: false}" },
   { match: control => control.group === "mobile-multi", via: "mobileMarket: {cell: {index, symbol?, duration?}}（格子面板里的合约（自动＝symbol null）与周期）" },
+  // 电脑版多图 (2026-11-02): the layout buttons, 同合约 4 周期, the sync switches and selecting a cell.
+  { match: control => control.group === "chart-layout" && /^(单图|左右 2 格|2×2 四格)$/.test(control.label), via: "desktopCharts: {layout: single | two | four}（快照 state.preferences.ui.desktopCharts）" },
+  { match: control => control.group === "chart-layout" && control.label === "4 周期", via: "desktopCharts: {preset: periods}（同合约 4 周期）" },
+  { match: control => control.group === "chart-sync" && /^同步(周期|品种|十字线)$/.test(control.label), via: "desktopCharts: {syncDuration | syncSymbol | syncCrosshair}" },
+  { match: control => /^chart-cell:\d$/.test(control.group ?? "") && /^选中第 \d 格：/.test(control.label), via: "desktopCharts: {active: 格子序号 0–3}（选中的格就是图表本身，下单、合约标签和 AI 跟它）" },
   { match: control => control.group === "mobile-subpanes" && control.label === "完成", via: "mobileMarket: {subPanes: false}" },
   { match: control => control.group === "mobile-subpanes" && /^(KDJ|MACD|RSI|持仓量|CCI|成交量)\d?$/.test(control.label), via: "preference: chart.subPaneList（副图 0–3 个，电脑同一份）" },
   { match: control => control.group === "mobile-subpanes" && /^(均线|布林|SAR|无)$/.test(control.label), via: "preference: chart.maLines[].enabled / chart.boll.enabled / chart.sar.enabled（主图指标）" },

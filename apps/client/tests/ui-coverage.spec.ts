@@ -247,6 +247,9 @@ test("every user-operable control is commandable or reachable, and visible to th
   // Surfaces and the commands that open them. Review-page dialogs need the review view first.
   const surfaces: Array<[string, Record<string, unknown>[], boolean]> = [
     ["trade", [], true],
+    // 电脑版多图 (2026-11-02): 2×2 四格 with the sync switches showing, then back to 单图.
+    ["chart-grid", [{ desktopCharts: { layout: "four" } }], true],
+    ["", [{ desktopCharts: { layout: "single" } }], false],
     ["quick-volume", [{ panel: "order" }, { quickVolume: 5 }], true],
     ["", [{ quickVolume: 1 }], false],
     // 图表指标就地编辑 (2026-10-02): the chart labels' popovers, opened as disclosures.

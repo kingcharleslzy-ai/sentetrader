@@ -69,7 +69,10 @@ export interface UserPreferences {
     autoHidePositionsBar?: boolean;
     /** 手机看盘 (2026-10-09): 报价 / 多图 / 单图 and their settings; absent on an older Runtime
      *  (`normalizeMobileMarket` in mobile/mobileMarketPrefs.ts fills the defaults). */
-    mobileMarket?: Partial<MobileMarketPreferences> };
+    mobileMarket?: Partial<MobileMarketPreferences>;
+    /** 电脑版多图 (2026-11-02): 单图 / 左右 2 格 / 2×2 四格; absent on an older Runtime
+     *  (`normalizeDesktopCharts` in futures/desktopCharts.ts fills the defaults). */
+    desktopCharts?: Partial<DesktopChartsPreferences> };
   /** 报价总表 (2026-10-02): which columns the board shows (order = display order; 品种/合约 fixed
    *  first and never in the list), the sort and the exchange filter. Absent on an older Runtime
    *  (the normalizers in support.ts fill the defaults). */
@@ -81,6 +84,15 @@ export interface UserPreferences {
 }
 
 export interface MobileChartCell { symbol: string | null; duration: DurationSeconds }
+export interface DesktopChartsPreferences {
+  layout: "single" | "two" | "four";
+  /** The other cells' contract (null = 自动补位) and period; the selected cell is the chart itself. */
+  cells: MobileChartCell[];
+  active: number;
+  syncDuration: boolean;
+  syncSymbol: boolean;
+  syncCrosshair: boolean;
+}
 export interface MobileMarketPreferences {
   view: "quotes" | "multi" | "single";
   board: "watchlist" | "main" | "SHFE" | "DCE" | "CZCE" | "CFFEX" | "GFEX" | "INE" | "FOREIGN";

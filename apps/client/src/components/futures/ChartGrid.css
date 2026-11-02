@@ -1,0 +1,36 @@
+/* 电脑版多图 (2026-11-02): 单图 / 左右 2 格 / 2×2 四格. The selected cell wears the accent border. */
+.fdw-chart-area > .fdw-chart-grid { flex: 1 1 auto; min-height: 0; }
+.fdw-chart-grid { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: var(--space-1); min-width: 0; min-height: 0; }
+.fdw-chart-grid[data-layout="two"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.fdw-chart-grid[data-layout="four"] { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); }
+.fdw-chart-cell { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.fdw-chart-cell > .fdw-chart-stage { flex: 1 1 auto; min-height: 0; }
+.fdw-chart-grid:not([data-layout="single"]) > .fdw-chart-cell { border: 1px solid var(--line); border-radius: var(--radius-card); overflow: hidden; background: var(--fdw-surface); }
+.fdw-chart-grid:not([data-layout="single"]) > .fdw-chart-cell.is-active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.fdw-chart-cell:not(.is-active) { cursor: pointer; }
+.fdw-chart-cell-head { flex: none; display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; padding: var(--space-1) var(--space-3);
+  border: 0; border-bottom: 1px solid var(--line); color: var(--fdw-text); background: transparent; font: inherit; font-size: var(--font-md); text-align: left; }
+button.fdw-chart-cell-head { cursor: pointer; }
+button.fdw-chart-cell-head:hover { background: var(--fdw-surface-hover); }
+.fdw-chart-cell-head strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fdw-chart-cell-price { display: flex; align-items: baseline; gap: var(--space-1); font-family: var(--font-num); }
+.fdw-chart-cell-price[data-direction="up"] { color: var(--market-up); }
+.fdw-chart-cell-price[data-direction="down"] { color: var(--market-down); }
+.fdw-chart-cell-price small, .fdw-chart-cell-period { font-size: var(--font-sm); }
+.fdw-chart-cell-period { margin-left: auto; color: var(--fdw-muted); white-space: nowrap; }
+.fdw-chart-cell-body { position: relative; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+/* A quarter of the screen is shorter than the single chart's 420 px floor: the cell's chart fits the cell instead. */
+.fdw-chart-grid:not([data-layout="single"]) .fdw-trading-charts { min-height: 0; }
+.fdw-chart-cell-body > .fdw-trading-charts { flex: 1 1 auto; }
+.fdw-chart-cell-note { margin: auto; padding: var(--space-3); color: var(--fdw-muted); font-size: var(--font-md); text-align: center; }
+.fdw-chart-cell-note[role="alert"] { color: var(--danger); }
+
+/* Like the period group, the layout buttons give way (and scroll) when the bar is short, so the bell and the
+   session pill keep their place. */
+.fdw-chart-tools > .fdw-chart-layout { flex: 0 1 auto; min-width: 0; gap: var(--space-1); overflow-x: auto; scrollbar-width: none; }
+.fdw-chart-layout-group { flex: none; display: flex; align-items: center; gap: var(--space-0); padding: var(--space-0); border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--fdw-surface-raised); }
+.fdw-chart-layout-group > span { padding: 0 var(--space-1) 0 var(--space-2); color: var(--fdw-muted); font-size: var(--font-sm); }
+.fdw-chart-layout-group button[aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); font-weight: 600; outline: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); outline-offset: -1px; }
+.fdw-chart-sync { flex: none; align-self: center; }
+.fdw-chart-sync button { height: 22px; padding: 0 var(--space-2); border: 0; border-radius: var(--radius-control); color: var(--fdw-muted); background: transparent; font: inherit; font-size: var(--font-sm); cursor: pointer; white-space: nowrap; }
+.fdw-chart-sync button:hover { color: var(--fdw-text); background: var(--fdw-surface-hover); }
