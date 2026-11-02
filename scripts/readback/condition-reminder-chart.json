@@ -1,0 +1,173 @@
+{
+ "about": "条件提醒在图上（#1260，2026-11-02）：测试账号建一条没起名的条件提醒（收盘价跌破 3010 + MACD 死叉）并开始提醒，图表下“AI 正在盯”写“按条件 · 未命名提醒”，图上 3010 有一条标“条件”的点线（看截图），MACD 那条不画线；最后停掉并删掉这条提醒。",
+ "allowWrites": [
+  "/api/strategies/[^/]+/monitor/(start|stop)",
+  "/api/strategy-plans"
+ ],
+ "steps": [
+  {
+   "api": "POST /api/strategy-plans",
+   "body": {
+    "instrumentScope": {
+     "mode": "any",
+     "symbols": []
+    },
+    "plan": {
+     "name": "未命名提醒",
+     "description": "策略编辑卡：未命名提醒",
+     "direction": "short",
+     "timeframeSeconds": 60,
+     "stopLossTicks": 20,
+     "maxPosition": 1,
+     "maxOrdersPerDay": 20,
+     "cooldownBars": 1,
+     "allowNightEntries": true,
+     "reminderOnly": true,
+     "reminder": {
+      "repeat": "once",
+      "until": "today",
+      "watchlist": false
+     },
+     "rules": {
+      "entryLong": null,
+      "exitLong": null,
+      "exitShort": null,
+      "entryShort": {
+       "join": "all",
+       "sequence": false,
+       "branches": [],
+       "alignmentConditions": [],
+       "rearm": [],
+       "trigger": null,
+       "conditions": [
+        {
+         "label": "收盘价跌破3010",
+         "operator": "lt",
+         "consecutive": 1,
+         "minCount": 1,
+         "withinBars": 1,
+         "left": {
+          "indicator": "close",
+          "period": 1,
+          "timeframe": 0,
+          "barsAgo": 0,
+          "value": 0
+         },
+         "right": {
+          "indicator": "constant",
+          "period": 1,
+          "timeframe": 0,
+          "barsAgo": 0,
+          "value": 3010
+         }
+        },
+        {
+         "label": "MACD死叉",
+         "operator": "cross_down",
+         "consecutive": 1,
+         "minCount": 1,
+         "withinBars": 1,
+         "left": {
+          "indicator": "macd_dif",
+          "period": 12,
+          "timeframe": 0,
+          "barsAgo": 0,
+          "value": 0
+         },
+         "right": {
+          "indicator": "macd_dea",
+          "period": 26,
+          "timeframe": 0,
+          "barsAgo": 0,
+          "value": 0
+         }
+        }
+       ]
+      }
+     }
+    }
+   },
+   "expect": {
+    "body.name": "未命名提醒"
+   },
+   "save": {
+    "libraryId": "body.strategyId"
+   },
+   "status": 201
+  },
+  {
+   "api": "POST /api/strategy-plans/{{libraryId}}/validate",
+   "body": {
+    "symbol": "SHFE.rb2701",
+    "chartTimeframeSeconds": 60
+   },
+   "save": {
+    "runId": "body.strategyId"
+   }
+  },
+  {
+   "api": "POST /api/strategies/{{runId}}/monitor/start",
+   "body": {
+    "signalAction": "alert"
+   }
+  },
+  {
+   "ui": {
+    "view": "trade"
+   },
+   "expect": {
+    "view": "trade"
+   }
+  },
+  {
+   "ui": {
+    "symbol": "SHFE.rb2701"
+   },
+   "expect": {
+    "observation.text": {
+     "includes": "按条件 · 未命名提醒"
+    }
+   },
+   "timeoutMs": 30000
+  },
+  {
+   "screenshot": "01-chart-condition-line"
+  },
+  {
+   "ui": {
+    "reminders": {
+     "tab": "mine"
+    }
+   },
+   "expect": {
+    "panel": "reminders",
+    "myReminders.status": "ready",
+    "observation.text": {
+     "includes": "未命名提醒"
+    }
+   }
+  },
+  {
+   "screenshot": "02-my-reminders"
+  },
+  {
+   "ui": {
+    "panel": null
+   },
+   "expect": {
+    "panel": null
+   }
+  }
+ ],
+ "cleanup": [
+  {
+   "api": "POST /api/strategies/{{runId}}/monitor/stop",
+   "body": {
+    "closePositions": false
+   }
+  },
+  {
+   "api": "DELETE /api/strategy-plans/{{libraryId}}"
+  }
+ ]
+}
