@@ -221,6 +221,11 @@ def service(action: str) -> int:
         plist = Path.home() / "Library" / "LaunchAgents" / f"{SERVICE}.plist"
         domain = f"gui/{os.getuid()}"
         subprocess.run(["launchctl", "bootout", f"{domain}/{SERVICE}"], capture_output=True, check=False)
+        # bootout returns before the job is gone; bootstrapping it again too early fails with EIO (5).
+        for _ in range(50):
+            if subprocess.run(["launchctl", "print", f"{domain}/{SERVICE}"], capture_output=True, check=False).returncode:
+                break
+            time.sleep(0.2)
         if action == "uninstall":
             plist.unlink(missing_ok=True)
             return 0
