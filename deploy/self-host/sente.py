@@ -153,6 +153,8 @@ def components(config: dict) -> dict[str, tuple[list[str], dict[str, str]]]:
         "AI_TRADER_STATIC_TQKQ_USERNAME_FILE": str(SECRETS / "tqkq_username"),
         "AI_TRADER_SIMULATION_TRADING": "1",
         "AI_TRADER_PAPER_ENGINE_URL": f"http://127.0.0.1:{PAPER_PORT}",
+        # Charts, quotes and the contract list read the shared market source; here that is the 快期 main account.
+        "AI_TRADER_SHARED_MARKET_ACCOUNT_IDS": "tqkq-sim:default",
     }
     sidecar = venv_python("tqkq-sidecar")
     return {
