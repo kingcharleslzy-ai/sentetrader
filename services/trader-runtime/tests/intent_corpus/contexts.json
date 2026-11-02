@@ -31,6 +31,7 @@
   "flat_chart_rb":     {"chart": "SHFE.rb2701", "positions": [], "orders": [], "pending_card": null, "market": "open"},
   "flat_chart_au":     {"chart": "SHFE.au2612", "positions": [], "orders": [], "pending_card": null, "market": "open"},
   "flat_chart_ag":     {"chart": "SHFE.ag2612", "positions": [], "orders": [], "pending_card": null, "market": "open"},
+  "flat_chart_sc":     {"chart": "INE.sc2612", "positions": [], "orders": [], "pending_card": null, "market": "open"},
 
   "long1_rb":          {"chart": "SHFE.rb2701", "positions": [{"sym": "SHFE.rb2701", "dir": "long", "vol": 1, "today": 1, "yd": 0}], "orders": [], "pending_card": null, "market": "open"},
   "long1_rb_yd1":      {"chart": "SHFE.rb2701", "positions": [{"sym": "SHFE.rb2701", "dir": "long", "vol": 1, "today": 0, "yd": 1}], "orders": [], "pending_card": null, "market": "open"},

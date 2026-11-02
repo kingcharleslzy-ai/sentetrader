@@ -193,6 +193,9 @@ class TurnRoute:
     # The trading AI's order round (`ORDER_ROUTE`): every round must call a tool until propose_order comes back with a
     # card, a refusal or the planner's question — the model's prose never stands in for a card.
     card_required: bool = False
+    # The words propose_order's slots must rest on (order_planner.ground) when they are more than this turn's: the
+    # sentence a 追问卡 asked about and this answer to it (`answer_route`). Empty = this turn's words.
+    said: str = ""
 
 
 GENERAL_ROUTE = TurnRoute("general")
@@ -249,6 +252,67 @@ def order_route(text: str, catalog: list[str] | None) -> TurnRoute | None:
         return TurnRoute("general", no_card=True, hint=CONDITIONAL_PRICE_HINT if price else CONDITIONAL_TIME_HINT,
                          mount="price-alerts" if price else None)
     return TurnRoute("general", no_card=True, hint=NO_CARD_HINTS.get(parsed.stance, ""))
+
+
+def answer_route(text: str, *, said: str, question: str, basis: OrderIntent | None,
+                 catalog: list[str] | None) -> TurnRoute | None:
+    """The sentence right after a 追问卡 (the order planner asked: 开几手？开多还是开空？…) is first read as its answer
+    (所有者 2026-11-02 语音实测：“一手”“多单”被当成新的一句，从头再问). `said`: the words the card asked about;
+    `basis`: that order as those words vouch for it (None when the trading AI's round asked).
+
+    - a take-back, a refusal, a report, a condition, a cancel or a 确认: not an answer — None, routed as usual;
+    - with the fast parser's basis, words of the same order that name no contract (“一手”“多单”“做多”“对手价”, or
+      “开一手多单” after 开一手螺纹的“开多还是开空？”): the basis with the slots they say filled, planned without a model
+      (the planner asks again only for what is still missing);
+    - another whole order on its own: a new sentence — None;
+    - anything else that says something about the order: the trading AI reads both sentences together and
+      propose_order's slots may rest on either — in its order round (“开仓”“一手”“螺纹做空”), or, for a question or
+      words the rules do not know (“说的是 5 单多单，你不理解吗？”), in the general turn with the card tool offered
+      (never the no-card answer of a fresh question). Nothing about the order (“谢谢”“螺纹现在多少？”): None."""
+    from .order_intent import Price
+    from .order_intent_parse import mentions
+    from .voice_front import front_order
+    context = ParseContext(products=tuple(catalog or ()))
+    parsed = parse(text, context)
+    if isinstance(parsed, OrderIntent) and (
+            parsed.stance not in {"order", "question"} or parsed.act not in {*CARD_ACTS, "none"}):
+        return None
+    words = mentions(text, context)
+    contract = bool(words.products or words.codes or words.pointing)
+    both = f"{said}，{text}"
+    hint = (f"上一句用户说「{said}」，Runtime 追问了「{question}」。本句若是在回答这个追问，两句合起来读成一单、"
+            "用 propose_order 出卡（两句都没说的才留空，Runtime 会再自然地问一句）；若是在问别的，照常回答。\n")
+    if (basis is not None and not basis.legs and basis.act in {"open", "close"} and not contract
+            and (isinstance(parsed, Uncertain) and parsed.gap == "no_order"
+                 or isinstance(parsed, OrderIntent) and parsed.stance == "order" and parsed.act == basis.act)):
+        sides = words.opening if basis.act == "open" else words.held
+        slots: dict[str, Any] = {}
+        if len(sides) == 1:
+            slots["dir"] = next(iter(sides))
+        if len(words.counts) == 1:
+            slots["vol"] = next(iter(words.counts))
+        if len(words.modes) == 1:
+            slots["price"] = Price(mode=next(iter(words.modes)))  # type: ignore[arg-type]
+        if isinstance(parsed, OrderIntent) and parsed.bare:
+            slots["bare"] = True  # “买” against a held short: the entry still asks 平空还是开多
+        if slots:
+            return TurnRoute("order_intent", order=replace(basis, **slots), said=both, hint=hint)
+    if isinstance(parsed, OrderIntent) and front_order(parsed) is not None:
+        return None  # a whole order on its own: a new sentence
+    stated = (isinstance(parsed, OrderIntent) and parsed.stance == "order"
+              or isinstance(parsed, Uncertain) and (parsed.gap in ORDER_GAPS or parsed.gap == "no_order"))
+    if stated:
+        about = bool(contract or words.acts or words.opening or words.held or words.counts or words.modes
+                     or words.prices or words.half or words.whole)
+    else:  # a question back or words the rules do not know: only when they restate the lots (“说的是 5 单多单…”) —
+        about = bool(words.counts)  # skimmed words are weak (“多少” reads 多, “打开” reads 开)
+    if not about or match_intent(text) is not None:
+        return None  # nothing about the order (“谢谢”“螺纹现在多少？”), or interface work (“把设置打开”, #753)
+    if stated:
+        return replace(ORDER_ROUTE, hint=hint, said=both)
+    # A question or words the rules do not know (“说的是 5 单多单，你不理解吗？”): the general turn — it may answer, read the
+    # account or card the order, the card tool offered.
+    return TurnRoute("general", hint=hint, said=both)
 
 
 def classify_turn(

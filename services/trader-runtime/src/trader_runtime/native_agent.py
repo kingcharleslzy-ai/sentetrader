@@ -120,6 +120,7 @@ from .turn_router import (
     ORDER_WRITE_TOOLS,
     UI_FALLBACK_TOOLS,
     TurnRoute,
+    answer_route,
     auto_strategy_start,
     catalog_product_names,
     classify_turn,
@@ -566,6 +567,11 @@ class _Turn:
         return bool(self.route is not None and self.route.tool_names == UI_FALLBACK_TOOLS)
 
     @property
+    def said(self) -> str:
+        """The words propose_order's slots rest on: this turn's, or with the sentence a 追问卡 asked about."""
+        return (self.route.said if self.route is not None else "") or self.user_text
+
+    @property
     def forcing(self) -> bool:
         """Whether this turn's next round must call a tool (the order round, propose_order not yet structured)."""
         return bool(self.route is not None and self.route.card_required and not self.structured_done and not self.fast)
@@ -672,6 +678,9 @@ class NativeAgentAdapter:
         # 需要确认 cards this session's user has not answered yet: the next message in the
         # session — an option button's prompt or any typed reply — settles them.
         self._open_questions: dict[str, list[dict[str, Any]]] = {}
+        # The order the latest of them asked about: (the words, the question, the order as the words vouch for it —
+        # None when the trading AI's round asked). The next message is read as its answer first (`answer_route`).
+        self._asked: dict[str, tuple[str, str, OrderIntent | None]] = {}
         self._tool_tasks: dict[str, set[asyncio.Task[Any]]] = {}
         self._stream_pending: dict[tuple[str, str, str], tuple[str, str, dict[str, Any]]] = {}
         self._stream_tasks: dict[tuple[str, str, str], asyncio.Task[None]] = {}
@@ -1008,6 +1017,8 @@ class NativeAgentAdapter:
         keep this session's in-memory history in step, so a typed "那它呢" right after the call sees it.
         A history not loaded yet picks it up from the events; while a turn of this session is running its
         history marks would shift, so that session alone is rebuilt from the events on its next turn."""
+        if user_text:
+            self._asked.pop(session_id, None)  # the front desk carded a whole order: the 追问 it followed is not open
         if session_id not in self._history_loaded or not user_text or not assistant_text:
             return  # an unanswered question is not history (the events rebuild skips it too)
         if any(turn.session_id == session_id for turn in self._turns.values()):
@@ -1455,7 +1466,7 @@ class NativeAgentAdapter:
         return line
 
     async def _execute_order_intent(
-        self, decoded: DecodedInstruction, order: OrderIntent, *, session_id: str, run_id: str,
+        self, decoded: DecodedInstruction, order: OrderIntent, *, session_id: str, run_id: str, said: str = "",
     ) -> str | None:
         """意图重构第 3 步: a typed (or delegated) order the parser is sure of goes straight to the order planner — the
         cards (each its own, in order, each confirmed by the user), the planner's question card, or the refusal in
@@ -1504,7 +1515,9 @@ class NativeAgentAdapter:
             choices = ask_choices(resolved, outcome, lambda symbol: names.get(symbol.lower()) or symbol) \
                 if isinstance(resolved, OrderIntent) else []
             line = await self._publish_question(session_id, turn_id, {
-                "missing": outcome.missing, "question": outcome.question, "options": choices})
+                "missing": outcome.missing, "question": outcome.question, "options": choices},
+                said=said or decoded.user_text,
+                basis=outcome.basis or (resolved if isinstance(resolved, OrderIntent) else None))
         else:
             facing = outcome.facing() or {}
             issues = [str(issue) for issue in facing.get("candidateIssues") or [] if str(issue).strip()]
@@ -2232,9 +2245,11 @@ class NativeAgentAdapter:
         has_card = self._has_pending_card(session_id) or decoded.pending_card_reply
         editor_open = (not has_card and await self._editor_open(
             decoded, decoded.user_text, user_id=routine_owner, session_id=session_id, product_names=product_names))
-        route = classify_turn(decoded.user_text, has_pending_card=has_card,
-                              ui_available=bool(decoded.ui_window_id), catalog=product_names,
-                              strategies_available=strategies_available, editor_open=editor_open)
+        asked = self._asked.get(session_id)
+        route = (answer_route(decoded.user_text, said=asked[0], question=asked[1], basis=asked[2], catalog=product_names)
+                 if asked is not None and not has_card and not editor_open else None) or classify_turn(
+            decoded.user_text, has_pending_card=has_card, ui_available=bool(decoded.ui_window_id),
+            catalog=product_names, strategies_available=strategies_available, editor_open=editor_open)
         if route.tool_names == UI_FALLBACK_TOOLS and word_mounted:
             log.info("agent_ui_fallback_skipped run_id=%s skills=%s", run_id, ",".join(sorted(word_mounted)))
             route = GENERAL_ROUTE
@@ -2267,14 +2282,15 @@ class NativeAgentAdapter:
             # 意图重构第 3 步: an order the parser is sure of is planned here — cards, a question card or the
             # refusal's words — without a model round. None: the account says the words are not settled
             # (卖一手 with the long side held) and the trading AI reads them.
-            line = await self._execute_order_intent(decoded, route.order, session_id=session_id, run_id=run_id)
+            line = await self._execute_order_intent(decoded, route.order, session_id=session_id, run_id=run_id,
+                                                    said=route.said)
             if line is not None:
                 history.append({"role": "user", "content": decoded.user_text})
                 history.append({"role": "assistant", "content": line})
                 log.info("agent_turn run_id=%s route=order_intent act=%s status=completed elapsed_ms=%.1f",
                          run_id, route.order.act, (monotonic() - started) * 1000)
                 return
-            route = ORDER_ROUTE
+            route = replace(ORDER_ROUTE, hint=route.hint, said=route.said)
         if route.mount:
             self._mount_skill(session_id, route.mount, by="route")
         if route.kind == "ui_intent" and route.intent is not None:
@@ -3192,7 +3208,8 @@ class NativeAgentAdapter:
 
     # -- structured cards (2026-10-04) --------------------------------------------------------------
 
-    async def _publish_question(self, session_id: str, turn_id: str, ask: dict[str, Any]) -> str:
+    async def _publish_question(self, session_id: str, turn_id: str, ask: dict[str, Any], *, said: str,
+                                basis: OrderIntent | None = None) -> str:
         """The order planner asked (缺方向/手数/合约, two months held, long and short both held): the "需要确认的信息"
         card — its quick answers send a whole order as the user's next message — and its question as the answer.
         Nothing is ordered, no proposal is made."""
@@ -3208,6 +3225,7 @@ class NativeAgentAdapter:
                 "createdAt": now_iso()}
         await self._publish(session_id, "artifact", "card.order_question", card)
         self._open_questions.setdefault(session_id, []).append(card)
+        self._asked[session_id] = (said, question, basis)
         return question
 
     async def _publish_no_card(self, turn: _Turn, *, reason: str) -> str:
@@ -3323,6 +3341,7 @@ class NativeAgentAdapter:
         is republished under the same cardId with `answered` (and the option's label when the reply
         is exactly that option's prompt), so its buttons stop offering an answer the conversation
         already consumed — the reply itself stays in the conversation right below."""
+        self._asked.pop(session_id, None)
         cards = self._open_questions.pop(session_id, None)
         if not cards:
             return
@@ -3542,7 +3561,7 @@ class NativeAgentAdapter:
                 session_id=turn.session_id, user_id=str(session["userId"]), task_id=turn.run_id, chart=chart,
                 # 槽位出处：the user's words of this turn. A routine's card step states the user's saved steps (its card
                 # is never confirmed for them either), so it is not held to the run's two words.
-                said=turn.user_text if call.name == CARD_TOOL and turn.routine is None else None,
+                said=turn.said if call.name == CARD_TOOL and turn.routine is None else None,
                 card_reply=turn.route is not None and turn.route.pending_card_reply,
             ))
             self._track_tool_task(turn.run_id, tool_task)
@@ -3593,7 +3612,7 @@ class NativeAgentAdapter:
             ask = (self._tool_payload(response).get("data") or {}).get("ask") if call.name == CARD_TOOL else None
             if isinstance(ask, dict):
                 # The planner asked: the question card, published once; it is the turn's answer.
-                turn.asked = await self._publish_question(turn.session_id, turn.turn_id, ask)
+                turn.asked = await self._publish_question(turn.session_id, turn.turn_id, ask, said=turn.said)
             outcome = (self._error_code(response) or "failed") if failed else "ok"
             # AI 指令栏 (改版第二步): what this call changed, for "AI 做了 N 件事" and its 撤销.
             from .agent_actions import step_action

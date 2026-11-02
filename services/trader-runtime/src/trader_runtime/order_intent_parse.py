@@ -382,7 +382,7 @@ _MIDDLE_TAKEBACK = re.compile(r"，(?:算了|不要了|不做了|不买了|不�
 # 只在 parse 读句子时用（_sentence 末尾），不进 _normalize / mentions（PR #1009 审查）。
 _PLACE = re.compile(r"(?:^|(?<=[，就先我请])|(?<=(?<![不没别])再)|(?<=给我)|(?<=帮我)|(?<=我要)|(?<=马上)|(?<=立刻)|(?<=赶紧)"
                     r"|(?<=麻烦)|(?<=现在))"
-                    r"下(?=(?:[一二两俩三四五六七八九十\d]+(?:手|张)|个)?[多空]单(?!了))")
+                    r"下(?=(?:[一二两俩三四五六七八九十\d]+(?:手|张|单)|个)?[多空]单(?!了))")
 
 
 def _normalize(text: str) -> str:
@@ -524,6 +524,8 @@ def _tokens(text: str, ctx: ParseContext, *, skim: bool = False) -> list[_Token]
                 out.append(_Token("product", names[word], word))
         else:
             kind, value = _VOCAB[word]
+            if word == "单" and out and out[-1].kind == "num":
+                kind = "hand"  # 口语“下 5 单多单”“开一单” = 5 手 / 1 手（所有者 2026-11-02 语音实测）
             out.append(_Token(kind, value, word))
         at = match.end()
     return out

@@ -182,6 +182,7 @@ def test_the_trading_ai_history_takes_a_front_turn_without_losing_its_own():
     from trader_runtime.native_agent import NativeAgentAdapter
     agent = NativeAgentAdapter.__new__(NativeAgentAdapter)
     agent._history, agent._history_loaded, agent._turns = {"s1": [{"role": "user", "content": "旧问题"}]}, {"s1"}, {}
+    agent._asked = {}
     agent.append_voice_turn("s1", "止损是啥意思", "止损就是提前定好认亏的价。")
     assert agent._history["s1"][-2:] == [{"role": "user", "content": "止损是啥意思"},
                                          {"role": "assistant", "content": "止损就是提前定好认亏的价。"}]
