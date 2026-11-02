@@ -286,7 +286,7 @@ export function PositionRows({ positions, instruments, quote, busy, limit, onClo
               wording; plain text, the card's ⓘ stays its only commandable entry. */}
           {item?.deliveryNotice ? <span className="fdw-delivery-chip" data-level={item.deliveryNotice.level}>{deliveryBadgeText(item.deliveryNotice)}</span> : null}
         </span>
-        <b className={signClass(position.unrealizedPnl)}>浮盈 {formatSigned(position.unrealizedPnl, 0)}{usd ? " 美元" : ""}</b>
+        <b className={signClass(position.unrealizedPnl)}>浮动盈亏 {formatSigned(position.unrealizedPnl, 0)}{usd ? " 美元" : ""}</b>
         <span className="fdw-row-actions">
         <button type="button" className="fdw-row-close" disabled={busy || !available} aria-label={`平仓 ${position.symbol} ${position.direction === "long" ? "多" : "空"}仓`} onClick={() => onClosePosition(position)}>平仓</button>
         <AiMenu compact onAsk={onAskAi} focus={{ kind: "position", id: positionKey(position), label: `${name} ${position.direction === "long" ? "多" : "空"} ${position.volume} 手` }} items={[
@@ -308,7 +308,7 @@ export function PositionRows({ positions, instruments, quote, busy, limit, onClo
       {foreign.length ? (
         <li className="fdw-dock-group" data-testid="foreign-positions-head">
           <span>外盘 · 美元</span>
-          <b className={signClass(foreignFloating)}>浮盈 {formatSigned(foreignFloating, 0)} 美元</b>
+          <b className={signClass(foreignFloating)}>浮动盈亏 {formatSigned(foreignFloating, 0)} 美元</b>
         </li>
       ) : null}
       {foreign.map(row)}

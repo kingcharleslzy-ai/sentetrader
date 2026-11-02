@@ -1659,7 +1659,7 @@ test("持仓带默认收起：每个持仓一枚胶囊、在途委托、持仓�
   expect(within(screen.getByTestId("positions-bar")).getByRole("button", { name: /持仓 \(1\)/ })).toBeInTheDocument();
   const row = within(screen.getByTestId("positions-bar")).getByRole("list", { name: "当前持仓" }).querySelector("li")!;
   // 1.6.6: the row leads with the Chinese product name and carries 开仓均价 → 现价.
-  expect(row).toHaveTextContent("沪金2612au2612买多 2 手820.00 → 824.00可用 2浮盈 +2,340平仓");
+  expect(row).toHaveTextContent("沪金2612au2612买多 2 手820.00 → 824.00可用 2浮动盈亏 +2,340平仓");
   expect(screen.getByTestId("positions-bar").querySelector("[role='table']")).toBeNull();
   // 1.6.6: the bar's own header collapses it; the rail button and Alt+P open the 持仓面板 instead.
   fireEvent.click(within(screen.getByTestId("positions-bar")).getByRole("button", { name: "收起持仓与委托" }));
@@ -3456,7 +3456,8 @@ test("手机版我的：各子页进入与返回，mobilePage 命令与快照、
     fireEvent.click(tabButton("今天")); fireEvent.click(screen.getByRole("button", { name: "我的" }));
     const page = screen.getByTestId("mobile-me");
     expect(page).toHaveTextContent("快期模拟账户 · 权益 1,026,580");
-    expect(page).toHaveTextContent("回放、快捷键、看板列设置和各项高级设置请在电脑上使用。");
+    fireEvent.click(within(page).getByRole("button", { name: "设置的说明" }));
+    expect(screen.getByTestId("help-tip-mobile-me-settings")).toHaveTextContent("回放、快捷键、看板列设置和各项高级设置请在电脑上使用。");
     // 2026-11-01: 持仓与委托 is 今天's 持仓 tile, 复盘 a button in the positions page's head.
     apply({ mobilePage: "positions" });
     expect(screen.getByTestId("mobile-positions")).toBeVisible();

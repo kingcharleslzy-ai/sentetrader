@@ -106,10 +106,10 @@ describe("外盘仓合并显示（所有者 2026-10-21：迷你纳指下单成�
     const onClose = vi.fn();
     show("positions", onClose);
     expect(screen.getByRole("button", { name: "持仓 (2)" })).toBeInTheDocument();
-    expect(screen.getByTestId("foreign-positions-head")).toHaveTextContent("外盘 · 美元浮盈 -10 美元");
+    expect(screen.getByTestId("foreign-positions-head")).toHaveTextContent("外盘 · 美元浮动盈亏 -10 美元");
     const row = document.querySelector('[data-currency="USD"]')!;
     expect(row).toHaveTextContent("迷你纳指1002612");
-    expect(row).toHaveTextContent("浮盈 -10 美元");
+    expect(row).toHaveTextContent("浮动盈亏 -10 美元");
     // 两本账（2026-10-22）：外盘行也能挂保护（Runtime 把它挂在美元子账户上）
     expect(screen.getByRole("button", { name: "给 CME.ENQZ26 多仓挂保护" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "给 SHFE.au2612 多仓挂保护" })).toBeInTheDocument();

@@ -197,6 +197,11 @@ async def deliver_reminder(store: Any, broker: Any, spec: ReminderSpec, *, voice
             except Exception:  # noqa: BLE001
                 log.warning("reminder_essential_not_published kind=%s", kind, exc_info=True)
         return Delivery(None, session_id, False, "off")
+    if spec.symbol and not spec.name and push is not None:
+        try:  # the record names the contract the way the user reads it (沪金2612), never SHFE.au2612
+            spec = replace(spec, name=await push.instrument_name(spec.symbol))
+        except Exception:  # noqa: BLE001 — a missing name never stops the reminder
+            pass
     try:
         trading_day = spec.trading_day or current_trading_day(ns_of(at))
     except ValueError:

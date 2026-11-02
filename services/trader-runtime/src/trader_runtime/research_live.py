@@ -485,7 +485,8 @@ MACRO_WORDS = ("美联储", "降息", "加息", "非农", "CPI", "PPI", "PMI", "
 FLASH_EXCLUDE_WORDS = ("无锡", "锡林郭勒", "锡林浩特", "锡盟", "铅笔", "铜仁", "铜川")
 FLASH_EXCLUDE_MASK = "□"  # □ 不会出现在别名表里
 
-_TAGS = re.compile(r"<[^>]+>")
+# A trailing tag cut off before its ">" counts too: feeds truncate titles mid-markup (金十 `…<font class="important-…`).
+_TAGS = re.compile(r"<[^>]+>|<[A-Za-z/][^>]*$")
 _FLASH_SHELL = re.compile(r"^【[^】]{0,80}】")
 _FLASH_PREFIX = re.compile(
     r"^(?:财联社\s*\d{1,2}月\d{1,2}日电|SHMET\s*\d{1,2}月\d{1,2}日讯|新浪财经\s*\d{1,2}月\d{1,2}日讯"

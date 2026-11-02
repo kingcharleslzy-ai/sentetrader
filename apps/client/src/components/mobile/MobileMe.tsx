@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { ReactNode } from "react";
 import { CLIENT_BUILD, shortCommit } from "../../clientBuild";
+import { HelpTip } from "../Blocks";
 import { useWebUpdateCheck } from "../WebUpdate";
 import type { MobilePage } from "./MobileWorkspace";
 
@@ -69,7 +70,7 @@ export function MobileMe({ userName, accountLabel, equity, alertCount, appearanc
             onOpen={() => onOpenPage("briefs")} />
         </section>
         <section className="fdm-me-group" aria-label="设置">
-          <h3>设置</h3>
+          <h3>设置<HelpTip helpKey="mobile-me-settings" label="设置">回放、快捷键、看板列设置和各项高级设置请在电脑上使用。</HelpTip></h3>
           {CLIENT_BUILD.platform === "web" ? <Row label="添加到手机桌面" value={installed ? "已在桌面" : "未添加"} onOpen={() => onOpenPage("install")} /> : null}
           <Row label="下单与停止" onOpen={() => onOpenSettings("trade")} />
           <Row label="语音" onOpen={() => onOpenSettings("voice")} />
@@ -79,7 +80,6 @@ export function MobileMe({ userName, accountLabel, equity, alertCount, appearanc
           <Row label="反馈" onOpen={() => onOpenSettings("feedback")} />
           <Row label="帮助" onOpen={() => onOpenPage("help")} />
         </section>
-        <p className="fdm-me-foot">回放、快捷键、看板列设置和各项高级设置请在电脑上使用。</p>
         <p className="fdm-me-version" data-testid="mobile-me-version">
           <span>版本 {CLIENT_BUILD.version} · {shortCommit()}</span>
           {CLIENT_BUILD.platform === "web" ? <>

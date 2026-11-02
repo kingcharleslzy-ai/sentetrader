@@ -63,6 +63,9 @@
 .app-setting-label small { color: var(--muted); font-size: var(--font-sm); line-height: 1.4; overflow-wrap: anywhere; }
 .app-setting-value { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: var(--space-2); min-width: 0; text-align: right; }
 .app-setting-value strong { min-width: 0; overflow-wrap: anywhere; font-weight: 500; }
+/* A row whose only control is a switch keeps it beside its label at every width; narrow settings and the phone stack
+   the other rows (the :has() outranks those rules). */
+.app-setting-row:has(> .app-setting-value > .app-switch-wrap:only-child) { grid-template-columns: minmax(0, 1fr) auto; }
 .app-setting-status { color: var(--muted); font-size: var(--font-sm); overflow-wrap: anywhere; }
 .app-setting-value > .desktop-update-progress { flex-basis: 100%; }
 
