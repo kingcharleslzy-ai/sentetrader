@@ -5,7 +5,8 @@ import { StopMotionFields } from "./StopMotionFields";
 import type { RoundTrip, TradeReviewData } from "../../hooks/useTradeReview";
 import { useDialogSurface, useDisclosureSurface } from "../../uiSurfaces";
 import "./PositionsStrip.css";
-import { AiMenu, type AskAi } from "../AiMenu";
+import { AiMenu, type AiMenuItem, type AskAi } from "../AiMenu";
+import { SwipeRow, type RowAction } from "../mobile/RowActions";
 import { contractLabel, decimalsForTick, formatNumber, formatSigned, isProtectionActive, orderActionLabel, orderStatusText, ownPositions, positionKey, positionsMarketValue, signClass } from "./support";
 import { deliveryBadgeText } from "./deliveryInfo";
 import { protectionIssueText, protectionStatus } from "../../operationEvents";
@@ -274,8 +275,17 @@ export function PositionRows({ positions, instruments, quote, busy, limit, onClo
     const usd = position.currency === "USD";
     const rowStops = stops?.filter(stop => sameContract(stop.symbol, position.symbol)
       && stop.positionDirection === position.direction && isProtectionActive(stop.status)) ?? [];
+    const focus = { kind: "position" as const, id: positionKey(position), label: `${name} ${position.direction === "long" ? "多" : "空"} ${position.volume} 手` };
+    const askItems: AiMenuItem[] = [
+      { label: "这笔持仓的风险", prompt: "这笔持仓现在的风险怎么样" },
+      { label: "平仓建议（出卡）", prompt: "给这笔持仓一个平仓建议，要平就出确认卡" },
+    ];
+    // 手机手势 (2026-11-02): the row's own buttons behind a left swipe and in the long-press sheet (平仓… opens the ticket).
+    const actions: RowAction[] = [{ label: "平仓…", disabled: busy || !available, run: () => onClosePosition(position) },
+      ...(onAskAi ? askItems.map((item, index) => ({ label: item.label, short: index ? undefined : "问 AI", menuOnly: index > 0, run: () => onAskAi(item.prompt, focus) })) : [])];
     return (
-      <li key={positionKey(position)} data-position={positionKey(position)} data-currency={usd ? "USD" : undefined}>
+      <SwipeRow as="li" key={positionKey(position)} id={`position:${positionKey(position)}`} title={focus.label} actions={actions}
+        data-position={positionKey(position)} data-currency={usd ? "USD" : undefined}>
         <strong><span>{name}</span>{name === position.symbol ? null : <small>{position.symbol.split(".").pop()}</small>}</strong>
         <span className="fdw-row-meta">
           <span className={position.direction === "long" ? "positive" : "negative"}>{position.direction === "long" ? "买多" : "卖空"} {position.volume} 手</span>
@@ -289,17 +299,14 @@ export function PositionRows({ positions, instruments, quote, busy, limit, onClo
         <b className={signClass(position.unrealizedPnl)}>浮动盈亏 {formatSigned(position.unrealizedPnl, 0)}{usd ? " 美元" : ""}</b>
         <span className="fdw-row-actions">
         <button type="button" className="fdw-row-close" disabled={busy || !available} aria-label={`平仓 ${position.symbol} ${position.direction === "long" ? "多" : "空"}仓`} onClick={() => onClosePosition(position)}>平仓</button>
-        <AiMenu compact onAsk={onAskAi} focus={{ kind: "position", id: positionKey(position), label: `${name} ${position.direction === "long" ? "多" : "空"} ${position.volume} 手` }} items={[
-          { label: "这笔持仓的风险", prompt: "这笔持仓现在的风险怎么样" },
-          { label: "平仓建议（出卡）", prompt: "给这笔持仓一个平仓建议，要平就出确认卡" },
-        ]}/>
+        <AiMenu compact onAsk={onAskAi} focus={focus} items={askItems}/>
         </span>
         {/* 两本账（2026-10-22）：外盘行也能挂保护——Runtime 按合约把它挂在美元子账户上（account_for_symbol）。 */}
         {onCreateStop && onCancelStop ? (
           <PositionProtection position={position} quote={quote} priceTick={item?.priceTick ?? quote?.priceTick}
             stops={rowStops} busy={busy || (protectionBusy ?? false)} onCreate={onCreateStop} onCancel={onCancelStop} />
         ) : null}
-      </li>
+      </SwipeRow>
     );
   };
   return (
@@ -332,8 +339,21 @@ export function OrderRows({ orders, history, busy, limit, onOrderAction, onAband
         // A prepared order was never sent: the user decides to send it now or drop it (dropping is confirmed).
         const prepared = order.submitPhase === "PREPARED" && !history;
         const name = contractLabel(order.request.symbol, instruments);
+        const focus = { kind: "order" as const, id: order.clientOrderId, label: `${order.request.symbol} ${orderActionLabel(order)} ${order.request.volume} 手` };
+        const askItems: AiMenuItem[] = [
+          { label: "为什么没成交", prompt: "这笔委托为什么没成交" },
+          { label: "追单建议（出卡）", prompt: "这笔委托要不要追单，要追就出确认卡" },
+        ];
+        // 手机手势: 继续 / 放弃 (its own confirmation), 查询 or 撤单 behind a left swipe; the AI questions on a long press.
+        const actions: RowAction[] = [
+          ...(prepared ? [{ label: "继续", disabled: busy, run: () => onOrderAction(order, "continue") }, { label: "放弃", danger: true, disabled: busy, run: () => onAbandon(order) }]
+            : unknown ? [{ label: "查询", disabled: busy, run: () => onOrderAction(order, "query") }]
+            : alive ? [{ label: "撤单", disabled: busy, run: () => onOrderAction(order, "cancel") }] : []),
+          ...(onAskAi ? askItems.map(item => ({ label: item.label, menuOnly: true, run: () => onAskAi(item.prompt, focus) })) : []),
+        ];
         return (
-          <li key={order.clientOrderId} data-order-id={order.clientOrderId} data-unknown={unknown || undefined}>
+          <SwipeRow as="li" key={order.clientOrderId} id={`order:${order.clientOrderId}`} title={focus.label} subtitle={orderStatusText(order)} actions={actions}
+            data-order-id={order.clientOrderId} data-unknown={unknown || undefined}>
             <strong title={order.request.symbol}>{showShortCode ? <span>{name}</span> : name}{!showShortCode || name === order.request.symbol ? null : <small>{order.request.symbol.split(".").pop()}</small>}{order.accountId?.startsWith("paperusd:") ? <small className="fdw-currency-tag">美元</small> : null}</strong>
             <span>{orderActionLabel(order)}</span>
             <span>{order.request.limitPrice} × {order.request.volume}</span>
@@ -341,11 +361,8 @@ export function OrderRows({ orders, history, busy, limit, onOrderAction, onAband
             {prepared ? <span className="fdw-row-actions"><button type="button" disabled={busy} onClick={() => onOrderAction(order, "continue")}>继续</button><button type="button" className="app-button danger" disabled={busy} onClick={() => onAbandon(order)}>放弃</button></span>
               : unknown ? <button type="button" disabled={busy} onClick={() => onOrderAction(order, "query")}>查询</button>
               : alive ? <button type="button" disabled={busy} onClick={() => onOrderAction(order, "cancel")}>撤单</button> : null}
-            <AiMenu compact onAsk={onAskAi} focus={{ kind: "order", id: order.clientOrderId, label: `${order.request.symbol} ${orderActionLabel(order)} ${order.request.volume} 手` }} items={[
-              { label: "为什么没成交", prompt: "这笔委托为什么没成交" },
-              { label: "追单建议（出卡）", prompt: "这笔委托要不要追单，要追就出确认卡" },
-            ]}/>
-          </li>
+            <AiMenu compact onAsk={onAskAi} focus={focus} items={askItems}/>
+          </SwipeRow>
         );
       })}
       {!orders.length ? <li className="fdw-dock-empty">{history ? "当前账户没有委托记录" : "当前没有在途委托"}</li> : null}

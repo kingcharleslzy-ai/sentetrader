@@ -125,6 +125,7 @@ import { mainContract } from "./mobile/MobileResearch";
 import { MobileBriefs } from "./mobile/MobileBriefs";
 import { InstallGuide, useInstallAutoOpen, useInstallDetection } from "./mobile/InstallGuide";
 import { MobilePush } from "./mobile/MobilePush";
+import type { RowAction } from "./mobile/RowActions";
 import { pushRowValue, usePush } from "../webPush";
 import { onDeepLinkMessage, takeDeepLink, type DeepLink } from "../deepLink";
 import { useBriefSubscriptions } from "./BriefSubscriptions";
@@ -1350,6 +1351,42 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
       setMobileNotice(""); setMobileSub(null);
       if (!aiCommand.send(text)) { setRightDock("ai"); void chat.sendQuickPrompt(text); }
     };
+    // 手机手势 (2026-11-02): what a contract row's left swipe / long press offers — the same paths as the star, the
+    // 设提醒 form, the chart and the ticket. 移出自选 leaves a 撤销 that puts the product back where it was.
+    const openRowChart = (symbol: string) => { if (!sameContract(symbol, quote?.symbol)) selectContract(symbol); showMobileChart(); };
+    const contractRowActions = (row: { symbol: string; name: string }): RowAction[] => {
+      const item = props.instruments?.items.find(entry => sameContract(entry.symbol, row.symbol));
+      const product = item ? watchlistKey(item) : undefined;
+      const index = product ? watchlist.indexOf(product) : -1;
+      const restore = (key: string, at: number) => { void updatePreferences(latest => {
+        const list = normalizeWatchlist(latest?.preferences.watchlist?.products).filter(entry => entry !== key);
+        return { watchlist: { products: [...list.slice(0, at), key, ...list.slice(at)] } };
+      }).catch(error => setWatchlistStatus(preferenceErrorText(error))); };
+      return [
+        ...(alerts.available ? [{ label: "设提醒", run: () => {
+          if (!sameContract(row.symbol, quote?.symbol)) selectContract(row.symbol);
+          showMyReminders(); applyUiSurface("disclosure:reminder-alert-new", true);
+        } }] : []),
+        ...(product && watchlistChange ? [index >= 0
+          ? { label: "移出自选", danger: true, run: () => watchlistChange(product), undo: isGuest ? undefined : { text: `已移出 ${row.name}`, run: () => restore(product, index) } }
+          : { label: "加自选", run: () => watchlistChange(product) }] : []),
+        { label: "看图", menuOnly: true, run: () => openRowChart(row.symbol) },
+        ...(isGuest ? [] : [{ label: "下单…", menuOnly: true, run: () => { if (!sameContract(row.symbol, quote?.symbol)) selectContract(row.symbol); tapPage("order"); } }]),
+      ];
+    };
+    const holdingRowActions = (row: { symbol: string; name: string }): RowAction[] => {
+      const held = (props.account?.positions ?? []).filter(position => sameContract(position.symbol, row.symbol));
+      const focusOf = (position: AccountPosition) => ({ kind: "position" as const, id: positionKey(position),
+        label: `${row.name} ${position.direction === "long" ? "多" : "空"} ${position.volume} 手` });
+      return [
+        ...held.map(position => ({ label: held.length > 1 ? `平${position.direction === "long" ? "多" : "空"}仓…` : "平仓…", run: () => closePosition(position) })),
+        ...(held.length ? [
+          { label: "这笔持仓的风险", short: "问 AI", run: () => askAi("这笔持仓现在的风险怎么样", focusOf(held[0])) },
+          { label: "平仓建议（出卡）", menuOnly: true, run: () => askAi("给这笔持仓一个平仓建议，要平就出确认卡", focusOf(held[0])) },
+        ] : []),
+        { label: "看图", menuOnly: true, run: () => openRowChart(row.symbol) },
+      ];
+    };
     const researchProduct = quoteEntry ? quoteEntry.instrumentName.replace(/\d+$/, "") || quoteEntry.productId.toUpperCase() : undefined;
     const marketView = mobileMarket.market.view;
     const mobileContext = mobileSub === "reminders" ? "提醒" : mobileTab === "research" ? `调研${researchProduct ? ` · ${researchProduct}` : ""}`
@@ -1451,7 +1488,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
           review={tradeReview.review} foreignReview={foreignTradeReview.review} reviewError={tradeReview.error} busy={props.tradeBusy}
           tab={positionsTab} onTabChange={setPositionsTab} history={ordersHistory} onHistoryChange={setOrdersHistory}
           fillsSource={fillsSource} onFillsSourceChange={setFillsSource}
-          onOrderAction={handleOrderAction} onClosePosition={closePosition} onRefresh={props.onRefreshAccount}
+          onOrderAction={handleOrderAction} onClosePosition={closePosition} onRefresh={props.onRefreshAccount} pullToRefresh
           onClose={() => setMobileSub(null)} activeProtections={activeProtections} protectionWarning={protectionWarning} onAskAi={askAi}
           stops={props.aiExecution?.stops} protectionBusy={props.aiExecutionBusy}
           onCreateStop={createPositionStop} onCancelStop={cancelPositionStop} onReview={() => tapPage("review")} />
@@ -1465,7 +1502,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     ) : mobileSub === "push" ? (
       <MobilePush push={push} offline={!connectedRuntimeUrl} onOpenSettings={openReminderSettings} onOpenInstall={() => setMobileSub("install")} onClose={() => setMobileSub(null)} />
     ) : mobileSub === "reminders" ? (
-      <MobileReminders onClose={() => setMobileSub(null)} tabs={<RemindersTabs tab={remindersTab} onTab={setRemindersTab} />}><RemindersTabBody tab={remindersTab} center={reminderCenter} settings={reminderSettings} mine={myReminders} mobile /></MobileReminders>
+      <MobileReminders onClose={() => setMobileSub(null)} onRefresh={() => { reminders.refresh(); alerts.refresh(); }} tabs={<RemindersTabs tab={remindersTab} onTab={setRemindersTab} />}><RemindersTabBody tab={remindersTab} center={reminderCenter} settings={reminderSettings} mine={myReminders} mobile /></MobileReminders>
     ) : mobileSub === "lab" ? (
       <MobileLab rootUrl={connectedRuntimeUrl ? props.rootBaseUrl ?? connectedRuntimeUrl : undefined} baseUrl={connectedRuntimeUrl} labId={mobileLabId}
         instruments={props.instruments} chartTimeframe={props.duration} sessionId={props.chatSessionId}
@@ -1507,6 +1544,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
               reminders: reminders.today.length, unreadReminders: reminders.unread }}
             account={{ name: currentAccount?.displayName, equity: props.account?.account.equity ?? null, equityUsd: ledgerSnapshots.USD?.equity ?? null }}
             holdings={homeHoldings} watchRows={homeWatchRows}
+            holdingActions={isGuest ? undefined : holdingRowActions} watchActions={contractRowActions}
             onOpenSymbol={symbol => { if (!sameContract(symbol, quote?.symbol)) selectContract(symbol); showMobileChart(); }}
             onQuotes={() => { selectMobileTab("market"); mobileMarket.update({ view: "quotes", board: "watchlist" }); }}
             onPositions={() => tapPage("positions")} watch={watch} judgments={chips} onJudgment={openJudgment}
@@ -1539,6 +1577,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
               baseUrl={connectedRuntimeUrl} boardError={board.error} guest={isGuest} onSignIn={props.onOpenCloudLogin}
               historyNote={props.guest ? guestHistoryNote(market?.historyTradingDays) : undefined}
               drawings={drawings.available ? drawings : undefined}
+              rowActions={contractRowActions}
               onOpenChart={(symbol, duration) => {
                 if (!sameContract(symbol, quote?.symbol)) selectContract(symbol);
                 if (duration && (duration !== props.duration || chartView !== "kline")) selectDuration(duration);

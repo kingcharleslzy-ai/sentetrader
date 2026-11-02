@@ -652,9 +652,9 @@
 
 /* 下拉刷新: the content follows the finger (--fdm-pull, set by usePullToRefresh) and springs back;
    the Sente stone above it turns with the distance and spins while reading. */
-.fdm-content[data-pull] > * { transform: translateY(calc(var(--fdm-pull, 0) * 1px)); }
-.fdm-content[data-pull-settling] > * { transition: transform var(--dur-3) var(--ease-out); }
-.fdm-content[data-pulling] { overflow-y: hidden; }
+:is(.fdm-content, .fdw-ai-scroll)[data-pull] > * { transform: translateY(calc(var(--fdm-pull, 0) * 1px)); }
+:is(.fdm-content, .fdw-ai-scroll)[data-pull-settling] > * { transition: transform var(--dur-3) var(--ease-out); }
+:is(.fdm-content, .fdw-ai-scroll)[data-pulling] { overflow-y: hidden; }
 .fdm-ptr { position: relative; height: 0; pointer-events: none; }
 .fdm-page > .fdm-content > .fdm-ptr { margin-bottom: calc(-1 * var(--space-3)); }
 .fdm-ptr-stone { position: absolute; left: 50%; bottom: 22px; width: 30px; height: 30px; margin-left: calc(-1 * var(--space-4)); opacity: calc(var(--fdm-pull, 0) / 40); }

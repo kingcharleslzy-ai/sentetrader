@@ -5,6 +5,7 @@ import { formatNumber, formatSigned, signClass } from "../futures/support";
 import { Sparkline } from "../Sparkline";
 import { CardSkeleton } from "./MobileFeed";
 import { RollingText } from "./mobileMotion";
+import { SwipeRow, type RowAction } from "./RowActions";
 import { approvalMinutesLeft, type MobileFeedItem } from "./feedItems";
 import { NOTIFY_FILTERS, notifyTime, rowTime, type JudgmentStance, type NotifyFilter, type NotifyRow } from "./notifyItems";
 
@@ -51,12 +52,15 @@ const NEW_PILL_SCROLL = 40;
  * in at the top; scrolled down, it waits behind “↑ N 条新动态”. What is unread is the 提醒中心's (the
  * Runtime's read marks), not this timeline's.
  */
-export function MobileHome({ rows, pending, renderCard, quickPending, now, account, today, holdings = [], watchRows = [], onOpenSymbol = () => undefined, onQuotes = () => undefined, onPositions, watch, onAlerts, onStrategies, onTodayReminders, judgments, onJudgment,
+export function MobileHome({ rows, pending, renderCard, quickPending, now, account, today, holdings = [], watchRows = [], holdingActions, watchActions, onOpenSymbol = () => undefined, onQuotes = () => undefined, onPositions, watch, onAlerts, onStrategies, onTodayReminders, judgments, onJudgment,
   filter, onFilter, products, product, onProduct, onOpen, onReminders, latest, notice, refreshError, loading = false, focus }: {
   rows: NotifyRow[];
   /** The cards waiting for 确认, newest first. */
   pending: Extract<MobileFeedItem, { kind: "proposal" }>[];
   renderCard: (item: Extract<MobileFeedItem, { kind: "proposal" }>) => ReactNode;
+  /** 手机手势 (2026-11-02): what a 持仓 / 自选 row's left swipe and long press offer. */
+  holdingActions?: (row: HomeQuote) => RowAction[];
+  watchActions?: (row: HomeQuote) => RowAction[];
   /** A 快捷下单 waits for its own confirmation (it counts as one more 待确认). */
   quickPending: boolean;
   now: number;
@@ -177,21 +181,23 @@ export function MobileHome({ rows, pending, renderCard, quickPending, now, accou
       {holdings.length ? <section className="fdm-quotes-home" aria-label="持仓" data-agent-target="mobile-home-positions">
         <div className="fdm-sec"><strong>持仓 <span>{holdings.length}</span></strong><button type="button" onClick={onPositions} aria-label="全部持仓">全部</button></div>
         <div className="fdm-hq-head" aria-hidden="true"><span>合约</span><span>现价</span><span>涨跌</span><span>浮动</span></div>
-        {holdings.map(row => <button type="button" key={row.symbol} className="fdm-hq" onClick={() => onOpenSymbol(row.symbol)} aria-label={`${row.name} ${row.holding ?? ""}`.trim()}>
+        {holdings.map(row => <SwipeRow key={row.symbol} id={`holding:${row.symbol}`} title={`${row.name} ${row.holding ?? ""}`.trim()} actions={holdingActions?.(row) ?? []}>
+          <button type="button" className="fdm-hq" onClick={() => onOpenSymbol(row.symbol)} aria-label={`${row.name} ${row.holding ?? ""}`.trim()}>
           <span className="fdm-hq-name"><b>{row.name}</b>{row.holding ? <em data-side={row.holding.startsWith("多") ? "long" : "short"}>{row.holding}</em> : null}</span>
           <span>{formatNumber(row.last, row.decimals)}</span>
           <span className={signClass(row.changePercent)}>{row.changePercent == null ? "—" : `${formatSigned(row.changePercent, 2)}%`}</span>
           <b className={signClass(row.floating)}>{row.floating == null ? "—" : formatSigned(row.floating, 0)}</b>
-        </button>)}
+        </button></SwipeRow>)}
       </section> : null}
       <section className="fdm-quotes-home" aria-label="自选" data-agent-target="mobile-home-watchlist">
         <div className="fdm-sec"><strong>自选</strong><span>走势 · 近 48 根 15 分钟</span><button type="button" onClick={onQuotes} aria-label="全部自选">全部</button></div>
-        {watchRows.length ? watchRows.map(row => <button type="button" key={row.symbol} className="fdm-hq fdm-hq-watch" onClick={() => onOpenSymbol(row.symbol)} aria-label={row.name}>
+        {watchRows.length ? watchRows.map(row => <SwipeRow key={row.symbol} id={`watch:${row.symbol}`} title={row.name} subtitle={row.code} actions={watchActions?.(row) ?? []}>
+          <button type="button" className="fdm-hq fdm-hq-watch" onClick={() => onOpenSymbol(row.symbol)} aria-label={row.name}>
           <span className="fdm-hq-name"><b>{row.name}</b><small>{row.code}</small></span>
           <span className={`fdm-hq-spark ${signClass(row.changePercent)}`}>{row.curve && row.curve.length > 1 ? <Sparkline values={row.curve} className="fdm-spark" label={`${row.name} 走势`} /> : null}</span>
           <span>{formatNumber(row.last, row.decimals)}</span>
           <b className={signClass(row.changePercent)}>{row.changePercent == null ? "—" : `${formatSigned(row.changePercent, 2)}%`}</b>
-        </button>) : <p className="fdm-note">还没有自选。到看盘 · 报价或合约列表里点星标加。</p>}
+        </button></SwipeRow>) : <p className="fdm-note">还没有自选。到看盘 · 报价或合约列表里点星标加。</p>}
       </section>
       {judgments.length ? <>
         <div className="fdm-sec"><strong>今日判断</strong><span>点一个看完整调研</span></div>

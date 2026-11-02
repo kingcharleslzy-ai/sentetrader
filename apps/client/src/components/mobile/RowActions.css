@@ -1,0 +1,47 @@
+/* 手机手势 (2026-11-02): a row's swipe tray and long-press sheet (RowActions.tsx). Vertical drags stay the list's scroll;
+   a long press neither selects text nor shows the system callout. */
+[data-swipe] { position: relative; touch-action: pan-y; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+[data-swipe][data-tray] { overflow: hidden; }
+[data-swipe][data-tray] > :not(.fdm-swipe-tray) { transform: translateX(calc(var(--row-x, 0) * 1px)); transition: transform var(--dur-2) var(--ease-out); }
+.fdm-swipe-tray {
+  position: absolute; top: 0; right: 0; bottom: 0; z-index: 1; display: flex;
+  transform: translateX(calc(100% + var(--row-x, 0) * 1px)); transition: transform var(--dur-2) var(--ease-out);
+}
+[data-swipe][data-dragging] > *, [data-swipe][data-dragging] > .fdm-swipe-tray { transition: none; }
+/* Specific enough to win over the lists' own `li button` rules (the tray sits inside the row). */
+[data-swipe] > .fdm-swipe-tray > button {
+  flex: 1 1 0; width: auto; min-width: 0; min-height: 0; margin: 0; display: grid; place-items: center; border: 0; border-radius: 0;
+  padding: 0 var(--space-1); color: var(--on-primary); background: var(--primary-bg); text-align: center;
+  font-size: var(--font-md); font-weight: 600; overflow-wrap: anywhere; -webkit-tap-highlight-color: transparent;
+}
+/* The first is the row's main action; the others are secondary, a danger one red. */
+[data-swipe] > .fdm-swipe-tray > button + button { color: var(--ink); background: var(--soft); }
+[data-swipe] > .fdm-swipe-tray > button[data-tone="danger"] { color: var(--danger); background: var(--danger-soft); }
+[data-swipe] > .fdm-swipe-tray > button:disabled { opacity: .5; }
+
+.fdm-row-sheet { position: fixed; inset: 0; z-index: 60; display: flex; align-items: flex-end; background: var(--overlay); animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; --enter-transform: none; }
+.fdm-row-sheet > .fdm-sheet { max-height: 80%; animation: ui-panel-in var(--dur-3) var(--ease-out) backwards; --enter-transform: translateY(100%); }
+.fdm-row-sheet-head { display: grid; gap: var(--space-0); padding: var(--space-2) var(--space-4) var(--space-3); }
+.fdm-row-sheet-head strong { font-size: var(--font-lg); overflow-wrap: anywhere; }
+.fdm-row-sheet-head small { color: var(--muted); font-size: var(--font-sm); }
+.fdm-row-sheet-list { min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: grid; }
+.fdm-row-sheet-list > button, .fdm-row-sheet-cancel {
+  min-height: 48px; padding: 0 var(--space-4); border: 0; border-top: 1px solid var(--line); color: var(--ink); background: transparent;
+  font-size: var(--font-lg); text-align: left; -webkit-tap-highlight-color: transparent;
+}
+.fdm-row-sheet-list > button[data-tone="danger"] { color: var(--danger); }
+.fdm-row-sheet-list > button:disabled { color: var(--muted); }
+.fdm-row-sheet-cancel { margin-top: var(--space-2); border-top-width: 6px; border-top-color: var(--soft); text-align: center; color: var(--muted); }
+
+.fdm-row-undo {
+  position: absolute; left: var(--space-3); right: var(--space-3); bottom: calc(100% + var(--fdm-key-rise, 0px) + var(--space-2)); z-index: 9;
+  display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+  border-radius: var(--radius-card); color: var(--panel); background: var(--ink); box-shadow: var(--shadow-3); font-size: var(--font-md);
+  animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; --enter-transform: translateY(8px);
+}
+.fdm-row-undo > span { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.fdm-row-undo > button { flex: none; min-height: 36px; padding: 0 var(--space-3); border: 0; border-radius: var(--radius-control); color: var(--ink); background: var(--panel); font-weight: 600; }
+@media (prefers-reduced-motion: reduce) {
+  [data-swipe][data-tray] > *, .fdm-swipe-tray, .fdm-row-sheet, .fdm-row-sheet > .fdm-sheet, .fdm-row-undo { transition: none; animation: none; }
+}
+.fdm-quotes-home > div > .fdm-hq { width: 100%; }

@@ -21,6 +21,7 @@ import { MobileQuotes } from "./MobileQuotes";
 import { useForeignBoard } from "../../hooks/useForeignBoard";
 import { MobileMultiChart } from "./MobileMultiChart";
 import { MobileSubPaneSheet } from "./MobileSubPaneSheet";
+import { SwipeRow, type RowAction } from "./RowActions";
 import { useConditionReminderLines } from "../reminders/MyReminders";
 
 type Duration = MarketWorkbenchSnapshot["durationSeconds"];
@@ -83,7 +84,7 @@ export function autoChartSymbols(rows: readonly WatchRow[], board: MarketBoardSn
 export function MobileMarket({ market, name, decimals, chartView, onSelectDuration, onSelectChartView, onOpenContracts, onSelectSymbol,
   chartSettings, setChartSettings, chartPreferences, resolvedTheme, alerts, positions, watchlist, board, instruments,
   onAskBar, onOrder, orderBlocked, marketError, onAlertSignIn, mobileMarket, indicators, onIndicatorsChange, indicatorStatus,
-  baseUrl, boardError, guest = false, historyNote, onSignIn, onOpenChart, drawings }: {
+  baseUrl, boardError, guest = false, historyNote, onSignIn, onOpenChart, rowActions, drawings }: {
   market: MarketWorkbenchSnapshot | undefined;
   name: string;
   decimals: number;
@@ -122,6 +123,8 @@ export function MobileMarket({ market, name, decimals, chartView, onSelectDurati
   onSignIn?: () => void;
   /** A 报价 row or a 多图 cell: that contract (and period) on the single chart. */
   onOpenChart: (symbol: string, duration?: DurationSeconds) => void;
+  /** 手机手势 (2026-11-02): what a contract row offers — behind its left swipe in 自选 · 持仓标记, on a long press in 报价. */
+  rowActions?: (row: { symbol: string; name: string }) => RowAction[];
   /** 用户画线: the workspace's handle (the computer's records); absent for a visitor or while disconnected — no ✎. */
   drawings?: ChartDrawingsHandle;
 }) {
@@ -253,7 +256,8 @@ export function MobileMarket({ market, name, decimals, chartView, onSelectDurati
       </header>
       {view === "quotes" ? <MobileQuotes baseUrl={baseUrl} board={board} foreign={foreign} boardError={boardError} boardId={prefs.board} columns={prefs.columns}
         onBoard={board => update({ board })} onColumns={columns => update({ columns })} positions={positions} watchlist={watchlist}
-        instruments={instruments} currentSymbol={quote?.symbol} onOpen={symbol => onOpenChart(symbol)} guest={guest} onSignIn={signIn} />
+        instruments={instruments} currentSymbol={quote?.symbol} onOpen={symbol => onOpenChart(symbol)} guest={guest} onSignIn={signIn}
+        rowActions={rowActions} />
         : view === "multi" ? <MobileMultiChart baseUrl={baseUrl} market={prefs} layout={prefs.layout} onLayout={layout => update({ layout })}
           onCell={(index, change) => mobileMarket.apply({ cell: { index, ...change } })}
           current={{ symbol: quote?.symbol, duration: market?.durationSeconds }} ownMarket={market} ownError={marketError} autoSymbols={autoSymbols}
@@ -296,7 +300,7 @@ export function MobileMarket({ market, name, decimals, chartView, onSelectDurati
           <h3>自选 · 持仓标记</h3>
           {rows.length ? <ul className="fdm-watch">
             {rows.map(row => (
-              <li key={row.symbol}>
+              <SwipeRow as="li" key={row.symbol} id={`watch:${row.symbol}`} title={row.name} actions={rowActions?.(row) ?? []}>
                 <button type="button" aria-current={sameContract(row.symbol, quote?.symbol) ? "true" : undefined}
                   aria-label={`看 ${row.name}`} onClick={() => onSelectSymbol(row.symbol)}>
                   <span className="fdm-watch-name">{row.starred ? <Star aria-hidden="true" /> : null}<strong>{row.name}</strong>{row.holding ? <em>{row.holding}</em> : null}</span>
@@ -304,7 +308,7 @@ export function MobileMarket({ market, name, decimals, chartView, onSelectDurati
                     <b>{formatNumber(row.last, row.decimals)}</b><small>{percent(row.changePercent)}</small>
                   </span>
                 </button>
-              </li>
+              </SwipeRow>
             ))}
           </ul> : <p className="fdm-note">还没有自选或持仓。点上面的合约名，在合约列表里点星标加自选。</p>}
         </section>

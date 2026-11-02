@@ -4,6 +4,7 @@ import { HelpTip } from "../Blocks";
 import { reminderKind } from "../notifyKinds";
 import type { PriceAlertsHandle } from "../../hooks/usePriceAlerts";
 import { groupReminders, reminderClock, reminderState, tradingDayLabel, type ReminderFilter, type ReminderItem, type RemindersHandle } from "../../reminders";
+import { PullIndicator, usePullToRefresh } from "../mobile/usePullToRefresh";
 import "./ReminderCenter.css";
 
 const DAY_HELP = "一个交易日从前一晚 21:00 夜盘算起，到当天 15:00 收盘。当天的提醒都在这里，电脑和手机读同一份记录，已读也一起变；更早的在服务端留 30 天。点一条：交易类跳到对话里那张卡，挂单去委托，信息类打开调研或新闻。";
@@ -141,14 +142,15 @@ export function ReminderBell({ open, onOpenChange, unread }: { open: boolean; on
 }
 
 /** 提醒 (手机): the full-screen page the AI tab's bell opens — the same three tabs as the computer's 提醒 panel. */
-export function MobileReminders({ onClose, tabs, children }: { onClose: () => void; tabs: ReactNode; children: ReactNode }) {
+export function MobileReminders({ onClose, tabs, children, onRefresh }: { onClose: () => void; tabs: ReactNode; children: ReactNode; onRefresh?: () => unknown }) {
+  const pull = usePullToRefresh(onRefresh ?? (() => undefined), Boolean(onRefresh));
   return <section className="fdm-overlay fdm-page rc-mobile reminders-panel" aria-label="提醒" data-testid="mobile-reminders" data-agent-target="mobile-reminders">
     <header className="fdm-head">
       <button type="button" className="fdm-back" aria-label="返回今天" onClick={onClose}><ChevronLeft /></button>
       <strong>提醒</strong>
     </header>
     {tabs}
-    <main className="fdm-content rc-mobile-content">{children}</main>
+    <main className="fdm-content rc-mobile-content" ref={pull.ref}>{onRefresh ? <PullIndicator phase={pull.phase} /> : null}{children}</main>
   </section>;
 }
 

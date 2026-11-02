@@ -12,6 +12,7 @@ import { orbLabel } from "../../voiceRealtime";
 import "../futures/AiCommandBar.css";
 import { HoldToTalk, HoldToTalkLive } from "./HoldToTalk";
 import { RollingText, usePriceFlash, useRiseKey } from "./mobileMotion";
+import { RowUndo } from "./RowActions";
 import { PullIndicator, usePullToRefresh } from "./usePullToRefresh";
 import { UnreadBadge } from "../reminders/ReminderCenter";
 import "./MobileWorkspace.css";
@@ -67,6 +68,11 @@ const motionMs = (token: string) => {
 const DRAG_HANDLE = ".fdm-head, .fdm-sheet-head, .fdm-sheet-grip, .fdw-positions-dock > header";
 /** A page dragged down this far closes on release; less springs back. */
 export const OVERLAY_DRAG_CLOSE_PX = 110;
+/** 右滑返回 (2026-11-02): a full-screen page dragged rightwards from within this much of the left edge goes back once
+ *  released past a third of the screen. Only installed to the home screen: in a browser tab the browser's own swipe goes back. */
+export const OVERLAY_EDGE_PX = 20;
+const standalone = () => (typeof window.matchMedia === "function" && window.matchMedia("(display-mode: standalone)").matches)
+  || (navigator as Navigator & { standalone?: boolean }).standalone === true;
 
 /**
  * The full-screen page layer: the page slides up over a dimmed backdrop, and closing (the page's
@@ -90,7 +96,7 @@ function OverlayLayer({ overlay, onClose }: { overlay: ReactNode; onClose: () =>
   close.current = onClose;
   useEffect(() => {
     if (!layer) return;
-    let start: { x: number; y: number; panel: HTMLElement } | null = null;
+    let start: { x: number; y: number; panel: HTMLElement; edge: boolean } | null = null;
     let active = false;
     let distance = 0;
     let dragged = false;
@@ -102,31 +108,36 @@ function OverlayLayer({ overlay, onClose }: { overlay: ReactNode; onClose: () =>
       start = null; active = false; dragged = false;
       const target = event.target instanceof Element ? event.target : null;
       const panel = panelOf();
-      if (layer.dataset.closing !== undefined || event.touches.length !== 1 || !panel || !target?.closest(DRAG_HANDLE)) return;
-      start = { x: event.touches[0].clientX, y: event.touches[0].clientY, panel };
+      if (layer.dataset.closing !== undefined || event.touches.length !== 1 || !panel) return;
+      const edge = event.touches[0].clientX <= OVERLAY_EDGE_PX && panel === layer.firstElementChild && standalone();
+      if (!edge && !target?.closest(DRAG_HANDLE)) return;
+      start = { x: event.touches[0].clientX, y: event.touches[0].clientY, panel, edge };
     };
     const onMove = (event: TouchEvent) => {
       if (!start) return;
       const dx = event.touches[0].clientX - start.x;
       const dy = event.touches[0].clientY - start.y;
+      // From the edge the page follows a rightward drag, from its head a downward one; anything else is not ours.
+      const along = start.edge ? dx : dy, across = start.edge ? dy : dx;
       if (!active) {
-        if (Math.abs(dx) > Math.abs(dy) || dy < 0) { if (Math.abs(dx) > 6 || dy < -6) start = null; return; }
-        if (dy < 6) return;
+        if (Math.abs(across) > Math.abs(along) || along < 0) { if (Math.abs(across) > 6 || along < -6) start = null; return; }
+        if (along < 6) return;
         active = true;
       }
       event.preventDefault();
-      distance = Math.max(0, dy);
+      distance = Math.max(0, along);
       start.panel.style.transition = "none";
-      start.panel.style.transform = `translateY(${distance}px)`;
+      start.panel.style.transform = start.edge ? `translateX(${distance}px)` : `translateY(${distance}px)`;
       layer.style.setProperty("--fdm-drag", String(Math.min(1, distance / 400)));
     };
     const onEnd = () => {
       const panel = start?.panel;
+      const edge = start?.edge;
       start = null;
       if (!active || !panel) return;
       active = false;
       dragged = true;
-      if (distance > OVERLAY_DRAG_CLOSE_PX) { close.current(); return; }
+      if (distance > (edge ? window.innerWidth / 3 : OVERLAY_DRAG_CLOSE_PX)) { close.current(); return; }
       panel.style.transition = "";
       panel.style.transform = "";
       layer.style.removeProperty("--fdm-drag");
@@ -285,6 +296,7 @@ export function MobileWorkspace({ tab, onTab, onOpenChat, onBell, quote, symbolN
       </div>
       <OverlayLayer overlay={overlay} onClose={onCloseOverlay ?? (() => undefined)} />
       <footer className="fdm-foot" hidden={barHidden} data-over-page={overlay && overlayTabs ? "" : undefined}>
+        <RowUndo />
         <HoldToTalkLive status={ptt.status} slideCancel={slideCancel} context={command ? context : undefined} lockable={Boolean(lock)} />
         {notice && tab !== "chat" ? <p className="fdm-talk-notice" role="status" title="点一下关闭" onClick={() => pushToTalkStore.dismiss()}>{notice}</p> : null}
         {calling ? <div className="fdm-receipt fdm-call" data-agent-target="mobile-call" data-state={calling.status.state}>

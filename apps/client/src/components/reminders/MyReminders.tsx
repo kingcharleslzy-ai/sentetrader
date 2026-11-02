@@ -5,6 +5,7 @@ import { strategiesChanged, strategyError, useStrategies, validateAndStart, type
 import { useDisclosureSurface, useUiSurface } from "../../uiSurfaces";
 import { alertLine, type PriceAlertsHandle } from "../../hooks/usePriceAlerts";
 import { AlertForm } from "../futures/PriceAlertsControl";
+import { SwipeRow } from "../mobile/RowActions";
 import { HelpTip } from "../Blocks";
 
 const REFRESH_MS = 30_000;
@@ -118,7 +119,9 @@ export function MyReminders({ baseUrl, contract, chartTimeframe, onNew, onEdit, 
     </div> : null}
     {error ? <p className="rc-quiet" role="alert">{error}</p> : null}
     {count ? <ul className="rc-alert-list">
-      {alerts.active.map(alert => <li key={alert.id} data-kind={alert.drawingId ? "line" : "price"}>
+      {/* 手机手势 (2026-11-02): a row's 暂停 / 继续 and 删除 behind a left swipe, 删除 asking once more there. */}
+      {alerts.active.map(alert => <SwipeRow as="li" key={alert.id} data-kind={alert.drawingId ? "line" : "price"} id={`reminder:${alert.id}`} title={alertLine(alert)}
+        actions={[{ label: "删除", danger: true, confirm: "确认删除", run: () => alerts.cancel(alert.id) }]}>
         <span className="rc-alert-line">
           <button type="button" className="rc-alert-name" title={`切到 ${alert.symbol}`} aria-label={`${alert.name} ${alert.symbol}`}
             onClick={() => onSwitchContract?.(chartSymbolOf(alert.symbol))}>{alert.name}</button>
@@ -128,8 +131,15 @@ export function MyReminders({ baseUrl, contract, chartTimeframe, onNew, onEdit, 
         <span className="rc-reminder-actions"><b className="rc-row-status" data-status="monitoring">提醒中</b>
           <button type="button" className="rc-button ghost danger" aria-label={`删除提醒：${alertLine(alert)}`} onClick={() => alerts.cancel(alert.id)}>删除</button>
         </span>
-      </li>)}
-      {(conditions ?? []).map(row => <li key={row.id} data-kind="condition">
+      </SwipeRow>)}
+      {(conditions ?? []).map(row => <SwipeRow as="li" key={row.id} data-kind="condition" id={`reminder:${row.id}`} title={row.name} subtitle={row.symbol ?? undefined}
+        actions={[
+          row.status === "monitoring" ? { label: "暂停", disabled: busy !== null, run: () => void act(row, "pause") }
+            : row.status === "paused" ? { label: "继续", disabled: busy !== null, run: () => void act(row, "resume") }
+            : { label: "开始", disabled: busy !== null || !contract, run: () => void act(row, "start") },
+          { label: "删除", danger: true, confirm: "确认删除", disabled: busy !== null, run: () => void act(row, "delete") },
+          ...(onEdit ? [{ label: "编辑", menuOnly: true, disabled: busy !== null, run: () => onEdit(row.id) }] : []),
+        ]}>
         <span className="rc-alert-line">{row.symbol ? <><span className="rc-mono">{row.symbol}</span>{" · "}</> : null}{row.name}</span>
         <span className="rc-reminder-actions">
           <b className="rc-row-status" data-status={row.status}>{STATUS[row.status] ?? "未开始"}</b>
@@ -140,7 +150,7 @@ export function MyReminders({ baseUrl, contract, chartTimeframe, onNew, onEdit, 
           {onEdit ? <button type="button" className="rc-button ghost" disabled={busy !== null} onClick={() => onEdit(row.id)}>编辑</button> : null}
           <button type="button" className="rc-button ghost danger" disabled={busy !== null} aria-label={`删除提醒：${row.name}`} onClick={() => void act(row, "delete")}>删除</button>
         </span>
-      </li>)}
+      </SwipeRow>)}
     </ul>
       : !conditions ? (error ? null : <p className="rc-quiet" role="status">正在读取…</p>)
       : <p className="rc-quiet">还没有提醒：点“新建提醒”，价格到了或条件满足时提醒你。</p>}

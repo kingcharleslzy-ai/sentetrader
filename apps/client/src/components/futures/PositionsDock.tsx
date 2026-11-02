@@ -9,6 +9,7 @@ import { FILL_SOURCES, FillRows, OrderRows, PositionRows, orderIsActive, orderIs
   type FillsSource, type OrderActionHandler, type PositionStopRequest, type PositionsBarTab } from "./PositionPanels";
 import { contractLabel, formatBoardPrice, formatNumber, formatSigned, ownPositions, signClass } from "./support";
 import type { AskAi } from "../AiMenu";
+import { PullIndicator, usePullToRefresh } from "../mobile/usePullToRefresh";
 
 interface Props {
   account?: AccountOverviewSnapshot;
@@ -31,6 +32,8 @@ interface Props {
   onOrderAction: OrderActionHandler;
   onClosePosition: (position: AccountPosition) => void;
   onRefresh: () => void;
+  /** 手机 持仓页 (2026-11-02): the list also refreshes on a pull down. */
+  pullToRefresh?: boolean;
   onClose: () => void;
   activeProtections: NonNullable<ReturnType<typeof useAppWorkbench>["activity"]>["protections"] | undefined;
   protectionWarning: boolean | undefined;
@@ -68,8 +71,9 @@ function LedgerKpis({ snapshot, positions, testId }: { snapshot?: AccountSnapsho
  * 成交 tab here groups by trading day and filters by 来源.
  */
 export function PositionsDock({ account, instruments, quote, simulationOrders, review, foreignReview, reviewError, busy, tab, onTabChange, history, onHistoryChange,
-  fillsSource, onFillsSourceChange, onOrderAction, onClosePosition, onRefresh, onClose, activeProtections, protectionWarning, stops, protectionBusy, onCreateStop, onCancelStop, onAskAi, onReview }: Props) {
+  fillsSource, onFillsSourceChange, onOrderAction, onClosePosition, onRefresh, pullToRefresh, onClose, activeProtections, protectionWarning, stops, protectionBusy, onCreateStop, onCancelStop, onAskAi, onReview }: Props) {
   const abandon = useAbandonOrder(busy, onOrderAction);
+  const pull = usePullToRefresh(onRefresh, Boolean(pullToRefresh));
   const [protectionOpen, setProtectionOpen] = useDisclosureSurface("protection-status");
   const positions = account?.positions ?? [];
   const activeOrders = simulationOrders.filter(orderIsActive);
@@ -110,7 +114,8 @@ export function PositionsDock({ account, instruments, quote, simulationOrders, r
           ))}
         </ul>
       ) : null}
-      <div className="fdw-ai-scroll">
+      <div className="fdw-ai-scroll" ref={pullToRefresh ? pull.ref : undefined}>
+        {pullToRefresh ? <PullIndicator phase={pull.phase} /> : null}
         <nav className="fdw-positions-tabs" aria-label="持仓数据分类" data-agent-target="positions-tabs">
           <button type="button" className={tab === "positions" ? "active" : ""} onClick={() => onTabChange("positions")}>持仓 ({missingSnapshot ? "—" : positions.length})</button>
           <button type="button" className={tab === "orders" ? "active" : ""} data-unknown={unknownCount > 0 || undefined} onClick={() => onTabChange("orders")}>委托 ({activeOrders.length}{unknownCount ? `，未知 ${unknownCount}` : ""})</button>

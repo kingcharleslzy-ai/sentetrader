@@ -5,6 +5,7 @@ import { sameContract, getMarketQuotes, type AccountPosition, type ForeignBoardS
 import { marketErrorMessage } from "../../hooks/useMarketWorkbench";
 import { useDisclosureSurface } from "../../uiSurfaces";
 import { formatNumber, watchlistKey, watchlistMainSymbol } from "../futures/support";
+import { SwipeRow, type RowAction } from "./RowActions";
 import { QUOTE_BOARDS, QUOTE_COLUMNS, QUOTE_COLUMNS_MAX, type QuoteBoard, type QuoteColumn } from "./mobileMarketPrefs";
 
 /** One 报价 row: a board row (a product's main contract) or a held month the board does not carry. */
@@ -187,7 +188,7 @@ function useVisibleQuotes(baseUrl: string | undefined, symbols: string[]) {
  * only held non-main months on screen are read on their own.
  */
 export function MobileQuotes({ baseUrl, board, foreign, boardError, boardId, columns, onBoard, onColumns, positions, watchlist, instruments,
-  currentSymbol, onOpen, guest, onSignIn }: {
+  currentSymbol, onOpen, guest, onSignIn, rowActions }: {
   baseUrl: string | undefined;
   board: MarketBoardSnapshot | undefined;
   /** 外盘 (2026-10-18, #976): the 外盘 板块's own read, present while that 板块 is open. */
@@ -204,6 +205,8 @@ export function MobileQuotes({ baseUrl, board, foreign, boardError, boardId, col
   onOpen: (symbol: string) => void;
   guest: boolean;
   onSignIn: () => void;
+  /** 手机手势 (2026-11-02): a row's long-press actions. */
+  rowActions?: (row: { symbol: string; name: string }) => RowAction[];
 }) {
   const [columnsOpen, setColumnsOpen] = useDisclosureSurface("mobile-quote-columns", { available: !guest });
   const listRef = useRef<HTMLDivElement>(null);
@@ -279,7 +282,10 @@ export function MobileQuotes({ baseUrl, board, foreign, boardError, boardId, col
         {boardId !== "FOREIGN" && board && !rows.length ? <p className="fdm-note">{boardId === "watchlist" ? "还没有自选或持仓。到“主力”或合约列表里点星标加自选。" : "这个板块暂时没有合约。"}</p> : null}
         {extra.capped ? <p className="fdm-note" role="alert">行情订阅已满，{extra.capped} 个持仓月份本次读取失败，已有报价保留，稍后自动重试。</p> : null}
         {boardId === "FOREIGN" ? null : rows.map(row => (
-          <button type="button" key={row.symbol} className="fdm-quote-row" data-symbol={row.symbol} data-off-board={row.onBoard ? undefined : ""}
+          // Sideways on this list changes the 板块, so a row's actions open on a long press only.
+          <SwipeRow key={row.symbol} id={`quote:${row.symbol}`} title={row.name} subtitle={row.code}
+            actions={(rowActions?.(row) ?? []).map(action => ({ ...action, menuOnly: true }))}>
+          <button type="button" className="fdm-quote-row" data-symbol={row.symbol} data-off-board={row.onBoard ? undefined : ""}
             aria-current={sameContract(row.symbol, currentSymbol) ? "true" : undefined}
             aria-label={`看 ${row.name} 单图`} onClick={() => onOpen(row.symbol)}>
             <span className="fdm-quote-name">
@@ -292,7 +298,7 @@ export function MobileQuotes({ baseUrl, board, foreign, boardError, boardId, col
               const tone = TONED.has(column) ? direction(row.values.changePercent ?? row.values.change) : column === "openInterestChange" ? direction(value) : undefined;
               return <span key={column} className="fdm-quote-value" data-direction={tone}>{cellText(column, value, row.decimals)}</span>;
             })}
-          </button>
+          </button></SwipeRow>
         ))}
       </div>
       {columnsOpen ? <div className="fdm-sheet-backdrop" onClick={event => { if (event.target === event.currentTarget) setColumnsOpen(false); }}>

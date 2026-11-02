@@ -11,6 +11,7 @@ import type { AiFocus } from "../AiMenu";
 import { cardMoney } from "../StrategyHome";
 import { contractLabel, formatSigned, moneyUnit, signClass } from "../futures/support";
 import { PullIndicator, usePullToRefresh } from "./usePullToRefresh";
+import { SwipeRow, type RowAction } from "./RowActions";
 import { useDisclosureSurface } from "../../uiSurfaces";
 
 /** A running or paused strategy instance as the 策略 tab and AI 首页's AI 正在盯 show it. */
@@ -189,7 +190,14 @@ function RunCard({ run, instruments, busy, error, notice, selected, onSelect, on
   // 回撤停机 triggered: only 恢复运行 (a new 起始) brings it back, never the plain 继续运行.
   const halted = run.drawdown?.status === "liquidating" || run.drawdown?.status === "stopped";
   const [confirming, setConfirming] = useState(false);
-  return <article className="fdm-strat" data-status={run.status} data-selected={selected || undefined} aria-label={run.name} data-testid="mobile-strategy-card">
+  // 手机手势 (2026-11-02): a long press offers the card's own buttons; 停止并平仓 still asks on the card.
+  const actions: RowAction[] = [
+    ...(halted ? [] : [running ? { label: "暂停", menuOnly: true, disabled: busy, run: onPause } : { label: "继续运行", menuOnly: true, disabled: busy, run: onResume }]),
+    { label: "看图表", menuOnly: true, run: onChart },
+    { label: "停止并平仓…", menuOnly: true, danger: true, disabled: busy, run: () => setConfirming(true) },
+  ];
+  return <SwipeRow as="article" className="fdm-strat" data-status={run.status} data-selected={selected || undefined} aria-label={run.name} data-testid="mobile-strategy-card"
+    id={`run:${run.strategyId}`} title={run.name} subtitle={running ? "运行中" : "已暂停"} actions={actions}>
     <button type="button" className="fdm-strat-head fdm-strat-pick" aria-pressed={selected} onClick={onSelect}>
       <strong>{run.name}</strong><em className="fdm-tag" data-tone={running ? "up" : "neutral"}>{running ? "运行中" : "已暂停"}</em></button>
     <div className="fdm-strat-meta">
@@ -216,7 +224,7 @@ function RunCard({ run, instruments, busy, error, notice, selected, onSelect, on
       <button type="button" className="danger" disabled={busy} onClick={() => setConfirming(true)}>停止并平仓</button>
       <button type="button" onClick={onChart}>看图表</button>
     </div>}
-  </article>;
+  </SwipeRow>;
 }
 
 /** 我的策略 one card: state, its sentence, the latest backtest (a run just made here wins), 编辑 / 回测 / 上线…. */
@@ -230,7 +238,13 @@ function MineCard({ item, selected, onSelect, busy, error, notice, launching, la
   const run = card.result?.strategyId === item.strategyId ? card.result.summary : null;
   const latest = run ? { netProfit: run.netProfit, maxDrawdown: run.maxDrawdown, winRate: run.winRate } : item.latest;
   const error_ = error || card.error;
-  return <article className="fdm-strat" aria-label={item.name} data-selected={selected || undefined} data-testid="mobile-strategy-mine">
+  const actions: RowAction[] = [
+    { label: "编辑", menuOnly: true, disabled: busy, run: onEdit },
+    { label: card.running ? "回测中…" : "回测", menuOnly: true, disabled: busy || card.running, run: onBacktest },
+    item.state === "没上线" ? { label: "上线…", menuOnly: true, disabled: busy, run: () => onLaunchAsk(true) } : { label: "看运行中", menuOnly: true, run: onRunning },
+  ];
+  return <SwipeRow as="article" className="fdm-strat" aria-label={item.name} data-selected={selected || undefined} data-testid="mobile-strategy-mine"
+    id={`strategy:${item.strategyId}`} title={item.name} subtitle={item.state} actions={actions}>
     <button type="button" className="fdm-strat-head fdm-strat-pick" aria-pressed={selected} onClick={onSelect}>
       <strong>{item.name}</strong><em className="fdm-tag" data-tone={item.state === "运行中" ? "up" : "neutral"}>{item.state}</em></button>
     {item.plain ? <p>{item.plain}</p> : null}
@@ -256,7 +270,7 @@ function MineCard({ item, selected, onSelect, busy, error, notice, launching, la
         ? <button type="button" disabled={busy} onClick={() => onLaunchAsk(true)}>上线…</button>
         : <button type="button" onClick={onRunning}>看运行中</button>}
     </div>}
-  </article>;
+  </SwipeRow>;
 }
 
 /**

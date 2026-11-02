@@ -469,7 +469,7 @@ test("every user-operable control is commandable or reachable, and visible to th
     if (capped) capReached.push(surface);
     // With a dialog open the snapshot is rooted at the dialog (by design): audit the dialog's controls only.
     // The settings drawer and the chart labels' popovers (disclosures, 2026-10-02) both root the observation.
-    const dialogOpen = Boolean(snapshot.state.dialog) || surface.startsWith("settings-") || /^(chart-(ma-editor|pane-editor|pane-add|drawing-tools|drawing-settings|drawing-clear|periods-more)|board-columns|price-alerts|reminder-center|reminder-center-unread|contract-info|mobile-order|mobile-install|mobile-strategy-editor-sheet|mobile-strategy-editor-picker|mobile-strategy-editor-backtest|mobile-quote-columns|mobile-chart-cell|mobile-subpanes|mobile-drawing-toolbar)$/.test(surface);
+    const dialogOpen = Boolean(snapshot.state.dialog) || surface.startsWith("settings-") || /^(chart-(ma-editor|pane-editor|pane-add|drawing-tools|drawing-settings|drawing-clear|periods-more)|board-columns|price-alerts|reminder-center|reminder-center-unread|contract-info|mobile-order|mobile-install|mobile-strategy-editor-sheet|mobile-strategy-editor-picker|mobile-strategy-editor-backtest|mobile-quote-columns|mobile-row-actions|mobile-chart-cell|mobile-subpanes|mobile-drawing-toolbar)$/.test(surface);
     for (const { inDialog, ...item } of raw) if (!dialogOpen || inDialog) controls.push({ ...item, surface, observed: capped || observed.has(item.label) });
   } };
   // The first surface opens right after the page loads, and the observation rides on the heartbeat (an
@@ -589,6 +589,9 @@ test("every user-operable control is commandable or reachable, and visible to th
       // 手机看盘第二批 (2026-10-09): 报价 (main contracts, its 列 sheet), 多图 (6 图, one cell's sheet), the 副图设置 sheet
       // with its overlay parameters, then back to 单图 for the pages below.
       ["mobile-market-quotes", [{ mobileMarket: { view: "quotes" } }, { mobileMarket: { board: "main" } }], true],
+      // 手机手势 (2026-11-02): a 报价 row's long-press sheet, opened by the command.
+      ["mobile-row-actions", [{ disclosure: { name: "row-actions", id: `quote:${phoneSymbol}`, open: true } }], true],
+      ["", [{ disclosure: { name: "row-actions", id: `quote:${phoneSymbol}`, open: false } }], false],
       ["mobile-market-foreign", [{ mobileMarket: { board: "FOREIGN" } }], true],
       ["mobile-quote-columns", [{ disclosure: { name: "mobile-quote-columns", open: true } }], true],
       ["mobile-market-multi", [{ disclosure: { name: "mobile-quote-columns", open: false } }, { mobileMarket: { layout: "six" } }], true],

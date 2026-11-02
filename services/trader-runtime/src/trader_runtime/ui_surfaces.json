@@ -206,6 +206,7 @@
     "mobile-quote-columns": {},
     "mobile-execution-stop": {"desc": "手机策略页 (2026-11-01): the head's 停止 menu (open = 只停新开仓 and 急停… show; 急停 opens dialog emergency-stop). Hidden once execution is stopped."},
     "mobile-chart-cell": {"card": true, "idRequired": "要带 id：多图格子序号 0–5"},
+    "row-actions": {"desc": "手机手势 (2026-11-02): one list row's actions — behind its left swipe, or the bottom sheet a long press opens (open = either shows; a command opens the sheet, false closes both). `id` = watch:<合约> (今天 自选 and 看盘 自选 · 持仓标记) / quote:<合约> (报价, long press only) / holding:<合约> (今天 持仓) / position:<持仓键> / order:<clientOrderId> / reminder:<提醒 id> / run:<运行中策略 id> / strategy:<我的策略 id>; every open row is reported.", "card": true, "uncapped": true, "idRequired": "要带 id：watch:<合约> / quote:<合约> / holding:<合约> / position:<持仓键> / order:<委托号> / reminder:<提醒 id> / run:<策略 id> / strategy:<策略 id>"},
     "mobile-drawing-style-row": {"desc": "手机画线 (2026-10-09): the selected line's bar under the single chart unfolds one style row at a time (`id` = color | width | dash; open = that row shows). Only while a line is selected (chart-drawing-style).", "card": true, "sparse": true, "idRequired": "要带 id：color / width / dash"},
     "debate-sheets": {"desc": "多 AI 研讨 (2026-10-11): the result page's folds — 五份底稿 (the phone's 底稿与来源), 资料来源, 研讨战绩, 研讨记录 and 裁判怎么取舍 (folded on both layouts since 2026-10-24). Need the 辩论 page open (researchDebate {open})."},
     "debate-sources": {},
