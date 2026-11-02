@@ -12,7 +12,7 @@
  * stayed suspended on iPhone — the reply arrived and nothing was heard (10-05).
  */
 import { localAuthTokenFor } from "./api";
-import { setAudioSession } from "./micCapture";
+import { setAudioSession, sharedAudioContext } from "./micCapture";
 import { pushToTalkStore } from "./pushToTalk";
 import { VOICE_AUTH_PROTOCOL, VOICE_AUTH_TOKEN_PREFIX, decodeOutputAudio } from "./voiceRealtime";
 
@@ -21,6 +21,7 @@ const START_DELAY = 0.08;
 const REPLY_GAIN = 1.6;
 
 class VoiceReply {
+  private watching = false;
   private socket?: WebSocket;
   private outbox: string[] = [];
   private context?: AudioContext;
@@ -38,7 +39,16 @@ class VoiceReply {
     this.stop();
     this.seen = new Set(existingTurnIds);
     setAudioSession("playback");
-    this.context = pushToTalkStore.playbackContext();
+    if (!this.watching) {
+      this.watching = true;
+      // A new hold cuts the reply off in the press itself, not a render later, and keeps the speaker's tail out of it.
+      pushToTalkStore.subscribe(() => {
+        if (pushToTalkStore.snapshot().state !== "recording" || !this.sources.length) return;
+        this.stop();
+        pushToTalkStore.skipEcho();
+      });
+    }
+    this.context = sharedAudioContext();
     this.wake();
     const token = localAuthTokenFor(baseUrl);
     const url = baseUrl.replace(/^http/, "ws") + "/api/voice/speak";

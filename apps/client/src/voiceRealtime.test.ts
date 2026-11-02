@@ -2,6 +2,7 @@ import { MIC_SILENT_MS, VoiceCall, decodeOutputAudio, orbLabel, voiceCallStore }
 import { authenticateTqkq, signOutOwner } from "./api";
 import { exportDiagnostics } from "./dataExport";
 import { logDesktop } from "./frontendLog";
+import { resetSharedAudioContext } from "./micCapture";
 
 vi.mock("./frontendLog", () => ({ logDesktop: vi.fn() }));
 vi.mock("./nativeAgent", async importOriginal => ({ ...await importOriginal<typeof import("./nativeAgent")>(), activeAgentWindow: () => "window-1" }));
@@ -87,6 +88,7 @@ beforeEach(() => {
   vi.mocked(logDesktop).mockClear();
   FakeAudioContext.instances = [];
   FakeAudioContext.latest = undefined;
+  resetSharedAudioContext();
   FakeWebSocket.latest = undefined;
   Object.defineProperty(navigator, "mediaDevices",
     { value: { getUserMedia: vi.fn(async () => ({ getTracks: () => [{ stop: vi.fn() }], getAudioTracks: () => [{ enabled: true }] })) }, configurable: true });

@@ -91,6 +91,38 @@ export class MicCapture {
   }
 }
 
+let sharedContext: AudioContext | undefined;
+/** The page has been hidden since the last gesture context (see `gestureAudioContext`). */
+let pageWasHidden = false;
+if (typeof document !== "undefined") document.addEventListener("visibilitychange", () => { if (document.hidden) pageWasHidden = true; });
+
+/**
+ * The one AudioContext push-to-talk, the call and the spoken reply share. Call it synchronously inside
+ * the press / tap, before anything is awaited: phones only let a context started in a gesture run, and
+ * one made after the permission prompt's await stayed suspended (10-05 second holds; 11-02 the first
+ * call of a launch sent no microphone frame at all). After the page was hidden (screen locked, app
+ * switched) iOS leaves the old context interrupted or silently dead, so the next gesture makes a fresh
+ * one (owner 2026-11-02). Undefined without WebAudio: the capture then makes its own and reports the error.
+ */
+export function gestureAudioContext(): AudioContext | undefined {
+  try {
+    if (pageWasHidden && sharedContext && sharedContext.state !== "closed") void sharedContext.close().catch(() => undefined);
+    if (pageWasHidden) sharedContext = undefined;
+    pageWasHidden = false;
+    if (!sharedContext || sharedContext.state === "closed") sharedContext = new AudioContext();
+    if (sharedContext.state !== "running") void sharedContext.resume().catch(() => undefined);
+  } catch { sharedContext = undefined; }
+  return sharedContext;
+}
+
+/** The context the last gesture resumed, for playback that starts outside a gesture (the spoken reply). */
+export function sharedAudioContext(): AudioContext | undefined {
+  return sharedContext?.state === "closed" ? undefined : sharedContext;
+}
+
+/** Tests only. */
+export function resetSharedAudioContext() { sharedContext = undefined; pageWasHidden = false; }
+
 /**
  * The page's audio session where the browser has one (`navigator.audioSession`, Safari 16.4+):
  * "play-and-record" while the microphone is open, "playback" otherwise. After a hold iOS kept the

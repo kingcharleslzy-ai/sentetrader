@@ -6,7 +6,7 @@
  */
 import { localAuthTokenFor, requestJson } from "./api";
 import { logDesktop } from "./frontendLog";
-import { MicCapture, handsFreeSuggestion, rootMeanSquare, setAudioSession, type MicDeviceInfo } from "./micCapture";
+import { MicCapture, gestureAudioContext, handsFreeSuggestion, rootMeanSquare, setAudioSession, type MicDeviceInfo } from "./micCapture";
 import { activeAgentWindow } from "./nativeAgent";
 import { loginIdentity, onLoginChange } from "./runtimeClient";
 
@@ -147,9 +147,10 @@ export class VoiceCall {
   async start(sessionId?: string, intent?: "review"): Promise<void> {
     this.update({ state: "connecting", error: undefined });
     setAudioSession("play-and-record");
+    const context = gestureAudioContext(); // still inside the tap: see gestureAudioContext
     // Microphone first: a machine without one (or without permission) fails here without opening a
     // server call; frames captured before the socket opens are dropped by send().
-    try { await this.startMicrophone(); }
+    try { await this.startMicrophone(context); }
     catch (error) {
       this.stopAudio();
       if (this.stopped) return;
@@ -194,11 +195,11 @@ export class VoiceCall {
     if (windowId) this.send({ type: "hello", windowId, intent: "review" });
   }
 
-  private async startMicrophone() {
+  private async startMicrophone(shared?: AudioContext) {
     const capture = new MicCapture(frame => { if (this.socket?.readyState === WebSocket.OPEN) this.socket.send(frame.buffer); },
       samples => this.detectSpeech(samples));
     this.capture = capture;
-    const context = await capture.start();
+    const context = await capture.start(shared);
     if (this.stopped) { capture.stop(); return; }
     capture.setEnabled(!this.desiredMuted);
     this.audioContext = context;
@@ -425,7 +426,7 @@ export class VoiceCall {
     this.listeningSince = 0;
     if (this.status.micSilent) this.status = { ...this.status, micSilent: false };
     this.flushPlayback();
-    this.capture?.stop(); this.capture = undefined; // closes the shared AudioContext too
+    this.capture?.stop(); this.capture = undefined; // the shared AudioContext stays for the next hold or call
     setAudioSession("playback");
     this.playbackMeter = undefined;
     this.gain = undefined;

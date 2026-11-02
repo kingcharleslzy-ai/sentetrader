@@ -21,7 +21,7 @@ import { useSyncExternalStore } from "react";
 import { guestAccessTokenFor } from "./guestApi";
 import { localAuthTokenFor } from "./api";
 import { logDesktop } from "./frontendLog";
-import { MicCapture, rootMeanSquare, setAudioSession } from "./micCapture";
+import { MicCapture, gestureAudioContext, resetSharedAudioContext, rootMeanSquare, setAudioSession, sharedAudioContext } from "./micCapture";
 import { VOICE_AUTH_PROTOCOL, VOICE_AUTH_TOKEN_PREFIX, microphoneError } from "./voiceRealtime";
 
 export type PttState = "idle" | "recording" | "transcribing";
@@ -51,6 +51,8 @@ export const PTT_TOO_SHORT = "说话太短，按住说完再松开";
 export const PTT_MIC_SILENT = "麦克风没有声音，松开重试";
 /** How long a ready microphone may deliver nothing before the hold says so. */
 const MIC_SILENT_MS = 1000;
+/** Microphone time dropped at the start of a hold that cut off the spoken reply (see `skipEcho`). */
+const ECHO_SKIP_MS = 250;
 /** How long a notice stays once the hold is over. */
 export const PTT_NOTICE_MS = 3000;
 
@@ -83,9 +85,8 @@ class PushToTalkStore {
   private micReady = false;
   private backstop?: number;
   private levelAt = 0;
-  /** The microphone's AudioContext, shared by every hold (see the header). */
-  private context?: AudioContext;
   private heard = false;
+  private quietUntil = 0;
   private silence?: number;
   private noticeTimer?: number;
 
@@ -110,7 +111,7 @@ class PushToTalkStore {
     if (this.status.state !== "idle") return;
     // Still inside the press gesture: nothing above the first await may be moved below it.
     if (!input) setAudioSession("play-and-record");
-    const context = input ? undefined : this.gestureContext();
+    const context = input ? undefined : gestureAudioContext();
     const session = ++this.session;
     this.onFinal = onFinal;
     this.outbox = [];
@@ -135,8 +136,8 @@ class PushToTalkStore {
     this.micReady = true;
     this.silence = window.setTimeout(() => {
       if (session !== this.session || this.heard || this.status.state !== "recording") return;
-      logDesktop("microphone", PTT_MIC_SILENT, `AudioContext ${this.context?.state ?? "unavailable"}`);
-      void this.context?.resume().catch(() => undefined);
+      logDesktop("microphone", PTT_MIC_SILENT, `AudioContext ${sharedAudioContext()?.state ?? "unavailable"}`);
+      void sharedAudioContext()?.resume().catch(() => undefined);
       this.publish({ notice: PTT_MIC_SILENT });
     }, MIC_SILENT_MS);
     const token = guest ? guestAccessTokenFor(baseUrl) : localAuthTokenFor(baseUrl);
@@ -181,24 +182,16 @@ class PushToTalkStore {
   /** Clear the notice line: a tap on it (the next hold and PTT_NOTICE_MS also clear it). */
   dismiss() { if (this.status.notice) this.publish({ notice: undefined }); }
 
-  /** The context the holds resumed in their press gestures: the spoken reply plays through it, since
-   *  one made when the final comes back (outside any gesture) stays suspended on phones (10-05). */
-  playbackContext(): AudioContext | undefined { return this.context?.state === "closed" ? undefined : this.context; }
-
-  /** Created on the first hold, resumed on every one; called synchronously in the press gesture. */
-  private gestureContext(): AudioContext | undefined {
-    try {
-      if (!this.context || this.context.state === "closed") this.context = new AudioContext();
-      if (this.context.state !== "running") void this.context.resume().catch(() => undefined);
-    } catch { this.context = undefined; } // no WebAudio: the capture makes its own and reports the error
-    return this.context;
-  }
+  /** A hold pressed while the spoken reply was still playing: the first ECHO_SKIP_MS of the microphone carry the
+   *  reply's tail from the speaker ("该提醒。打开提醒。", owner 2026-11-02) and are not sent. */
+  skipEcho() { this.quietUntil = performance.now() + ECHO_SKIP_MS; }
 
   private frame(frame: Int16Array) {
     if (!this.heard) {
       this.heard = true;
       if (this.status.notice === PTT_MIC_SILENT) this.publish({ notice: undefined });
     }
+    if (performance.now() < this.quietUntil) return;
     this.send(frame.buffer as ArrayBuffer);
   }
 
@@ -247,7 +240,7 @@ class PushToTalkStore {
   }
 
   /** Tests only. */
-  reset() { this.teardown(); this.context = undefined; this.publish({ state: "idle", level: 0, startedAt: undefined, partial: "", notice: undefined, target: undefined }); }
+  reset() { this.teardown(); resetSharedAudioContext(); this.publish({ state: "idle", level: 0, startedAt: undefined, partial: "", notice: undefined, target: undefined }); }
 }
 
 export const pushToTalkStore = new PushToTalkStore();
