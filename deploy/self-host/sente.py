@@ -147,6 +147,8 @@ def components(config: dict) -> dict[str, tuple[list[str], dict[str, str]]]:
         "AI_TRADER_AGENT_PROVIDER": "deepseek",
         "AI_TRADER_AGENT_MODEL": "deepseek-flash",
         "DEEPSEEK_API_KEY_FILE": str(SECRETS / "deepseek_api_key"),
+        # Real-time voice only with a key the user puts here; never the developer default file.
+        "AI_TRADER_VOICE_REALTIME_KEY_FILE": str(SECRETS / "voice_realtime_key"),
         "AI_TRADER_DATA_MODE": "tqkq-sidecar",
         "AI_TRADER_READONLY_SIDECAR_URL": f"http://127.0.0.1:{SIDECAR_PORT}",
         "AI_TRADER_READONLY_SIDECAR_TOKEN_FILE": token,

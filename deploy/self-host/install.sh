@@ -22,8 +22,12 @@ install_project trader-runtime research
 install_project tqkq-sidecar tqkq
 
 npm ci
-VITE_CLOUD_RUNTIME_URL=same-origin VITE_DEFAULT_RUNTIME_MODE=cloud VITE_CLOUD_AUTH_MODE=owner-password \
-  VITE_APP_BASE_PATH=/ npm --workspace @ai-trader/client run build
+# The commit labels the build and goes into version.json beside it (as the web image does), so 关于 shows it
+# and an open page offers a reload after an update.
+sha="$(git rev-parse HEAD 2>/dev/null || echo self-host)"
+AI_TRADER_BUILD_SHA="$sha" VITE_CLOUD_RUNTIME_URL=same-origin VITE_DEFAULT_RUNTIME_MODE=cloud \
+  VITE_CLOUD_AUTH_MODE=owner-password VITE_APP_BASE_PATH=/ npm --workspace @ai-trader/client run build
+node -e 'const fs=require("fs");const p="apps/client/dist/version.json";fs.writeFileSync(p,JSON.stringify({...JSON.parse(fs.readFileSync(p,"utf8")),commit:process.argv[1]})+"\n")' "$sha"
 
 python=services/trader-runtime/.venv/bin/python
 [ -f "${SENTE_HOME:-$HOME/.sente}/config.json" ] || "$python" deploy/self-host/sente.py setup

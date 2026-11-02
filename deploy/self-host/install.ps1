@@ -24,9 +24,16 @@ Install-Project trader-runtime research
 Install-Project tqkq-sidecar tqkq
 
 Run npm ci
+# The commit labels the build and goes into version.json beside it (as the web image does).
+$sha = (git rev-parse HEAD 2>$null); if (-not $sha) { $sha = "self-host" }
+$env:AI_TRADER_BUILD_SHA = $sha
 $env:VITE_CLOUD_RUNTIME_URL = "same-origin"; $env:VITE_DEFAULT_RUNTIME_MODE = "cloud"
 $env:VITE_CLOUD_AUTH_MODE = "owner-password"; $env:VITE_APP_BASE_PATH = "/"
 Run npm --workspace @ai-trader/client run build
+$versionFile = "apps\client\dist\version.json"
+$version = Get-Content $versionFile -Raw | ConvertFrom-Json
+$version.commit = $sha
+$version | ConvertTo-Json | Set-Content $versionFile -Encoding UTF8
 
 $python = "services\trader-runtime\.venv\Scripts\python.exe"
 if (-not (Test-Path (Join-Path $env:USERPROFILE ".sente\config.json"))) { Run $python deploy\self-host\sente.py setup }
