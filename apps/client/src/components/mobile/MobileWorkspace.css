@@ -44,7 +44,8 @@
   color: var(--ink); background: var(--soft); font-size: var(--font-md); white-space: nowrap; overflow: hidden;
 }
 /* A long contract name gives way first: the price and change always stay whole. */
-.fdm-quote-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* Its own class: the 报价 rows' .fdm-quote-name is a grid, where an ellipsis never shows (2026-11-02). */
+.fdm-quote-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .fdm-quote-price { flex: none; font-family: var(--font-num); font-variant-numeric: tabular-nums; color: var(--muted); }
 .fdm-quote-price[data-direction="up"] { color: var(--market-up); }
 .fdm-quote-price[data-direction="down"] { color: var(--market-down); }
@@ -96,7 +97,7 @@
   position: absolute; left: 0; right: 0; z-index: 6; bottom: calc(var(--fdm-tabs) + 106px);
   display: flex; flex-direction: column; align-items: center; gap: var(--space-2);
   padding: var(--space-4) var(--space-4) var(--space-3); pointer-events: none;
-  background: linear-gradient(transparent, var(--bg) 30%);
+  background: linear-gradient(transparent, var(--bg) var(--space-4));
 }
 .fdm-wave { display: inline-flex; align-items: center; gap: var(--space-1); height: 36px; }
 .fdm-wave > i { width: 6px; height: 100%; border-radius: var(--radius-sm); background: var(--accent); transform-origin: center; transition: transform var(--dur-1) linear; }
@@ -114,12 +115,13 @@
 /* 方案 B (2026-11-01): the 按住说话 key takes the middle column, raised over the bar's top edge; a visitor's bar has four tabs. */
 .fdm-tabs:not([data-key]) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .fdm-tabs:not([data-key]) > .fdm-tab-pill { width: 25%; }
-.fdm-key { position: relative; z-index: 1; display: flex; justify-content: center; align-items: flex-start; }
+/* Above the hold's live card (.fdm-live, z-index 6), whose lower part leaves room for the raised key and its lock. */
+.fdm-key { position: relative; z-index: 7; display: flex; justify-content: center; align-items: flex-start; }
 .fdm-key > .fdm-hold { width: 60px; height: 60px; margin: calc(-1 * var(--fdm-key-rise, 20px)) 0 0; outline: 4px solid var(--panel); }
 .fdm-key > .fdm-hold.cancel { outline-color: var(--danger-soft); }
 /* 连续说: the lock the held key slides up to. */
 .fdm-lock {
-  position: absolute; bottom: calc(100% + var(--fdm-key-rise, 20px) + var(--space-3)); left: 50%; translate: -50% 0; width: 36px; height: 52px;
+  position: absolute; bottom: calc(100% + var(--fdm-key-rise, 20px) + var(--space-3)); left: 50%; translate: -50% 0; width: 36px; height: var(--fdm-lock-h);
   display: flex; align-items: flex-start; justify-content: center; padding-top: var(--space-2); border-radius: var(--radius-pill);
   color: var(--accent); background: var(--panel); border: 1px solid var(--line-strong); pointer-events: none; box-sizing: border-box;
 }
@@ -131,9 +133,9 @@
 .fdm-foot { position: relative; flex: none; display: flex; flex-direction: column; background: var(--panel); }
 .fdm-foot[hidden] { display: none; }
 .fdm-foot[data-over-page] { position: absolute; left: 0; right: 0; bottom: 0; z-index: 9; }
-.fdm-foot > .fdm-live { bottom: 100%; }
+.fdm-foot > .fdm-live { bottom: 100%; padding-bottom: calc(var(--fdm-key-rise) + var(--fdm-lock-h) + 2 * var(--space-3)); }
 /* What sits right above the bar leaves room for the raised key (20px over the bar's edge). */
-.fdm-foot { --fdm-key-rise: 20px; }
+.fdm-foot { --fdm-key-rise: 20px; --fdm-lock-h: 52px; }
 .fdm-foot > .fdm-talk-notice { padding: var(--space-2) var(--space-4) calc(var(--fdm-key-rise) + var(--space-1)); cursor: pointer; }
 .fdm-context {
   align-self: flex-start; padding: var(--space-0) var(--space-2); border-radius: var(--radius-pill);
@@ -590,11 +592,12 @@
 .fdm-view[data-motion="push"] { animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; }
 /* The light-blue pill under the current tab slides to it; the icon gives one small bounce. The
    colour itself still switches at once (see .fdm-tabs > button). */
+/* It spans the whole tab, icon and label, so it grows with the font (2026-11-02: a fixed 30 px block cut the label in half). */
 .fdm-tab-pill {
-  position: absolute; top: 6px; left: 0; z-index: 0; width: 20%; height: 32px; pointer-events: none;
+  position: absolute; top: var(--space-1); bottom: max(var(--space-1), env(safe-area-inset-bottom)); left: 0; z-index: 0; width: 20%; pointer-events: none;
   transform: translateX(calc(var(--fdm-tab, 0) * 100%)); transition: transform var(--dur-3) var(--ease-out);
 }
-.fdm-tab-pill::before { content: ""; display: block; width: 56px; height: 30px; margin: 0 auto; border-radius: var(--radius-card); background: var(--accent-soft); }
+.fdm-tab-pill::before { content: ""; display: block; width: min(64px, calc(100% - var(--space-2))); height: 100%; margin: 0 auto; border-radius: var(--radius-card); background: var(--accent-soft); }
 .fdm-tabs[data-moved] > button[aria-current="page"] .fdm-tab-icon > svg { animation: ui-fill-arrival var(--dur-2) var(--ease-out); }
 /* 通知红点: a new unread pops in. */
 .fdm-tab-icon > .rc-badge[data-pop] { animation: ui-fill-arrival var(--dur-2) var(--ease-out); }
@@ -655,10 +658,12 @@
 /* 数字逐位滚动 (第二轮): a changed digit's old value (data-from) above the new one; the column rests on the new digit and
    the roll plays over --dur-2, so reduced motion (0 ms) just shows the new figure. Digits are tabular: nothing shifts. */
 :where(.fdm-quote-price, .fdm-market-price, .fdm-today) { font-variant-numeric: tabular-nums; }
-.fdm-roll { display: inline-block; height: 1.2em; line-height: 1.2; overflow: hidden; vertical-align: bottom; }
-.fdm-roll > span { display: flex; flex-direction: column; transform: translateY(-50%); animation: fdm-roll var(--dur-2) var(--ease-out); }
-.fdm-roll > span::before { content: attr(data-from); }
-@keyframes fdm-roll { from { transform: translateY(0); } }
+/* The new digit stays in the text's own line box (so it sits on the same baseline as its neighbours, 2026-11-02);
+   the old one rides above it and clip-path, which leaves layout alone, hides it once the roll ends. */
+.fdm-roll { display: inline-block; clip-path: inset(0 -0.2em); }
+.fdm-roll > span { position: relative; display: block; animation: fdm-roll var(--dur-2) var(--ease-out); }
+.fdm-roll > span::before { content: attr(data-from); position: absolute; left: 0; bottom: 100%; }
+@keyframes fdm-roll { from { transform: translateY(100%); } }
 
 /* 按住说话: the button grows a little while recording and two ripples spread from it, 0.6 s apart. */
 .fdm-hold { position: relative; transition: transform var(--dur-1) var(--ease-out); }

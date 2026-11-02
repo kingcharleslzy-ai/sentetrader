@@ -271,7 +271,7 @@ export function MobileWorkspace({ tab, onTab, onOpenChat, onBell, quote, symbolN
           <strong>{TITLES[tab]}</strong>
           {quote ? (
             <button type="button" className="fdm-quote" aria-label={`看盘：${name} ${price}`} onClick={() => onTab("market")}>
-              <span className="fdm-quote-name">{name}</span><span className="fdm-quote-price" data-direction={direction} data-flash={flash}><RollingText text={price} identity={quote.symbol} /></span>
+              <span className="fdm-quote-label">{name}</span><span className="fdm-quote-price" data-direction={direction} data-flash={flash}><RollingText text={price} identity={quote.symbol} /></span>
             </button>
           ) : null}
           <button type="button" className="fdm-head-chat" aria-label="AI 对话" title="AI 对话" onClick={onOpenChat}><MessageSquare aria-hidden="true" /></button>
