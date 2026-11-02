@@ -14,6 +14,7 @@ from ..autonomy import AutonomousSimulationService
 from ..backtest_coordinator import BacktestCoordinator
 from ..backtest_settings import load_backtest_settings
 from ..backtests import BacktestService
+from ..battle_sheet import BattleSheet
 from ..broker import EventBroker
 from ..daily_budget import DailyCallBudget
 from ..data_providers import (
@@ -88,6 +89,8 @@ class RuntimeServices:
     news_search: NewsSearchService
     research_brief: ResearchBriefService
     research_desk: ResearchDeskService
+    # 今日作战表: one instance for the HTTP read and the push (feed.sheet), sharing the per-product rows.
+    battle_sheet: BattleSheet
     research_live: ResearchLiveService
     foreign_market: ForeignMarketService
     # 多 AI 研讨 (2026-10-11): debates over the desk's facts, written back through the desk.
@@ -443,6 +446,7 @@ def build_services(
         releases=releases, research=research,
         web_search=web_search, news_search=NewsSearchService(research_desk, research_live, web_search),
         research_brief=research_brief, research_desk=research_desk, research_live=research_live,
+        battle_sheet=BattleSheet(research_desk, store=store),
         foreign_market=foreign_market,
         research_debate=research_debate,
         backtest_coordinator=backtest_coordinator, backtests=backtests, accounts=accounts,

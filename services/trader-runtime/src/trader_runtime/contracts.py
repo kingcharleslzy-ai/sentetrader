@@ -588,6 +588,13 @@ class FeedExecution(FeedPayload):
     liveTrading: Literal["disabled"]
 
 
+class FeedSheet(FeedPayload):
+    """今日作战表 pushed (2026-11-02): GET /api/research/sheet's answer, sent while the page is visible and only
+    when it changed."""
+    generatedAt: str = Field(min_length=1)
+    rows: list[dict[str, Any]]
+
+
 class FeedOrder(FeedPayload):
     """A watched simulation order's read-back changed (2026-10-08): the session whose card was
     confirmed hears the new fact, so a confirmed card's rows and the orders screen follow the
@@ -616,7 +623,7 @@ class FeedDebate(Payload):
 class FeedStatus(Payload):
     """One feed channel cannot be read right now. Sent on the channel that failed so
     the client falls back to polling that reader alone, with the provider's reason."""
-    channel: Literal["account", "market", "activity", "execution", "board"]
+    channel: Literal["account", "market", "activity", "execution", "board", "sheet"]
     status: Literal["unavailable"]
     reason: str = Field(min_length=1)
 
@@ -955,6 +962,7 @@ EVENT_MODELS: dict[str, tuple[str, type[Payload]]] = {
     "feed.board-patch": ("result", FeedBoardPatch),
     "feed.activity": ("result", FeedActivity),
     "feed.execution": ("result", FeedExecution),
+    "feed.sheet": ("result", FeedSheet),
     "feed.order": ("result", FeedOrder),
     "feed.ui": ("result", FeedUiNudge),
     "feed.debate": ("result", FeedDebate),

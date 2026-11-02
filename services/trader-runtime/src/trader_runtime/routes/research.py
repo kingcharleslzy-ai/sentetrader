@@ -8,7 +8,6 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..battle_sheet import BattleSheet
 from ..research_data import DATASETS
 from ..research_debate import DebateUnavailable, EventProductError
 from ..research_live import FLASH_INCLUDE_MAX, FLASH_OFFICIAL_HOURS_MAX
@@ -98,16 +97,11 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
         except ValueError as error:
             raise HTTPException(status_code=422, detail=str(error)) from error
 
-    sheet = BattleSheet(ctx.services.research_desk)
-
     @application.get("/api/research/sheet")
     async def research_sheet(request: Request) -> dict[str, object]:
         """今日作战表：自选品种每个一行，按优先级排好（关键价位、消息强弱、可能用上的交易笔记）。
-        纯读取：程序从行情和已采集的快讯算，不调模型、不读账户。"""
-        user_id = await current_user(request)
-        store = ctx.services.store
-        products = list(store.user_preferences(user_id).watchlist.products)
-        return await sheet.sheet(products, store.list_playbooks(user_id=user_id))
+        纯读取：程序从行情和已采集的快讯算，不调模型、不读账户。窗口开着时同一份经推送流 feed.sheet 变了才下发。"""
+        return await ctx.services.battle_sheet.user_sheet(await current_user(request))
 
     @application.post("/api/research/desk/refresh")
     async def research_desk_refresh(request: Request, symbol: str = Query(min_length=3, max_length=40)) -> dict[str, object]:

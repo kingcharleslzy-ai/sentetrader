@@ -761,6 +761,13 @@ export interface FeedExecution {
   [key: string]: unknown;
 }
 
+/** 今日作战表 pushed (2026-11-02): GET /api/research/sheet's answer, sent when it changed. */
+export interface FeedSheet {
+  generatedAt: string;
+  rows: Array<Record<string, unknown>>;
+  [key: string]: unknown;
+}
+
 export interface FeedUiNudge {
   reason: string;
 }
@@ -815,7 +822,7 @@ export interface FeedTouch {
 }
 
 export interface FeedStatus {
-  channel: "account" | "market" | "activity" | "execution" | "board";
+  channel: "account" | "market" | "activity" | "execution" | "board" | "sheet";
   status: "unavailable";
   reason: string;
 }
@@ -1113,6 +1120,7 @@ export type UiEvent =
   | UiEventEnvelope<"feed.board-patch", FeedBoardPatch>
   | UiEventEnvelope<"feed.activity", FeedActivity>
   | UiEventEnvelope<"feed.execution", FeedExecution>
+  | UiEventEnvelope<"feed.sheet", FeedSheet>
   | UiEventEnvelope<"feed.ui", FeedUiNudge>
   | UiEventEnvelope<"feed.debate", FeedDebate>
   | UiEventEnvelope<"feed.status", FeedStatus>
@@ -1422,11 +1430,12 @@ const feedActivitySchema = z.object({
   environment: z.enum(["replay", "simulation"]), symbol: z.string(), orders: z.array(record), fills: z.array(record), strategies: z.array(record)
 }).passthrough();
 const feedExecutionSchema = z.object({ stops: z.array(record), simulationOnly: z.literal(true), liveTrading: z.literal("disabled") }).passthrough();
+const feedSheetSchema = z.object({ generatedAt: z.string().min(1), rows: z.array(record) }).passthrough();
 const feedUiNudgeSchema = z.object({ reason: z.string().min(1) });
 const feedDebateSchema = z.object({ id: z.string().min(1), turn: z.number().int().min(1).max(4).optional(), side: z.enum(["bull", "bear"]).optional(),
   analyst: z.enum(["technical", "supply", "flow", "news"]).optional(), text: z.string() });
 const feedStatusSchema = z.object({
-  channel: z.enum(["account", "market", "activity", "execution", "board"]), status: z.literal("unavailable"), reason: z.string().min(1)
+  channel: z.enum(["account", "market", "activity", "execution", "board", "sheet"]), status: z.literal("unavailable"), reason: z.string().min(1)
 });
 const feedStrategySignalSchema = z.object({
   strategyId: z.string().min(1), name: z.string().min(1), symbol: z.string().min(1),
@@ -1609,6 +1618,7 @@ const eventDefinitions: Record<string, { kind: UiEventKind; payload: z.ZodType }
   "feed.board-patch": { kind: "result", payload: feedBoardPatchSchema },
   "feed.activity": { kind: "result", payload: feedActivitySchema },
   "feed.execution": { kind: "result", payload: feedExecutionSchema },
+  "feed.sheet": { kind: "result", payload: feedSheetSchema },
   "feed.ui": { kind: "result", payload: feedUiNudgeSchema },
   "feed.debate": { kind: "result", payload: feedDebateSchema },
   "feed.status": { kind: "result", payload: feedStatusSchema },

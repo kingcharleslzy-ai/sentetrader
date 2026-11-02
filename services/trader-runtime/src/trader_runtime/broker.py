@@ -38,7 +38,7 @@ class PreparedMarket:
 # their own one-slot store; the board frames and the account / activity / execution frames ride the
 # ordinary transient ring carrying their encoding (2026-10-13: one encoding per frame, not per session).
 PREPARED_EVENTS = {"feed.market", "feed.market-patch", "feed.board", "feed.board-patch",
-                   "feed.account", "feed.activity", "feed.execution"}
+                   "feed.account", "feed.activity", "feed.execution", "feed.sheet"}
 MARKET_SLOT_EVENTS = {"feed.market", "feed.market-patch"}
 # 扩容① (2026-10-13, owner-approved): a stream re-checks its caller's authorization and its connection
 # once per this many seconds — not before every event — so a revoked login, a logout or an expired

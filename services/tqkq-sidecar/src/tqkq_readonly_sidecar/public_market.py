@@ -291,6 +291,12 @@ class PublicMarketWorker:
             self._catalog_index = {item["symbol"]: item for item in catalog}
             with self._lock:
                 self.catalog = catalog
+            # A new worker is handed the board's symbols before its catalog arrives: rows rendered meanwhile
+            # carry no productId / name and, after the close, no tick re-renders them (沪深300 2026-11-02).
+            for symbol in list(self._board_quotes):
+                if symbol not in self._board_pending:
+                    self._publish_board(symbol)
+            self._send_changes()
         except Exception:
             with self._lock:
                 self.error = "instrument_catalog_unavailable"

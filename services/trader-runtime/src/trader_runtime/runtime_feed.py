@@ -41,6 +41,9 @@ FEED_EVENTS = {
     "feed.market": 1.0,
     "feed.activity": 1.0,
     "feed.execution": 1.0,
+    # 今日作战表 (2026-11-02): re-checked every 5 s (a new 自选 shows soon; the per-product rows are computed at
+    # most once a minute and shared), sent only when it changed.
+    "feed.sheet": 5.0,
 }
 # With a snapshot source these are re-read only after the provider refreshed its snapshot.
 SNAPSHOT_GATED = {"feed.account", "feed.market", "feed.activity"}
@@ -48,8 +51,10 @@ SNAPSHOT_GATED = {"feed.account", "feed.market", "feed.activity"}
 # on "feed.status" for that channel alone, never by silence on all of them.
 FEED_CHANNELS = {
     "feed.account": "account", "feed.market": "market",
-    "feed.activity": "activity", "feed.execution": "execution",
+    "feed.activity": "activity", "feed.execution": "execution", "feed.sheet": "sheet",
 }
+# Sent only when the content changed: no 5-second refresh resend, its own time stamp (generatedAt) is no change.
+CHANGE_ONLY = {"feed.sheet"}
 DEFAULT_TICK_SECONDS = 0.5
 # An unchanged payload is still re-sent this often so ageSeconds/capturedAt stay current on the client.
 REFRESH_SECONDS = 5.0
@@ -187,6 +192,7 @@ class RuntimeFeed:
         tick_seconds: float = DEFAULT_TICK_SECONDS,
         snapshot_gated: bool = False,
         shared_market: Callable[[], Any] | None = None,
+        sheet: Callable[[str], Awaitable[dict[str, Any]]] | None = None,
     ) -> None:
         self.broker = broker
         self._shared_market = shared_market
@@ -202,6 +208,7 @@ class RuntimeFeed:
         self._market_workbench = market_workbench
         self._activity = activity
         self._execution = execution
+        self._sheet = sheet
         self.tick_seconds = tick_seconds
         # Without a snapshot source (fake provider) the time throttle alone applies.
         self._snapshot_gated = snapshot_gated
@@ -700,6 +707,8 @@ class RuntimeFeed:
                 if self._shared_market is None and state.visible:
                     plan.append(("feed.market", ("market", account, symbol, str(duration))))
                 plan.append(("feed.activity", ("activity", account, user, symbol)))
+            if self._sheet is not None and state.visible:
+                plan.append(("feed.sheet", ("sheet", user)))
             for name, key in plan:
                 if not self._due(state, name):
                     continue
@@ -730,7 +739,8 @@ class RuntimeFeed:
                     continue
                 frame = frames.get(key)
                 if frame is None or frame.payload is not payload:
-                    frame = frames[key] = _Frame(payload, _digest(payload))
+                    frame = frames[key] = _Frame(payload, _digest(
+                        {k: v for k, v in payload.items() if k != "generatedAt"} if name in CHANGE_ONLY else payload))
                 sent += await self._publish(session_id, state, name, payload, digest=frame.digest, shared=frame)
         return sent
 
@@ -745,7 +755,8 @@ class RuntimeFeed:
         previous = state.last_sent.get(name)
         account = state.account_id  # the session's account at read time; re-checked after the await
         now = monotonic()
-        if previous is not None and previous.digest == digest and now - previous.published < REFRESH_SECONDS:
+        if previous is not None and previous.digest == digest and (now - previous.published < REFRESH_SECONDS
+                                                                     or name in CHANGE_ONLY):
             previous.checked = now
             return 0
         if (previous is not None and previous.digest == digest and event_name is None
@@ -789,6 +800,8 @@ class RuntimeFeed:
     ) -> dict[str, Any] | None:
         if name == "feed.execution":
             return await self._execution(account, user)
+        if name == "feed.sheet" and self._sheet is not None:
+            return await self._sheet(user)
         if name == "feed.market" and symbol:
             return await self._market_workbench(account, symbol, duration)
         if name in {"feed.account", "feed.activity"}:

@@ -7,15 +7,21 @@ import { useDisclosureSurface } from "../../uiSurfaces";
 
 const ORDER_CARDS = new Set(["trade", "close-batch", "spread"]);
 const ANSWER_CHARS = 140;
+/** How long a result stays (owner 2026-11-01, desktop; the phone too 2026-11-02): a plain result fades on its own;
+ *  one with a card to confirm or something to undo waits longer. */
+const LINGER_MS = 8_000;
+const LINGER_LONG_MS = 20_000;
+const FADE_MS = 300;
 
 /**
  * The AI 指令栏's result (改版第二步): the line sent, the first assistant turn after it, what the AI did — each step
  * the Runtime marked as an action (`step.action`) with 撤销 where it can be taken back through the same business call
  * the UI uses — and the answer's first lines. The desktop header bar and the phone's 回执条 (方案 B, 2026-11-01) share
  * it (the desktop shows it as `AiCommandBubble` beside the AI 球); `available` says whether this window holds the
- * `ai-command-result` disclosure.
+ * `ai-command-result` disclosure. Both fade the same way (owner 2026-11-02): LINGER_MS after the answer, LINGER_LONG_MS
+ * with a card to confirm or something to undo, held while a pointer, finger or focus is on it (`hold` / `release`).
  */
-export function useAiCommand({ baseUrl, turns, busy, blockedReason, onSend, available = true }: {
+export function useAiCommand({ baseUrl, turns, busy, blockedReason, onSend, failed, available = true }: {
   baseUrl: string | undefined;
   turns: readonly ConversationTurn[];
   /** The chat is answering or sending: a new line waits. */
@@ -24,11 +30,15 @@ export function useAiCommand({ baseUrl, turns, busy, blockedReason, onSend, avai
   blockedReason: string | null;
   /** `spoken`: held words, answered out loud like every 按住说话. */
   onSend: (text: string, spoken?: boolean) => Promise<void>;
+  /** The send itself failed (the chat's own line, e.g. 发送未确认): said instead of waiting forever. */
+  failed?: string;
   available?: boolean;
 }) {
   const [asked, setAsked] = useState<{ text: string; after: number } | null>(null);
   const [undone, setUndone] = useState<Record<string, "busy" | "done" | string>>({});
   const [open, setOpen] = useDisclosureSurface("ai-command-result", { available: available && asked !== null });
+  const [held, setHeld] = useState(false);
+  const [fading, setFading] = useState(false);
 
   // The answer to the line sent: the first assistant turn after the turns there were when it went out.
   const reply = asked ? turns.slice(asked.after).find(turn => turn.role === "assistant") : undefined;
@@ -36,15 +46,25 @@ export function useAiCommand({ baseUrl, turns, busy, blockedReason, onSend, avai
   const actions = (task?.steps ?? []).filter(step => step.status === "done" && step.action);
   // A reply with a task is done when its task is (11-02: a quote answer's message.completed never came, so the
   // 指令结果 said "AI 正在处理…" for good while the task and the answer were both there); without one, by the turn.
-  const working = Boolean(asked) && (!reply || (task ? task.status === "running" : reply.completed === false));
+  const pending = Boolean(asked) && (!reply || (task ? task.status === "running" : reply.completed === false));
   const hasCard = Boolean(reply?.cards.some(card => ORDER_CARDS.has(card.type)));
   const answer = reply?.text.trim() ?? "";
+  const lost = pending && Boolean(failed) && !answer && !actions.length ? failed : undefined;
+  const working = pending && !lost;
+  const linger = hasCard || actions.some(step => step.action!.undo) ? LINGER_LONG_MS : LINGER_MS;
+  useEffect(() => {
+    if (!asked || working || held) return;
+    const fade = window.setTimeout(() => setFading(true), linger);
+    const close = window.setTimeout(() => { setOpen(false); setAsked(null); }, linger + FADE_MS);
+    return () => { window.clearTimeout(fade); window.clearTimeout(close); setFading(false); };
+  }, [asked, working, held, linger, setOpen]);
 
   /** Sends the line and opens the result; false (nothing sent) while busy or blocked. */
   const send = (line: string, spoken = false) => {
     if (!line || busy || blockedReason) return false;
     setAsked({ text: line, after: turns.length });
     setUndone({});
+    setHeld(false);
     setOpen(true);
     void onSend(line, spoken);
     return true;
@@ -60,21 +80,25 @@ export function useAiCommand({ baseUrl, turns, busy, blockedReason, onSend, avai
     }
   };
   const clear = () => { setOpen(false); setAsked(null); };
-  return { asked, open, setOpen, actions, working, hasCard, answer, undone, send, undo, clear };
+  const hold = () => setHeld(true);
+  const release = () => setHeld(false);
+  return { asked, open, setOpen, actions, working, lost, hasCard, answer, undone, fading, hold, release, send, undo, clear };
 }
 
 export type AiCommand = ReturnType<typeof useAiCommand>;
 
 /** The phone's 回执条 body (above the tabs). */
 export function AiCommandResult({ command, className, target, onOpenChat }: { command: AiCommand; className: string; target?: string; onOpenChat: () => void }) {
-  const { asked, actions, working, hasCard, answer, undone, undo, setOpen } = command;
+  const { asked, actions, working, lost, hasCard, answer, undone, undo, setOpen, fading, hold, release } = command;
   if (!asked) return null;
-  return <section className={className} aria-label="AI 指令结果" aria-live="polite" data-agent-target={target}>
+  return <section className={className} aria-label="AI 指令结果" aria-live="polite" data-agent-target={target} data-fading={fading || undefined}
+    onPointerEnter={hold} onPointerLeave={release} onFocus={hold} onBlur={release}>
     <header>
       <span className="ai-bar-asked" title={asked.text}>{asked.text}</span>
       <button type="button" aria-label="收起 AI 指令结果" onClick={() => setOpen(false)}><X /></button>
     </header>
     {working && !actions.length ? <p className="ai-bar-status" role="status">AI 正在处理…</p> : null}
+    {lost ? <p className="ai-bar-status" role="alert">{lost}</p> : null}
     {actions.length ? <>
       <p className="ai-bar-status">AI 做了 {actions.length} 件事{working ? "，还在继续…" : ""}</p>
       <ul className="ai-bar-actions">
@@ -99,39 +123,17 @@ export function AiCommandResult({ command, className, target, onOpenChat }: { co
   </section>;
 }
 
-/** How long the desktop bubble stays (owner 2026-11-01): a plain result fades on its own; one with a card to confirm
- *  or something to undo waits longer. A pointer or focus on it holds it. */
-const LINGER_MS = 8_000;
-const LINGER_LONG_MS = 20_000;
-const FADE_MS = 300;
 const BUBBLE_CHARS = 60;
 
 /**
  * The AI 指令栏's result on the desktop, a small bubble beside the AI 球 (owner 2026-11-01, replacing the drop-down
  * under the bar): one line — what the AI did, joined, with one 撤销 for all that can be taken back; a waiting order
  * card; or the answer's first words — and a button into the chat for the rest. Orders are confirmed in the chat.
- * Fades after LINGER_MS (LINGER_LONG_MS with a card or an undo) unless the pointer or focus is on it. Keyed per line
- * sent, so its timer and hold start over.
+ * Fades with the shared result (`useAiCommand`'s timer); keyed per line sent.
  */
-export function AiCommandBubble({ command, failed, onOpenChat }: {
-  command: AiCommand;
-  /** The send itself failed (the chat's own line, e.g. 发送未确认): said here instead of waiting forever. */
-  failed?: string;
-  onOpenChat: () => void;
-}) {
-  const { asked, open, setOpen, actions, hasCard, answer, undone, undo } = command;
-  const [held, setHeld] = useState(false);
-  const [fading, setFading] = useState(false);
-  const lost = Boolean(failed) && command.working && !answer && !actions.length;
-  const working = command.working && !lost;
+export function AiCommandBubble({ command, onOpenChat }: { command: AiCommand; onOpenChat: () => void }) {
+  const { asked, open, setOpen, actions, working, lost, hasCard, answer, undone, undo, fading, hold, release } = command;
   const undoable = actions.filter(step => step.action!.undo);
-  const linger = hasCard || undoable.length ? LINGER_LONG_MS : LINGER_MS;
-  useEffect(() => {
-    if (!open || working || held) return;
-    const fade = window.setTimeout(() => setFading(true), linger);
-    const close = window.setTimeout(() => setOpen(false), linger + FADE_MS);
-    return () => { window.clearTimeout(fade); window.clearTimeout(close); setFading(false); };
-  }, [open, working, held, linger, setOpen]);
   if (!open || !asked) return null;
 
   const states = undoable.map(step => undone[step.id]);
@@ -141,15 +143,12 @@ export function AiCommandBubble({ command, failed, onOpenChat }: {
   const undoAll = async () => { for (const step of undoable) if (undone[step.id] !== "done") await undo(step.id, step.action!.undo!.path); };
   const did = actions.map(step => step.action!.text).join("；");
   const line = actions.length ? `${allUndone ? "已撤销：" : ""}${did}${working ? "，还在继续…" : ""}`
-    : lost ? failed!
+    : lost ? lost
     : working ? "AI 正在处理…"
     : hasCard ? "有一张下单确认卡，确认后才会下单"
     : answer.length > BUBBLE_CHARS ? `${answer.slice(0, BUBBLE_CHARS)}…` : answer;
   const tone = allUndone ? "undone" : working ? "working" : hasCard || lost ? "card" : actions.length ? "done" : "answer";
   const more = hasCard ? "在对话里确认" : actions.length > 1 ? "在对话里看明细" : !actions.length && !working && !lost ? "看全文" : "";
-  const hold = () => setHeld(true);
-  const release = () => setHeld(false);
-
   return <section className="ai-orb-result" aria-label="AI 指令结果" aria-live="polite" data-agent-target="ai-command-result"
     data-tone={tone} data-fading={fading || undefined} title={asked.text}
     onPointerEnter={hold} onPointerLeave={release} onFocus={hold} onBlur={release}>

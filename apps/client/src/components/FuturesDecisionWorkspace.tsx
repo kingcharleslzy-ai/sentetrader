@@ -849,7 +849,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   const aiBlocked = !connectedRuntimeUrl ? "连接后可以问 AI" : props.agentAccount && !props.agentAccount.authenticated ? "模型尚未就绪，请在设置里选择模型"
     : accessRef.current?.reason("ai-chat") || null;
   const aiCommand = useAiCommand({ baseUrl: connectedRuntimeUrl, turns: props.state.turns, busy: Boolean(props.chatBusy || chat.sendingPrompt),
-    blockedReason: aiBlocked, available: !isGuest,
+    blockedReason: aiBlocked, available: !isGuest, failed: chat.promptError || undefined,
     onSend: (text, spoken) => {
       if (spoken && connectedRuntimeUrl) voiceReply.expect(connectedRuntimeUrl, props.state.turns.map(turn => turn.id));
       return chat.sendQuickPrompt(text, mobile && mobileTab === "strategy" ? mobileStrategyFocus : undefined, spoken ? { origin: "ptt" } : undefined);
@@ -1283,7 +1283,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   // never the 复盘 list or a side panel. Without a quote (no chart) it floats over the
   // whole market area; its key changes with the symbol, so the move remounts nothing extra.
   const aiOrb = !props.guest ? <AiOrb key={String(props.runtimeBaseUrl) + quote?.symbol} baseUrl={connectedRuntimeUrl} symbol={quote?.symbol} name={quote?.name} replay={Boolean(props.replayActive)} activity={appWorkbench.activity} error={appWorkbench.error} config={appWorkbench.config} onConfigChange={appWorkbench.updateConfig} onBriefStatusChange={setBriefStatus} onOpenChat={openChat} sessionId={props.chatSessionId} voiceAvailable={voiceAvailable} avatar={preferences.ui?.aiAvatar ?? "kline"}
-    beside={aiCommand.asked ? <AiCommandBubble key={`${aiCommand.asked.after}:${aiCommand.asked.text}`} command={aiCommand} failed={chat.promptError || undefined} onOpenChat={openChat} /> : undefined} /> : null;
+    beside={aiCommand.asked ? <AiCommandBubble key={`${aiCommand.asked.after}:${aiCommand.asked.text}`} command={aiCommand} onOpenChat={openChat} /> : undefined} /> : null;
 
   // Shared by both layouts: the confirmations, help and tour overlays before the body, the drawers,
   // settings and notices after it, and the 对话面板 (the phone's AI 对话 page passes `mobileChat`).

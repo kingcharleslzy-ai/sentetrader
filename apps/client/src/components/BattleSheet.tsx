@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { requestJson } from "../api";
+import { feedLiveNow, useFeedSheet } from "../runtimeFeed";
 import { trimPriceZeros } from "./chartPriceFormat";
 import { SectionCard } from "./Blocks";
 import "./BattleSheet.css";
@@ -35,15 +36,21 @@ function levelText(levels: SheetLevel[]) {
  * 高 / 中 / 低 by the Runtime (news strength + distance to the nearest key level), each with its key levels,
  * the 调研 · 快讯 events it cites and the user's 打法 that may show up there. No 偏多 / 偏空 anywhere.
  * `onOpen` switches the chart to the row's contract and opens 品种调研.
+ * Pushed (2026-11-02): the Runtime sends the sheet on the session's stream when it changes (feed.sheet), so opening
+ * shows the last one at once; the read below runs only while the push does not deliver it (stream down, older Runtime).
  */
 export function BattleSheet({ baseUrl, visible, compact = false, onOpen, onState }: { baseUrl: string | undefined; visible: boolean;
   compact?: boolean; onOpen?: (symbol: string) => void; onState?: (state: SheetState) => void }) {
-  const [report, setReport] = useState<SheetReport>();
-  const [error, setError] = useState("");
+  const pushed = useFeedSheet();
+  const [read, setReport] = useState<SheetReport>();
+  const [readError, setError] = useState("");
+  const report = pushed ?? read;
+  const error = pushed ? "" : readError;
   useEffect(() => {
     if (!visible || !baseUrl) return;
     let cancelled = false;
     const load = async () => {
+      if (feedLiveNow("sheet")) return;
       try {
         const next = await requestJson<SheetReport>(`${baseUrl}/api/research/sheet`);
         // An older Runtime (or a proxy page) answers something else: say so instead of drawing it.

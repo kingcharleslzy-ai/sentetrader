@@ -158,6 +158,7 @@ function receiptLine(command: AiCommand) {
   if (command.hasCard) return "有一张确认卡，点开去确认";
   if (command.actions.length) return `做了 ${command.actions.length} 件事：${command.actions.map(step => step.action!.text).join("；")}`;
   if (command.working) return "AI 正在处理…";
+  if (command.lost) return command.lost;
   return command.answer.split("\n")[0] || command.asked?.text || "";
 }
 
@@ -305,7 +306,8 @@ export function MobileWorkspace({ tab, onTab, onOpenChat, onBell, quote, symbolN
           </div>
         </form> : receipt ? receipt.open
           ? <AiCommandResult command={receipt} className="ai-bar-result fdm-ai-result" target="mobile-ai-result" onOpenChat={onOpenChat} />
-          : <div className="fdm-receipt" data-agent-target="mobile-ai-receipt" data-working={receipt.working ? "" : undefined}>
+          : <div className="fdm-receipt" data-agent-target="mobile-ai-receipt" data-working={receipt.working ? "" : undefined} data-fading={receipt.fading || undefined}
+            onPointerEnter={receipt.hold} onPointerLeave={receipt.release} onFocus={receipt.hold} onBlur={receipt.release}>
             <button type="button" className="fdm-receipt-main" aria-label={`AI 指令结果：${receiptLine(receipt)}，点开看详情`} onClick={() => receipt.setOpen(true)}>
               <Sparkles aria-hidden="true" /><span>{receiptLine(receipt)}</span><ChevronUp aria-hidden="true" /></button>
             <button type="button" className="fdm-receipt-close" aria-label="关掉回执" onClick={receipt.clear}><X aria-hidden="true" /></button>

@@ -125,6 +125,7 @@ def _number(value: Any) -> float | None:
 class BattleSheet:
     """The shared per-product rows (cached a minute) and the per-user sheet built from them."""
     desk: Any  # ResearchDeskService: the provider, the catalog's main contract, the trading days, the 快讯 events
+    store: Any = None  # RuntimeStore: the user's 自选 and 打法 (user_sheet)
     clock: Callable[[], float] = time.monotonic
     now: Callable[[], datetime] = lambda: datetime.now(UTC)
     _rows: dict[str, tuple[float, dict[str, Any]]] = field(default_factory=dict, repr=False)
@@ -173,6 +174,11 @@ class BattleSheet:
         row["nearest"] = {"label": nearest["label"], "distancePercent": nearest["distancePercent"]} if nearest else None
         row["priority"], row["score"] = priority_of(row["news"]["strength"], nearest["distancePercent"] if nearest else None)
         return row
+
+    async def user_sheet(self, user_id: str) -> dict[str, Any]:
+        """One user's sheet from their 自选 and 打法 — what GET /api/research/sheet answers and feed.sheet pushes."""
+        products = list(self.store.user_preferences(user_id).watchlist.products)
+        return await self.sheet(products, self.store.list_playbooks(user_id=user_id))
 
     async def sheet(self, products: list[str], playbooks: list[dict[str, Any]]) -> dict[str, Any]:
         domestic = [key for key in products if key not in FOREIGN_BY_KEY]
