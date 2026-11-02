@@ -1,0 +1,16 @@
+{
+ "about": "手机版列表行左滑和长按（#1272）：报价页主力板块里螺纹一行，用命令打开长按动作表，看动作齐全后关掉。只读，不点动作，不写数据。",
+ "device": "phone",
+ "steps": [
+  {"ui": {"mobileTab": "market"}, "expect": {"mobileTab": "market"}},
+  {"ui": {"mobileMarket": {"view": "quotes"}}, "expect": {"mobileTab": "market"}},
+  {"ui": {"mobileMarket": {"board": "main"}}, "expect": {"mobileTab": "market"}},
+  {"screenshot": "01-quotes"},
+  {"ui": {"disclosure": {"name": "row-actions", "id": "quote:SHFE.rb2701", "open": true}}, "expect": {"observation.text": {"includes": "设提醒"}}},
+  {"screenshot": "02-row-sheet"},
+  {"ui": {"disclosure": {"name": "row-actions", "id": "quote:SHFE.rb2701", "open": false}}, "expect": {"mobileTab": "market"}}
+ ],
+ "cleanup": [
+  {"ui": {"mobileTab": "ai"}, "expect": {"mobileTab": "ai"}}
+ ]
+}
