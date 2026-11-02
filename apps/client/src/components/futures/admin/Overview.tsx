@@ -121,6 +121,8 @@ function SystemHosts({ baseUrl, onOpen }: { baseUrl: string; onOpen: () => void 
   }, [baseUrl]);
   const ready = snapshot?.status === "ok" ? snapshot : undefined;
   const hosts = ready && Array.isArray(ready.hosts) ? ready.hosts : undefined;
+  // No ops console token (自建版): the 服务器 section is hidden, so is this summary of it.
+  if (snapshot?.status === "unconfigured") return null;
   return <div className="fdw-admin-system-part" aria-label="服务器状态" role="group">
     <header className="fdw-admin-panel-head">
       <h3>系统</h3>
@@ -131,8 +133,7 @@ function SystemHosts({ baseUrl, onOpen }: { baseUrl: string; onOpen: () => void 
       <strong>数据已过期（上次 {fmtTime(ready.fetchedAt)}）</strong>
     </p> : null}
     {failed ? <p className="fdw-admin-inline-note">服务器状态读取失败</p>
-      : snapshot?.status === "unconfigured" ? <p className="fdw-admin-inline-note">运维台令牌未配置</p>
-        : !snapshot ? <p className="fdw-admin-inline-note">读取中</p>
+      : !snapshot ? <p className="fdw-admin-inline-note">读取中</p>
           : !hosts?.length ? <p className="fdw-admin-inline-note">运维台没有返回主机</p>
             : <ul className="fdw-admin-system-hosts">
               {hosts.map(host => {

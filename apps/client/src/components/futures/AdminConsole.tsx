@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import {
-  createAdminPlan, createInviteCode, deleteAdminPlan, disableInviteCode, getAdminAccounts, getAdminPlans, getAdminSkills, getAdminUsers,
+  createAdminPlan, createInviteCode, deleteAdminPlan, disableInviteCode, getAdminAccounts, getAdminPlans, getAdminServers, getAdminSkills, getAdminUsers,
   listInviteCodes, resetAdminUserPassword, updateAdminPlan, updateAdminSkill, updateAdminUser,
   type AdminAccount, type AdminInviteCode, type AdminPlan, type AdminPlansSnapshot, type AdminServerRange, type AdminSkill, type AdminUser,
 } from "../../api";
@@ -86,6 +86,13 @@ export function AdminConsole({ baseUrl, section, onSectionChange, footer }: {
   }, [baseUrl]);
   // Switching into a section re-reads what that section shows.
   useEffect(() => { refresh(SECTION_DATA[section]); }, [refresh, section]);
+  // 服务器 reads the official cloud's ops console: without its token (自建版) the section is not shown.
+  const [serversUnconfigured, setServersUnconfigured] = useState(false);
+  useEffect(() => {
+    if (!baseUrl) return;
+    getAdminServers(baseUrl, "24h").then(result => setServersUnconfigured(result.status === "unconfigured")).catch(() => undefined);
+  }, [baseUrl]);
+  useEffect(() => { if (serversUnconfigured && section === "servers") onSectionChange("overview"); }, [serversUnconfigured, section, onSectionChange]);
 
   const changeUser = async (user: AdminUser, change: { plan?: string; disabled?: boolean }) => {
     if (!baseUrl) return;
@@ -251,7 +258,7 @@ export function AdminConsole({ baseUrl, section, onSectionChange, footer }: {
             {ADMIN_NAV_GROUPS.map(group => (
               <div className="fdw-admin-nav-group" key={group.label} role="group" aria-label={group.label}>
                 <span className="fdw-admin-nav-group-label" aria-hidden="true">{group.label}</span>
-                {group.items.map(entry => (
+                {group.items.filter(entry => !(serversUnconfigured && entry.id === "servers")).map(entry => (
                   <button type="button" key={entry.id} className={section === entry.id ? "active" : ""}
                     aria-current={section === entry.id ? "true" : undefined}
                     onClick={() => onSectionChange(entry.id)}>

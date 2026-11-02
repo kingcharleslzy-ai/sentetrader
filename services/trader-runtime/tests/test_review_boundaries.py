@@ -184,6 +184,11 @@ async def test_replay_finish_retries_only_definitely_unsent_orders(tmp_path, fai
     assert gateway.submit_count == (2 if failure in {'not_dispatched', 'retry_unknown'} else 1)
     if failure != 'before_prepare':
         assert gateway.request['clientOrderId'] == original
+    if failure == 'retry_unknown':
+        # A replay send reads UNKNOWN until the next step (#932 11-02): play on; still unknown after it pauses.
+        assert context.playing
+        await context.finish()
+        assert gateway.submit_count == 2
     if failure in {'unknown', 'retry_unknown'}:
         assert not context.playing
     app.state.store.close()

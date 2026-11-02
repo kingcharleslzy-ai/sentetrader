@@ -552,11 +552,8 @@ class ReplayContext:
                     if identifier:
                         order = state.simulation_orders.get(identifier, user_id=self.user_id)
                         if order["submitPhase"] == "PREPARED":
-                            result = await state.autonomy.retry_trade(user_id=self.user_id, client_order_id=identifier)
-                            if result["simulationOrder"]["submitPhase"] == "UNKNOWN":
-                                self.error = "委托结果未知，停盘平仓已暂停；只查询原委托，不重复提交。"
-                                self.playing = False
-                                return
+                            # UNKNOWN right after sending is normal here (see below): the next step settles it.
+                            await state.autonomy.retry_trade(user_id=self.user_id, client_order_id=identifier)
                             continue
                         # A query may precede the next account snapshot. Never use
                         # an old position snapshot to create a second close.
@@ -587,12 +584,9 @@ class ReplayContext:
                         self.error = "停盘平仓未完成，已暂停；再次处理时会先检查原委托。"
                         self.playing = False
                         raise
-                    if self.end_orders.get(key):
-                        order = state.simulation_orders.get(self.end_orders[key], user_id=self.user_id)
-                        if order["submitPhase"] == "UNKNOWN":
-                            self.error = "委托结果未知，停盘平仓已暂停；只查询原委托，不重复提交。"
-                            self.playing = False
-                            return
+                    # A replay order sent between steps is only queued in the SDK, so it reads UNKNOWN
+                    # until the next step fills it (#932 11-02): keep playing — that step's query
+                    # settles it, and one still unknown after it pauses at the check above.
             if not snapshot["positions"]:
                 self.ending, self.ended, self.playing = False, True, False
             else:

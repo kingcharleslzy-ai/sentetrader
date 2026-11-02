@@ -621,10 +621,10 @@ test("后台导航：四个分组、分区切换，新分区服务器与行情�
   // 侧栏底部：当前管理员与两个页面入口。
   expect(screen.getByText("boss")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "退出登录" })).toBeInTheDocument();
-  fireEvent.click(within(nav).getByRole("button", { name: "服务器" }));
-  expect(await within(console).findByText("运维台令牌未配置")).toBeInTheDocument();
-  expect(within(nav).getByRole("button", { name: "服务器" })).toHaveAttribute("aria-current", "true");
-  expect(within(console).getByRole("heading", { name: "服务器" })).toBeInTheDocument();
+  // No ops console token (自建版): 服务器 and the overview's host summary are not shown.
+  await waitFor(() => expect(within(nav).queryByRole("button", { name: "服务器" })).toBeNull());
+  expect(within(groups[3]).getAllByRole("button").map(button => button.textContent)).toEqual(["用户体验"]);
+  expect(within(console).queryByText("运维台令牌未配置")).toBeNull();
   fireEvent.click(within(nav).getByRole("button", { name: "行情源" }));
   expect(await within(console).findByText("清单为空：游客行情没有来源，先加一个快期账号")).toBeInTheDocument();
   expect(within(console).getByRole("heading", { name: "行情源" })).toBeInTheDocument();
