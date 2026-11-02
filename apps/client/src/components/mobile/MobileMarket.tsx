@@ -21,6 +21,7 @@ import { MobileQuotes } from "./MobileQuotes";
 import { useForeignBoard } from "../../hooks/useForeignBoard";
 import { MobileMultiChart } from "./MobileMultiChart";
 import { MobileSubPaneSheet } from "./MobileSubPaneSheet";
+import { useConditionReminderLines } from "../reminders/MyReminders";
 
 type Duration = MarketWorkbenchSnapshot["durationSeconds"];
 
@@ -135,8 +136,9 @@ export function MobileMarket({ market, name, decimals, chartView, onSelectDurati
   // A 成交量 sub pane takes over from the volume bars at the price chart's foot.
   const settings = useMemo(() => shown === "volume" && chartSettings.volume ? { ...chartSettings, volume: false } : chartSettings, [chartSettings, shown]);
   // 到价提醒 on this contract stay visible as the chart's dashed lines (as on the desktop).
-  const alertLines = useMemo(() => (alerts?.active ?? []).filter(alert => sameContract(alert.symbol, quote?.symbol))
-    .map(alert => ({ id: alert.id, price: Number(alert.price) })), [alerts, quote?.symbol]);
+  const conditionLines = useConditionReminderLines(guest ? undefined : baseUrl, quote?.symbol);
+  const alertLines = useMemo(() => [...(alerts?.active ?? []).filter(alert => sameContract(alert.symbol, quote?.symbol))
+    .map(alert => ({ id: alert.id, price: Number(alert.price) })), ...conditionLines], [alerts, quote?.symbol, conditionLines]);
   const rows = useMemo(() => marketRows({ positions, watchlist, board, instruments, quote }), [positions, watchlist, board, instruments, quote]);
   const autoSymbols = useMemo(() => autoChartSymbols(rows, board), [rows, board]);
   const candidates = useMemo(() => {

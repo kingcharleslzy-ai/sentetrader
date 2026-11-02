@@ -25,7 +25,7 @@ export function AiWatching({ alerts, strategies, todayReminders, onOpen }: {
       {alert.drawingId ? "碰到画的线" : `${alert.direction === "above" ? "涨到" : "跌到"} ${alert.price}`}<em>提醒中</em>
     </button>)}
     {running.map(item => <button key={item.strategyId} type="button" onClick={() => onOpen(item.reminderOnly ? "reminders" : "strategies")}>
-      {item.name}<em>{item.reminderOnly ? "提醒中" : "运行中"}</em>
+      {item.reminderOnly ? `按条件 · ${item.name}` : item.name}<em>{item.reminderOnly ? "提醒中" : "运行中"}</em>
     </button>)}
     {todayReminders ? <button type="button" className="ai-watching-today" onClick={() => onOpen("history")}>
       <BellRing aria-hidden="true" />今天提醒过 {todayReminders} 次

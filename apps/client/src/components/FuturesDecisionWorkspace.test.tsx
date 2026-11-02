@@ -1558,7 +1558,7 @@ test("工作区等认证连接完成后才读取设置、动态和快讯", async
     view.rerender(<FuturesDecisionWorkspace {...values as any} connection="connected" />);
     await waitFor(() => expect(new Set(paths)).toEqual(new Set([
       "/api/app/config", "/api/app/activity", "/api/app/briefs", "/api/preferences", "/api/agent/skills", "/api/voice/realtime/status",
-      "/api/market/alerts", "/api/market/drawings", "/api/reminders"
+      "/api/market/alerts", "/api/market/drawings", "/api/reminders", "/api/strategy-plans"
     ])));
   } finally {
     view.unmount();

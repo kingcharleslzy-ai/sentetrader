@@ -340,7 +340,8 @@ export function editFields(fields: FieldName[], change: (form: EditorForm) => Ed
 /** The plan as it would be saved now (the description aside). */
 export function currentPlan(description?: string): StrategyPlan {
   const plan = planFromForm(state.form, state.base, description);
-  return state.reminder ? { ...plan, reminderOnly: true, reminder: { ...state.form.reminderOptions } } : plan;
+  // A 提醒 left unnamed is saved as 未命名提醒 (its placeholder), never the strategies' 未命名策略.
+  return state.reminder ? { ...plan, name: plan.name === DEFAULT_NAME ? "未命名提醒" : plan.name, reminderOnly: true, reminder: { ...state.form.reminderOptions } } : plan;
 }
 
 function backtestRequest() {
@@ -587,7 +588,7 @@ export function saveDraft(takenNames: string[] = []): Promise<{ item: SavedStrat
   const summary = state.backtest.status === "done" && state.backtest.key === backtestRequest().key ? state.backtest.result?.planSummary : undefined;
   const edited = state.mode === "edit" && !needsSave();
   const description = edited ? undefined : summary ? `策略编辑卡：${summary}` : state.mode === "edit" ? state.base?.description
-    : `策略编辑卡：${state.form.name.trim() || "未命名策略"}`;
+    : `策略编辑卡：${state.form.name.trim() || (state.reminder ? "未命名提醒" : DEFAULT_NAME)}`;
   const plan = currentPlan(description);
   const fromTemplate = state.mode === "new" && Boolean(state.templateId) && state.start.startsWith("template:");
   if (state.mode === "new" && !fromTemplate) plan.name = uniqueName(plan.name, takenNames);

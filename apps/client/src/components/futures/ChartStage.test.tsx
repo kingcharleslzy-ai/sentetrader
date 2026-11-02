@@ -331,7 +331,9 @@ test("在这里设提醒 ▸（第 6 批）：到价提醒按光标价；按打�
   const onReminder = vi.fn();
   const props = baseProps({ onReminder, workspace: { access: { require: () => true, reason: () => null }, simulationEnabled: true, aiExecution: { stops: [] }, runtimeBaseUrl: "https://test" } });
   render(<ChartStage {...props} />);
-  expect(fetch).not.toHaveBeenCalled();
+  // The chart reads the strategy list for 条件提醒 lines at once; the 交易笔记 only when the menu opens.
+  const playbookReads = () => vi.mocked(fetch).mock.calls.filter(([url]) => String(url).includes("/api/playbooks"));
+  expect(playbookReads()).toHaveLength(0);
   act(() => lastChart().onPriceContext(3005, 40, 40));
   const menu = screen.getByRole("menu", { name: "图表菜单" });
   fireEvent.pointerEnter(within(menu).getByRole("menuitem", { name: /^在这里设提醒/ }));

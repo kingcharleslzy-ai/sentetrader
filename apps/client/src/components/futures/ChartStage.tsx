@@ -23,6 +23,7 @@ import { DrawingSettingsDialog } from "./DrawingSettingsDialog";
 import { ProtectionRepriceDialog, type PendingReprice } from "./ProtectionRepriceDialog";
 import { useDrawingDesk, type DrawingPreferencePatch } from "./useDrawingDesk";
 import { usePlaybooks } from "../playbooks/PlaybookPage";
+import { useConditionReminderLines } from "../reminders/MyReminders";
 import "./ChartDrawing.css";
 
 export { snapToTick } from "../../chartDrawingModel";
@@ -79,9 +80,10 @@ function MemberChartStage(props: Props) {
   // 到价提醒: the displayed contract's active alerts — a new array only when the list or the
   // contract actually changed, so ticks never redraw the lines. A 外盘主连 chart shows its product's month alerts
   // (外盘到价提醒挂在 MT5 月份合约上).
-  const alertLines = useMemo(() => (props.alerts?.active ?? [])
+  const conditionLines = useConditionReminderLines(props.alerts ? props.workspace.runtimeBaseUrl : undefined, props.market.quote?.symbol);
+  const alertLines = useMemo(() => [...(props.alerts?.active ?? [])
     .filter(alert => !alert.drawingId && sameContract(alert.symbol, props.market.quote?.symbol))
-    .map(alert => ({ id: alert.id, price: Number(alert.price) })), [props.alerts, props.market.quote?.symbol]);
+    .map(alert => ({ id: alert.id, price: Number(alert.price) })), ...conditionLines], [props.alerts, props.market.quote?.symbol, conditionLines]);
   // 下单顺带保护: the displayed contract's armed stop / take rows, one dotted line per level.
   const repriceable = Boolean(props.workspace.onRepricePositionStop);
   const protectionLines = useMemo(() => {

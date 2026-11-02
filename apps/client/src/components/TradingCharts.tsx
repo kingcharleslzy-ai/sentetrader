@@ -96,8 +96,9 @@ interface TradingChartsProps {
   selectedPrice?: number;
   priceTick?: number | null;
   /** 到价提醒 (2026-10-02): the displayed contract's active alerts — one dashed price line each
-   *  (axis label 提醒 价位). A crossing re-lists without the fired alert, so its line drops by itself. */
-  alertLines?: Array<{ id: string; price: number }>;
+   *  (axis label 提醒 价位). A crossing re-lists without the fired alert, so its line drops by itself.
+   *  A `title` line (a 按条件 reminder's price level, labelled 条件) is dotted instead. */
+  alertLines?: Array<{ id: string; price: number; title?: string }>;
   /** 下单顺带保护 (2026-10-02): this contract's armed stop / take — one thin dotted line each
    *  (axis label 止损/止盈 价位), orange / cyan, apart from the alerts' dashed violet. */
   protectionLines?: ProtectionLine[];
@@ -878,7 +879,7 @@ export function TradingCharts({
     main.alertLines = alertLines
       .filter(alert => Number.isFinite(alert.price))
       .map(alert => main.candles.createPriceLine({
-        price: alert.price, color, lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: "提醒"
+        price: alert.price, color, lineWidth: 1, lineStyle: alert.title ? 1 : 2, axisLabelVisible: true, title: alert.title ?? "提醒"
       }));
     if (stackRef.current) stackRef.current.dataset.agentChartAlerts = String(alertLines.length);
   }, [alertLines, resolvedTheme]);

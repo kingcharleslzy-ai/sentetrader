@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronRight, Plus } from "lucide-react";
-import { chartSymbolOf, requestJson } from "../../api";
-import { strategiesChanged, strategyError, useStrategies, validateAndStart, type SavedStrategy } from "../../strategyApi";
+import { chartSymbolOf, requestJson, sameContract } from "../../api";
+import { strategiesChanged, strategyError, useStrategies, validateAndStart, type RuleCondition, type SavedStrategy } from "../../strategyApi";
 import { useDisclosureSurface, useUiSurface } from "../../uiSurfaces";
 import { alertLine, type PriceAlertsHandle } from "../../hooks/usePriceAlerts";
 import { AlertForm } from "../futures/PriceAlertsControl";
@@ -27,6 +27,20 @@ export function reminderRows(items: SavedStrategy[], executions: SavedStrategy[]
     return { id: item.strategyId, name: item.name, status, symbol: live.length ? live.map(run => run.symbol).join("、") : null,
       runs: live.map(run => ({ runId: run.strategyId, status: run.status as RunStatus })) };
   });
+}
+
+// shortcut: only price fields against a fixed number make a line (收盘价跌破 3010); an MA / band against a number does not, add it when asked.
+const PRICE_FIELDS = new Set(["close", "open", "high", "low"]);
+const levelOf = (condition: RuleCondition) => condition.right?.indicator === "constant" && PRICE_FIELDS.has(condition.left?.indicator ?? "") ? condition.right.value
+  : condition.left?.indicator === "constant" && PRICE_FIELDS.has(condition.right?.indicator ?? "") ? condition.left.value : null;
+
+/** 条件提醒在图上 (2026-11-02): the price levels of the 按条件 reminders monitoring `symbol`, one dotted 条件 line each. */
+export function useConditionReminderLines(baseUrl: string | undefined, symbol: string | undefined) {
+  const list = useStrategies(baseUrl, REFRESH_MS);
+  return useMemo(() => (list.data?.executions ?? []).filter(run => run.status === "monitoring" && run.definition.plan?.reminderOnly && sameContract(run.symbol, symbol))
+    .flatMap(run => Object.values(run.definition.plan!.rules).flatMap(group => [...(group?.conditions ?? []), ...(group?.branches ?? []).flatMap(branch => branch.conditions)])
+      .flatMap(condition => { const price = levelOf(condition); return price == null ? [] : [{ id: `${run.strategyId}:${price}`, price, title: "条件" }]; })),
+  [list.data, symbol]);
 }
 
 /** "3,040" — the Runtime's tick-grid text with thousands grouped, decimals kept. */
