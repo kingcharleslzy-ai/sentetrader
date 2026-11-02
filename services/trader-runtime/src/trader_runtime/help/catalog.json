@@ -368,6 +368,47 @@
         "值存在账号偏好 ui.desktopCharts（layout、cells 四格、active、syncDuration、syncSymbol、syncCrosshair），快照 state.preferences 回报；选中格的合约与周期就是 state.symbol / state.duration。页面上网格是 data-agent-target=\"chart-grid\"，每格 \"chart-cell:<序号>\"（data-state active / idle），布局按钮在 \"chart-layout\"，三个同步开关在选中格标题栏的 \"chart-sync\"。没选中的格每 5 秒读一次 GET /api/markets/{symbol}/workbench（与手机多图同一读法，同合约同周期的格与图表共用数据），不发图表观察、不带 data-region，所以快照里的图表区间、指标与高亮都只指选中格。"
       ]
     },
+    "workspace-layouts": {
+      "title": "自由布局：右侧并排开几个面板，存成盘前、盘中、复盘",
+      "group": "market",
+      "skill": "chart-analysis",
+      "words": [
+        "布局",
+        "并排",
+        "盘前布局",
+        "保存布局"
+      ],
+      "summary": "右侧可以同时开几个面板，拖页签并排；整套样子存成布局，一键切换。",
+      "steps": [
+        "右侧再开一个面板，它成为同一组里的页签",
+        "按住页签拖到边上，松手就并排或上下摆",
+        "顶栏布局按钮：切盘前、盘中、复盘或存的布局",
+        "下拉里“另存布局”起名保存，也能改名、删除",
+        "改了摆法会自动存进现在这个布局"
+      ],
+      "faq": [
+        {
+          "q": "布局里存了什么？",
+          "a": "右侧开了哪些面板、怎么摆，还有多图是几格、每格看什么合约和周期。"
+        },
+        {
+          "q": "换电脑还在吗？",
+          "a": "在。布局跟账号走，网页和电脑客户端一样；手机版仍是底部几个标签。"
+        },
+        {
+          "q": "能让面板浮出成单独窗口吗？",
+          "a": "这一版还不能，只能在右侧并排或上下摆。"
+        },
+        {
+          "q": "能让 AI 帮我摆吗？",
+          "a": "能。说“把调研和持仓上下放”“切到复盘布局”“存成早盘”，它替你做。"
+        }
+      ],
+      "detail": [
+        "界面命令 dock={panel: ai|order|strategy|positions|news|reminders, to: tab|left|right|above|below|close, of?}：tab 放进 of 那一组当页签，left/right/above/below 放到 of 旁边（缺省 of 是当前面板），close 只关这一个；没开的面板会在那里打开。panel 命令仍是打开并选中一个面板（作为当前组的新页签），panel: null 仍是关掉整个右侧。快照 state.panel 是当前面板，state.dockPanels 是开着的面板，state.dockGroups 是每组里的面板。",
+        "界面命令 workspaceLayout（一次一项）：select <id> 切换；save <名字> 另存并切过去（最多 11 个，名字 1–12 个字、不重名）；rename {id, name}；remove <id>（至少留一个，删当前的切到第一个）。默认 id：pre 盘前、live 盘中、review 复盘。顶栏下拉是 disclosure: workspace-layouts。账号偏好 ui.workspaceLayouts = {current, items: [{id, name, dock: {panels, active, grid}, charts}]}，grid 是面板摆法（dockview 的布局数据），charts 是多图（选中格存的是当时图表的合约与周期，切过去会切回它）；charts 为空的布局切过去不动多图。现在这个布局里的改动停一秒后自动存进去；打开页面时恢复当前布局的右侧面板，多图和合约按这台设备当时的。拖拽用开源组件 dockview（MIT），面板浮出成独立窗口这一版没有做。"
+      ]
+    },
     "chart-ai": {
       "title": "让 AI 在图上讲解",
       "group": "market",
@@ -2625,7 +2666,8 @@
         "策略编辑卡补充：strategyEditor 的 new 不带 start 时，成交够就按我的习惯起，否则空白。快照 state.strategyEditor 另有 loading（读成交 / 载入模板时非空）；prefill 含 eligible、reason、count、summary；backtest 含 status、trades、winRate、netProfit、maxDrawdown、previous；flow.basis 是“近 N 个交易日”或 null，flow.entries[{id, title, rows:[{text, count}], count, pending}]、flow.exits[{id, title, lines, count, pending}]；ask 含 text、status。对话里回测卡的逐笔清单是 disclosure strategy-backtest-trades。help-tip 的 key 除策略编辑卡外还有：设置每项 setting:<key>（如 setting:initial-balance）、后台分区 admin:<分区>、策略空状态 strategy-starts、策略详情 strategy:*、费率 fees:scope、交易时间 market-session:source，以快照里实际出现的为准。快照 state.strategyBacktest / state.strategyEditor.backtest 的 source、fallbackReason、browserCheck（服务端按同一份输入复核本机结果是否一致）、engine（本机引擎状态）与 state.strategyLab.where 只供排障，界面不显示。复盘页快照 state.review 另有 tiles（四格的 label / value / note）与 equityCurve（from / to / days / startEquity / endEquity / high / low / principal），就是界面上的这几个数；“习惯对照”块（GET /api/account/habits）的“怎么算的”折叠是 disclosure habits-how，快照 state.review.habits（status、actual、planned、gap、picks 的成交 id，选中一笔用 reviewSelect）。设置 → 记忆的“我的流程”分区，快照 routines 带流程列表。",
         "账户设置与遥控器：disclosure live-trading（设置 → 账户的实盘开关）open:false 照收，open:true 被拒（422，原因“暂无期货公司接入，实盘暂不可开启”），快照 state.liveTrading＝{state:\"off\", disabledReason}；disclosure plan-quota（先 settingsPage=account）展开档位的今日 token 与语音额度和用量；dialog change-password（先 settingsPage=account）只开关修改密码框，密码由用户本人输入和提交；tradingAccount 在会话第一条账户状态到达前 rejected（“账户状态加载中”）。remoteSettings 取值：布尔字段只收布尔；bindings 是按键到动作的对象，按键 up/down/left/right/ok/back/home/menu/tv/volumeUp/volumeDown/voice/power，动作 none（停用该键）/ptt（仅语音键）/cancel/chat/settings/scrollUp/scrollDown/focusPrevious/focusNext/activate（不自动提交交易）；resetBindings:true 恢复全部默认，回执以 state.remoteSettings.bindingsDefault 为准；diagnostic:true 须先打开 remote-diagnostics，离开自动停止；开诊断不能与停用或断开同批，断开不能与启用同批，恢复默认不能与 bindings 同批；空对象与 null 字段拒绝。state.remoteSettings 报 enabled、phase、supported、platform、deviceName、error、keyError、bindings、availableKeys、diagnostic、lastKey、frames、level。",
         "旧值 settingsPage=fees 与 strategy={tab:fees} 打开的是设置 → 交易 → 高级交易设置（settingsPage=trade-advanced），不是交易页；strategy={tab:fees} 时策略面板本身停在我的策略，按设置抽屉是否已打开高级交易设置判定 applied。",
-        "电脑版多图：desktopCharts={layout?: single|two|four, preset?: periods, cells?: [{index, symbol?, duration?}], active?: 0–3, syncDuration?, syncSymbol?, syncCrosshair?}，几项可组合，按 preset → layout → cells → active → 开关生效；只对电脑布局（手机、游客、回放 rejected）；值是账号偏好 ui.desktopCharts，快照 state.preferences 回报，选中格的合约与周期是 state.symbol / duration。用法与规则见主题“多图”。"
+        "电脑版多图：desktopCharts={layout?: single|two|four, preset?: periods, cells?: [{index, symbol?, duration?}], active?: 0–3, syncDuration?, syncSymbol?, syncCrosshair?}，几项可组合，按 preset → layout → cells → active → 开关生效；只对电脑布局（手机、游客、回放 rejected）；值是账号偏好 ui.desktopCharts，快照 state.preferences 回报，选中格的合约与周期是 state.symbol / duration。用法与规则见主题“多图”。",
+        "自由布局：dock={panel, to: tab|left|right|above|below|close, of?} 摆放右侧面板（可以同时开几个；panel 命令打开并选中一个，panel: null 关掉整个右侧；快照 state.dockPanels、state.dockGroups）；workspaceLayout={select|save|rename|remove} 管保存的布局（账号偏好 ui.workspaceLayouts，顶栏下拉 disclosure: workspace-layouts）。用法见主题“自由布局”。"
       ]
     },
     "skills": {

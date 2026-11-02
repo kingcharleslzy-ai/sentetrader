@@ -11,6 +11,8 @@ interface Props {
   access?: WorkspaceAccess;
   rightDock: RightDock;
   setRightDock: Dispatch<SetStateAction<RightDock>>;
+  /** 自由布局: closes one side panel; the others stay open. */
+  closeDock?: (panel: Exclude<RightDock, null>) => void;
   /** The order panel only exists on the trade view. */
   onTrade: () => void;
   onSettings: () => void;
@@ -20,14 +22,16 @@ interface Props {
   strategyBlocked?: string | null;
 }
 
-/** The vertical rail (owner 2026-10-25): 对话 / 调研 / 策略 / 提醒 / 下单 / 持仓 / 下载 / 设置; one panel is open at a time.
+/** The vertical rail (owner 2026-10-25): 对话 / 调研 / 策略 / 提醒 / 下单 / 持仓 / 下载 / 设置; since 自由布局 (2026-11-02)
+ *  several panels may be open, and the rail lights the focused one.
  *  调研 was 新闻 and holds the 辩论 page as one of its tabs (the panel id stays `news`); 提醒 holds 我的提醒,
  *  通用提醒 (was 设置 → 提醒) and 提醒记录 (was the bell's 提醒中心 popover). */
-export function ToolsRail({ rightDock, setRightDock, onTrade, onSettings, settingsOpen = false, strategyBlocked, access }: Props) {
+export function ToolsRail({ rightDock, setRightDock, closeDock, onTrade, onSettings, settingsOpen = false, strategyBlocked, access }: Props) {
   const [blocked, setBlocked] = useState("");
   const web = !isTauriRuntime();
   const allowed = (key: string) => access?.require(key) ?? true;
-  const toggle = (dock: Exclude<RightDock, null>) => setRightDock((current) => current === dock ? null : dock);
+  // The focused panel closes (the others stay); any other opens or comes to the front.
+  const toggle = (dock: Exclude<RightDock, null>) => { if (rightDock !== dock) setRightDock(dock); else if (closeDock) closeDock(dock); else setRightDock(null); };
   // A 提醒 being edited shows in the strategy panel's editor card (改版第一步): the rail lights 提醒, and 策略 puts it away.
   const editor = useStrategyEditor();
   const reminderEditing = rightDock === "strategy" && editor.open && editor.reminder;

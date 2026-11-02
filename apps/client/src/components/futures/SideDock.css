@@ -1,0 +1,70 @@
+/* 自由布局 (2026-11-02): dockview's variables on the app's paired tokens, so both themes follow html[data-app-theme]. */
+.fdw-dock-theme {
+  --dv-paneview-active-outline-color: var(--accent);
+  --dv-tabs-and-actions-container-font-size: var(--font-sm);
+  --dv-tabs-and-actions-container-height: 28px;
+  --dv-drag-over-background-color: var(--accent-soft);
+  --dv-drag-over-border-color: var(--accent);
+  --dv-drag-over-border: 1px solid var(--accent);
+  --dv-edge-dock-indicator-color: var(--accent);
+  --dv-tabs-container-scrollbar-color: var(--line-strong);
+  --dv-icon-hover-background-color: var(--fdw-surface-hover);
+  --dv-overlay-z-index: 40;
+  --dv-tab-font-size: var(--font-sm);
+  --dv-border-radius: 0px;
+  --dv-tab-margin: 0;
+  --dv-sash-color: transparent;
+  --dv-active-sash-color: var(--accent);
+  --dv-active-sash-transition-duration: 0.1s;
+  --dv-active-sash-transition-delay: 0.3s;
+  --dv-spacing-padding: 0px;
+  --dv-tab-border-radius: 0px;
+  --dv-sash-border-radius: 0px;
+  --dv-dropdown-border-radius: var(--radius-control);
+  --dv-tab-close-icon-size: inherit;
+  --dv-group-view-background-color: var(--panel);
+  --dv-tabs-and-actions-container-background-color: var(--fdw-surface);
+  --dv-activegroup-visiblepanel-tab-background-color: var(--panel);
+  --dv-activegroup-hiddenpanel-tab-background-color: var(--fdw-surface);
+  --dv-inactivegroup-visiblepanel-tab-background-color: var(--panel);
+  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--fdw-surface);
+  --dv-tab-divider-color: var(--line);
+  --dv-activegroup-visiblepanel-tab-color: var(--ink);
+  --dv-activegroup-hiddenpanel-tab-color: var(--muted);
+  --dv-inactivegroup-visiblepanel-tab-color: var(--muted);
+  --dv-inactivegroup-hiddenpanel-tab-color: var(--muted);
+  --dv-separator-border: var(--line);
+  --dv-paneview-header-border-color: var(--line);
+  --dv-context-menu-background-color: var(--panel);
+  --dv-context-menu-color: var(--ink);
+}
+.fdw-side-dock { position: relative; width: 100%; height: 100%; min-height: 0; }
+.fdw-side-dock > .dv-dockview, .fdw-side-dock .dockview-theme-sente { height: 100%; }
+/* One panel alone keeps the look it always had: no tab strip over its own header. */
+.fdw-side-dock[data-count="1"] .dv-tabs-and-actions-container { display: none; }
+.fdw-dock-tab { height: 100%; display: flex; align-items: center; gap: var(--space-1); padding: 0 var(--space-1) 0 var(--space-3); white-space: nowrap; }
+.fdw-dock-tab button { width: 20px; height: 20px; display: grid; place-items: center; padding: 0; border: 0; border-radius: var(--radius-control); color: var(--muted); background: transparent; cursor: pointer; }
+.fdw-dock-tab button:hover { color: var(--ink); background: var(--fdw-surface-hover); }
+.fdw-dock-tab button svg { width: 12px; height: 12px; }
+.fdw-dock-slot { height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.fdw-dock-slot > * { flex: 1 1 auto; min-height: 0; }
+
+/* 布局 dropdown in the top bar's view group. */
+.fdw-layout-menu { position: relative; display: inline-flex; }
+.fdw-header nav .fdw-layout-menu > button svg { width: 14px; height: 14px; }
+.fdw-layout-list { position: absolute; top: calc(100% + 4px); right: 0; z-index: 30; width: 280px; display: grid; gap: var(--space-0); padding: var(--space-1);
+  border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--panel); box-shadow: var(--shadow-2); }
+.fdw-layout-list > div { display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
+.fdw-header nav .fdw-layout-list button { height: 28px; display: flex; align-items: center; padding: 0 var(--space-3); border: 0; border-radius: var(--radius-control);
+  color: var(--ink); background: transparent; font-size: var(--font-md); white-space: nowrap; cursor: pointer; }
+.fdw-header nav .fdw-layout-list > div > button:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.fdw-header nav .fdw-layout-list button:hover:not(:disabled) { background: var(--soft); }
+.fdw-header nav .fdw-layout-list button[aria-current="true"] { color: var(--accent); font-weight: 600; }
+.fdw-header nav .fdw-layout-list button.fdw-layout-action { flex: none; padding: 0 var(--space-2); color: var(--muted); font-size: var(--font-sm); }
+.fdw-header nav .fdw-layout-list button.fdw-layout-action.danger { color: var(--danger); }
+.fdw-header nav .fdw-layout-list button:disabled { opacity: .4; cursor: default; }
+.fdw-layout-form { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1); }
+.fdw-layout-new { margin-top: var(--space-1); padding-top: var(--space-2); border-top: 1px solid var(--line); }
+.fdw-layout-form input { flex: 1; min-width: 0; height: 28px; padding: 0 var(--space-2); border: 1px solid var(--line-strong); border-radius: var(--radius-control); color: var(--ink); background: var(--soft); font: inherit; font-size: var(--font-md); }
+.fdw-header nav .fdw-layout-list .fdw-layout-form button.primary-button { flex: none; color: var(--on-primary); background: var(--primary-bg); }
+.fdw-header nav .fdw-layout-list .fdw-layout-form button.primary-button:hover:not(:disabled) { background: var(--primary-bg); filter: brightness(1.08); }

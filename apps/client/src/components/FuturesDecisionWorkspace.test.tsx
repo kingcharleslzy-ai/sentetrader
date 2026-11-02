@@ -1581,7 +1581,8 @@ test("global emergency stop is visible outside AI and recovery requires explicit
   await waitFor(() => expect(screen.queryByRole("dialog",{name:"恢复 AI 模拟执行"})).toBeNull());
 });
 
-test("对话面板与策略面板是互斥的两个面板，一次只开一个", () => {
+// 自由布局 (owner 2026-11-02): side panels may be open together; a newly opened one comes to the front as a tab.
+test("对话面板与策略面板可以同时开，后开的在前面，收起后回到前一个", () => {
   const values = props({strategyPanel:<div>策略运行状态</div>});
   render(<FuturesDecisionWorkspace {...values as any}/>);
   openAiPanel();
@@ -1590,8 +1591,10 @@ test("对话面板与策略面板是互斥的两个面板，一次只开一个",
   fireEvent.click(screen.getByRole("button",{name:"打开策略面板"}));
   expect(screen.getByText("策略运行状态")).toBeVisible();
   expect(screen.queryByRole("textbox",{name:"向 AI 决策流提问"})).not.toBeInTheDocument();
-  // The rail's own button closes the panel it opened.
+  // The rail's own button closes the panel it opened; the chat it covered is the focused one again.
   fireEvent.click(screen.getByRole("button",{name:"收起策略"}));
+  expect(screen.getByTestId("futures-decision-workspace")).toHaveAttribute("data-right-dock", "ai");
+  fireEvent.click(screen.getByRole("button",{name:"收起对话"}));
   expect(screen.getByTestId("futures-decision-workspace")).toHaveAttribute("data-right-dock", "closed");
 });
 

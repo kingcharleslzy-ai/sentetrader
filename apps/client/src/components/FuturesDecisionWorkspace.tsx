@@ -11,7 +11,7 @@ import { AccountPnl } from "./AccountPnl";
 import { TradeReview } from "./TradeReview";
 import { ChevronLeft, CircleAlert, GripVertical, PanelRightClose, ReceiptText } from "lucide-react";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, Dispatch, ReactNode, SetStateAction } from "react";
 import { chartSymbolOf, requestJson, sameContract } from "../api";
 import type { AccountPosition, MarketWorkbenchSnapshot, SimulationOrder } from "../api";
 import { ConnectionProgress } from "./ConnectionProgress";
@@ -53,6 +53,10 @@ import { MarketCommand } from "./futures/MarketCommand";
 import { ChartStage } from "./futures/ChartStage";
 import { ChartGrid, ChartLayoutControls } from "./futures/ChartGrid";
 import { useDesktopCharts } from "./futures/desktopCharts";
+import { useWorkspaceLayouts } from "./futures/workspaceLayouts";
+import { LayoutMenu } from "./futures/LayoutMenu";
+import { NO_DOCK, SideDock, nextDock, sameDock, withoutPanel, type DockPanel, type DockState, type SideDockHandle } from "./futures/SideDock";
+import type { SerializedDockview } from "dockview-react";
 import { HighlightLayer } from "./HighlightLayer";
 import { TourIndicator } from "./TourIndicator";
 import { ToolsRail } from "./futures/ToolsRail";
@@ -320,7 +324,17 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   const [strategyUi, setStrategyUi] = useState<StrategyNavigationState | null>(null);
   const strategyNavigation = useRef<((changes: StrategyNavigation) => void) | undefined>(undefined);
   const navigation = useMemo(() => ({ publish: setStrategyUi, handler: strategyNavigation }), []);
-  const [rightDock, setRightDock] = useState<RightDock>(null);
+  // 自由布局 (2026-11-02): several side panels at once (SideDock); `rightDock` is the focused one — the state the
+  // `panel` command sets and reports — and setting it opens that panel as a tab, null closes the whole side.
+  const [dock, setDock] = useState<DockState>(NO_DOCK);
+  const [dockGroups, setDockGroups] = useState<DockPanel[][]>([]);
+  const rightDock = dock.active;
+  const setRightDock = useCallback<Dispatch<SetStateAction<RightDock>>>(next =>
+    setDock(current => nextDock(current, typeof next === "function" ? next(current.active) : next)), []);
+  const closeDock = useCallback((panel: DockPanel) => setDock(current => withoutPanel(current, panel)), []);
+  const sideDock = useRef<SideDockHandle>(null);
+  // The arrangement dockview last reported (saved with the layout) and the one a layout switch starts from.
+  const dockGrid = useRef<SerializedDockview | null>(null);
   // 调研面板's tab, held here so a debate started from 快讯 / 今日判断 / a command can switch to 辩论; the panel
   // opens on 品种调研 again once it is closed.
   // 今日作战表 (第 5 批) opens first for a member; a guest has no 自选 and starts on 品种调研.
@@ -682,6 +696,19 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     current: chartCurrent, autoSymbols: gridAuto,
     resolveSymbol: symbol => props.instruments?.items.find(item => item.symbol.toUpperCase() === symbol.toUpperCase())?.symbol,
     select: (symbol, duration) => { if (symbol) selectContract(symbol); if (duration) selectDuration(duration); } });
+  // 自由布局 (2026-11-02): 盘前 / 盘中 / 复盘 and saved layouts (account preference ui.workspaceLayouts): the side
+  // panels with their arrangement and the 多图. A switch remounts the dock on the layout's arrangement.
+  const [dockEpoch, setDockEpoch] = useState(0);
+  const workspaceLayouts = useWorkspaceLayouts({ document: prefs.preferences.ui?.workspaceLayouts, connected: Boolean(connectedRuntimeUrl),
+    update: updatePreferences, enabled: gridAvailable && preferencesLoaded,
+    capture: () => ({ dock: { panels: dock.panels, active: dock.active, grid: dock.panels.length ? dockGrid.current : null }, charts: desktopCharts.snapshot() }),
+    restore: (layout, opening) => {
+      dockGrid.current = layout.dock.grid;
+      setDock({ panels: layout.dock.panels, active: layout.dock.active ?? layout.dock.panels.at(-1) ?? null });
+      setDockEpoch(epoch => epoch + 1);
+      if (!opening && layout.charts) desktopCharts.restore(layout.charts);
+    },
+    changeKey: JSON.stringify([dock, dockGroups, desktopCharts.charts, chartCurrent]) });
   // The phone's 报价 · 外盘 板块 has its own read too: only that board open means no domestic board.
   const phoneForeignOnly = phoneMarket && mobileMarket.market.view === "quotes" && mobileMarket.market.board === "FOREIGN";
   const boardWant = useMemo<BoardWant>(() => contractOpen || phoneMarket || boardExchange === "all" ? { all: true }
@@ -919,7 +946,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   };
   const showReminderCenter = (open: boolean) => {
     if (open) openReminders("history");
-    else if (reminderShown) { if (mobile) setMobileSub(null); else setRightDock(null); }
+    else if (reminderShown) { if (mobile) setMobileSub(null); else closeDock("reminders"); }
   };
   const reminderApply = useRef<(value: unknown) => void>(() => undefined);
   reminderApply.current = value => {
@@ -981,6 +1008,9 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
       chatSessionId: props.chatSessionId, chatHistory: chat.chatHistory, selectChat: chat.selectChat, chatBlocked: chat.chatBlocked,
       quickSkipConfirm, setQuickSkipConfirm,
       desktopCharts: gridAvailable ? desktopCharts.apply : undefined,
+      dock: mobile ? undefined : { panels: dock.panels, groups: dock.panels.length ? dockGroups : [], close: closeDock,
+        place: (panel, to, of) => { if (!sideDock.current) throw new Error("右侧没有打开的面板"); sideDock.current.place(panel, to, of); } },
+      workspaceLayout: gridAvailable ? workspaceLayouts.apply : undefined,
       currentPositions: props.account?.positions ?? [], selectedPosition,
       selectPosition: position => { if (position) closePosition(position); else { setSelectedPositionKey(undefined); setCloseRequest(undefined); } },
       dialogs: {
@@ -1268,7 +1298,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   </>;
   const aiDock = (mobileChat?: Parameters<typeof AiDock>[0]["mobile"]) => <AiDock workspace={workspace} chat={chat} focus={focus} appWorkbench={appWorkbench}
       call={call} voiceUnavailableReason={voiceUnavailableReason}
-      onClose={() => setRightDock(null)} onPauseStrategy={pauseStrategy}
+      onClose={() => closeDock("ai")} onPauseStrategy={pauseStrategy}
       briefs={flowBriefs.items}
       quote={quote} decimals={decimals} selectedPrice={selectedPrice}
       currentPositions={currentPositions} decisionTurns={decisionTurns}
@@ -1519,6 +1549,48 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     );
   }
 
+  // 自由布局: each open side panel's content, drawn in its own dock slot.
+  const renderDockPanel = (panel: DockPanel): ReactNode => {
+    switch (panel) {
+      case "ai": return props.guest ? null : aiDock();
+      case "news": return <NewsPanel baseUrl={props.guest?.baseUrl ?? connectedRuntimeUrl} guest={Boolean(props.guest)} replay={Boolean(props.replayActive)} onGuestExpired={props.guest?.reportExpired} symbol={quote?.symbol} onClose={() => closeDock("news")}
+          watchProducts={flashWatchProducts} instruments={props.instruments?.items} onSelectSymbol={selectContract}
+          debate={props.guest ? undefined : debate} tab={newsTab} onTab={setNewsTab} />;
+      case "reminders": return props.guest ? null : <RemindersPanel tab={remindersTab} onTab={setRemindersTab} onClose={() => closeDock("reminders")}
+          center={reminderCenter} settings={reminderSettings} mine={myReminders} />;
+      case "strategy": return props.guest ? null : <StrategyDock workspace={workspace} quote={quote}
+          onClose={() => closeDock("strategy")} tab={strategyTab} onTabChange={setStrategyTab}
+          onStrategySelected={focus.setActiveStrategy} autonomy={preferencesLoaded ? preferences.trade.aiAutonomy : undefined}
+          onAskAi={askAi} explainBlocked={signalsBlocked} backtestBlocked={backtestBlocked}
+          onShowReminders={showMyReminders}
+          onShowChart={(symbol, duration) => {
+            if (!sameContract(symbol, quote?.symbol)) props.onSelectSymbol(symbol);
+            if (duration !== props.duration) selectDuration(duration as MarketWorkbenchSnapshot["durationSeconds"]);
+          }} />;
+      case "positions": return props.guest ? null : <PositionsDock account={props.account} instruments={props.instruments} quote={quote} simulationOrders={props.simulationOrders}
+          review={tradeReview.review} foreignReview={foreignTradeReview.review} reviewError={tradeReview.error} busy={props.tradeBusy}
+          tab={positionsTab} onTabChange={setPositionsTab} history={ordersHistory} onHistoryChange={setOrdersHistory}
+          fillsSource={fillsSource} onFillsSourceChange={setFillsSource}
+          onOrderAction={handleOrderAction} onClosePosition={closePosition} onRefresh={props.onRefreshAccount}
+          onClose={() => closeDock("positions")} activeProtections={activeProtections} protectionWarning={protectionWarning} onAskAi={askAi}
+          stops={props.aiExecution?.stops} protectionBusy={props.aiExecutionBusy}
+          onCreateStop={createPositionStop} onCancelStop={cancelPositionStop} />;
+      case "order": return props.guest || view !== "trade" || !market ? null : (
+          <section className="fdw-order-panel" aria-label="固定下单面板" data-agent-target="panel:order">
+            <header><div><ReceiptText /><span><strong>模拟交易</strong><small className={closed || !dataLive ? "blocked" : "live"}>{quote?.name ?? quote?.symbol} · {closed ? sessionLabel : dataLive ? "行情正常" : "不可下单"}</small></span></div><button type="button" aria-label="收起模拟下单" onClick={() => closeDock("order")}><PanelRightClose /></button></header>
+            {/* 五档 → 下单票 → 本合约持仓 in one scroll region (2026-10-03). */}
+            <div className="fdw-order-scroll">
+              <OrderDepth quote={market.quote} selectedPrice={selectedPrice} onPriceSelect={pickLadderPrice} />
+              <TradeTicket volume={volume} setVolume={setVolume} snapshot={market} runtimeUrl={connectedRuntimeUrl} deliveryNotice={ticketDeliveryNotice} selectedPrice={selectedPrice} selectedPosition={selectedPosition} simulationEnabled={props.simulationEnabled} simulationBlockedReason={props.simulationBlockedReason} busy={props.tradeBusy} draft={ticketDraft} closeRequest={closeRequest} currentPositions={currentPositions} onSubmit={submitManualOrder} onTargetPosition={props.onTargetPosition} />
+              <OrderPanelPositions quote={market.quote} positions={currentPositions} orders={props.simulationOrders} instruments={props.instruments} busy={props.tradeBusy}
+                onClosePosition={closePosition} onOrderAction={handleOrderAction} onAskAi={askAi}
+                stops={props.aiExecution?.stops} protectionBusy={props.aiExecutionBusy} onCreateStop={createPositionStop} onCancelStop={cancelPositionStop} />
+              <QuickActions controller={quickActions} onSettings={() => { setSettingsPage("shortcuts"); setSettingsOpen(true); }} />
+            </div>
+          </section>
+        );
+    }
+  };
   return (
     <AccountAccessContext.Provider value={{ ...access, message: accessNotice }}><UiNavigationContext.Provider value={navigation}><div
       className={`fdw-shell fdw-${view} ${rightDock ? "dock-open" : "dock-closed"} app-theme-${resolvedTheme}`}
@@ -1536,6 +1608,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
         onVisibleCurrentContractChange={setHeaderCurrentContract}
         pinnedSymbols={pinnedSymbols} onSelectContract={selectContractTab} onPinContract={() => { setContractPinMode(true); setContractOpen(true); }} onUnpinContract={unpinContractTab} replayBlocked={replayBlocked}
         guestActions={props.guest ? <PttButton ptt={ptt} /> : undefined}
+        layoutMenu={gridAvailable ? <LayoutMenu handle={workspaceLayouts} onError={setAccessNotice} /> : undefined}
         aiBar={props.guest || mobile ? undefined : <AiCommandBar busy={Boolean(props.chatBusy || chat.sendingPrompt)} chatOpen={rightDock === "ai"}
           blockedReason={aiBlocked} send={aiCommand.send} ptt={ptt} />} />
 
@@ -1615,46 +1688,12 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
 
         {rightDock ? <aside className="fdw-side-workbench" aria-label="AI 与交易辅助工作区">
           <div className={`fdw-side-workbench-layout dock-${rightDock}`}>
-        {!props.guest && rightDock === "ai" ? aiDock() : null}
-        {rightDock === "news" ? <NewsPanel baseUrl={props.guest?.baseUrl ?? connectedRuntimeUrl} guest={Boolean(props.guest)} replay={Boolean(props.replayActive)} onGuestExpired={props.guest?.reportExpired} symbol={quote?.symbol} onClose={() => setRightDock(null)}
-          watchProducts={flashWatchProducts} instruments={props.instruments?.items} onSelectSymbol={selectContract}
-          debate={props.guest ? undefined : debate} tab={newsTab} onTab={setNewsTab} /> : null}
-        {!props.guest && rightDock === "reminders" ? <RemindersPanel tab={remindersTab} onTab={setRemindersTab} onClose={() => setRightDock(null)}
-          center={reminderCenter} settings={reminderSettings} mine={myReminders} /> : null}
-        {!props.guest && rightDock === "strategy" ? <StrategyDock workspace={workspace} quote={quote}
-          onClose={() => setRightDock(null)} tab={strategyTab} onTabChange={setStrategyTab}
-          onStrategySelected={focus.setActiveStrategy} autonomy={preferencesLoaded ? preferences.trade.aiAutonomy : undefined}
-          onAskAi={askAi} explainBlocked={signalsBlocked} backtestBlocked={backtestBlocked}
-          onShowReminders={showMyReminders}
-          onShowChart={(symbol, duration) => {
-            if (!sameContract(symbol, quote?.symbol)) props.onSelectSymbol(symbol);
-            if (duration !== props.duration) selectDuration(duration as MarketWorkbenchSnapshot["durationSeconds"]);
-          }} /> : null}
-        {!props.guest && rightDock === "positions" ? <PositionsDock account={props.account} instruments={props.instruments} quote={quote} simulationOrders={props.simulationOrders}
-          review={tradeReview.review} foreignReview={foreignTradeReview.review} reviewError={tradeReview.error} busy={props.tradeBusy}
-          tab={positionsTab} onTabChange={setPositionsTab} history={ordersHistory} onHistoryChange={setOrdersHistory}
-          fillsSource={fillsSource} onFillsSourceChange={setFillsSource}
-          onOrderAction={handleOrderAction} onClosePosition={closePosition} onRefresh={props.onRefreshAccount}
-          onClose={() => setRightDock(null)} activeProtections={activeProtections} protectionWarning={protectionWarning} onAskAi={askAi}
-          stops={props.aiExecution?.stops} protectionBusy={props.aiExecutionBusy}
-          onCreateStop={createPositionStop} onCancelStop={cancelPositionStop} /> : null}
-        {!props.guest && rightDock === "order" && view === "trade" && market ? (
-          <section className="fdw-order-panel" aria-label="固定下单面板" data-agent-target="panel:order">
-            <header><div><ReceiptText /><span><strong>模拟交易</strong><small className={closed || !dataLive ? "blocked" : "live"}>{quote?.name ?? quote?.symbol} · {closed ? sessionLabel : dataLive ? "行情正常" : "不可下单"}</small></span></div><button type="button" aria-label="收起模拟下单" onClick={() => setRightDock(null)}><PanelRightClose /></button></header>
-            {/* 五档 → 下单票 → 本合约持仓 in one scroll region (2026-10-03). */}
-            <div className="fdw-order-scroll">
-              <OrderDepth quote={market.quote} selectedPrice={selectedPrice} onPriceSelect={pickLadderPrice} />
-              <TradeTicket volume={volume} setVolume={setVolume} snapshot={market} runtimeUrl={connectedRuntimeUrl} deliveryNotice={ticketDeliveryNotice} selectedPrice={selectedPrice} selectedPosition={selectedPosition} simulationEnabled={props.simulationEnabled} simulationBlockedReason={props.simulationBlockedReason} busy={props.tradeBusy} draft={ticketDraft} closeRequest={closeRequest} currentPositions={currentPositions} onSubmit={submitManualOrder} onTargetPosition={props.onTargetPosition} />
-              <OrderPanelPositions quote={market.quote} positions={currentPositions} orders={props.simulationOrders} instruments={props.instruments} busy={props.tradeBusy}
-                onClosePosition={closePosition} onOrderAction={handleOrderAction} onAskAi={askAi}
-                stops={props.aiExecution?.stops} protectionBusy={props.aiExecutionBusy} onCreateStop={createPositionStop} onCancelStop={cancelPositionStop} />
-              <QuickActions controller={quickActions} onSettings={() => { setSettingsPage("shortcuts"); setSettingsOpen(true); }} />
-            </div>
-          </section>
-        ) : null}
+            <SideDock key={dockEpoch} handle={sideDock} state={dock} grid={dockGrid.current} render={renderDockPanel}
+              onState={(next, groups) => { setDock(current => sameDock(current, next) ? current : next); setDockGroups(groups); }}
+              onGrid={grid => { dockGrid.current = grid; }} />
           </div>
         </aside> : null}
-        <ToolsRail access={access} rightDock={rightDock} setRightDock={setRightDock} onTrade={() => setView("trade")} onSettings={() => setSettingsOpen(true)} settingsOpen={settingsOpen} strategyBlocked={strategyBlocked} />
+        <ToolsRail access={access} rightDock={rightDock} setRightDock={setRightDock} closeDock={closeDock} onTrade={() => setView("trade")} onSettings={() => setSettingsOpen(true)} settingsOpen={settingsOpen} strategyBlocked={strategyBlocked} />
       </div>
 
       {trailing}

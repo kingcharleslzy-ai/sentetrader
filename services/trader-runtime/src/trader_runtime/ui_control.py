@@ -22,6 +22,7 @@ from .user_preferences import (
     CATEGORIES,
     DESKTOP_CHART_CELLS,
     DESKTOP_CHART_LAYOUTS,
+    DOCK_PANELS,
     MOBILE_CHART_DURATIONS,
     MOBILE_MARKET_VIEWS,
     MOBILE_MULTI_LAYOUTS,
@@ -30,6 +31,7 @@ from .user_preferences import (
     MOBILE_QUOTE_COLUMNS_MAX,
     QUICK_SKILLS_MAX,
     SUBPANE_TYPES,
+    WORKSPACE_LAYOUT_ID,
     UserPreferences,
     merge_preferences,
     preference_change_to_patch,
@@ -384,6 +386,46 @@ class DesktopChartsChange(BaseModel):
             raise ValueError("desktopCharts 至少改一项")
         if self.cells and len({cell.index for cell in self.cells}) != len(self.cells):
             raise ValueError("同一格只能出现一次")
+        return self
+
+
+class WorkspaceLayoutRename(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str = Field(pattern=WORKSPACE_LAYOUT_ID)
+    name: str = Field(min_length=1, max_length=12)
+
+
+class DockChange(BaseModel):
+    """自由布局 (2026-11-02): one side panel's place, as dragging its tab does — `tab` joins `of`'s group, left /
+    right / above / below splits beside `of` (default: the focused panel), `close` closes just this panel. A panel
+    not open yet opens there. `panel: null` still closes the whole side area."""
+    model_config = ConfigDict(extra="forbid")
+    panel: DOCK_PANELS
+    to: Literal["tab", "left", "right", "above", "below", "close"]
+    of: DOCK_PANELS | None = None
+
+    @model_validator(mode="after")
+    def something(self):
+        if self.of is not None and (self.of == self.panel or self.to == "close"):
+            raise ValueError("of 是另一个已打开的面板，close 不带 of")
+        return self
+
+
+class WorkspaceLayoutChange(BaseModel):
+    """自由布局 (2026-11-02), one key per command: select 切到一个布局（侧边面板与多图都换成它存的样子）, save 把现在的样子
+    另存成新布局并切过去, rename {id, name}, remove 删除一个布局（删当前的会切到第一个）. The list is the account
+    preference ui.workspaceLayouts; the dropdown is disclosure: workspace-layouts."""
+    model_config = ConfigDict(extra="forbid")
+    select: str | None = Field(default=None, pattern=WORKSPACE_LAYOUT_ID)
+    save: str | None = Field(default=None, min_length=1, max_length=12)
+    rename: WorkspaceLayoutRename | None = None
+    remove: str | None = Field(default=None, pattern=WORKSPACE_LAYOUT_ID)
+
+    @model_validator(mode="after")
+    def one_key(self):
+        given = [key for key in self.model_fields_set if getattr(self, key) is not None]
+        if len(given) != 1 or len(self.model_fields_set) != 1:
+            raise ValueError("workspaceLayout 一次只做一件：select / save / rename / remove")
         return self
 
 
@@ -1040,6 +1082,10 @@ class UiState(BaseModel):
     view: Literal[surface_ids("views", state=None)]
     # "depth" (the 价格阶梯, removed 2026-10-07) is only reported by older desktop clients that still have it.
     panel: PANEL | None
+    # 自由布局 (2026-11-02): every open side panel (`panel` is the focused one) and dockview's groups of them, each
+    # group a list of panels sharing tabs. A client before the field reports neither.
+    dockPanels: list[DOCK_PANELS] | None = Field(default=None, max_length=6)
+    dockGroups: list[list[DOCK_PANELS]] | None = Field(default=None, max_length=6)
     settingsOpen: bool
     theme: Literal["dark", "light", "system"]
     dockSide: Literal["left", "right"]
@@ -1272,6 +1318,8 @@ class UiChanges(BaseModel):
                        "mobileStrategyTab 切手机版策略页的分页（running 正在运行：暂停 / 继续 / 停止并平仓；mine 我的策略：顶上“新建策略”，每个策略一张卡带“编辑 / 回测 / 上线…”，一条没有时是三种开始方式与常用模板），先切到策略标签（快照 state.mobileStrategyTab）。"
                        "mobileMarket 改手机版看盘（只对手机布局有效，先切到看盘标签；一次一项）：view quotes 报价列表 / multi 多图 / single 单图；board 报价板块 watchlist 自选 / main 主力 / SHFE 上期所 / DCE 大商所 / CZCE 郑商所 / CFFEX 中金所 / GFEX 广期所 / INE 能源中心 / FOREIGN 外盘（点一行打开它的单图；切到报价）；columns 报价的数值列 1–4 个（last 最新 / changePercent 涨跌幅 / change 涨跌 / openInterest 持仓量 / bid 买价 / ask 卖价 / volume 成交量 / openInterestChange 日增仓）；layout 多图布局 four 4 合约 / periods 同合约 4 周期 / six 6 图（切到多图）；cell {index, symbol?, duration?} 改多图当前布局的一格（symbol null＝自动补位；同合约 4 周期里 symbol 切当前合约）；subPane 单图下面显示哪个副图（kd / macd / rsi / oi 持仓量 / cci / volume 成交量，未选的替换正在显示的那个）；subPanes true/false 开关副图设置面板（选 0–3 个副图、主图指标 均线 / 布林 / SAR、各指标参数，快照 disclosures.mobile-subpanes）。都记在账号偏好 ui.mobileMarket 与 chart.subPaneList，快照 state.preferences。"
                        "desktopCharts 改电脑版多图（只对电脑布局有效；几项可一起给，按 preset → layout → cells → active → 开关的顺序生效）：layout single 单图 / two 左右 2 格 / four 2×2 四格；preset periods 同合约 4 周期（四格、同步品种、5 分 / 15 分 / 1 小时 / 日线）；cells [{index 0–3, symbol?, duration?}] 改格子的合约（null＝自动补位）与周期，选中格就是图表本身；active 选中哪一格（它成为当前合约：下单票、合约标签、AI 都跟它）；syncDuration / syncSymbol 所有格跟选中格的周期 / 合约；syncCrosshair 十字线对齐同一时间。记在账号偏好 ui.desktopCharts，快照 state.preferences；格子 data-agent-target=\"chart-cell:<序号>\"。"
+                       "dock 摆放电脑版右侧面板（可以同时开几个：再开一个面板就成了同一组里的一个页签，拖页签到边上就并排）：{panel: ai / order / strategy / positions / news / reminders, to: tab 和 of 放进同一组 / left / right / above / below 放到 of 的那一边 / close 只关这一个, of?: 另一个已开的面板，缺省是当前面板}；没开的面板会在那里打开；panel: null 仍是关掉整个右侧。快照 state.panel 是当前（选中）的面板，state.dockPanels 是开着的面板，state.dockGroups 是每组里的面板。"
+                       "workspaceLayout 管保存的布局（一次一项）：select <id> 切到一个布局（右侧面板和多图都换成它存的样子）；save <名字> 把现在的样子另存成新布局并切过去（最多 11 个）；rename {id, name} 改名；remove <id> 删除（删当前的切到第一个）。默认有 pre 盘前 / live 盘中 / review 复盘；现在这个布局里的改动会自动存进它。列表是账号偏好 ui.workspaceLayouts（快照 state.preferences），顶栏“布局”下拉是 disclosure: workspace-layouts。"
                        "researchDebate 操作“多 AI 辩论”页（电脑是调研面板“品种”下的辩论子页，同 panel: debate；手机是调研页上的整屏子页；一次一项）：start 发起或打开辩论——start: \"desk\" 等于今日判断旁的“让 AI 们辩一轮”（今日议题），start: \"event\" 辩当前品种最新一条重要快讯，start: <事件 id>（快讯接口 events[].id）等于快讯行的“研讨”；同一事件同一品种当天只辩一次、今日议题资料没变时直接打开已有结果；open: <研讨 id> 打开一次辩论（也是“以前的辩论”里的一格）；rerun: true 是结果页的“再辩一轮”（新跑一次，计入当日次数）；close: true 收起辩论页。辩论本身走 POST /api/research/debates（技术面、供需基本面、资金持仓、新闻宏观四位分析师先同时写报告，再多方开场、空方回应、多方反驳、空方反驳，一句一句流式出现，最后裁判匿名裁决，约 2 到 3 分钟；写完的报告卡片用 disclosure: debate-analyst-technical / supply / flow / news 展开收起），写进今日判断走 POST /api/research/debates/{id}/adopt，停止走 POST /api/research/debates/{id}/cancel（快照 state.researchDebate：id、status queued/running/done/review 需复核/failed/cancelled、step（collect / analysts / turn1…turn4 / judge）、analysts（四份报告写完几份，没写成也算）、lesson（上次复盘）、speaking（正在说的一方）、topic、stance、confidence、canAdopt、adopted、request）。游客不能发起。",
     })
     symbol: str | None = Field(default=None, pattern=SYMBOL_PATTERN, max_length=40)
@@ -1384,6 +1432,9 @@ class UiChanges(BaseModel):
     mobileMarket: MobileMarketChange | None = None
     # 电脑版多图 (2026-11-02): 单图 / 左右 2 格 / 2×2 四格, its cells and the three sync switches.
     desktopCharts: DesktopChartsChange | None = None
+    # 自由布局 (2026-11-02): one side panel's place among several open ones, and the saved layouts.
+    dock: DockChange | None = None
+    workspaceLayout: WorkspaceLayoutChange | None = None
     # 提醒中心 (2026-10-15): the bell's popover on a computer, the 提醒 page on a phone.
     reminderCenter: ReminderCenterChange | None = None
 
@@ -1891,6 +1942,39 @@ def _surface_matches(state, key, value) -> bool:
     return False
 
 
+def _dock_matches(state, value) -> bool:
+    """自由布局: the panel is open (or closed) and sits in `of`'s group for a tab, outside it for a split
+    (state.dockGroups lists each group's panels; a window that does not report it is judged by its own receipt)."""
+    panels = state.get("dockPanels")
+    if not isinstance(panels, list):
+        return True
+    if value["to"] == "close":
+        return value["panel"] not in panels
+    groups = state.get("dockGroups")
+    if value["panel"] not in panels or not isinstance(groups, list):
+        return value["panel"] in panels
+    other = value.get("of")
+    if other is None:
+        return True
+    together = any(value["panel"] in group and other in group for group in groups if isinstance(group, list))
+    return together if value["to"] == "tab" else not together
+
+
+def _workspace_layout_matches(state, value) -> bool:
+    preferences = state.get("preferences")
+    layouts = preference_value(preferences, "ui.workspaceLayouts") if isinstance(preferences, dict) else None
+    if not isinstance(layouts, dict):
+        return True
+    items = [item for item in layouts.get("items") or [] if isinstance(item, dict)]
+    if "select" in value:
+        return layouts.get("current") == value["select"]
+    if "save" in value:
+        return any(item.get("id") == layouts.get("current") and item.get("name") == value["save"] for item in items)
+    if "rename" in value:
+        return any(item.get("id") == value["rename"]["id"] and item.get("name") == value["rename"]["name"] for item in items)
+    return all(item.get("id") != value["remove"] for item in items)
+
+
 def _desktop_charts_matches(state, value) -> bool:
     """电脑版多图: the account document the window reports holds every given value; the selected cell is the
     window's own contract and period (a window without the document is judged by its own receipt)."""
@@ -2039,6 +2123,12 @@ def changes_match(state, changes):
                 return False
         elif key == "desktopCharts":
             if not _desktop_charts_matches(state, value):
+                return False
+        elif key == "dock":
+            if not _dock_matches(state, value):
+                return False
+        elif key == "workspaceLayout":
+            if not _workspace_layout_matches(state, value):
                 return False
         elif key == "positionsTab":
             wanted = POSITIONS_TAB_ALIASES.get(value, value)

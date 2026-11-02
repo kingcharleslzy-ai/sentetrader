@@ -132,6 +132,10 @@ export interface DesktopChartsHandle {
   cells: ShownCell[];
   /** The `desktopCharts` UI command and every click on the grid's controls: throws the reason a change is refused. */
   apply: (change: DesktopChartsChange) => void;
+  /** 自由布局: a saved layout's grid — written as it is, the chart switched to its selected cell. */
+  restore: (charts: DesktopChartsPreferences) => void;
+  /** The grid as a layout keeps it: the selected cell holds the chart's own contract and period. */
+  snapshot: () => DesktopChartsPreferences;
 }
 
 /**
@@ -161,5 +165,19 @@ export function useDesktopCharts({ document, connected, update, current, autoSym
     const settle = () => setPending(shown => shown === plan.charts ? undefined : shown);
     void update({ ui: { desktopCharts: plan.charts } }).then(settle, settle);
   }, [connected, update]);
-  return { charts, cells, apply };
+  const restore = useCallback((saved: DesktopChartsPreferences) => {
+    const next = normalizeDesktopCharts(saved);
+    const cell = next.cells[activeIndex(next)];
+    setPending(next);
+    latest.current.select(cell.symbol ?? undefined, cell.duration);
+    const settle = () => setPending(shown => shown === next ? undefined : shown);
+    if (connected) void update({ ui: { desktopCharts: next } }).then(settle, settle);
+  }, [connected, update]);
+  const snapshot = useCallback(() => {
+    const { charts: now, current: chart } = latest.current;
+    const at = activeIndex(now);
+    return { ...now, cells: now.cells.map((cell, index) => index === at && chart.symbol
+      ? { symbol: chart.symbol, duration: (chart.duration ?? cell.duration) as DurationSeconds } : cell) };
+  }, []);
+  return { charts, cells, apply, restore, snapshot };
 }

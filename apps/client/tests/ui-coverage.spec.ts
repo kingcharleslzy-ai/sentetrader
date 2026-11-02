@@ -250,6 +250,10 @@ test("every user-operable control is commandable or reachable, and visible to th
     // 电脑版多图 (2026-11-02): 2×2 四格 with the sync switches showing, then back to 单图.
     ["chart-grid", [{ desktopCharts: { layout: "four" } }], true],
     ["", [{ desktopCharts: { layout: "single" } }], false],
+    // 自由布局 (2026-11-02): two side panels, one under the other, then the 布局 dropdown.
+    ["side-dock", [{ panel: "news" }, { dock: { panel: "positions", to: "below", of: "news" } }], true],
+    ["workspace-layouts", [{ disclosure: { name: "workspace-layouts", open: true } }], true],
+    ["", [{ disclosure: { name: "workspace-layouts", open: false } }, { panel: null }], false],
     ["quick-volume", [{ panel: "order" }, { quickVolume: 5 }], true],
     ["", [{ quickVolume: 1 }], false],
     // 图表指标就地编辑 (2026-10-02): the chart labels' popovers, opened as disclosures.

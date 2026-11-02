@@ -7,6 +7,7 @@ layout (`/api/app/preferences`) stays separate: it is device geometry with its o
 """
 from __future__ import annotations
 
+import json
 import re
 from typing import Annotated, Any, Literal, Union, get_args, get_origin
 
@@ -386,6 +387,61 @@ class DesktopChartsPreferences(BaseModel):
     syncCrosshair: bool = True
 
 
+# 自由布局 (2026-11-02): the side panels a layout keeps open (several at once, arranged by dragging their tabs — the
+# arrangement is the client's dockview snapshot `grid`), the focused one, and the 多图 it shows. 盘前 / 盘中 / 复盘 come
+# first and may be renamed or removed like any other; `current` is the one on screen, and every change to the screen
+# is saved into it.
+DOCK_PANELS = Literal["ai", "order", "strategy", "positions", "news", "reminders"]
+WORKSPACE_LAYOUTS_MAX = 11
+WORKSPACE_LAYOUT_ID = r"^[a-z0-9-]{1,24}$"
+DOCK_GRID_MAX_CHARS = 32_000
+
+
+class DockLayout(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    panels: list[DOCK_PANELS] = Field(default_factory=list, max_length=6)
+    active: DOCK_PANELS | None = None
+    grid: dict[str, Any] | None = None
+
+    @model_validator(mode="after")
+    def consistent(self):
+        if len(set(self.panels)) != len(self.panels):
+            raise ValueError("面板不能重复")
+        if self.active is not None and self.active not in self.panels:
+            raise ValueError("当前面板要在打开的面板里")
+        if self.grid is not None and len(json.dumps(self.grid, ensure_ascii=False)) > DOCK_GRID_MAX_CHARS:
+            raise ValueError("面板布局太大")
+        return self
+
+
+class WorkspaceLayout(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str = Field(pattern=WORKSPACE_LAYOUT_ID)
+    name: str = Field(min_length=1, max_length=12)
+    dock: DockLayout = Field(default_factory=DockLayout)
+    # The 多图 with the selected cell's own contract and period in cells[active]; null keeps the grid as it is.
+    charts: DesktopChartsPreferences | None = None
+
+
+def _default_workspace_layouts() -> list[WorkspaceLayout]:
+    return [WorkspaceLayout(id="pre", name="盘前"), WorkspaceLayout(id="live", name="盘中"), WorkspaceLayout(id="review", name="复盘")]
+
+
+class WorkspaceLayoutsPreferences(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    current: str = Field(default="live", pattern=WORKSPACE_LAYOUT_ID)
+    items: list[WorkspaceLayout] = Field(default_factory=_default_workspace_layouts, min_length=1, max_length=WORKSPACE_LAYOUTS_MAX)
+
+    @model_validator(mode="after")
+    def known_current(self):
+        ids = [item.id for item in self.items]
+        if len(set(ids)) != len(ids):
+            raise ValueError("布局 id 不能重复")
+        if self.current not in ids:
+            raise ValueError("当前布局不在列表里")
+        return self
+
+
 class UiPreferences(BaseModel):
     model_config = ConfigDict(extra="forbid")
     quickSkills: list[str] = Field(default_factory=lambda: list(DEFAULT_QUICK_SKILLS),
@@ -400,6 +456,8 @@ class UiPreferences(BaseModel):
     mobileMarket: MobileMarketPreferences = Field(default_factory=MobileMarketPreferences)
     # 电脑版多图 (2026-11-02): the desktop chart grid, remembered per account.
     desktopCharts: DesktopChartsPreferences = Field(default_factory=DesktopChartsPreferences)
+    # 自由布局 (2026-11-02): 盘前 / 盘中 / 复盘 and the saved ones (side panels + 多图), remembered per account.
+    workspaceLayouts: WorkspaceLayoutsPreferences = Field(default_factory=WorkspaceLayoutsPreferences)
 
     @field_validator("quickSkills")
     @classmethod
