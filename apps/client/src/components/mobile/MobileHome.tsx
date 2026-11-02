@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Bell, ChevronDown } from "lucide-react";
 import { HelpTip } from "../Blocks";
-import { formatSigned, signClass } from "../futures/support";
+import { formatNumber, formatSigned, signClass } from "../futures/support";
+import { Sparkline } from "../Sparkline";
 import { CardSkeleton } from "./MobileFeed";
 import { RollingText } from "./mobileMotion";
 import { approvalMinutesLeft, type MobileFeedItem } from "./feedItems";
@@ -27,20 +28,30 @@ export interface WatchInfo {
   closed: boolean;
 }
 
+/** One row of the 今天 page's 持仓 / 自选 lists. */
+export interface HomeQuote {
+  symbol: string; name: string; code: string; decimals: number;
+  last: number | null; changePercent: number | null;
+  /** 持仓: "多1" / "空2"; floating: that contract's 浮动盈亏. */
+  holding?: string; floating?: number | null;
+  /** 自选: the last closes of its 15 分钟 bars, oldest first (the sparkline). */
+  curve?: number[];
+}
+
 const STANCE_DATA: Record<JudgmentChip["stance"], string> = { 偏多: "long", 偏空: "short", 震荡: "range", 暂无: "none", 读取中: "loading" };
 const NEW_PILL_SCROLL = 40;
 
 /**
- * AI 首页 (手机版新结构, 2026-10-06; the approved mockup): 今天概况 (three tiles that go somewhere),
- * the cards waiting for 确认 pinned in their own card component until handled or expired, AI 正在盯 (第二轮
+ * AI 首页 (手机版新结构, 2026-10-06; 账户驾驶舱 2026-11-02, owner-chosen direction A): 权益 large with 今天概况
+ * (浮动盈亏 / 待确认 / 今天提醒, each goes somewhere) under it, AI 正在盯, the cards waiting for 确认 pinned in their own card component until handled or expired, AI 正在盯 (第二轮
  * 2026-11-01: always there, one row of 到价 / 策略在跑 / 今日提醒 chips that open where each is managed, the watched
- * items themselves behind its "?"), one row of 今日判断 chips (a tap opens 调研 on
+ * items themselves behind its "?"), 持仓 and 自选 as quote rows (自选 with a 15 分钟 sparkline), one row of 今日判断 chips (a tap opens 调研 on
  * that product), 最新提醒 (the 提醒中心's two newest, 2026-10-15), then the timeline that used to be
  * 通知 — its filters and the AI 简报 product chips, each row time · title · one line. A new row opens
  * in at the top; scrolled down, it waits behind “↑ N 条新动态”. What is unread is the 提醒中心's (the
  * Runtime's read marks), not this timeline's.
  */
-export function MobileHome({ rows, pending, renderCard, quickPending, now, today, onPositions, watch, onAlerts, onStrategies, onTodayReminders, judgments, onJudgment,
+export function MobileHome({ rows, pending, renderCard, quickPending, now, account, today, holdings = [], watchRows = [], onOpenSymbol = () => undefined, onQuotes = () => undefined, onPositions, watch, onAlerts, onStrategies, onTodayReminders, judgments, onJudgment,
   filter, onFilter, products, product, onProduct, onOpen, onReminders, latest, notice, refreshError, loading = false, focus }: {
   rows: NotifyRow[];
   /** The cards waiting for 确认, newest first. */
@@ -51,8 +62,17 @@ export function MobileHome({ rows, pending, renderCard, quickPending, now, today
   now: number;
   /** reminders / unreadReminders: today's rows of the 提醒中心 and how many of all reminders are unread. */
   /** floatingUsd: the 外盘 USD ledger's floating P&L (本站模拟两本账), shown beside the RMB one, never summed; null without USD positions. */
+  /** The account's 权益 (人民币账) and, beside it, the 外盘 USD ledger's; null while not read. */
+  account?: { name?: string; equity: number | null; equityUsd: number | null };
   today: { positions: number; floating: number | null; floatingUsd?: number | null; reminders: number; unreadReminders: number };
   onPositions: () => void;
+  /** 持仓 (one row per held contract) and 自选 (the starred products' main contracts, at most five). */
+  holdings?: HomeQuote[];
+  watchRows?: HomeQuote[];
+  /** A 持仓 / 自选 row: open that contract's chart. */
+  onOpenSymbol?: (symbol: string) => void;
+  /** 全部自选: 看盘 · 报价's 自选 board. */
+  onQuotes?: () => void;
   watch: WatchInfo;
   /** AI 正在盯's chips: 到价 → 我的提醒, 策略在跑 → 策略, 今日提醒 → 提醒记录. */
   onAlerts: () => void;
@@ -124,19 +144,23 @@ export function MobileHome({ rows, pending, renderCard, quickPending, now, today
     <div className="fdm-home" data-testid="mobile-feed" aria-label="AI 首页" data-agent-target="mobile-ai" ref={root}>
       {newCount ? <button type="button" className="fdm-new-pill" onClick={toTop}>↑ {newCount} 条新动态</button> : null}
       {notice ? <p className="fdm-feed-notice" role="status">{notice}</p> : null}
-      <div className="fdm-today" role="group" aria-label="今天概况">
-        <button type="button" onClick={onPositions} aria-label={`持仓 ${today.positions} 笔${today.positions && today.floating !== null ? `，${today.floating >= 0 ? "浮盈" : "浮亏"} ${formatSigned(today.floating, 0)}` : ""}${today.floatingUsd != null ? `，外盘 ${formatSigned(today.floatingUsd, 0)} 美元` : ""}`}><span>持仓</span><b>{today.positions} 笔</b>
-          {today.positions && today.floating !== null ? <small className={signClass(today.floating)}>{today.floating >= 0 ? "浮盈" : "浮亏"} <RollingText text={formatSigned(today.floating, 0)} /></small>
-            : today.floatingUsd == null ? <small>&nbsp;</small> : null}
-          {today.floatingUsd != null ? <small className={signClass(today.floatingUsd)}>美元 <RollingText text={formatSigned(today.floatingUsd, 0)} /></small> : null}</button>
-        <button type="button" onClick={toPinned} disabled={!pending.length}
-          aria-label={`待确认 ${waiting} 张${pending.length ? `，还剩 ${approvalMinutesLeft(pending[0], now)} 分钟` : ""}`}><span>待确认</span><b>{waiting ? `${waiting} 张` : "0"}</b>
-          <small>{pending.length ? `还剩 ${approvalMinutesLeft(pending[0], now)} 分钟` : " "}</small></button>
-        <button type="button" onClick={onReminders}
-          aria-label={`今天提醒 ${today.reminders} 条${today.unreadReminders ? `，${today.unreadReminders} 条未读` : ""}`}><span>今天提醒</span><b>{today.reminders ? `${today.reminders} 条` : "0"}</b>
-          <small>{today.unreadReminders ? `${today.unreadReminders} 条未读` : " "}</small></button>
-      </div>
-      <section className="fdm-watching" aria-label="AI 正在盯" data-testid="mobile-watch" data-agent-target="mobile-watch">
+      <section className="fdm-account" aria-label="账户">
+        <div className="fdm-account-head"><span>权益{account?.name ? ` · ${account.name}` : ""}</span>
+          {account?.equityUsd != null ? <span>美元账 <b>{formatNumber(account.equityUsd, 0)}</b></span> : null}</div>
+        <div className="fdm-equity"><b>{account?.equity != null ? <RollingText text={formatNumber(account.equity, 0)} /> : "—"}</b><span>元</span></div>
+        <div className="fdm-today" role="group" aria-label="今天概况">
+          <button type="button" onClick={onPositions} aria-label={`持仓 ${today.positions} 笔${today.positions && today.floating !== null ? `，${today.floating >= 0 ? "浮盈" : "浮亏"} ${formatSigned(today.floating, 0)}` : ""}${today.floatingUsd != null ? `，外盘 ${formatSigned(today.floatingUsd, 0)} 美元` : ""}`}><span>浮动盈亏</span>
+            {today.positions && today.floating !== null ? <b className={signClass(today.floating)}><RollingText text={formatSigned(today.floating, 0)} /></b> : <b>—</b>}
+            <small>{today.floatingUsd != null ? <>美元 <RollingText text={formatSigned(today.floatingUsd, 0)} /></> : `持仓 ${today.positions} 笔`}</small></button>
+          <button type="button" onClick={toPinned} disabled={!pending.length}
+            aria-label={`待确认 ${waiting} 张${pending.length ? `，还剩 ${approvalMinutesLeft(pending[0], now)} 分钟` : ""}`}><span>待确认</span><b>{waiting ? `${waiting} 张` : "0"}</b>
+            <small>{pending.length ? `还剩 ${approvalMinutesLeft(pending[0], now)} 分钟` : " "}</small></button>
+          <button type="button" onClick={onReminders}
+            aria-label={`今天提醒 ${today.reminders} 条${today.unreadReminders ? `，${today.unreadReminders} 条未读` : ""}`}><span>今天提醒</span><b>{today.reminders ? `${today.reminders} 条` : "0"}</b>
+            <small>{today.unreadReminders ? `${today.unreadReminders} 条未读` : " "}</small></button>
+        </div>
+      </section>
+      <section className="fdm-watching" aria-label="AI 正在盯" data-testid="mobile-watch" data-agent-target="mobile-watch" data-closed={watch.closed ? "" : undefined}>
         <h3>AI 正在盯<HelpTip helpKey="mobile-watch" label="AI 正在盯">{watched.length ? `${watched.join("；")}。` : "还没有持仓、提醒或策略。"}点一个胶囊进管它的地方。</HelpTip></h3>
         <div className="fdm-chips" role="group" aria-label="AI 正在盯">
           <button type="button" onClick={onAlerts}>到价 <b>{watch.alerts.length}</b></button>
@@ -150,6 +174,25 @@ export function MobileHome({ rows, pending, renderCard, quickPending, now, today
       {pending.length > 1 ? <button type="button" className="fdm-pin-more" aria-expanded={moreOpen} onClick={() => setMoreOpen(open => !open)}>
         {moreOpen ? "收起其余待确认" : `还有 ${pending.length - 1} 张待确认`}<ChevronDown aria-hidden="true" /></button> : null}
       {moreOpen ? pending.slice(1).map(item => <div className="fdm-pin" key={item.id} data-pin-id={item.id}>{renderCard(item)}</div>) : null}
+      {holdings.length ? <section className="fdm-quotes-home" aria-label="持仓" data-agent-target="mobile-home-positions">
+        <div className="fdm-sec"><strong>持仓 <span>{holdings.length}</span></strong><button type="button" onClick={onPositions} aria-label="全部持仓">全部</button></div>
+        <div className="fdm-hq-head" aria-hidden="true"><span>合约</span><span>现价</span><span>涨跌</span><span>浮动</span></div>
+        {holdings.map(row => <button type="button" key={row.symbol} className="fdm-hq" onClick={() => onOpenSymbol(row.symbol)} aria-label={`${row.name} ${row.holding ?? ""}`.trim()}>
+          <span className="fdm-hq-name"><b>{row.name}</b>{row.holding ? <em data-side={row.holding.startsWith("多") ? "long" : "short"}>{row.holding}</em> : null}</span>
+          <span>{formatNumber(row.last, row.decimals)}</span>
+          <span className={signClass(row.changePercent)}>{row.changePercent == null ? "—" : `${formatSigned(row.changePercent, 2)}%`}</span>
+          <b className={signClass(row.floating)}>{row.floating == null ? "—" : formatSigned(row.floating, 0)}</b>
+        </button>)}
+      </section> : null}
+      <section className="fdm-quotes-home" aria-label="自选" data-agent-target="mobile-home-watchlist">
+        <div className="fdm-sec"><strong>自选</strong><span>走势 · 近 48 根 15 分钟</span><button type="button" onClick={onQuotes} aria-label="全部自选">全部</button></div>
+        {watchRows.length ? watchRows.map(row => <button type="button" key={row.symbol} className="fdm-hq fdm-hq-watch" onClick={() => onOpenSymbol(row.symbol)} aria-label={row.name}>
+          <span className="fdm-hq-name"><b>{row.name}</b><small>{row.code}</small></span>
+          <span className={`fdm-hq-spark ${signClass(row.changePercent)}`}>{row.curve && row.curve.length > 1 ? <Sparkline values={row.curve} className="fdm-spark" label={`${row.name} 走势`} /> : null}</span>
+          <span>{formatNumber(row.last, row.decimals)}</span>
+          <b className={signClass(row.changePercent)}>{row.changePercent == null ? "—" : `${formatSigned(row.changePercent, 2)}%`}</b>
+        </button>) : <p className="fdm-note">还没有自选。到看盘 · 报价或合约列表里点星标加。</p>}
+      </section>
       {judgments.length ? <>
         <div className="fdm-sec"><strong>今日判断</strong><span>点一个看完整调研</span></div>
         <div className="fdm-judges" role="group" aria-label="今日判断">

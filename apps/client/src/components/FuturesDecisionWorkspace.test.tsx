@@ -2859,7 +2859,7 @@ test("手机版 AI 首页：今天概况三格、时间线行按时间倒序（�
   render(<FuturesDecisionWorkspace {...values as any} />);
   const home = screen.getByTestId("mobile-feed");
   const tiles = within(home).getByRole("group", { name: "今天概况" });
-  expect(within(tiles).getByRole("button", { name: /^持仓/ })).toHaveTextContent("1 笔浮盈 +2,340");
+  expect(within(tiles).getByRole("button", { name: /^持仓/ })).toHaveTextContent("浮动盈亏+2,340持仓 1 笔");
   expect(within(tiles).getByRole("button", { name: /^待确认/ })).toHaveTextContent("待确认0");
   expect(within(home).queryByTestId("research-judgment-card")).toBeNull();
   const rows = () => within(screen.getByRole("list", { name: "时间线" })).getAllByRole("button");

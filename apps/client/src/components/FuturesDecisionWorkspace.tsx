@@ -12,7 +12,7 @@ import { TradeReview } from "./TradeReview";
 import { ChevronLeft, CircleAlert, GripVertical, PanelRightClose, ReceiptText } from "lucide-react";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, Dispatch, ReactNode, SetStateAction } from "react";
-import { chartSymbolOf, requestJson, sameContract } from "../api";
+import { chartSymbolOf, requestJson, sameContract, type MarketBoardRow } from "../api";
 import type { AccountPosition, MarketWorkbenchSnapshot, SimulationOrder } from "../api";
 import { ConnectionProgress } from "./ConnectionProgress";
 import { AiOrb, useAppWorkbench } from "./AiActivity";
@@ -93,7 +93,9 @@ import type { ChatSuggestionView } from "../api";
 import { useMobileLayout } from "../hooks/useMobileLayout";
 import { MobileWorkspace, locateCard, type MobilePage, type MobileTab } from "./mobile/MobileWorkspace";
 import { useDeskJudgment, useDeskJudgments } from "./mobile/MobileFeed";
-import { MobileHome, type WatchInfo } from "./mobile/MobileHome";
+import { MobileHome, type HomeQuote, type WatchInfo } from "./mobile/MobileHome";
+import { quoteRows } from "./mobile/MobileQuotes";
+import { useMultiChartReads } from "./mobile/MobileMultiChart";
 import { MobileStrategy, useMobileStrategies } from "./mobile/MobileStrategy";
 import { MobileStrategyEditor, useMobileStrategyEditor } from "./mobile/MobileStrategyEditor";
 import { StrategyStarts } from "./StrategyStarts";
@@ -133,6 +135,10 @@ import { FONT_SCALE_OPTIONS } from "../appearance";
 const BUSY_DIALOGS = ["quick-order-confirm", "abandon-order", "strategy-launch", "protection-reprice-confirm"];
 /** How long after the latest finished answer the preferences are read again (a burst of answers reads once). */
 const PREFERENCES_REREAD_MS = 1_500;
+// 今天 · 自选 shows the first five starred products; 全部 opens the whole 自选 board.
+const HOME_WATCH_ROWS = 5;
+const EMPTY_BOARD_ROWS: ReadonlyMap<string, MarketBoardRow> = new Map();
+const NO_OWN_CHART = {};
 
 export type { FuturesWorkspaceView, ManualSimulationRequest, SimulationLimitSettings } from "./futures/support";
 
@@ -680,6 +686,8 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   // the board view alone on one exchange or 自选 asks only for those rows; the drawer and the phone's
   // 报价 / 多图 (its automatic cells rank the whole board) need every row.
   const phoneMarket = mobile && mobileTab === "market" && !mobileSub;
+  // 今天 · 账户驾驶舱 (2026-11-02): its 持仓 and 自选 rows read the same board, only the held and starred products.
+  const phoneHome = mobile && !isGuest && mobileTab === "ai" && !mobileSub;
   // 手机看盘 (2026-10-09): 报价 / 多图 / 单图 and their settings (account preference ui.mobileMarket; a visitor's
   // stay on this device), the single chart's sub pane from the shared chart.subPaneList, the `mobileMarket` command.
   const mobileMarket = useMobileMarket({ guest: isGuest, connected: Boolean(connectedRuntimeUrl), document: prefs.preferences.ui?.mobileMarket,
@@ -711,12 +719,29 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     changeKey: JSON.stringify([dock, dockGroups, desktopCharts.charts, chartCurrent]) });
   // The phone's 报价 · 外盘 板块 has its own read too: only that board open means no domestic board.
   const phoneForeignOnly = phoneMarket && mobileMarket.market.view === "quotes" && mobileMarket.market.board === "FOREIGN";
-  const boardWant = useMemo<BoardWant>(() => contractOpen || phoneMarket || boardExchange === "all" ? { all: true }
+  const boardWant = useMemo<BoardWant>(() => contractOpen || phoneMarket || (!phoneHome && boardExchange === "all") ? { all: true }
+    : phoneHome ? { products: flashWatchProducts }
     : boardExchange === "watchlist" ? { products: watchlist } : { exchanges: [boardExchange] },
-  [contractOpen, phoneMarket, boardExchange, watchlist]);
+  [contractOpen, phoneMarket, phoneHome, flashWatchProducts, boardExchange, watchlist]);
   // The 外盘 group has its own read: a window showing only it does not keep the domestic board subscribed.
   const board = useMarketBoard(connectedRuntimeUrl,
-    (!mobile && view === "board" && boardExchange !== FOREIGN_BOARD) || contractOpen || (phoneMarket && !phoneForeignOnly), undefined, boardWant);
+    (!mobile && view === "board" && boardExchange !== FOREIGN_BOARD) || contractOpen || (phoneMarket && !phoneForeignOnly) || phoneHome, undefined, boardWant);
+  const homePositions = props.account?.positions;
+  const homeHoldings = useMemo<HomeQuote[]>(() => !phoneHome ? [] : quoteRows({ board: board.snapshot, boardId: "watchlist", positions: homePositions ?? [],
+    watchlist: [], instruments: props.instruments?.items ?? [], extra: EMPTY_BOARD_ROWS }).map(row => {
+    const held = (homePositions ?? []).filter(position => sameContract(position.symbol, row.symbol));
+    return { symbol: row.symbol, name: row.name, code: row.code, decimals: row.decimals, holding: row.holding,
+      last: row.values.last ?? held[0]?.lastPrice ?? null, changePercent: row.values.changePercent ?? null,
+      floating: held.reduce((sum, position) => sum + (Number(position.unrealizedPnl) || 0), 0) };
+  }), [phoneHome, board.snapshot, homePositions, props.instruments]);
+  const homeWatch = useMemo(() => !phoneHome ? [] : quoteRows({ board: board.snapshot, boardId: "watchlist", positions: [], watchlist,
+    instruments: props.instruments?.items ?? [], extra: EMPTY_BOARD_ROWS }).slice(0, HOME_WATCH_ROWS), [phoneHome, board.snapshot, watchlist, props.instruments]);
+  // The 自选 sparklines: one 15 分钟 series per row, read like the phone's 多图 cells while 今天 shows.
+  const homeCells = useMemo(() => homeWatch.map((row, index) => ({ index, symbol: row.symbol, duration: 900 as const, auto: false })), [homeWatch]);
+  const homeCurves = useMultiChartReads(connectedRuntimeUrl, homeCells, phoneHome, NO_OWN_CHART);
+  const homeWatchRows = useMemo<HomeQuote[]>(() => homeWatch.map(row => ({ symbol: row.symbol, name: row.name, code: row.code, decimals: row.decimals,
+    last: row.values.last ?? null, changePercent: row.values.changePercent ?? null,
+    curve: homeCurves.get(`${row.symbol.toUpperCase()}@900`)?.market?.bars?.slice(-48).map(bar => bar.close) })), [homeWatch, homeCurves]);
   // The desktop board is not on screen in the phone layout: neither of its reads runs there.
   // 外盘 rows are read for the 外盘 chip, and for 自选 when it holds a foreign product (外盘代码统一 2026-10-21).
   const foreignBoard = useForeignBoard(connectedRuntimeUrl, !mobile && view === "board"
@@ -1480,6 +1505,10 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
               floatingUsd: positions.some(position => position.accountId)
                 ? positions.filter(position => position.accountId).reduce((sum, position) => sum + (Number(position.unrealizedPnl) || 0), 0) : null,
               reminders: reminders.today.length, unreadReminders: reminders.unread }}
+            account={{ name: currentAccount?.displayName, equity: props.account?.account.equity ?? null, equityUsd: ledgerSnapshots.USD?.equity ?? null }}
+            holdings={homeHoldings} watchRows={homeWatchRows}
+            onOpenSymbol={symbol => { if (!sameContract(symbol, quote?.symbol)) selectContract(symbol); showMobileChart(); }}
+            onQuotes={() => { selectMobileTab("market"); mobileMarket.update({ view: "quotes", board: "watchlist" }); }}
             onPositions={() => tapPage("positions")} watch={watch} judgments={chips} onJudgment={openJudgment}
             onAlerts={showMyReminders} onStrategies={() => { setMobileStrategyTab("running"); selectMobileTab("strategy"); }}
             onTodayReminders={() => { setRemindersTab("history"); showReminders(); }}

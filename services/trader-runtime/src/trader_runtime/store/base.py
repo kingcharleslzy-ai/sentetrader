@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 import sqlite3
 import threading
@@ -1266,6 +1267,14 @@ class StoreBase:
                     self.connection.rollback()
                     raise RuntimeError("trading_account_migration_foreign_key_failed")
             self._migrate_strategy_fill_events_key()
+            # 新账户默认自选 (owner 2026-11-02): a 自选 saved empty before this change gets the default five once.
+            # The fill moves updated_at past the cutoff, so a list the user empties afterwards stays empty.
+            from ..user_preferences import DEFAULT_WATCHLIST
+            self.connection.execute(
+                "UPDATE user_preferences SET preferences_json = json_set(preferences_json, '$.watchlist.products', json(?)),"
+                " version = version + 1, updated_at = ?"
+                " WHERE json_array_length(preferences_json, '$.watchlist.products') = 0 AND updated_at < ?",
+                (json.dumps(DEFAULT_WATCHLIST), utc_now(), "2026-11-02T06:10:00+00:00"))
             self._add_column("strategy_monitor_states", "last_error TEXT")
             self._add_column("strategy_monitor_states", "last_error_at TEXT")
             self._add_column(

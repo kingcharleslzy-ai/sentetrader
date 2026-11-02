@@ -119,7 +119,9 @@ async def test_admin_plan_surface_edits_brief_products_by_key(brief_app):
 async def test_default_subscriptions_follow_watchlist_then_symbol_then_board(brief_app):
     app, member, _, _ = brief_app
     # No watchlist, no choice: the caller's current main contract wins, else the
-    # board's most-traded main contract (the fake board's rb).
+    # board's most-traded main contract (the fake board's rb). A new account starts
+    # with the default 自选 (2026-11-02), so empty it first.
+    assert (await member.put('/api/preferences', json={'watchlist': {'products': []}})).status_code == 200
     board_default = (await member.get('/api/app/brief-subscriptions')).json()
     assert board_default == {'products': [{'product': 'SHFE.rb', 'name': '螺纹钢',
                                            'symbol': 'SHFE.rb2610'}],

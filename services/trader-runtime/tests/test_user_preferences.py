@@ -382,7 +382,9 @@ async def test_the_watchlist_is_one_preference_list_of_products(tmp_path):
     app = _app(tmp_path, "watchlist.sqlite3")
     async with app.router.lifespan_context(app):
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url="http://runtime", headers=HEADERS) as client:
-            assert (await client.get("/api/preferences")).json()["preferences"]["watchlist"] == {"products": []}
+            # A new account starts with five busy products (owner 2026-11-02).
+            assert (await client.get("/api/preferences")).json()["preferences"]["watchlist"] == {
+                "products": ["SHFE.rb", "SHFE.au", "INE.sc", "DCE.i", "CFFEX.IF"]}
             starred = await client.put("/api/preferences", json={"watchlist": {"products": ["SHFE.rb", "CZCE.CF"]}})
             assert starred.status_code == 200, starred.text
             assert starred.json()["preferences"]["watchlist"]["products"] == ["SHFE.rb", "CZCE.CF"]

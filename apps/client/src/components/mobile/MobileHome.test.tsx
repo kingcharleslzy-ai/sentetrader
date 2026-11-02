@@ -137,7 +137,7 @@ it("置顶区只完整显示最近的一张待确认卡，其余折成一行“�
 it("本站模拟两本账：持仓格里美元的浮动盈亏单独一行，不和人民币相加（2026-10-22）", () => {
   render(<Home today={{ positions: 2, floating: -610, floatingUsd: 160, reminders: 0, unreadReminders: 0 }} />);
   const tile = within(screen.getByRole("group", { name: "今天概况" })).getByRole("button", { name: /^持仓/ });
-  expect(tile).toHaveTextContent("浮亏 -610");
+  expect(tile).toHaveTextContent("浮动盈亏-610");
   expect(tile).toHaveTextContent("美元 +160");
   expect(tile).toHaveAttribute("aria-label", "持仓 2 笔，浮亏 -610，外盘 +160 美元");
 });

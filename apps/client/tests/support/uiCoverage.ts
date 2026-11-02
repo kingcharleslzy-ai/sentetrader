@@ -117,6 +117,10 @@ export const COMMANDABLE: Rule[] = [
   // 手机版新结构 (2026-10-06): AI 首页's 今天概况 / 今日判断 / bell, the 策略 tab and the 回测结果页
   // (before the desktop rules: 看图表 and 上线运行 mean other things there).
   { match: control => control.group === "mobile-ai" && /^持仓/.test(control.label), via: "mobilePage: positions（AI 首页 · 今天概况的持仓格）" },
+  // 账户驾驶舱 (2026-11-02): 今天's 持仓 / 自选 rows open that contract's single chart; 全部 opens their full lists.
+  { match: control => control.group === "mobile-home-positions" && control.label === "全部持仓", via: "mobilePage: positions（今天 · 持仓的“全部”）" },
+  { match: control => control.group === "mobile-home-watchlist" && control.label === "全部自选", via: "mobileTab: market + mobileMarket: {board: watchlist}（今天 · 自选的“全部”）" },
+  { match: control => control.group === "mobile-home-positions" || control.group === "mobile-home-watchlist", via: "symbol + mobileTab: market + mobileMarket: {view: single}（今天 · 持仓 / 自选的一行：到看盘单图看这个合约）" },
   { match: control => control.group === "mobile-ai" && /^今天提醒/.test(control.label), via: "reminderCenter: {open: true}（AI 首页 · 今天提醒格：进提醒页；条数在快照 state.reminderCenter.today / unread）" },
   // AI 正在盯 (手机版第二轮): the 今天 page's three chips only open where each is managed.
   { match: /^到价 \d+$/, via: "reminders: {tab: mine}（今天页 AI 正在盯 · 到价：提醒页的我的提醒）" },

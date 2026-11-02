@@ -522,6 +522,10 @@ class MarketBoardPreferences(BaseModel):
 # catalog spells it; a foreign product is its 品种目录键 "COMEX.GC" (instruments.PRODUCT_KEY_PATTERN, 2026-10-21) — so the board's 自选 filter follows the main contract across roll-overs. The
 # catalog itself is not read here: a starred product must survive a catalog read failing.
 WATCHLIST_MAX = 50
+# 新账户默认自选 (owner 2026-11-02, "新账户看起来空空的"): five of the busiest main products. Only a document
+# without a stored list gets them (a new account, or one saved before 自选 existed); a stored list, empty
+# included, is the user's own. The client keeps an empty default (no flash of these before the read).
+DEFAULT_WATCHLIST: list[str] = ["SHFE.rb", "SHFE.au", "INE.sc", "DCE.i", "CFFEX.IF"]
 _WATCHLIST_PRODUCT = re.compile(PRODUCT_KEY_PATTERN)
 
 
@@ -538,7 +542,7 @@ class WatchlistPreferences(BaseModel):
     """自选品种: the starred products, newest last. Read by the board's 自选 filter, the drawer and
     the contract head; the UI toggles and the AI's update_preferences write the same whole list."""
     model_config = ConfigDict(extra="forbid")
-    products: list[str] = Field(default_factory=list, max_length=WATCHLIST_MAX)
+    products: list[str] = Field(default_factory=lambda: list(DEFAULT_WATCHLIST), max_length=WATCHLIST_MAX)
 
     @field_validator("products", mode="before")
     @classmethod

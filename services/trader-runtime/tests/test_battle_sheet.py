@@ -66,6 +66,8 @@ async def test_the_route_ranks_the_users_watchlist_with_their_playbooks(tmp_path
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test", headers={"Origin": "http://127.0.0.1:5173"}) as client:
             assert (await client.get("/api/research/sheet")).status_code == 401
             assert (await client.post("/api/auth/local", headers={"Authorization": "Bearer sheet-test-token-with-32-characters!!"})).status_code == 200
+            # A new account starts with the default 自选 (2026-11-02); emptied, the sheet has no rows.
+            assert (await client.put("/api/preferences", json={"watchlist": {"products": []}})).status_code == 200
             assert (await client.get("/api/research/sheet")).json()["rows"] == []
             assert (await client.put("/api/preferences", json={"watchlist": {"products": ["SHFE.rb", "COMEX.GC", "SHFE.au"]}})).status_code == 200
             assert (await client.post("/api/playbooks", json={"name": "昨高突破", "entryRules": "站上昨高"})).status_code == 201
