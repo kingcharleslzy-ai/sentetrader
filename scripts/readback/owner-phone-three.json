@@ -1,0 +1,14 @@
+{
+  "about": "所有者真机三处（#1271）：手机今天页自选里沪深2612 有价格和涨跌（看截图 01）；调研页今日作战表来自推送——第一次打开排出来，切走再回来直接是上次的结果、不再显示“正在排作战表…”（截图 02、03）。说完话回执自动消失要发一句话，不在本计划里，另用测试账号单独看。只读，不写数据。",
+  "device": "phone",
+  "steps": [
+    {"ui": {"mobileTab": "ai"}, "expect": {"mobileTab": "ai", "observation.text": {"includes": "沪深2612"}}},
+    {"screenshot": "01-home-watchlist", "scrollTo": "自选"},
+    {"ui": {"mobileTab": "research"}, "expect": {"mobileTab": "research", "observation.text": {"includes": "更新"}}},
+    {"screenshot": "02-sheet-first"},
+    {"ui": {"mobileTab": "ai"}, "expect": {"mobileTab": "ai"}},
+    {"ui": {"mobileTab": "research"}, "expect": {"mobileTab": "research", "observation.text": {"includes": "更新"}}, "timeoutMs": 5000},
+    {"screenshot": "03-sheet-again"},
+    {"ui": {"mobileTab": "ai"}, "expect": {"mobileTab": "ai"}}
+  ]
+}
