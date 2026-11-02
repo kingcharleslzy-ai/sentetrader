@@ -4,7 +4,7 @@ import type { SimulationOrder } from "../../api";
 import { CardShell } from "../CardShell";
 import { SENT_STATUSES, closedBadge, notSentReason } from "./CloseBatchProposalCard";
 import { useVoiceConfirmCountdown, voiceConfirmLabel } from "./voiceConfirm";
-import { formatFee, orderStatusText } from "../futures/support";
+import { chinaClock, formatFee, orderStatusText } from "../futures/support";
 import { CardActionButtons } from "./cardActions";
 import { CardSteps, priceWords, remainingResult, remainingStep, type CardStep } from "./ProtectionSteps";
 
@@ -140,7 +140,7 @@ export function TradeProposalCard({
           ) : <div><dt>风控参考价</dt><dd>{proposal.stopPrice?.toFixed(2) ?? "—"}</dd></div>}
           {close ? null : <div><dt>最大预计亏损</dt><dd>{lossLabel}</dd></div>}
           <div><dt>风控</dt><dd>{proposal.riskCheck.reason}</dd></div>
-          <div><dt>生成时间</dt><dd>{proposal.updatedAt.slice(11, 19) || "刚刚"}</dd></div>
+          <div><dt>生成时间</dt><dd>{chinaClock(proposal.updatedAt) || "刚刚"}</dd></div>
           {proposal.auditId ? <div><dt>审计记录</dt><dd>{proposal.auditId.slice(0, 8)} · 订单状态以{proposal.accountLabel === "本站模拟账户" ? "本站模拟" : "快期"}查询结果为准</dd></div> : null}
         </dl>
       }

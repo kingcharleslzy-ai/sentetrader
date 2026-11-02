@@ -148,3 +148,27 @@ def test_analysis_arguments_are_bounded() -> None:
         turn_id="turn-invalid-context", mode="local",
     )
     assert invalid_context["success"] is False
+
+
+def test_a_closed_session_says_which_break_and_when_trading_resumes() -> None:
+    """#932 11-02: in the 10:15 break a card was refused as “当前行情不是最新状态” while the 下单票 said 休市; the gate
+    now names the session (the ticket's own judgement) — which break, and when trading resumes."""
+    from datetime import datetime, timedelta, timezone
+
+    from trader_runtime.voice_front import closed_order_words
+
+    class BreakProvider(FakeReadOnlyDataProvider):
+        def market_snapshot(self, turn_id: str, symbol: str) -> dict:
+            return {**super().market_snapshot(turn_id, symbol), "marketSessionStatus": "closed", "dataStatus": "stale"}
+
+    tools = TraderReadOnlyTools(BreakProvider(), _status)
+    response, _ = tools.call(tool="get_futures_decision_context", arguments={"symbol": "SHFE.au2612"},
+                             turn_id="turn-break", mode="local")
+    context = _tool_payload(response)["data"]
+    assert context["proposalReady"] is False and context["proposalReadinessReasons"][0] == "market_session_closed"
+    assert "market_not_fresh" not in context["proposalReadinessReasons"]
+    issue = context["userFacing"]["candidateIssues"][0]
+    assert issue.startswith("现在") and issue.endswith("暂不可下单")
+    break_time = datetime(2026, 11, 2, 10, 20, tzinfo=timezone(timedelta(hours=8)))
+    assert closed_order_words(has_night=True, exchange="SHFE", now=break_time) == "现在是上午小节休息，十点半继续，暂不可下单"
+    assert closed_order_words(has_night=False, exchange="CME", now=break_time) is None

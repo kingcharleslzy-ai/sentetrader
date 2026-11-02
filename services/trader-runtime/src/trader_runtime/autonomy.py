@@ -1835,8 +1835,25 @@ class AutonomousSimulationService:
         anchor_volume, watermark = self._direct_stop_anchor(fills, positions, symbol, position_direction, position_bucket)
         account_day = self._direct_stop_day()
         trailing_state = self._direct_trailing(symbol, position_direction, positions, trigger, trailing, breakeven_after_r)
+        # 改保护 (#932 11-02): a protection for every lot the bucket holds replaces the user's own protection already on
+        # it, in the same transaction — never two stops on one lot. A partial one stacks as before (it never leaves
+        # lots that were protected without protection).
+        try:  # each row on the bucket it protects now (a today stop armed yesterday guards 昨仓)
+            mine = [row for row in self.manual_protection_snapshot_rows(
+                user_id=user_id, symbol=symbol, direction=position_direction) if row["position_bucket"] == position_bucket]
+        except RemainingProtectionInvalid:
+            mine = []  # which lots the old rows guard is not provable now: arm alongside, as before, never refuse a stop
+        replaced = ([row for row in mine if row["status"] in {"ARMED", "PARTIAL"}]
+                    if volume >= _bucket_held(positions, symbol, position_direction, position_bucket) else [])
         stop_id = str(uuid4())
         with self.store.lock, self.store.connection:
+            for old in replaced:
+                cursor = self.store.connection.execute(
+                    """UPDATE ai_stop_orders SET status = 'CANCELLED', remaining_volume = 0,
+                    last_error = 'replaced', updated_at = ?
+                    WHERE id = ? AND status IN ('ARMED', 'PARTIAL')""", (utc_now(), old["id"]))
+                if cursor.rowcount != 1:
+                    raise AutonomyError("protection_changed", "原来的保护刚刚变了，先没改")
             self._insert_direct_stop(
                 self.store.connection, stop_id=stop_id, user_id=user_id,
                 authorization_id=authorization["authorizationId"], session_id=session_id, symbol=symbol,
@@ -1850,7 +1867,7 @@ class AutonomousSimulationService:
         ).fetchone()
         if row is None:
             raise AutonomyError("stop_not_created")
-        return self._stop_public(row)
+        return {**self._stop_public(row), **({"replacedStopIds": [str(old["id"]) for old in replaced]} if replaced else {})}
 
     def _direct_trailing(self, symbol: str, direction: str, positions: list[Any], trigger: Decimal | None,
                          trailing: dict[str, Any] | None, breakeven_after_r: bool) -> dict[str, Any]:
@@ -2431,7 +2448,9 @@ class AutonomousSimulationService:
                 WHERE protection_json IS NOT NULL AND trading_account_id = ? LIMIT 1""",
                 (self.account_id,)).fetchone():
             return
-        async with provider_read_snapshot(self.data_provider, symbols=symbols):
+        # account=True: the sweep's positions, fills and trading day come from ONE combined read (the direct-stop
+        # checks below reuse it instead of fetching their own, #932 11-02).
+        async with provider_read_snapshot(self.data_provider, symbols=symbols, account=True):
             await self._run_stops_snapshot(force_reconcile=force_reconcile)
 
     async def _run_stops_snapshot(self, *, force_reconcile: bool) -> None:
@@ -2472,7 +2491,7 @@ class AutonomousSimulationService:
         ).fetchall()
         if not rows:
             return
-        inputs = self._direct_stop_inputs()
+        inputs = await self._direct_stop_cut()
         self._cancel_queue = []
         try:
             for row in rows:
@@ -2483,6 +2502,12 @@ class AutonomousSimulationService:
         finally:
             queue, self._cancel_queue = self._cancel_queue, None
             await self._flush_cancel_notices(queue or [])
+
+    async def _direct_stop_cut(self) -> tuple[dict[str, Any], list[Any], str] | str:
+        """`_direct_stop_inputs` off ONE combined account read (#528/#754): a fresh fill report beside the poll
+        cache's positions from before a close read as “原仓已平、现在又有一手没保护” (#932 11-02)."""
+        async with provider_read_snapshot(self.data_provider, account=True):
+            return self._direct_stop_inputs()
 
     def _direct_stop_inputs(self) -> tuple[dict[str, Any], list[Any], str] | str:
         """(activity, positions, trading day) of this snapshot, or why a direct stop cannot be
@@ -2548,7 +2573,7 @@ class AutonomousSimulationService:
         """触发前（动作锁内、同一快照）把这笔直接保护再对一次原仓 (#528 P1-1 残留): 成交读不到、
         不新鲜、读不懂或收敛失败时返回原因 —— 本轮不 claim、不派发，保护原样保留，下一轮可信数据
         到了再判断撤销或缩量。None = 本快照已核对（行可能刚被撤或缩，调用方重读）。"""
-        inputs = self._direct_stop_inputs()
+        inputs = await self._direct_stop_cut()
         if isinstance(inputs, str):
             self._record_direct_stop_verdict(str(row["id"]), inputs)
             return inputs

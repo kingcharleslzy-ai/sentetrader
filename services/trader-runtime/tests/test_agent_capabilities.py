@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 import httpx
 import pytest
+from fastapi import HTTPException
 
 from test_cloud_isolation import ORIGIN as CLOUD_ORIGIN
 from test_cloud_isolation import SECRET, cloud_client
@@ -355,6 +356,22 @@ async def test_capability_names_are_identifiers_and_tool_entries_carry_descripti
         if item["operation"].startswith("tool:"):
             assert item["name"] == item["operation"].removeprefix("tool:")
             assert item["description"].strip(), item
+
+
+async def test_the_embedded_ai_reading_a_name_the_catalog_lacks_gets_the_closest_entries(tmp_path: Path) -> None:
+    """#932 11-02: app_capabilities came back failed (404) for a name not in the catalog verbatim and cost the turn
+    a round. The embedded AI's compact read now answers with what matches; external callers keep the 404."""
+    app = create_app(tmp_path / "runtime.sqlite3", local_token="token", agent_mode="fake")
+    async with app.router.lifespan_context(app):
+        bridge = app.state.app_capabilities
+        field = bridge.manifest("ui:reminders.tab", user="local-user", compact=True)
+        assert field["field"] == "reminders"
+        missing = bridge.manifest("ui:alerts", user="local-user", compact=True)
+        assert missing["notFound"] == "ui:alerts" and any("alerts" in item["operation"] for item in missing["operations"])
+        window = bridge.manifest("GET /api/app/ui/windows/d05659c6-3947-42b2-9c8c-bd30499ab997", user="local-user")
+        assert [item["operation"] for item in window["operations"]] == ["GET /api/app/ui/windows/{window_id}"]
+        with pytest.raises(HTTPException):
+            bridge.manifest("ui:alerts", user="local-user")
 
 
 async def test_visible_row_quotes_are_a_bounded_member_read(tmp_path: Path) -> None:

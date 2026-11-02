@@ -373,7 +373,51 @@ async def test_t8_non_default_account_turn_tools_reach_the_catalog(
             tool="get_preferences", arguments={}, turn_id="t8", mode="local",
             session_id=session_id, user_id="local-user")
         assert result["success"] is True, result
+        # #932 11-02: the turn offers the model its own account's tools — a 本站模拟 account's stop tool was missing
+        # because the definitions were read off the default account's set, whose (retired) gateway has none.
+        tools.autonomy = SimpleNamespace(enabled=True)
+        offered = {item["name"] for item in adapter._tool_definitions(account_tools=tools)}
+        assert "set_simulation_stop_loss" in offered and "set_simulation_stop_loss" in adapter._visible_tool_names(
+            session_id, tools)
+        assert "set_simulation_stop_loss" not in {item["name"] for item in adapter._tool_definitions()}
     finally:
+        application.state.store.close()
+
+
+async def test_the_catalog_lists_and_runs_the_callers_own_account_tools(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#932 11-02: the catalog listed the deployment default's tools, so a 本站模拟 user's stop tools were missing and
+    an external AI / CLI calling `tool:cancel_simulation_stop_loss` got 404. It lists, and runs, the caller's own."""
+    monkeypatch.setenv(
+        "AI_TRADER_ACCOUNTS_FILE",
+        str(write_accounts_file(tmp_path / "accounts.json", [
+            {"id": DEFAULT_ACCOUNT, "displayName": "账户甲", "dataMode": "fake"},
+            {"id": BETA_ACCOUNT, "displayName": "账户乙", "dataMode": "fake"},
+        ])),
+    )
+    application = create_app(
+        tmp_path / "catalog.sqlite3", local_token=TOKEN, agent_mode="native",
+        agent_provider="deepseek", data_mode="fake",
+        account_providers={DEFAULT_ACCOUNT: NamedProvider("账户甲"), BETA_ACCOUNT: NamedProvider("账户乙")},
+    )
+    application.state.accounts.get(BETA_ACCOUNT).simulation_orders.gateway = object()  # only 乙 can trade
+    client = await local_client(application)
+    try:
+        beta = {"X-AI-Trader-Account": BETA_ACCOUNT}
+        listed = lambda body: {item["operation"] for item in body["operations"]}  # noqa: E731
+        default = (await client.get("/api/agent/capabilities")).json()
+        assert "tool:set_simulation_stop_loss" not in listed(default)
+        own = (await client.get("/api/agent/capabilities", headers=beta)).json()
+        assert {"tool:set_simulation_stop_loss", "tool:cancel_simulation_stop_loss"} <= listed(own)
+        called = await client.post("/api/agent/call", headers=beta, json={
+            "operation": "tool:cancel_simulation_stop_loss", "body": {"stopId": "no-such-stop"}})
+        assert called.status_code == 200 and called.json()["operation"] == "tool:cancel_simulation_stop_loss"
+        refused = await client.post("/api/agent/call", json={
+            "operation": "tool:cancel_simulation_stop_loss", "body": {"stopId": "no-such-stop"}})
+        assert refused.status_code == 404  # the default account has no such tool
+    finally:
+        await client.aclose()
         application.state.store.close()
 
 

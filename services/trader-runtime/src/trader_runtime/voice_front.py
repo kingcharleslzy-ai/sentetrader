@@ -271,23 +271,40 @@ def session_note(*, closed: bool, stale: bool, has_night: bool, exchange: str,
     when the quote is current. Holidays are not known here: past a session it says 下个交易日."""
     if not closed and not stale:
         return None
+    if not closed:
+        return "行情这会儿没有更新，下面是最后一笔的价格"
+    words, price = _closed_words(has_night=has_night, exchange=exchange, now=now)
+    return f"{words}，这是{price}"
+
+
+def _closed_words(*, has_night: bool, exchange: str, now: datetime | None = None) -> tuple[str, str]:
+    """A closed domestic session: (which break it is and when trading resumes, which price the quote shows)."""
     moment = (now or datetime.now(CHINA)).astimezone(CHINA)
     minutes = moment.hour * 60 + moment.minute
     weekday = moment.weekday()  # Monday = 0
     day_open = "上午九点半" if exchange.upper() == "CFFEX" else "上午九点"
-    if not closed:
-        return "行情这会儿没有更新，下面是最后一笔的价格"
     if weekday < 5 and 11 * 60 + 30 <= minutes < 13 * 60 + 30:
-        return "现在午间休市，下午一点半开盘，这是上午收盘的价格"
+        return "现在午间休市，下午一点半开盘", "上午收盘的价格"
     if weekday < 5 and 10 * 60 + 15 <= minutes < 10 * 60 + 30 and exchange.upper() != "CFFEX":
-        return "现在是上午小节休息，十点半继续，这是休息前的价格"
+        return "现在是上午小节休息，十点半继续", "休息前的价格"
     if weekday < 5 and 15 * 60 <= minutes < 21 * 60:
         if has_night:  # Friday has its night session too (it opens the next trading day); holiday eves are not known here
-            return "现在已收盘，晚上九点开夜盘，这是收盘价"
-        return f"现在已收盘，下个交易日{day_open}开盘，这是收盘价"
+            return "现在已收盘，晚上九点开夜盘", "收盘价"
+        return f"现在已收盘，下个交易日{day_open}开盘", "收盘价"
     if weekday < 5 and minutes < 9 * 60:
-        return f"现在还没开盘，{day_open}开盘，这是上一节收盘的价格"
-    return f"现在已收盘，下个交易日{day_open}开盘，这是收盘价"
+        return f"现在还没开盘，{day_open}开盘", "上一节收盘的价格"
+    return f"现在已收盘，下个交易日{day_open}开盘", "收盘价"
+
+
+DOMESTIC_EXCHANGES = frozenset({"SHFE", "INE", "DCE", "CZCE", "GFEX", "CFFEX"})
+
+
+def closed_order_words(*, has_night: bool, exchange: str, now: datetime | None = None) -> str | None:
+    """The 下单票's “休市，暂不可下单” as a sentence naming the break and when trading resumes (#932 11-02: a card
+    refused in the 10:15 break said 行情不是最新). None off the domestic clock — 外盘 follows CME's own session."""
+    if exchange.upper() not in DOMESTIC_EXCHANGES:
+        return None
+    return _closed_words(has_night=has_night, exchange=exchange, now=now)[0] + "，暂不可下单"
 
 
 def _clock(value: Any) -> str:

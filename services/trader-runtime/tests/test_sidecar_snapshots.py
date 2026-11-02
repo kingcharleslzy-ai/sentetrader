@@ -151,7 +151,8 @@ async def test_sidecar_provider_copies_only_read_snapshots(monkeypatch: pytest.M
         decision = json.loads(decision_response["contentItems"][0]["text"])["data"]
         assert decision_response["success"] is True
         assert decision["analysisReady"] is True
-        assert decision["proposalReady"] is True
+        # The fixture's session is closed: the card gate says so itself (#932 11-02), every other fact is ready.
+        assert decision["proposalReadinessReasons"] == ["market_session_closed"]
         assert decision["activity"]["activeOrderCount"] == 1
         assert decision["liveTrading"] == "disabled"
         assert decision_event is None

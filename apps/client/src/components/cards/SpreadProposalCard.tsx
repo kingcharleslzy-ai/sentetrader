@@ -2,6 +2,7 @@ import { GitCompareArrows } from "lucide-react";
 import type { SpreadProposal } from "@ai-trader/ui-events";
 import type { SimulationOrder } from "../../api";
 import { CardShell } from "../CardShell";
+import { chinaClock } from "../futures/support";
 import { closeBatchExecution, closedBadge } from "./CloseBatchProposalCard";
 import { useVoiceConfirmCountdown, voiceConfirmLabel } from "./voiceConfirm";
 
@@ -108,7 +109,7 @@ export function SpreadProposalCard({ proposal, busy, id, orders, onConfirm, onRe
           {spread.stopLoss != null || spread.takeProfit != null
             ? <div><dt>价差止损/止盈</dt><dd>{spread.stopLoss != null ? `止损 ${spreadValueText(spread.stopLoss)}` : "未设止损"}{spread.takeProfit != null ? ` · 止盈 ${spreadValueText(spread.takeProfit)}` : ""}</dd></div>
             : null}
-          <div><dt>发送</dt><dd>两腿同时按对手价 · {proposal.updatedAt.slice(11, 19) || "刚刚"}</dd></div>
+          <div><dt>发送</dt><dd>两腿同时按对手价 · {chinaClock(proposal.updatedAt) || "刚刚"}</dd></div>
           {proposal.auditId ? <div><dt>审计记录</dt><dd>{proposal.auditId.slice(0, 8)} · 每腿委托状态以{proposal.accountLabel === "本站模拟账户" ? "本站模拟" : "快期"}查询结果为准</dd></div> : null}
         </dl>
       }

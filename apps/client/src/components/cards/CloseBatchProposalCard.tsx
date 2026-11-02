@@ -5,7 +5,7 @@ import { CardActionButtons } from "./cardActions";
 import { CardSteps, remainingResult, remainingStep } from "./ProtectionSteps";
 import { CardShell } from "../CardShell";
 import { useAbandonOrder, type OrderActionHandler } from "../futures/PositionPanels";
-import { orderStatusText } from "../futures/support";
+import { chinaClock, orderStatusText } from "../futures/support";
 import { useVoiceConfirmCountdown, voiceConfirmLabel } from "./voiceConfirm";
 
 interface CloseBatchProposalCardProps {
@@ -138,7 +138,7 @@ export function CloseBatchProposalCard({ proposal, busy, id, orders, onOrderActi
         <dl className="card-facts">
           {proposal.reason ? <div><dt>原因</dt><dd>{proposal.reason}</dd></div> : null}
           <div><dt>合约</dt><dd>{proposal.orders.map(order => order.symbol).join("、")}</dd></div>
-          <div><dt>价格</dt><dd>{batchPriceLabel(proposal)} · {proposal.updatedAt.slice(11, 19) || "刚刚"}</dd></div>
+          <div><dt>价格</dt><dd>{batchPriceLabel(proposal)} · {chinaClock(proposal.updatedAt) || "刚刚"}</dd></div>
           {proposal.skipped.length ? <div><dt>跳过</dt><dd>{proposal.skipped.map(skipLabel).join("；")}</dd></div> : null}
           {proposal.linkedProposalIds?.length ? <div><dt>一起确认</dt><dd>本站模拟两本账的全平：人民币账、美元账（外盘）各一张，确认或放弃这一张，另一张跟着一起</dd></div> : null}
           {proposal.auditId ? <div><dt>审计记录</dt><dd>{proposal.auditId.slice(0, 8)} · 每笔委托状态以{proposal.accountLabel === "本站模拟账户" ? "本站模拟" : "快期"}查询结果为准</dd></div> : null}

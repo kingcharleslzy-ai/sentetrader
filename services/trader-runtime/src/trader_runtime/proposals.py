@@ -1486,8 +1486,10 @@ class ProposalService:
             card_protection = _card_protection_payload(protection, payload, side=side)
             payload["protection"] = card_protection
             if card_protection.get("stopLossPrice"):
-                # The user's own stop replaces the budget-derived 风控参考价 on the card.
+                # The user's own stop replaces the budget-derived 风控参考价 on the card, and the card's
+                # 最大预计亏损 is re-estimated on it (#932 11-02: it read 未设置止损 beside 保护：止损 6200).
                 payload["stopPrice"] = float(Decimal(card_protection["stopLossPrice"]))
+                payload["riskCheck"] = order_service.risk_check(payload, user_id)
         if remaining_protection:
             # 合并卡 (第四批): a close card's second step — the remaining position's stop / take.
             plan = self._remaining_protection(

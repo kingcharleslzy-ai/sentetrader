@@ -896,11 +896,13 @@ _READINESS_REASON_LABELS = {
     "risk_status_not_normal": "风险检查当前未通过",
     "simulation_gateway_disabled": "模拟交易通道未开启",
     "simulation_gateway_unavailable": "模拟交易通道暂时不可用",
+    "market_session_closed": "当前不在交易时段，暂不可下单",
 }
 
 
-def _readiness_issue_labels(reasons: list[str]) -> list[str]:
-    return [_READINESS_REASON_LABELS.get(reason, "有一项必要信息尚未就绪") for reason in reasons]
+def _readiness_issue_labels(reasons: list[str], closed_words: str | None = None) -> list[str]:
+    return [closed_words if reason == "market_session_closed" and closed_words
+            else _READINESS_REASON_LABELS.get(reason, "有一项必要信息尚未就绪") for reason in reasons]
 
 
 # 账户金额的口径说明（#794）：随 get_account_summary 一起给模型，报数直接用这些权威字段，
@@ -991,7 +993,8 @@ DECISION_CONTEXT_UNAVAILABLE = frozenset({
 
 
 def _user_facing_decision_summary(
-    *, analysis_reasons: list[str], proposal_reasons: list[str], gateway_reasons: list[str]
+    *, analysis_reasons: list[str], proposal_reasons: list[str], gateway_reasons: list[str],
+    closed_words: str | None = None,
 ) -> dict[str, Any]:
     """Give the model stable Chinese copy instead of making it translate protocol enums."""
     return {
@@ -1003,8 +1006,8 @@ def _user_facing_decision_summary(
             "模拟交易通道已就绪" if not gateway_reasons else "模拟交易通道当前不可用"
         ),
         "analysisIssues": _readiness_issue_labels(analysis_reasons),
-        "candidateIssues": _readiness_issue_labels(proposal_reasons),
-        "simulationIssues": _readiness_issue_labels(gateway_reasons),
+        "candidateIssues": _readiness_issue_labels(proposal_reasons, closed_words),
+        "simulationIssues": _readiness_issue_labels(gateway_reasons, closed_words),
         "safetyBoundary": "实盘功能未开启",
     }
 
@@ -1765,9 +1768,11 @@ class TraderReadOnlyTools:
                 {
                     "type": "function", "name": "set_simulation_stop_loss",
                     "description": (
-                        "为本人当前 TqKq 模拟持仓设置一个持久化、只减少持仓的确定性止损/止盈"
+                        "为本人当前模拟持仓设置一个持久化、只减少持仓的确定性止损/止盈"
                         "（“给我的螺纹多单设个止损 3100”只传 triggerPrice；“止盈 3200”只传 takeProfitPrice，"
                         "两个至少一个）。方向要成立：多仓 止损<现价<止盈，空仓相反，反了会收到中文原因。"
+                        "保护这部分的全部持仓而上面已有用户自己的保护时，新的整条替换旧的（返回 replacedStopIds）："
+                        "“把止损改到 3080”要把原来还要保留的止盈一起传上。"
                         "触发后只创建一张平仓委托，不追价、不撤单重报。"
                     ),
                     "inputSchema": TOOL_ARGUMENT_MODELS["set_simulation_stop_loss"].model_json_schema(),
@@ -3332,7 +3337,7 @@ class TraderReadOnlyTools:
                     # The embedded AI reads the compact directory (2026-10-14 token 瘦身); one operation's
                     # full definition is unchanged.
                     result = self.app_capabilities.manifest(parsed.get("operation"), user=user_id, compact=True,
-                                                            query=parsed.get("query"))
+                                                            query=parsed.get("query"), account_tools=self)
                     read_only, ok = True, True
                 else:
                     request = AppCall.model_validate_json(parsed["requestJson"])
@@ -3382,7 +3387,9 @@ class TraderReadOnlyTools:
             except (ValueError, TypeError, KeyError, HTTPException) as error:
                 message = error.detail if isinstance(error, HTTPException) else "接口参数无效，请先读取能力定义"
                 data = {"uiCommandAttempted": False} if tool == "app_call" and not api_call_started else {}
-                return self._response(TraderToolResult(tool=tool, warning=str(message), data=data), False), None
+                # Why, on the task event and the agent_tool log line (11-02: these said only outcome=failed).
+                code = f"{tool}_http_{error.status_code}" if isinstance(error, HTTPException) else "invalid_tool_arguments"
+                return self._response(TraderToolResult(tool=tool, warning=str(message), data=data, errorCode=code), False), None
         autonomous_tools = {
             "get_ai_execution_status", "resume_simulation_execution",
             "stop_simulation_execution", "execute_simulation_trade",
@@ -3668,6 +3675,16 @@ class TraderReadOnlyTools:
                 if expire_days <= 0:
                     analysis_reasons.append("instrument_expired")
         proposal_reasons = list(analysis_reasons)
+        closed_words = None
+        if market.get("marketSessionStatus") == "closed":
+            # 小节休息 / 午休 / 收盘 (#932 11-02): the session — the 下单票's own judgement — is why no card now, not a
+            # quote that is "not current"; the words say which break it is and when trading resumes.
+            proposal_reasons = ["market_session_closed", *(r for r in proposal_reasons if r != "market_not_fresh")]
+            if self.replay_context is None:
+                from .voice_front import closed_order_words
+                closed_words = closed_order_words(
+                    has_night=bool((instrument or {}).get("hasNight")),
+                    exchange=str((instrument or {}).get("exchangeId") or context_args.symbol.split(".")[0]))
         if (
             account_status not in fresh_states
             or not isinstance(account, dict)
@@ -3718,7 +3735,7 @@ class TraderReadOnlyTools:
             "userFacing": _user_facing_decision_summary(
                 analysis_reasons=analysis_reasons,
                 proposal_reasons=proposal_reasons,
-                gateway_reasons=gateway_reasons,
+                gateway_reasons=gateway_reasons, closed_words=closed_words,
             ),
             "candidateOnlyDefault": True,
             "liveTrading": "disabled",

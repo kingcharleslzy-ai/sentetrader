@@ -434,7 +434,7 @@ async def test_the_cost_check_reads_the_same_combined_account_cut_as_the_fills(t
     result = await breakeven.answer(app, user_id=USER, notice_id=notice["id"], choice="move")
     assert stop_row(app)[0]["trigger_price"] == "818.0"  # never moved to the stale 820
     assert result["status"] == "failed" and "价格依据过期" in result["result"], result
-    assert cuts == [True]
+    assert cuts and all(cuts)  # every read was the combined one (the stop's own check nests inside it)
     app.state.store.close()
 
 

@@ -40,7 +40,7 @@ metadata:
 1. 查单：`query_simulation_order`（结果未知类回报只查不重发）。
 2. 撤单：`cancel_simulation_order`；撤回报未知不重复撤。
 3. 改价/追单：先撤旧单、确认已撤销后再走下单出卡重新出卡（新卡仍需确认）。
-4. 挂保护：`set_simulation_stop_loss`（止损 `triggerPrice` / 止盈 `takeProfitPrice` 至少传一个；挂上后复述两个价位与手数）/ 撤保护：`cancel_simulation_stop_loss`。策略自己挂的保护（来源 strategy）只读，撤销前先向用户说明并确认。
+4. 挂保护：`set_simulation_stop_loss`（止损 `triggerPrice` / 止盈 `takeProfitPrice` 至少传一个；挂上后复述两个价位与手数；这几手全部仓位已有用户自己的保护时新的整条替换旧的、回报带 `replacedStopIds`，所以“把止损改到 X”要把原来还要保留的止盈一起传）/ 撤保护：`cancel_simulation_stop_loss`。策略自己挂的保护（来源 strategy）只读，撤销前先向用户说明并确认。
 5. 说剩余：撤单、挂/撤保护和停止/急停（`stop_simulation_execution`）的回报里 `accountAfter` 是写完之后现场重读的持仓、仍挂着的委托和仍生效的保护（已触发、已撤的以及急停撤掉的都不在里面）；向用户说“还剩什么”只按它，不按之前对话里说过的；`available: false` 时不陈述现状，请用户看持仓面板。
 6. 执行会话：`get_ai_execution_status` 查看、`stop_simulation_execution` 停止（停止永远可用）。
 

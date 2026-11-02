@@ -171,6 +171,10 @@ def test_card_validates_the_users_levels_against_its_own_price(tmp_path: Path) -
     # The card carries the normalized levels, and the user's own stop replaces the budget line.
     assert card["protection"] == {"stopLossPrice": "822.5", "takeProfitPrice": "823.5"}
     assert card["stopPrice"] == 822.5
+    # …and 最大预计亏损 is estimated on it (#932 11-02: the card read 未设置止损 beside 保护：止损).
+    risk = card["riskCheck"]
+    assert risk["checks"]["lossEstimateAvailable"] is True
+    assert risk["estimatedLoss"] == round(abs(card["limitPrice"] - 822.5) * risk["contractMultiplier"] * card["volume"], 2)
     # Short mirrors every rule against the ask-priced (824.0) sell card.
     session = app.state.broker.create_session("local", "native", USER)
     with pytest.raises(ProposalConflict) as raised:
@@ -1016,6 +1020,28 @@ async def test_a_direct_stop_does_not_carry_over_to_a_reopened_position_it_never
         assert ask["label"] == "重新挂" and "现在这 2 手" in ask["prompt"] and "止损 822.5" in ask["prompt"]
         await app.state.autonomy.run_once()  # 撤了就不再提醒、不再作用
         assert gateway.submit_count == 0 and len(_stop_notices(app, session.session_id, "没有保护")) == 1
+    finally:
+        app.state.store.close()
+
+
+async def test_a_close_read_beside_a_lagging_poll_cache_is_not_a_reopened_position(tmp_path: Path, monkeypatch) -> None:
+    """#932 11-02: the close's fill was read fresh while the positions came from the poll cache from before the
+    close, so the notice said “原来那 1 手已平…现在这 1 手没有保护，要重新挂吗”. The sweep now reads both from one
+    combined account read: the position is flat and the notice says only that the protection was withdrawn."""
+    app = application(tmp_path / "clamp-close-cut.sqlite3", Gateway(), Provider())
+    provider = app.state.data_provider
+    provider.position_items = _long_items(1, today=1)
+    session = app.state.broker.create_session("local", "native", USER)
+    await _direct_stop(app, session.session_id, volume=1)
+    try:
+        provider.trades[:0] = [
+            {"tradeId": "close-1", "clientOrderId": "manual-close-1", "symbol": "SHFE.au2612", "direction": "SELL",
+             "offset": "CLOSETODAY", "volume": 1, "price": 823.0, "tradeDateTime": 2, "tradingDay": provider.day}]
+        lagging_poll_cache(monkeypatch, provider, [])  # the poll cache still holds the 1 lot
+        await app.state.autonomy.run_once()
+        assert app.state.autonomy.list_stops(user_id=USER)[0]["status"] == "CANCELLED"
+        assert _stop_notices(app, session.session_id, "没有保护") == []
+        assert _stop_notices(app, session.session_id, "持仓已平，保护自动撤销") == ["沪金2612 多单持仓已平，保护自动撤销"]
     finally:
         app.state.store.close()
 

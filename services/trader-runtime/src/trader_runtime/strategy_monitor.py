@@ -416,8 +416,10 @@ class StrategyMonitorService:
             strategy_id=strategy["strategyId"], user_id=strategy["userId"]
         )
         equity = _finite_decimal(account.get("equity"))
-        pnl = _finite_decimal(account.get("todayNetPnl", account.get("todayPnl")))
         results = closed_results(self.store, strategy["userId"], strategy["strategyId"], today)
+        # 今天 on the strategy's card and banner: its own closes today (gross, the loss streak's figures), None before
+        # the first — not the account's day P&L (#932 11-02); the loss cap still reads the account's directly.
+        pnl = sum((realized for _, realized in results), Decimal(0)) if results else None
         pause_reason = None
         if existing is None or existing["tradingDate"] != today:
             high = equity

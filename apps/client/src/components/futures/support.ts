@@ -309,6 +309,14 @@ export function formatFee(value: number | null | undefined): string {
   return value.toLocaleString("zh-CN", { minimumFractionDigits: 0, maximumFractionDigits: Math.abs(value) < 100 ? 2 : 0 });
 }
 
+const CHINA_CLOCK = new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" });
+
+/** "10:22:41" in China time for a Runtime timestamp (stored as UTC ISO, #932 11-02); "" when unreadable. */
+export function chinaClock(value: string | undefined): string {
+  const date = new Date(value ?? "");
+  return Number.isNaN(date.valueOf()) ? "" : CHINA_CLOCK.format(date);
+}
+
 export function formatTime(value: string | undefined): string {
   if (!value) return "—";
   const parsed = new Date(value);

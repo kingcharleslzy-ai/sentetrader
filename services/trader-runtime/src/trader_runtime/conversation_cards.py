@@ -238,6 +238,7 @@ STOP_CANCEL_DETAILS = {
     "position_closed": "持仓已平，保护自动撤销。",
     "emergency_stop": "急停，保护已撤销。",
     "replaced_by_card": "改挂了新的保护，这一条已撤销。",
+    "replaced": "改挂了新的保护，这一条已撤销。",
 }
 STOP_STATE_DETAILS = {
     "submitted": "已触发，平仓单已发出；结果以委托栏为准。",

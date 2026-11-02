@@ -130,6 +130,16 @@ describe("持仓行的保护（下单顺带保护 · 持仓补挂）", () => {
     await waitFor(() => expect(screen.queryByTestId("position-protect-form")).toBeNull());
   });
 
+  test("已挂自己的保护时按钮是“改保护”，表单带着原价位打开 (#932 11-02)", () => {
+    rows([stop({ positionBucket: "historical", triggerPrice: 823.5, takeProfitPrice: 826 })]);
+    const toggle = screen.getByTestId("row-protect-toggle");
+    expect(toggle).toHaveTextContent("改保护");
+    fireEvent.click(toggle);
+    expect(screen.getByTestId("row-stop-input")).toHaveValue(823.5);
+    expect(screen.getByTestId("row-take-input")).toHaveValue(826);
+    expect(screen.getByTestId("position-protect-form")).toHaveTextContent("替换原来的保护");
+  });
+
   test("上期所/能源中心今昨仓都有时不提供“全部”（Runtime 拒绝 close_bucket_required），默认昨仓", async () => {
     const onCreateStop = vi.fn(() => Promise.resolve(true));
     rows([], { onCreateStop });

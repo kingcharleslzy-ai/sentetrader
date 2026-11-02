@@ -838,11 +838,12 @@ class NativeAgentAdapter:
 
     def _tool_definitions(
         self, names: set[str] | frozenset[str] | None = None, *, user_id: str | None = None,
-        disclosure: bool = False,
+        disclosure: bool = False, account_tools: TraderReadOnlyTools | None = None,
     ) -> list[dict[str, Any]]:
         tools = []
         replay = bool(getattr(self.data_provider, "identifier", None))
-        for definition in self.trader_tools.definitions():
+        # The turn's own account set (#932 11-02): the default account's lacks a 本站模拟 account's stop tools.
+        for definition in (account_tools or self.trader_tools).definitions():
             if names is not None and definition["name"] not in names:
                 continue
             if replay and definition["name"] in {"web_search", "get_research_brief",
@@ -989,12 +990,12 @@ class NativeAgentAdapter:
             log.info("agent_skill_mounted session=%s skill=%s by=%s", session_id, skill_id, by)
         return fresh
 
-    def _visible_tool_names(self, session_id: str) -> set[str]:
+    def _visible_tool_names(self, session_id: str, account_tools: TraderReadOnlyTools | None = None) -> set[str]:
         """The tools a general turn carries: every definition not deferred, plus the deferred tools
-        of the skills mounted for the session."""
+        of the skills mounted for the session — read from the turn's own account set."""
         mounted_tools = {tool for skill_id in self._mounted_skills.get(session_id, {})
                          for tool in getattr(skill_by_id(skill_id), "tools", ())}
-        return {definition["name"] for definition in self.trader_tools.definitions()
+        return {definition["name"] for definition in (account_tools or self.trader_tools).definitions()
                 if not definition.get("deferLoading") or definition["name"] in mounted_tools}
 
     def forget_history(self) -> None:
@@ -2843,7 +2844,7 @@ class NativeAgentAdapter:
             request["tool_choice"] = "none"
         # 按技能延迟挂载: the general loop and the voice fast path carry the tools not deferred plus the
         # mounted skills' ones; routed subsets and routine steps keep their own fixed lists.
-        visible = self._visible_tool_names(turn.session_id)
+        visible = self._visible_tool_names(turn.session_id, turn.tools)
         allowed_names: set[str] | frozenset[str] | None = (
             route.tool_names if route is not None
             else ((turn.tools or self.trader_tools).read_only_names() & visible if turn.fast else None))
@@ -2870,7 +2871,8 @@ class NativeAgentAdapter:
             # 问句、否定、转述、整句收回、建议、条件单: the words are not an order now — no card and no order write this
             # turn, whatever skill the model activates (every round recomputes this from the mounted tools).
             allowed_names = set(allowed_names) - ORDER_WRITE_TOOLS
-        request["tools"] = self._tool_definitions(allowed_names, user_id=user_id, disclosure=general_loop)
+        request["tools"] = self._tool_definitions(allowed_names, user_id=user_id, disclosure=general_loop,
+                                                  account_tools=turn.tools)
         traits = self._traits[endpoint.slug]
         if turn.forcing and not no_tool_calls and traits.get("tool_choice"):
             request["tool_choice"] = "required"

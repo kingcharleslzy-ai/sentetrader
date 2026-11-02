@@ -366,8 +366,27 @@ class AppCapabilities:
         self._account_sessions[(user, account_id)] = session_id
         return session_id
 
-    def tools(self, user):
-        tools = self.trader_tools(user)
+    async def caller_tools(self, user, headers):
+        """The tool set of the account this caller acts on — the account its calls resolve to (the named
+        account, the chosen default, else the grants), never the deployment default's set: a 本站模拟 user's
+        stop tools were missing from the catalog and `tool:set_simulation_stop_loss` came back 404 (#932 11-02).
+        None (the shared set stands in) for a replay, a non-native adapter or a caller with no account."""
+        state = self.app.state
+        if self.ctx is None or getattr(state, "replay_context", None) is not None:
+            return None
+        adapter = state.adapter
+        if isinstance(adapter, SessionAgentRouter):
+            adapter = adapter.adapter_for_user(user)
+        if not isinstance(adapter, NativeAgentAdapter):
+            return None
+        try:
+            context = await self.ctx.account_context(self._account_request(headers or {}), user)
+            return adapter.tools_for_account(context.account.account_id)
+        except (HTTPException, KeyError):
+            return None
+
+    def tools(self, user, account_tools=None):
+        tools = account_tools or self.trader_tools(user)
         if not tools:
             return {}
         # The catalog offers the same toolset the user's turns get: a skill the
@@ -406,9 +425,10 @@ class AppCapabilities:
                             for prefix in PRODUCT_PATHS))
                 and owned.get(f"{method} {route.path}") not in unavailable}
 
-    def manifest(self, operation=None, *, user, compact=False, query=None):
+    def manifest(self, operation=None, *, user, compact=False, query=None, account_tools=None):
         """The capability catalog. `operation` reads one entry's full definition (`ui:<field>` reads one
-        interface-command field). `compact` (the embedded AI's own app_capabilities tool, 2026-10-14 token
+        interface-command field). `account_tools`: the caller's own account set (`caller_tools`, or the embedded
+        turn's), whose tools the catalog lists. `compact` (the embedded AI's own app_capabilities tool, 2026-10-14 token
         瘦身) answers the directory as a short index — operations grouped by skill, the interface commands
         as one line per field, no repeated tool descriptions or external-agent guide; with `query` only the
         operations, tools and interface fields that match it."""
@@ -417,11 +437,15 @@ class AppCapabilities:
         if not self._admin_allowed(user):
             routes = {key: route for key, route in routes.items()
                       if not key.split(" ", 1)[1].startswith("/api/admin")}
-        native = self.tools(user)
+        native = self.tools(user, account_tools)
         if operation and operation.startswith("ui:"):
             from .ui_control import ui_field_detail
-            detail = ui_field_detail(operation.removeprefix("ui:"))
+            field = operation.removeprefix("ui:").strip()
+            # "ui:reminders.tab" / "ui:panel=reminders" name the field before the key or value.
+            detail = ui_field_detail(field) or ui_field_detail(re.split(r"[.=\[{ ]", field, maxsplit=1)[0])
             if detail is None:
+                if compact:
+                    return self._closest(routes, native, operation)
                 raise HTTPException(404, "界面命令没有这个字段，请看目录 uiControl 的字段索引")
             return {"operation": operation, "commandOperation": "POST /api/app/ui/commands", **detail}
         if compact and not operation:
@@ -433,7 +457,16 @@ class AppCapabilities:
             return {"operation": CHAT_SEND, "description": self._chat_send_entry()["description"],
                     "bodySchema": CHAT_SEND_SCHEMA, "transport": "app_call.body"}
         if operation and operation not in routes:
-            raise HTTPException(404, "能力不存在，请重新读取目录")
+            # A real path ("GET /api/app/ui/windows/<id>") reads the one operation whose template it fills.
+            method, _, path = operation.partition(" ")
+            filled = [key for key, route in routes.items()
+                      if key.split(" ", 1)[0] == method.upper() and route.path_regex.match(path.split("?", 1)[0])]
+            if len(filled) == 1:
+                operation = filled[0]
+            elif compact:
+                return self._closest(routes, native, operation)
+            else:
+                raise HTTPException(404, "能力不存在，请重新读取目录")
         selected = {operation: routes[operation]} if operation else routes
         # Registry attribution: which skill owns each offered operation (null =
         # the shared surfaces — auth, session carrying, card confirmation —
@@ -494,6 +527,16 @@ class AppCapabilities:
                 # it gets the table of contents, not the HelpSnapshot below.
                 result["embeddedResponse"] = HELP_OUTLINE_NOTE
         return result
+
+    def _closest(self, routes, native, operation):
+        """The embedded AI asked for an operation or interface field the catalog does not name verbatim — those
+        reads came back failed and cost the turn a round (#932 11-02, app_capabilities outcome=failed): answer
+        with what its last word matches instead."""
+        words = [word for word in re.findall(r"[A-Za-z][A-Za-z_-]+", operation.removeprefix("ui:").removeprefix("tool:"))
+                 if word.upper() not in {"GET", "POST", "PUT", "PATCH", "DELETE"} and word.lower() != "api"]
+        word = (words[-1] if words else operation)[:40]
+        return {**self._compact_manifest(routes, native, query=word), "notFound": operation,
+                "next": f"目录里没有“{operation}”这个原文；下面是和“{word}”相关的操作、工具与界面字段，复制其中原文再查。"}
 
     def _compact_manifest(self, routes, native, *, query=None):
         from .ui_control import UI_COMMAND_OPERATION, ui_command_index
@@ -664,7 +707,12 @@ class AppCapabilities:
         if context is not None:
             context.require_open(user)
         bridge = target.state.app_capabilities
-        if args.operation in bridge.tools(user):
+        # A tool belongs to the caller's account set — its own session's, or the account its calls resolve to.
+        account_tools = None
+        if args.operation.startswith("tool:"):
+            account_tools = (await bridge.session_tools(session_id, user, headers)
+                             if session_id is not None and target is self.app else await bridge.caller_tools(user, headers))
+        if args.operation in bridge.tools(user, account_tools):
             if args.path or args.query:
                 raise HTTPException(422, "工具参数只放在body中")
             tools = bridge.trader_tools(user)
@@ -810,7 +858,8 @@ def register_agent_api(app, ctx, root, origin):
             guest_service.require(request)
             return guest_manifest(app, operation)
         user = await current_user(request)
-        return bridge.manifest(operation, user=user)
+        headers = {key: request.headers[key] for key in CALLER_HEADERS if key in request.headers}
+        return bridge.manifest(operation, user=user, account_tools=await bridge.caller_tools(user, headers))
 
     @app.post("/api/agent/call")
     async def app_call(request: Request, call: AppCall):

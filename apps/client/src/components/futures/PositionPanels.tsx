@@ -156,6 +156,18 @@ function PositionProtection({ position, quote, priceTick, stops, busy, onCreate,
   const [stopInput, setStopInput] = useState("");
   const [takeInput, setTakeInput] = useState("");
   const [stopMotion, setStopMotion] = useState<StopMotion>({});
+  // 改保护 (#932 11-02): with the user's own protection on these lots the form opens on its levels, and the Runtime
+  // replaces it with what is submitted (never a second stop on the same lot).
+  const own = (choice: typeof bucket) => stops.find(stop => stop.source === "manual" && stop.status === "ARMED" && stop.positionBucket === choice);
+  const current = own(bucket);
+  const pick = (choice: typeof bucket) => {
+    const existing = own(choice);
+    setBucket(choice);
+    if (!existing) return;  // nothing on these lots yet: keep what was typed
+    setStopInput(existing.triggerPrice != null ? String(existing.triggerPrice) : "");
+    setTakeInput(existing.takeProfitPrice != null ? String(existing.takeProfitPrice) : "");
+    setStopMotion({ trailing: existing.trailing ?? undefined, breakevenAtR: existing.breakeven || undefined });
+  };
   // shortcut: a position row has no chart period of its own, so its ATR chandelier measures on 5-minute bars; pass the
   // chart's period down if users ask for another.
   const atrTimeframe = 300;
@@ -220,11 +232,11 @@ function PositionProtection({ position, quote, priceTick, stops, busy, onCreate,
           {stopPrice !== undefined ? <StopMotionFields value={stopMotion} onChange={setStopMotion} atrTimeframe={atrTimeframe} /> : null}
           {separate && today > 0 && historical > 0 ? (
             <span className="fdw-protect-buckets" role="group" aria-label="保护哪部分仓量">
-              <button type="button" className={bucket === "today" ? "active" : ""} onClick={() => setBucket("today")}>今 {today}</button>
-              <button type="button" className={bucket === "historical" ? "active" : ""} onClick={() => setBucket("historical")}>昨 {historical}</button>
+              <button type="button" className={bucket === "today" ? "active" : ""} onClick={() => pick("today")}>今 {today}</button>
+              <button type="button" className={bucket === "historical" ? "active" : ""} onClick={() => pick("historical")}>昨 {historical}</button>
             </span>
           ) : null}
-          <small>保护 {volume} 手</small>
+          <small>保护 {volume} 手{current ? "，替换原来的保护" : ""}</small>
           <button type="button" className="fdw-protect-submit" data-testid="row-protect-submit"
             disabled={busy || volume <= 0 || stopPrice === undefined && takePrice === undefined || issue !== undefined}
             onClick={() => void submit()}>提交</button>
@@ -232,7 +244,8 @@ function PositionProtection({ position, quote, priceTick, stops, busy, onCreate,
         </div>
       ) : (
         <button type="button" data-testid="row-protect-toggle" aria-expanded={open}
-          aria-label={`给 ${position.symbol} ${long ? "多" : "空"}仓挂保护`} onClick={() => setOpen(true)}>保护</button>
+          aria-label={current ? `改 ${position.symbol} ${long ? "多" : "空"}仓的保护` : `给 ${position.symbol} ${long ? "多" : "空"}仓挂保护`}
+          onClick={() => { pick(bucket); setOpen(true); }}>{current ? "改保护" : "保护"}</button>
       )}
     </div>
   );

@@ -70,6 +70,28 @@ def _last_card(app, session) -> dict:
     return cards[-1]
 
 
+async def test_a_new_protection_over_the_held_lots_replaces_the_old_one(tmp_path: Path) -> None:
+    """改保护 (#932 11-02): the 持仓 row's 保护 (or the AI's stop tool) on lots already protected used to arm a second
+    stop on the same lot (6200 with its take + 6210). Protections that fit the position still stack."""
+    app, _provider, _gateway, session = await _setup(tmp_path, "edit.sqlite3")
+    old_id = _live_stops(app)[0]["id"]
+    new = await app.state.autonomy.create_stop(
+        user_id=USER, session_id=session.session_id, symbol="SHFE.au2612", position_direction="long",
+        position_bucket="today", volume=2, trigger_price=822.5, take_profit_price=825.0)
+    assert new["replacedStopIds"] == [old_id]
+    assert next(row for row in stop_row(app) if row["id"] == old_id)["last_error"] == "replaced"
+    assert [(row["trigger_price"], row["volume"]) for row in _live_stops(app)] == [("822.5", 2)]
+    app.state.store.close()
+
+    app, _provider, _gateway, session = await _setup(tmp_path, "stack.sqlite3", stop=None, take=None)
+    for trigger in (822.0, 821.0):  # 1 + 1 of 2 lots: both stay
+        await app.state.autonomy.create_stop(
+            user_id=USER, session_id=session.session_id, symbol="SHFE.au2612", position_direction="long",
+            position_bucket="today", volume=1, trigger_price=trigger)
+    assert len(_live_stops(app)) == 2
+    app.state.store.close()
+
+
 async def test_one_confirm_closes_then_replaces_the_remaining_protection(tmp_path: Path) -> None:
     app, provider, gateway, session = await _setup(tmp_path, "combo.sqlite3")
     old_id = _live_stops(app)[0]["id"]
@@ -156,6 +178,11 @@ async def test_overnight_card_reads_original_buckets_before_any_monitor(tmp_path
             ("2026-08-25T02:00:00+00:00" if source == "direct" else "2026-08-26T02:00:00+00:00", old_id))
     # Fill-backed metadata carries the actual entry day; its later row creation time is irrelevant.
     provider.position_items = _long(4 if new_today else 2, today=2 if new_today else 0)
+    # The account rolled to the new day before the new lots' stop (the old one now guards 昨仓, so it stays).
+    replay_now = datetime(2026, 8, 26, 2, tzinfo=UTC)
+    app.state.simulation_orders.trading_clock = lambda: replay_now
+    provider.quote_datetime = replay_now.isoformat()
+    provider.day = "2026-08-26"
     if new_today:
         fresh = await app.state.autonomy.create_stop(
             user_id=USER, session_id=session.session_id, symbol="SHFE.au2612", position_direction="long",
@@ -164,10 +191,6 @@ async def test_overnight_card_reads_original_buckets_before_any_monitor(tmp_path
             app.state.store.connection.execute(
                 "UPDATE ai_stop_orders SET created_at = ?, account_trading_day = '2026-08-26' WHERE id = ?",
                 ("2026-08-26T02:00:00+00:00", fresh["stopId"]))  # armed on the new account day
-    replay_now = datetime(2026, 8, 26, 2, tzinfo=UTC)
-    app.state.simulation_orders.trading_clock = lambda: replay_now
-    provider.quote_datetime = replay_now.isoformat()
-    provider.day = "2026-08-26"
     card = app.state.proposals.create_trade(
         session.session_id, "overnight", symbol="SHFE.au2612", side="sell_close", volume=1,
         price_intent="passive", position_bucket="historical", reason="平一手昨仓，止盈不动",
