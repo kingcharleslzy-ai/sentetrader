@@ -15,7 +15,7 @@ import { resetShortcutStore } from "../shortcuts";
 import { readQueryClient, resetReadIdentity } from "../runtimeClient";
 import * as uiControl from "../hooks/useUiControl";
 import * as headerFit from "./futures/useHeaderFit";
-import { applyUiSurface, uiSurface } from "../uiSurfaces";
+import { applyUiSurface, uiSurface, useUiSurface } from "../uiSurfaces";
 import { resetAiAnnotations } from "../aiAnnotations";
 import { discardDraft, newDraft, resetStrategyEditor } from "../strategyEditorStore";
 import { CLIENT_BUILD, noteRuntimeCompat, noteWebBuild, resetClientCompat, watchWebBuild, webPage } from "../clientBuild";
@@ -675,6 +675,26 @@ test("dockWidth 界面命令：在窗口上限内照设并回报，超过这个�
     expect(() => apply({ dockWidth: 1200 })).toThrow("这个窗口里辅助区最宽 960px");
     expect(() => apply({ presentation: { dockWidth: 1200, theme: "light" } })).toThrow("这个窗口里辅助区最宽 960px");
     expect(state()).toMatchObject({ dockWidth: 900 });
+  } finally {
+    view.unmount(); control.mockRestore();
+  }
+});
+
+test("自由布局：策略面板在后台标签时，strategyEditor 命令把它切到前面（快照 panel 回到 strategy）", () => {
+  const control = vi.spyOn(uiControl, "useUiControl").mockImplementation(() => {});
+  const editor = vi.fn();
+  function Panel() { useUiSurface("strategyEditor", { state: {}, apply: editor }, []); return <div>策略运行状态</div>; }
+  const view = render(<FuturesDecisionWorkspace {...props({ strategyPanel: <Panel /> }) as any} />);
+  const state = () => control.mock.calls.at(-1)?.[2] as Record<string, unknown>;
+  const apply = (changes: Record<string, unknown>) => control.mock.calls.at(-1)?.[3](changes as any);
+  try {
+    act(() => { apply({ panel: "strategy" }); });
+    act(() => { apply({ panel: "reminders" }); });
+    expect(state()).toMatchObject({ panel: "reminders" });
+    expect(uiSurface("strategyEditor")).toBeTruthy();
+    act(() => { apply({ strategyEditor: { new: true, reminder: true } }); });
+    expect(state()).toMatchObject({ panel: "strategy" });
+    expect(editor).toHaveBeenCalledWith({ new: true, reminder: true });
   } finally {
     view.unmount(); control.mockRestore();
   }

@@ -429,6 +429,7 @@ export function useWorkspaceUiControl({ workspace, connectedRuntimeUrl, market, 
     }
     if (changes.strategy != null) {
       if (!strategyNavigation.current) throw new Error("请先打开策略面板");
+      setView("trade"); setRightDock("strategy");
       strategyNavigation.current(changes.strategy as StrategyNavigation);
     }
     // Round eleven: every user-operable surface answers a command.
@@ -528,24 +529,35 @@ export function useWorkspaceUiControl({ workspace, connectedRuntimeUrl, market, 
         dialog.set(open);
       } else if (name === "strategy-designer") {
         // The retired 策略设计窗 (2026-10-08) is the 策略编辑卡 now: open = edit the selected strategy (none: new).
-        if (strategyNavigation.current) strategyNavigation.current({ designerOpen: open });
+        if (strategyNavigation.current) {
+          if (open && !mobile) { setView("trade"); setRightDock("strategy"); }
+          strategyNavigation.current({ designerOpen: open });
+        }
         else if (mobile) registry("strategyEditor")(open ? { open: true } : { close: true });
         else if (open) { setView("trade"); setRightDock("strategy"); applyUiSurface("strategyEditor", { open: true }); }
       } else registry(`dialog:${name}`)({ open, topic });
     }
     // 使用说明卡 (2026-09-25): topic / group / search / folds; the card opens itself first.
     if (changes.help != null) registry("help")(changes.help);
-    if (changes.strategyDetails != null) registry("strategyDetails")(changes.strategyDetails);
+    if (changes.strategyDetails != null) {
+      const details = registry("strategyDetails");
+      if (!mobile) { setView("trade"); setRightDock("strategy"); }
+      details(changes.strategyDetails);
+    }
     // 侧栏重设计第三期 (2026-09-25): the open 上线 dialog's fields, and a running card's 执行方式.
     if (changes.strategyLaunch != null) registry("strategyLaunch")(changes.strategyLaunch);
+    // 自由布局 (2026-11-02): the strategy panel can stay mounted as a background dock tab, so these commands always
+    // bring it to the front; only the inner tab switch waits on the surface being absent.
     // 规则回测 (2026-09-25): the result card on the selected strategy's 详情; opens it first.
     if (changes.strategyBacktest != null) {
-      if (!uiSurface("strategyBacktest")) { setView("trade"); setRightDock("strategy"); surfaces.setStrategyTab("detail"); }
+      setView("trade"); setRightDock("strategy");
+      if (!uiSurface("strategyBacktest")) surfaces.setStrategyTab("detail");
       applyUiSurface("strategyBacktest", changes.strategyBacktest);
     }
     // 策略模板库 (2026-09-25): the gallery / parameter page in 策略库, 恢复模板默认 on 详情; opens the panel first.
     if (changes.strategyTemplate != null) {
-      if (!uiSurface("strategyTemplate")) { setView("trade"); setRightDock("strategy"); surfaces.setStrategyTab(changes.strategyTemplate.restore ? "detail" : "library"); }
+      setView("trade"); setRightDock("strategy");
+      if (!uiSurface("strategyTemplate")) surfaces.setStrategyTab(changes.strategyTemplate.restore ? "detail" : "library");
       applyUiSurface("strategyTemplate", changes.strategyTemplate);
     }
     // 策略编辑卡 (2026-10-08): new / edit / 起点 / 补一句 / 存为草稿 / close; opens the strategy panel first.
@@ -554,12 +566,13 @@ export function useWorkspaceUiControl({ workspace, connectedRuntimeUrl, market, 
       if (!uiSurface("strategyEditor")) throw new Error(workspace.guest ? "登录后才能新建或修改策略" : "策略编辑卡现在打不开：先连接 Runtime，或当前档位不含策略");
       registry("strategyEditor")(changes.strategyEditor);
     } else if (changes.strategyEditor != null) {
-      if (!uiSurface("strategyEditor")) { setView("trade"); setRightDock("strategy"); }
+      setView("trade"); setRightDock("strategy");
       applyUiSurface("strategyEditor", changes.strategyEditor);
     }
     // 试几组参数比一比 (2026-10-08; was the 实验室 tab): the 结果页's comparison; opens the panel first.
     if (changes.strategyLab != null) {
-      if (!uiSurface("strategyLab")) { setView("trade"); setRightDock("strategy"); surfaces.setStrategyTab("detail"); }
+      setView("trade"); setRightDock("strategy");
+      if (!uiSurface("strategyLab")) surfaces.setStrategyTab("detail");
       applyUiSurface("strategyLab", changes.strategyLab);
     }
     // The admin view renders no dock: an acknowledged news command must also show it.
