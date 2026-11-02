@@ -434,8 +434,8 @@ test("every user-operable control is commandable or reachable, and visible to th
       // 分析师 (2026-10-24): the four written reports, each opened.
       ...(["technical", "supply", "flow", "news"] as const).map(key => ({ disclosure: { name: `debate-analyst-${key}`, open: true } }))], true],
     ["", [{ researchDebate: { close: true } }, { panel: "news" }], false],
-    // 周期收起 (2026-10-03): with the news panel open the bar is too narrow for the full period row,
-    // so the uncommon periods fold into 更多; its popover opens by its own disclosure.
+    // 周期收起 (2026-10-03): the uncommon periods fold into 更多 only when the bar is too narrow; since the right
+    // panels sit beside the chart (2026-11-02) the 1440 px row fits, and the command still lands (all periods on the row).
     ["chart-periods-more", [{ disclosure: { name: "chart-periods-more", open: true } }], true],
     ["", [{ disclosure: { name: "chart-periods-more", open: false } }, { panel: null }], false],
   ];

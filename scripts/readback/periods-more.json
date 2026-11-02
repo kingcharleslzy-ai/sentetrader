@@ -1,0 +1,8 @@
+{
+ "about": "电脑版“更多周期”（#1273）：宽屏下九个周期都在行里，打开 / 收起命令都回已办，快照看得见全部周期。只读，不写数据。",
+ "steps": [
+  {"ui": {"disclosure": {"name": "chart-periods-more", "open": true}}, "expect": {"disclosures.chart-periods-more": true, "observation.text": {"includes": "周线"}}},
+  {"screenshot": "01-desktop-periods-row"},
+  {"ui": {"disclosure": {"name": "chart-periods-more", "open": false}}, "expect": {"disclosures.chart-periods-more": false}}
+ ]
+}

@@ -69,12 +69,14 @@ export function PeriodSwitch({ chartView, duration, onSelectDuration, onSelectCh
   const collapsed = usePeriodFold(groupRef, `${chartView}:${duration}`);
   const [popover, setPopover] = useState<{ rect: DOMRect }>();
   const openMore = () => setPopover({ rect: moreRef.current?.getBoundingClientRect() ?? document.body.getBoundingClientRect() });
-  useDisclosureSurface("chart-periods-more", {
-    state: popover !== undefined, available: collapsed,
+  // Folded, the disclosure is the popover; when the full row fits every period is already on it, so
+  // open / close just toggle the hook's own state and the command lands either way (owner 2026-11-02).
+  const [, setUnfoldedOpen] = useDisclosureSurface("chart-periods-more", collapsed ? {
+    state: popover !== undefined,
     apply: open => (open ? openMore() : setPopover(undefined))
-  });
+  } : {});
   // A bar that widens again shows every period: the popover has nothing left to offer.
-  useEffect(() => { if (!collapsed) setPopover(undefined); }, [collapsed]);
+  useEffect(() => { if (!collapsed) setPopover(undefined); setUnfoldedOpen(false); }, [collapsed, setUnfoldedOpen]);
   const face = moreButtonFace(chartView, duration);
   const choose = (value: Duration) => { setPopover(undefined); onSelectDuration(value); };
   const isActive = (value: number) => chartView === "kline" && duration === value;
