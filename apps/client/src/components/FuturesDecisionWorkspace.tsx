@@ -1,6 +1,7 @@
 import { contractLabel } from "./futures/support";
 import { AccountAccessContext, useAccountAccess, type WorkspaceAccess } from "../hooks/useAccountAccess";
 import { GuestAppearanceContext } from "../guestAppearance";
+import { rumChartShown } from "../rum";
 import { GUEST_SETTINGS_PAGES, guestHistoryNote } from "../guestApi";
 import { ResumeExecutionDialog } from "./ResumeExecutionDialog";
 import { UiNavigationContext, type StrategyNavigation, type StrategyNavigationState } from "../uiNavigation";
@@ -695,6 +696,11 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     update: updatePreferences, panes: chartIndicators.subPaneList, updateChartIndicators: chartIndicatorsChange,
     resolveSymbol: symbol => props.instruments?.items.find(item => item.symbol.toUpperCase() === symbol.toUpperCase())?.symbol,
     selectSymbol: symbol => selectContract(symbol), available: mobile && mobileTab === "market" && !mobileSub });
+  // RUM K 线首屏 (#932 11-02): a phone that did not land on a chart times its first paint from opening one
+  // (看盘 单图 / 多图), not from page start — the wait for the user's tap is not chart time.
+  const phoneChartPage = phoneMarket && mobileMarket.market.view !== "quotes" ? mobileMarket.market.view : undefined;
+  const landingChartPage = useRef(phoneChartPage);
+  useEffect(() => { if (phoneChartPage && phoneChartPage !== landingChartPage.current) rumChartShown(); }, [phoneChartPage]);
   // 电脑版多图 (2026-11-02): the chart grid (account preference ui.desktopCharts); its selected cell is this chart, so
   // the contract tabs, the order ticket and the AI follow it. Automatic cells take the pinned tabs, then main contracts.
   const gridAvailable = !mobile && !isGuest && !props.replayActive;
@@ -1335,6 +1341,12 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
 
   const blockingMarketState = props.marketError && !market && (props.state.runtime?.dataConnectionStage === "failed" || (props.state.runtime?.marketDataStatus === "normal" && !props.marketLoading))
     ? <div className="fdw-blocking-state" data-contract-condition={props.marketError !== "当前行情暂时不可用" || undefined}><CircleAlert /><strong>{props.marketError}</strong><button type="button" className={props.marketError !== "当前行情暂时不可用" ? "secondary" : ""} onClick={props.onRefreshMarket}>重新读取</button></div> : null;
+  // Nothing to chart yet is never a blank page (#932 11-02): no contract picked → 选择合约; otherwise the
+  // read in progress, as the phone's 看盘 says it.
+  const noContract = !props.selectedSymbol && !props.instrumentsLoading;
+  const pendingMarketState = !market && !blockingMarketState
+    ? <div className="fdw-blocking-state" role="status"><strong>{noContract ? props.instrumentsError || "还没有选择合约" : props.marketError || "正在读取行情…"}</strong>
+      {noContract ? <button type="button" onClick={() => setContractOpen(true)}>选择合约</button> : null}</div> : null;
 
   if (mobile) {
     const currentAccount = tradingAccounts.directory?.accounts.find(entry => entry.id === (tradingAccounts.currentId ?? tradingAccounts.directory?.current));
@@ -1702,6 +1714,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
             </div>
           ) : null}
           {view !== "review" ? blockingMarketState : null}
+          {view === "trade" ? pendingMarketState : null}
           {market || (!props.guest && view === "review") ? (
             <>
               {!market || view === "board" ? null : <MarketCommand workspace={workspace} market={market} headerCurrentContract={headerCurrentContract} chartView={chartView} decimals={decimals} onOpenContracts={() => setContractOpen(true)}

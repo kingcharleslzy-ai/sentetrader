@@ -111,3 +111,11 @@ test("游客列表就是它的全部目录：不再在“最近”下重复列�
   show(false);
   expect(screen.getByRole("heading", { name: "最近" })).toBeVisible();
 });
+
+test("品种中文名加月份（螺纹2701）也能搜到那个月份，和 rb2701 一样展开并高亮（#932 11-02）", () => {
+  const months = { ...catalog, count: 2, items: [item("SHFE.rb2701", "螺纹钢2701"), { ...item("SHFE.rb2705", "螺纹钢2705"), isMain: false, deliveryMonth: 5 }] };
+  drawer({ instruments: months }, "螺纹2701");
+  expect(screen.getByRole("button", { name: "SHFE.rb2701" })).toHaveClass("hit");
+  expect(screen.queryByRole("button", { name: "SHFE.rb2705" })).toBeNull();
+  expect(screen.queryByText("没有匹配的品种或合约")).toBeNull();
+});

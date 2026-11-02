@@ -978,6 +978,8 @@ test("目标持仓页：三模式切换、本地差额预览、生成方案卡�
   fireEvent.click(screen.getByTestId("generate-target-card"));
   expect(values.onTargetPosition).toHaveBeenCalledWith({ symbol: "SHFE.au2612", targetNet: 3, priceIntent: "passive" });
   expect(values.onManualSubmit).not.toHaveBeenCalled();
+  // The card lands in the conversation (maybe closed): the panel says so itself (#932 11-02).
+  expect(await screen.findByTestId("target-card-notice")).toHaveTextContent("方案卡已生成，在对话里确认后才会下单");
   // A reverse target previews two legs; the price intent follows the 对手价 toggle.
   fireEvent.change(screen.getByTestId("target-net-input"), { target: { value: "-2" } });
   expect(screen.getByTestId("target-plan-summary")).toHaveTextContent("目标 -2 手，当前 +2 手 → 平掉全部 2 手，再卖开 2 手");
@@ -1925,6 +1927,16 @@ test("合约自身没有行情（上市以来零成交）时显示原因，重�
   expect(screen.getByRole("button", { name: "重新读取" })).toHaveClass("secondary");
   expect(screen.queryByText(/行情 · 连接中/)).toBeNull();
   expect(screen.queryByText(/已等待/)).toBeNull();
+});
+
+test("还没有可画的行情时主区不留白：没选合约给“选择合约”打开合约列表，选了合约写正在读取（#932 11-02）", () => {
+  const view = render(<FuturesDecisionWorkspace {...props({ market: undefined, selectedSymbol: undefined, instrumentsLoading: false }) as any} />);
+  expect(screen.getByText("还没有选择合约")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "选择合约" }));
+  expect(screen.getByRole("dialog", { name: "合约列表" })).toBeVisible();
+  view.unmount();
+  render(<FuturesDecisionWorkspace {...props({ market: undefined, marketLoading: true }) as any} />);
+  expect(screen.getByText("正在读取行情…")).toBeVisible();
 });
 
 test("agent 界面命令 panel: positions 打开持仓面板，positionsBar 仍只管底栏；positions-drawer 是别名", () => {

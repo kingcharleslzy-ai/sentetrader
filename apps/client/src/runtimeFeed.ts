@@ -150,9 +150,10 @@ function text(value: unknown): string | undefined {
   return typeof value === "string" && value ? value : undefined;
 }
 
-/** The Runtime's capture time inside a channel payload, where that channel carries one. */
+/** The source's capture time inside a channel payload, where that channel carries one. A market frame's is the
+ *  workbench's own `capturedAt` — the sidecar's time it served this quote (RUM 价格延迟 starts there); the live
+ *  quote inside carries none, only the exchange's `quoteDatetime` (#932 11-02). */
 function sourceTime(channel: FeedChannel, payload: Record<string, unknown>): string | undefined {
-  if (channel === "market") return text((payload.quote as Record<string, unknown> | undefined)?.capturedAt);
   if (channel === "account") return text((payload.account as Record<string, unknown> | undefined)?.capturedAt);
   return text(payload.capturedAt);
 }

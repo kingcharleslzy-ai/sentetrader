@@ -93,6 +93,16 @@ describe("RUM collector", () => {
     expect(sentBackground.kline_first_paint).toBeUndefined();
   });
 
+  it("a phone that landed on 今天 times the chart from the tap on 看盘, not from page start (#932 11-02)", async () => {
+    const phone = collector();
+    phone.rum.noteVisibility(true);
+    phone.rum.noteChartShown(20_000);   // the user opened 看盘 20 s after the page loaded
+    phone.rum.noteChartPainted(20_400);
+    phone.rum.setTarget(target());
+    await phone.rum.flush();
+    expect(sent(phone.calls.find(call => call.init?.method === "POST")!.init).minutes[0].metrics.kline_first_paint.sum).toBe(400);
+  });
+
   it("dates a silent stream drop from when it really went quiet", () => {
     const { rum, advance, at } = collector();
     const quietSince = at() - 40_000;   // the idle watchdog only fired 40 s after the last frame

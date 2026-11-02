@@ -5,7 +5,8 @@
  * Collected: page vitals through Google's web-vitals (LCP/INP/CLS/FCP/TTFB); the price's end-to-end
  * latency — the sidecar's capture time of a pushed quote to the frame that paints it, on the server's
  * clock (the offset comes from the Runtime's `serverNow`, the lowest-round-trip answer wins); the
- * K-line chart's first paint after page start; the session stream's drops (how long, how often it
+ * K-line chart's first paint after page start (or after the user opened the chart's page, when the page landed
+ * elsewhere — the phone's 今天); the session stream's drops (how long, how often it
  * reconnected); page errors counted by kind — never their text; visible time and JS heap (Chromium).
  * Each metric leaves as a count, a sum and bucket counts over RUM_BUCKET_BOUNDS, never raw points;
  * nothing carries a symbol, message, URL or account. A hidden or closing page flushes with sendBeacon.
@@ -102,6 +103,8 @@ export class RumCollector {
   private downSince?: number;
   private visibleSince?: number;
   private chartPainted = false;
+  /** When the chart's page was opened (ms since page start); 0 = it was the landing page. */
+  private chartShownAt = 0;
   /** A page that was hidden at any point before its chart drew has no meaningful first paint. */
   private everHidden = false;
 
@@ -172,10 +175,18 @@ export class RumCollector {
     if (latency <= MAX_PRICE_LATENCY_MS) this.record("price_latency", Math.max(0, latency));
   }
 
+  /** The user opened the chart's page later (the phone lands on 今天): its first paint counts from now, not from
+   *  page start — otherwise K 线首屏 measures how long the user took to tap 看盘 (#932 11-02). */
+  noteChartShown(sincePageStart: number) {
+    if (this.chartPainted) return;
+    this.chartShownAt = sincePageStart;
+    this.everHidden = false;   // opened by a tap: visible now, an earlier hidden spell is not part of this paint
+  }
+
   noteChartPainted(sincePageStart: number) {
     if (this.chartPainted) return;
     this.chartPainted = true;
-    if (!this.everHidden) this.record("kline_first_paint", sincePageStart);
+    if (!this.everHidden) this.record("kline_first_paint", sincePageStart - this.chartShownAt);
   }
 
   /** The stream is down. `since` is when it really went quiet — the last frame, or the start of the failed
@@ -355,6 +366,11 @@ export function setRumTarget(target: RumTarget | undefined) {
 /** A pushed market frame was applied; measure its price at the frame that paints it. */
 export function rumPriceFrame(capturedAt: string | undefined) {
   collector?.notePriceCapture(capturedAt, callback => requestAnimationFrame(() => setTimeout(callback, 0)));
+}
+
+/** The user opened the K-line chart's page (the phone's 看盘 tab); a landing chart page never calls this. */
+export function rumChartShown() {
+  collector?.noteChartShown(performance.now());
 }
 
 /** The K-line chart drew its first bars. */

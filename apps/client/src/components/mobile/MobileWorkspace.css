@@ -39,13 +39,14 @@
 }
 .fdm-head > strong { margin-right: auto; font-size: var(--font-xl); font-weight: 700; white-space: nowrap; }
 .fdm-quote {
-  min-width: 0; min-height: 44px; display: inline-flex; align-items: center; gap: var(--space-2);
+  min-width: 0; min-height: 44px; display: inline-flex; flex-wrap: wrap; align-items: center; align-content: center; gap: 0 var(--space-2);
   padding: 0 var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-pill);
-  color: var(--ink); background: var(--soft); font-size: var(--font-md); white-space: nowrap; overflow: hidden;
+  color: var(--ink); background: var(--soft); font-size: var(--font-md); line-height: 1.2; white-space: nowrap; overflow: hidden;
 }
-/* A long contract name gives way first: the price and change always stay whole. */
-/* Its own class: the 报价 rows' .fdm-quote-name is a grid, where an ellipsis never shows (2026-11-02). */
-.fdm-quote-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* The name is the contract's identity: a short row (375 宽) wraps the price under it instead of cutting
+   "中证2612" to "中证2" (#932 11-02), each whole. Only a name wider than the whole pill still ends in an ellipsis.
+   Its own class: the 报价 rows' .fdm-quote-name is a grid, where an ellipsis never shows (2026-11-02). */
+.fdm-quote-label { flex: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .fdm-quote-price { flex: none; font-family: var(--font-num); font-variant-numeric: tabular-nums; color: var(--muted); }
 .fdm-quote-price[data-direction="up"] { color: var(--market-up); }
 .fdm-quote-price[data-direction="down"] { color: var(--market-down); }
@@ -598,6 +599,7 @@
 .fdm-ticket-confirm { display: grid; gap: var(--space-2); padding-top: var(--space-2); }
 .fdm-ticket-confirm > small { color: var(--warning); font-size: var(--font-sm); }
 .fdm-ticket-confirm > small:empty { display: none; }
+.fdm-ticket-confirm > small[role="status"] { color: var(--muted); }
 .fdm-ticket .fdw-confirm-order, .fdm-ticket .fdw-close-action { width: 100%; margin: 0; padding: 0; }
 .fdm-ticket .fdw-confirm-order { min-height: 56px; border-radius: var(--radius-pill); font-size: var(--font-xl); }
 /* The side's market colour; the page background is the text, which reads on it in both themes. */

@@ -112,22 +112,28 @@ export function ContractDrawer({ workspace, query, onQueryChange, onSelect, onCl
   const catalogMissing = catalogState.status === "offline" || catalogState.status === "empty" || catalogState.status === "expired";
   const starred = useMemo(() => new Set(watchlist), [watchlist]);
 
-  // An exact contract code (rb2701 / SHFE.rb2701) expands its product and highlights the month.
+  const groups = useMemo(() => catalogProducts(items), [items]);
+  const nameHit = (group: ProductGroup, text: string) => `${group.productName}${group.productId}`.toLowerCase().includes(text);
+  // A product name (or its start) followed by the month — 螺纹2701 — finds that month like rb2701 does (#932 11-02).
+  const [, namePart = "", monthPart = ""] = /^(\D+?)\s*(\d{3,4})$/.exec(needle) ?? [];
+  // 郑商所的月份是三位（SR701）：白糖2701 也找得到。
+  const monthCode = (item: InstrumentCatalogItem) => item.instrumentId.replace(/\D/g, "");
+  const monthHit = (group: ProductGroup, item: InstrumentCatalogItem) => `${item.instrumentId}${item.symbol}`.toLowerCase().includes(needle)
+    || (Boolean(monthPart) && nameHit(group, namePart) && monthCode(item).length >= 3 && monthPart.endsWith(monthCode(item)));
+  // An exact contract code (rb2701 / SHFE.rb2701 / 螺纹2701) expands its product and highlights the month.
+  const named = monthPart ? groups.flatMap(group => group.months.filter(item => monthHit(group, item))) : [];
   const exact = needle
     ? items.find(item => item.symbol.toLowerCase() === needle || item.instrumentId.toLowerCase() === needle)
+      ?? (named.length === 1 ? named[0] : undefined)
     : undefined;
 
-  const groups = useMemo(() => catalogProducts(items), [items]);
-
   const visible = needle
-    ? groups.filter(group => `${group.productName}${group.productId}`.toLowerCase().includes(needle)
-      || group.months.some(item => `${item.instrumentId}${item.symbol}`.toLowerCase().includes(needle)))
+    ? groups.filter(group => nameHit(group, needle) || group.months.some(item => monthHit(group, item)))
     : groups;
   // A product matched by name keeps all its months; a code query shows the matching months only.
   const monthsOf = (group: ProductGroup) => {
-    if (!needle) return group.months;
-    if (`${group.productName}${group.productId}`.toLowerCase().includes(needle)) return group.months;
-    return group.months.filter(item => `${item.instrumentId}${item.symbol}`.toLowerCase().includes(needle));
+    if (!needle || nameHit(group, needle)) return group.months;
+    return group.months.filter(item => monthHit(group, item));
   };
 
   const row = (item: InstrumentCatalogItem) => <button type="button" className={sameContract(item.symbol, workspace.selectedSymbol) ? "active" : ""} key={item.symbol} onClick={() => onSelect(item.symbol)}><span><strong>{item.instrumentName || item.instrumentId}</strong><small>{item.symbol}</small></span><span><b>{item.isMain ? "主力" : `${item.deliveryYear}-${String(item.deliveryMonth).padStart(2, "0")}`}</b><small>Tick {formatNumber(item.priceTick, decimalsForTick(item.priceTick))}</small></span></button>;

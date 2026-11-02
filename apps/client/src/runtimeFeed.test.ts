@@ -5,7 +5,8 @@ import { applyFeedEvent, feedIsLive, markFeedStreamAlive, onFeedNudge, onMarketR
 const event = (name: string, payload: unknown): UiEvent =>
   ({ schemaVersion: 1, id: name, sessionId: "s", kind: "result", name, timestamp: "now", payload } as unknown as UiEvent);
 const marketPayload = (symbol = "SHFE.rb2610") =>
-  ({ schemaVersion: 1, durationSeconds: 60, quote: { symbol, capturedAt: "2026-09-19T01:00:00Z" }, bars: [], liveTrading: "disabled" });
+  // As the Runtime pushes it: the capture time is the workbench's own; the live quote carries none (#932 11-02).
+  ({ schemaVersion: 1, durationSeconds: 60, capturedAt: "2026-09-19T01:00:00Z", quote: { symbol, quoteDatetime: "2026-09-19 09:00:00.000000" }, bars: [], liveTrading: "disabled" });
 
 afterEach(() => resetFeed());
 
@@ -103,7 +104,7 @@ test("a market patch updates only what changed on the frame it was built on; a g
   const stop = onMarketResync(id => resyncs.push(id));
   act(() => { applyFeedEvent("s", event("feed.market", { ...marketPayload(), revision: "1", bars: [bar(1, 10), bar(2, 11)] }), 0); });
   act(() => { applyFeedEvent("s", event("feed.market-patch", { revision: "2", base: "1", durationSeconds: 60, changes: {
-    quote: { symbol: "SHFE.rb2610", lastPrice: 12, capturedAt: "2026-09-27T01:00:02Z" }, capturedAt: "2026-09-27T01:00:02Z",
+    quote: { symbol: "SHFE.rb2610", lastPrice: 12 }, capturedAt: "2026-09-27T01:00:02Z",
     barsPatch: { bars: [bar(2, 12), bar(3, 12)], trimBefore: 2 } } }), 1000); });
   const market = view.result.current.market!;
   expect(market.revision).toBe("2");

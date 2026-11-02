@@ -247,9 +247,15 @@ export function TradeTicket({
     setTargetSeeded(true);
     setTargetNet(targetPreview.currentNet !== 0 ? targetPreview.currentNet : 1);
   }, [tradeMode, targetSeeded, targetPreview.currentNet]);
+  // The card goes to the conversation, which may be closed: the panel itself says it was made (#932 11-02),
+  // the way 快捷下单 reports in place.
+  const [targetNotice, setTargetNotice] = useState("");
+  useEffect(() => { setTargetNotice(""); }, [tradeMode, targetNet, quote.symbol]);
   const submitTarget = async () => {
     if (targetBox.problem) return;
-    await onTargetPosition({ symbol: quote.symbol, targetNet, priceIntent });
+    setTargetNotice("");
+    const issued = await onTargetPosition({ symbol: quote.symbol, targetNet, priceIntent });
+    setTargetNotice(issued ? "方案卡已生成，在对话里确认后才会下单。" : "没有生成方案卡，原因见提示。");
   };
   // 手数 (#789): the box keeps what is typed; only a whole number in 1…cap becomes the ticket's volume,
   // and anything else blocks 确认下单 and the 一键 buttons with its reason instead of becoming another number.
@@ -454,7 +460,10 @@ export function TradeTicket({
       ?? (tradeMode === "target" ? targetBox.problem : ticketProblem ?? protectionIssue
         ?? (priceMissing ? "请输入委托价" : tradeMode === "close" && !selectedPosition ? "先选择持仓"
           : tradeMode === "close" && closeAvailable < volume ? `当前可平 ${closeAvailable} 手` : ""));
-  const blockedLine = <small data-testid="ticket-blocked-reason">{blockedReason}</small>;
+  const blockedLine = <>
+    <small data-testid="ticket-blocked-reason">{blockedReason}</small>
+    {tradeMode === "target" && targetNotice ? <small role="status" data-testid="target-card-notice">{targetNotice}</small> : null}
+  </>;
 
   if (mobile) {
     const protectionSummary = stopPrice === undefined && takePrice === undefined ? "不设"

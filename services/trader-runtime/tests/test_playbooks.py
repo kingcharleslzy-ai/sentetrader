@@ -148,13 +148,15 @@ def test_the_breakdown_groups_by_setup_trading_block_and_weekday() -> None:
         round_trip(5, open_at=("2026-10-20", "23:30"), day="2026-10-21", net=80),
         # A foreign (CME) month has no domestic trading block, but still counts for its weekday.
         round_trip(6, open_at=("2026-10-21", "10:40"), day="2026-10-21", net=-20, symbol="CME.GCEZ26"),
+        # 股指没有 10:15 小节休息：10:18 是它自己的上午那段（#932 11-02）。
+        round_trip(7, open_at=("2026-10-23", "10:18"), day="2026-10-23", net=30, symbol="CFFEX.IC2612"),
     ]
     result = review_breakdown(rounds)
     assert [(row["label"], row["trades"], row["wins"], row["net"]) for row in result["byPlaybook"]] == [
-        ("开盘突破", 2, 1, 200), ("均线回踩", 1, 1, 50), ("未标笔记", 3, 1, -140)]
+        ("开盘突破", 2, 1, 200), ("均线回踩", 1, 1, 50), ("未标笔记", 4, 2, -110)]
     assert [(row["label"], row["trades"]) for row in result["byTimeBlock"]] == [
-        ("夜盘 21–22 点", 1), ("夜盘 23 点后", 1), ("9:00–10:15", 2), ("13:30–15:00", 1)]
-    assert [(row["label"], row["trades"], row["winRate"]) for row in result["byWeekday"]] == [("周三", 2, 50), ("周五", 4, 50)]
+        ("夜盘 21–22 点", 1), ("夜盘 23 点后", 1), ("9:00–10:15", 2), ("9:30–11:30", 1), ("13:30–15:00", 1)]
+    assert [(row["label"], row["trades"], row["winRate"]) for row in result["byWeekday"]] == [("周三", 2, 50), ("周五", 5, 60)]
 
 
 def test_a_setup_or_block_well_off_the_overall_win_rate_becomes_a_lesson() -> None:

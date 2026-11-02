@@ -192,7 +192,7 @@ M1b 在同一覆盖层上开放登录页直登：`POST /api/auth/tqkq`（body `{
 
 ### 真实用户监测（RUM，2026-10-13）
 
-登录后的交易页（网页、桌面、手机；游客页同样）用 Google `web-vitals` 6.2.2（Apache-2.0，打包后约 3 KB gzip）采 LCP/INP/CLS/FCP/TTFB，另记价格端到端延迟（sidecar `capturedAt` → 浏览器画出该帧，用 Runtime 下发的 `serverNow` 按最短往返校正时钟，>60 秒的旧帧丢弃）、K 线首屏出图、会话 SSE 断线时长与重连次数、页面报错按类别计数（不带报错文本）、可见时长与 JS 堆（Chromium）。页面本地按分钟累计，每 60 秒 `POST /api/telemetry/rum` 发一个汇总包（每项只有次数、总和与 21 段分段计数，典型 300–600 字节，上限 16 KB、最多 10 分钟），页面隐藏或关闭时用 `sendBeacon` 补发（bearer 登录的桌面端改用 keepalive 请求）。自动化浏览器（`navigator.webdriver`）不上报。
+登录后的交易页（网页、桌面、手机；游客页同样）用 Google `web-vitals` 6.2.2（Apache-2.0，打包后约 3 KB gzip）采 LCP/INP/CLS/FCP/TTFB，另记价格端到端延迟（sidecar `capturedAt` → 浏览器画出该帧，用 Runtime 下发的 `serverNow` 按最短往返校正时钟，>60 秒的旧帧丢弃）、K 线首屏出图（从打开页面算起；手机先落在别的页时从点进看盘的单图或多图算起）、会话 SSE 断线时长与重连次数、页面报错按类别计数（不带报错文本）、可见时长与 JS 堆（Chromium）。页面本地按分钟累计，每 60 秒 `POST /api/telemetry/rum` 发一个汇总包（每项只有次数、总和与 21 段分段计数，典型 300–600 字节，上限 16 KB、最多 10 分钟），页面隐藏或关闭时用 `sendBeacon` 补发（bearer 登录的桌面端改用 keepalive 请求）。自动化浏览器（`navigator.webdriver`）不上报。
 
 Runtime 侧（`trader_runtime/rum.py`）：只收登录用户或游客会话、校验 Origin、每身份每分钟 20 次尝试（认证通过后、读 body 之前就计数：坏 JSON、采集已关闭、未入样的提交同样占名额，也不会为它们新建遥测库）、白名单指标名（没有能装文本的字段），按“分钟 × 用户匿名哈希（HMAC，盐存库内）× 页面会话哈希 × 客户端 × 网络类型 × 指标”合并写入数据目录下独立的 `rum.sqlite3`（WAL，不占业务库写锁；同一页面同一分钟的多次提交合并后整行再封顶：可见时长一分钟最多 60 秒、分布类指标每个样本最多一天；进程退出时关闭该库）；接收端每小时顺手删除 14 天前的行（宿主每小时维护服务只管发布目录与镜像，碰不到 Runtime 数据卷里的库，所以清理放在写入方）。估算：每个活跃页面每分钟一次约 1 ms 的 upsert、约 5–8 行；10 个同时在线页面一天约 7–12 万行，14 天约 100 万行、约 60–100 MB。没有引入 Sentry、Grafana Faro 或 OpenTelemetry Collector：它们要多跑一个常驻服务（数百 MB 内存）和独立存储，3.7 GiB 的生产机放不下，而这里需要的只是分钟级分位数。
 

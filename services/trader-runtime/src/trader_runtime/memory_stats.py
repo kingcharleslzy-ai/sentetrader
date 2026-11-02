@@ -73,16 +73,25 @@ def _is_night(open_time_ns: int) -> bool:
 
 
 # 时段 (所有者 2026-10-25)：按国内交易小节切，夜盘每小时一段；按开仓时刻（北京时间）归段。
-TIME_BLOCKS = ("夜盘 21–22 点", "夜盘 22–23 点", "夜盘 23 点后", "9:00–10:15", "10:30–11:30", "13:30–15:00")
+# 中金所（股指、国债）没有 10:15 小节休息，按它自己的两段日盘（#932 11-02：股指 10:18 曾被归到 10:30–11:30）。
+TIME_BLOCKS = ("夜盘 21–22 点", "夜盘 22–23 点", "夜盘 23 点后", "9:00–10:15", "9:30–11:30", "10:30–11:30",
+               "13:00–15:00", "13:00–15:15", "13:30–15:00")
 WEEKDAYS = ("周一", "周二", "周三", "周四", "周五")
 
 
 def time_block(trade: dict[str, Any]) -> str | None:
     """A domestic round trip's 交易小节 by its open; foreign (CME) trades have none."""
-    if foreign_product_of(str(trade["symbol"])) is not None:
+    symbol = str(trade["symbol"])
+    if foreign_product_of(symbol) is not None:
         return None
     moment = datetime.fromtimestamp(int(trade["openTime"]) / 1e9, CHINA)
     minute = moment.hour * 60 + moment.minute
+    exchange, _, instrument = symbol.upper().partition(".")
+    if exchange == "CFFEX":
+        # 股指 9:30–11:30 / 13:00–15:00；国债（T、TF、TS、TL）下午到 15:15。
+        if minute < 12 * 60:
+            return "9:30–11:30"
+        return "13:00–15:15" if instrument.startswith("T") else "13:00–15:00"
     if 21 * 60 <= minute < 22 * 60:
         return TIME_BLOCKS[0]
     if 22 * 60 <= minute < 23 * 60:
@@ -90,10 +99,10 @@ def time_block(trade: dict[str, Any]) -> str | None:
     if minute >= 23 * 60 or minute < 3 * 60:
         return TIME_BLOCKS[2]
     if minute < 10 * 60 + 15:
-        return TIME_BLOCKS[3]
+        return "9:00–10:15"
     if minute < 11 * 60 + 30:
-        return TIME_BLOCKS[4]
-    return TIME_BLOCKS[5]
+        return "10:30–11:30"
+    return "13:30–15:00"
 
 
 def weekday(trade: dict[str, Any]) -> str | None:
