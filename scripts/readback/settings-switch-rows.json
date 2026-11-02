@@ -1,0 +1,15 @@
+{
+ "about": "电脑版设置里只有一个开关的行（#1269 起在任何宽度都和标签同一行）：通用提醒页签与交易、语音设置页，看其他行没被改乱。只读，不写数据。",
+ "steps": [
+  {"ui": {"panel": "reminders"}, "expect": {"panel": "reminders"}},
+  {"ui": {"reminders": {"tab": "general"}}, "expect": {"reminders.tab": "general"}},
+  {"screenshot": "01-desktop-general-reminders"},
+  {"ui": {"panel": null}, "expect": {"panel": null}},
+  {"ui": {"settingsOpen": true}, "expect": {"observation.text": {"includes": "设置"}}},
+  {"ui": {"settingsPage": "trade"}, "expect": {"observation.text": {"includes": "快捷下单免确认"}}},
+  {"screenshot": "02-desktop-settings-trade"},
+  {"ui": {"settingsPage": "voice"}, "expect": {"observation.text": {"includes": "松开后直接发送"}}},
+  {"screenshot": "03-desktop-settings-voice"},
+  {"ui": {"settingsOpen": false}, "expect": {"panel": null}}
+ ]
+}

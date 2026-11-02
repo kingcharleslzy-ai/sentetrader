@@ -1,0 +1,22 @@
+{
+ "about": "手机逐屏检查剩下五处（#1269）：持仓页写“浮动盈亏”、通用提醒的开关和标签同一行、我的页“设置”旁的“?”。提醒记录的中文名与快讯去半截标签在服务端，看提醒记录页与调研快讯截图。只读，不写数据。",
+ "device": "phone",
+ "steps": [
+  {"ui": {"mobilePage": "positions"}, "expect": {"mobilePage": "positions"}},
+  {"screenshot": "01-positions"},
+  {"ui": {"mobilePage": null}, "expect": {"mobilePage": null}},
+  {"ui": {"reminderCenter": {"open": true}}, "expect": {"mobilePage": "reminders"}},
+  {"ui": {"reminders": {"tab": "general"}}, "expect": {"reminders.tab": "general"}},
+  {"screenshot": "02-general-reminders"},
+  {"ui": {"reminders": {"tab": "history"}}, "expect": {"reminders.tab": "history"}},
+  {"screenshot": "03-reminder-history"},
+  {"ui": {"mobilePage": null}, "expect": {"mobilePage": null}},
+  {"ui": {"mobileTab": "research"}, "expect": {"mobileTab": "research"}},
+  {"screenshot": "04-research"},
+  {"ui": {"mobileTab": "me"}, "expect": {"mobileTab": "me"}},
+  {"ui": {"disclosure": {"name": "help-tip", "id": "mobile-me-settings", "open": true}}, "expect": {"observation.text": {"includes": "请在电脑上使用"}}},
+  {"screenshot": "05-me-settings-help"},
+  {"ui": {"disclosure": {"name": "help-tip", "id": "mobile-me-settings", "open": false}}, "expect": {"mobileTab": "me"}},
+  {"ui": {"mobileTab": "ai"}, "expect": {"mobileTab": "ai"}}
+ ]
+}
