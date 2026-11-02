@@ -1,8 +1,8 @@
-/* Market bar above the chart: contract · last price (flashes on each tick) · OHLC · periods · session · tools. */
+/* Market bar above the chart: contract · last price (flashes on each tick) · OHLC · periods · session · tools.
+   It grows a second line when the tools no longer fit beside the head (several side panels open) — never clips them. */
 .fdw-market-command {
-  height: var(--fdw-command);
   min-height: var(--fdw-command);
-  flex: 0 0 var(--fdw-command);
+  flex: 0 0 auto;
   display: grid;
   /* The head never shrinks below its min-content (contract button + last price; OHLC is a
      0-min column), and the tools column gives way instead — its period group scrolls. */
@@ -65,7 +65,7 @@
 .fdw-market-head > div > span.fdw-replay-omitted, .fdw-market-head dd.fdw-replay-omitted { padding: 0; color: var(--fdw-muted); font-family: inherit; font-size: var(--font-md); font-weight: 400; }
 
 /* Right side: periods (segmented), session, tools. */
-.fdw-chart-tools { height: var(--fdw-command); min-width: 0; display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-3) 0 var(--space-1); overflow: hidden; }
+.fdw-chart-tools { min-height: var(--fdw-command); min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); padding: var(--space-1) var(--space-3) var(--space-1) var(--space-1); overflow: hidden; }
 .fdw-chart-tools > div { display: flex; align-items: center; gap: var(--space-0); }
 /* The period group is the part that yields when the bar is short: it may shrink below its
    content (PeriodSwitch then folds periods into 更多; scrolling is the last resort below that),
@@ -100,7 +100,7 @@
    the periods tighten first, then the session pill, then OHLC, the percent
    chip and the contract code. The contract name itself never goes (its column minimum above). */
 @container market-command (max-width: 1040px) {
-  .fdw-chart-tools { gap: var(--space-1); }
+  .fdw-chart-tools { column-gap: var(--space-1); }
   .fdw-chart-tools > [role="group"] button { min-width: 24px; padding: 0 var(--space-1); }
 }
 @container market-command (max-width: 940px) { .fdw-chart-tools > .fdw-chart-health { display: none; } }
@@ -124,7 +124,7 @@
 @media (max-width: 760px) {
   .fdw-market-command { height: auto; min-height: 0; flex-basis: auto; grid-template-columns: minmax(0, 1fr); }
   .fdw-market-head { height: 44px; gap: var(--space-2); padding: 0 var(--space-2); }
-  .fdw-chart-tools { height: 40px; border-top: 1px solid var(--fdw-line); }
+  .fdw-chart-tools { min-height: 40px; border-top: 1px solid var(--fdw-line); }
   .fdw-instrument-button small { display: none; }
   .fdw-market-head > div > strong { font-size: var(--font-xl); }
   .fdw-chart-tools { padding: 0 var(--space-1); }
