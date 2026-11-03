@@ -24,6 +24,7 @@ class FakeAudioContext {
   static instances: FakeAudioContext[] = [];
   static latest: FakeAudioContext | undefined;
   currentTime = 0;
+  sampleRate = 48000;
   destination = {} as AudioDestinationNode;
   sources: { buffer: { duration: number; sampleRate: number } | null; start: ReturnType<typeof vi.fn>; stop: ReturnType<typeof vi.fn>; onended: (() => void) | null }[] = [];
   gains: { gain: { value: number }; connect: ReturnType<typeof vi.fn> }[] = [];
@@ -100,13 +101,14 @@ afterEach(() => {
   Object.defineProperty(navigator, "mediaDevices", { value: undefined, configurable: true });
 });
 
-test("通话只用一个 AudioContext：捕获与播放共用，输出帧仍按 24 kHz 标注", async () => {
+test("通话只用一个 AudioContext：捕获与播放共用，24 kHz 输出帧换算成设备采样率再播", async () => {
   const call = await connectedCall();
   receive(audioFrame(2880)); // ≥120 ms alone: the preroll bound is met at once.
   const context = FakeAudioContext.latest!;
   expect(FakeAudioContext.instances).toHaveLength(1);
   expect(context.sources).toHaveLength(1);
-  expect(context.sources[0].buffer!.sampleRate).toBe(24000);
+  expect(context.sources[0].buffer!.sampleRate).toBe(48000);
+  expect(context.sources[0].buffer!.duration).toBeCloseTo(0.12, 4);
   expect(context.sources[0].start).toHaveBeenCalledWith(context.currentTime + 0.05);
   call.stop();
 });
@@ -124,10 +126,12 @@ test("起播缓冲：前 120 ms 只累积不起播，满后按 playhead 连续�
   expect(starts[0]).toBe(0.05);
   // 第二帧起播 == 第一帧起播 + 第一帧时长：帧与帧无缝。
   expect(starts[1]).toBeCloseTo(starts[0] + context.sources[0].buffer!.duration, 10);
-  expect(starts[5]).toBeCloseTo(starts[0] + 5 * context.sources[0].buffer!.duration, 10);
-  // 之后的帧接在 playhead 上，不再各自从 currentTime+0.02 起播。
+  expect(starts[5]).toBeCloseTo(starts[4] + context.sources[4].buffer!.duration, 10);
+  // 之后的帧接在上一帧末尾的整数采样点上，不再各自从 currentTime+0.02 起播。
   receive(audioFrame(480));
-  expect(context.sources[5 + 1].start.mock.calls[0][0]).toBeCloseTo(starts[0] + 6 * 0.02, 10);
+  const played = context.sources.slice(0, 6).reduce((sum, source) => sum + source.buffer!.duration, 0);
+  expect(context.sources[5 + 1].start.mock.calls[0][0]).toBeCloseTo(starts[0] + played, 10);
+  expect(played).toBeCloseTo(6 * 0.02, 4);
   call.stop();
 });
 

@@ -1,8 +1,9 @@
-import { Bell, ChartCandlestick, ChevronUp, FlaskConical, MessageSquare, Phone, Search, Send, Sparkles, Sun, X, type LucideIcon } from "lucide-react";
+import { Bell, ChartCandlestick, ChevronUp, FlaskConical, Hand, MessageSquare, Phone, Search, Send, Sparkles, Sun, X, type LucideIcon } from "lucide-react";
 import { useCallback, useContext, useEffect, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import type { MarketQuoteSnapshot } from "../../api";
 import { AccountAccessContext } from "../../hooks/useAccountAccess";
+import { HalfDuplexHelp } from "../futures/CallBar";
 import type { PushToTalk } from "../futures/PushToTalk";
 import { formatNumber } from "../futures/support";
 import { AiCommandResult, type AiCommand } from "../futures/useAiCommand";
@@ -301,7 +302,10 @@ export function MobileWorkspace({ tab, onTab, onOpenChat, onBell, quote, symbolN
         {notice && tab !== "chat" ? <p className="fdm-talk-notice" role="status" title="点一下关闭" onClick={() => pushToTalkStore.dismiss()}>{notice}</p> : null}
         {calling ? <div className="fdm-receipt fdm-call" data-agent-target="mobile-call" data-state={calling.status.state}>
           <p className="fdm-receipt-main" role={calling.status.state === "error" ? "alert" : "status"}><Phone aria-hidden="true" />
-            <span>{calling.status.state === "error" ? orbLabel(calling.status) : `通话中 · ${orbLabel(calling.status)}`}</span></p>
+            <span>{calling.status.state === "error" ? orbLabel(calling.status) : `通话中 · ${orbLabel(calling.status)}`}</span>
+            {calling.status.halfDuplex && calling.status.state !== "error" ? <HalfDuplexHelp /> : null}</p>
+          {calling.status.playing && calling.status.state !== "error"
+            ? <button type="button" className="fdm-call-end" data-agent-target="mobile-call-interrupt" aria-label="打断 AI" onClick={calling.interrupt}><Hand aria-hidden="true" />打断</button> : null}
           {calling.status.state === "error"
             ? <button type="button" className="fdm-call-end" onClick={calling.dismiss}>关闭</button>
             : <button type="button" className="fdm-call-end" aria-label="结束通话" onClick={calling.stop}>结束</button>}

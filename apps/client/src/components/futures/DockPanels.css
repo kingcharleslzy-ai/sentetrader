@@ -47,7 +47,7 @@
 .fdw-call-bar[data-state="error"] > p[role="alert"] { flex: 1 1 160px; }
 .fdw-call-dismiss { flex: none; width: 32px; height: 32px; display: inline-grid; place-items: center; padding: 0; border: 0; border-radius: var(--radius-control); color: var(--muted); background: transparent; cursor: pointer; }
 .fdw-call-dismiss:hover, .fdw-call-dismiss:focus-visible { color: var(--ink); background: var(--soft); }
-.fdw-call-retry { min-height: 32px; padding: 0 var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-pill); color: var(--ink); background: var(--panel); display: inline-flex; align-items: center; gap: var(--space-1); }
+.fdw-call-retry, .fdw-call-bar > .fdw-call-interrupt { min-height: 32px; padding: 0 var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-pill); color: var(--ink); background: var(--panel); display: inline-flex; align-items: center; gap: var(--space-1); }
 .fdw-call-live { flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: var(--space-2); }
 .fdw-call-state { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: var(--font-md); }
 .fdw-call-time { flex: 0 0 auto; color: var(--ink); font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: var(--font-md); }
@@ -65,6 +65,7 @@
 /* 没有收到麦克风声音: its own row under the live bar, the warning tone (a reason, not an error). */
 .fdw-call-bar > .fdw-call-mic { flex: 1 1 100%; min-width: 0; margin: 0; display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1); color: var(--warning); font-size: var(--font-md); line-height: 1.4; }
 .fdw-call-mic > span { min-width: 0; overflow-wrap: anywhere; }
+.fdw-call-bar > .fdw-call-duplex { flex: 1 1 100%; min-width: 0; margin: 0; display: flex; align-items: center; gap: var(--space-1); color: var(--muted); font-size: var(--font-md); line-height: 1.4; }
 .fdw-call-state[data-shadowed] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { .fdw-call-wave i { transition: none; } }
 

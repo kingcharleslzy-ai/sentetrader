@@ -157,7 +157,10 @@
 .fdm-call > .fdm-receipt-main { margin: 0; }
 .fdm-call > .fdm-receipt-main > svg { flex: none; color: var(--positive); }
 .fdm-call[data-state="error"] > .fdm-receipt-main > svg { color: var(--danger); }
-.fdm-call-end { flex: none; min-width: 64px; min-height: 44px; padding: 0 var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-control); color: var(--ink); background: transparent; font-weight: 600; }
+.fdm-call-end { flex: none; min-width: 64px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1); padding: 0 var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-control); color: var(--ink); background: transparent; font-weight: 600; }
+.fdm-call-end > svg { width: 16px; height: 16px; }
+/* With 打断 beside 结束 the state wraps instead of being cut ("通话中 · AI 在说 · 外放不听"). */
+.fdm-call > .fdm-receipt-main > span { white-space: normal; overflow-wrap: anywhere; }
 .fdm-receipt-main > svg:first-child { flex: none; color: var(--accent); }
 .fdm-receipt[data-working] .fdm-receipt-main > svg:first-child { animation: ui-ai-thinking 1.2s var(--ease-standard) infinite; }
 .fdm-receipt-main > svg:last-child, .fdm-receipt-close { flex: none; color: var(--muted); }

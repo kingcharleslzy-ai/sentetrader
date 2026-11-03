@@ -311,6 +311,7 @@ export const COMMANDABLE: Rule[] = [
   { match: control => control.surface.startsWith("ai-positions") && /^(全部|手动|AI|AI 建议|AI 自主|策略|止损|强平)$/.test(control.label), via: "fillsSource: all|manual|card|ai|strategy|stop|liquidation（持仓面板成交页来源筛选）" },
   { match: /^(开始|结束)语音通话$/, via: "disclosure: voice-call（通话栏与 AI 球共用同一路通话）" },
   { match: /^(静音|取消静音)$/, via: "disclosure: voice-mute" },
+  { match: /^打断( AI)?$/, via: "disclosure: {voice-playback: false}（打断 AI 说话、开始听；AI 声音在播时才有）" },
   // 离线状态的重试 (2026-10-11): shown only after a failed / empty read, each with its own command.
   { match: control => control.label === "重试" && control.surface.startsWith("dialog-contract-drawer"),
     via: "contractCatalogRetry: true（目录读取失败或为空时；快照 state.contractCatalog.canRetry）" },

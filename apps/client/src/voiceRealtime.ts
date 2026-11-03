@@ -6,7 +6,7 @@
  */
 import { localAuthTokenFor, requestJson } from "./api";
 import { logDesktop } from "./frontendLog";
-import { MicCapture, gestureAudioContext, handsFreeSuggestion, rootMeanSquare, setAudioSession, type MicDeviceInfo } from "./micCapture";
+import { MicCapture, gestureAudioContext, handsFreeSuggestion, microphoneLabel, rootMeanSquare, setAudioSession, type MicDeviceInfo } from "./micCapture";
 import { activeAgentWindow } from "./nativeAgent";
 import { loginIdentity, onLoginChange } from "./runtimeClient";
 
@@ -61,6 +61,11 @@ export interface VoiceCallStatus {
   micLabel?: string;
   /** With micSilent: the same headset's Hands-Free / 免提 / Headset input, when the current one is not it. */
   micSuggestion?: string;
+  /** 外放半双工: an iPhone / iPad on its own speaker — while the AI's voice plays the microphone is not sent
+   *  (see `speakerCall`); interrupting is the 打断 button or 停. */
+  halfDuplex?: boolean;
+  /** The AI's voice is playing on this device (queued audio not yet ended): 打断 / `voice-playback` stop it. */
+  playing?: boolean;
 }
 export type VoiceCallEvent =
   | { type: "status"; state: string; tools?: string[]; ttsType?: string; elapsedSeconds?: number }
@@ -78,6 +83,7 @@ export type VoiceCallEvent =
   | ({ type: "microphone" } & MicDeviceInfo)
   | { type: "mic_silent"; silent: boolean; blocks: number; context: string; trackMuted?: boolean; readyState?: string }
   | { type: "mic_suggestion"; label: string }
+  | { type: "route"; halfDuplex: boolean; label: string }
   | { type: "closed"; durationSeconds: number; turns: number; usage: { total_tokens: number }; latency: unknown[] };
 
 const OUTPUT_RATE = 24000;
@@ -88,7 +94,7 @@ const PREROLL_SAMPLES = OUTPUT_RATE * 0.12;
 const PREROLL_FRAMES = 6;
 const START_DELAY = 0.05;
 const REALIGN_DELAY = 0.1;
-const FADE_SAMPLES = OUTPUT_RATE * 0.002;
+const FADE_SECONDS = 0.002;
 // Barge-in is confirmed by the server: a local loud burst only ducks the playback this quiet for this
 // long; the queue is dropped solely when the server says the user's first word was recognised
 // (its `interrupt`). A knock or a chair scrape never becomes an interruption.
@@ -101,6 +107,29 @@ const DUCK_CONFIRM_MS = 700;
 const MIC_SILENT_RMS = 0.0002;
 export const MIC_SILENT_MS = 4000;
 const MIC_CHECK_MS = 500;
+// 外放半双工 (owner 2026-11-03): after the last buffer ends the speaker still sounds for the output latency
+// (context.outputLatency, tens of ms on iOS) and the room rings for a few hundred ms (a furnished room's
+// reverberation time is ~0.3–0.5 s): the microphone stays closed this much longer.
+const ECHO_TAIL_MS = 400;
+
+/** iPhone / iPad (any iOS browser is WebKit; an iPad asks for the desktop site as "Macintosh" with touch). */
+export function isIosWebKit(ua = typeof navigator === "undefined" ? "" : navigator.userAgent,
+  touchPoints = typeof navigator === "undefined" ? 0 : navigator.maxTouchPoints ?? 0): boolean {
+  return /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && touchPoints > 1);
+}
+
+// iOS names its own microphone after the device ("iPhone Microphone", "iPad 麦克风"); a headset's is its own name.
+const BUILT_IN_MIC = /iphone|ipad|ipod|built-?in|内建|内置/i;
+/**
+ * Whether an iOS call plays on the phone's own speaker, read from the one route signal a page has: the
+ * microphone it was given (iOS offers no output-device list). A headset's microphone (AirPods, a wired or
+ * Bluetooth headset) carries the call both ways; the built-in one — or no readable label, or a headset no
+ * longer in the input list (unplugged mid-call) — counts as the speaker. iOS sometimes hands the built-in
+ * microphone even with AirPods in (WebKit 282939): that call is then half-duplex too — wrong in the safe direction.
+ */
+export function speakerCall(label: string, inputs?: string[]): boolean {
+  return !label || BUILT_IN_MIC.test(label) || (inputs !== undefined && !inputs.includes(label));
+}
 
 /** One call: opens the socket, streams the microphone, plays what comes back. */
 export class VoiceCall {
@@ -116,7 +145,10 @@ export class VoiceCall {
   private duckTimer?: number;
   /** Microphone capture (shared with push-to-talk); its AudioContext is the one above. */
   private capture?: MicCapture;
-  private playhead = 0;
+  /** Where the next frame starts, in samples at the context rate (0 = no reply playing). */
+  private playFrame = 0;
+  /** The 24 kHz → context-rate resampler's carry between frames (see `resampleOutput`). */
+  private resampler = { last: 0, pos: 0 };
   private scheduled: AudioBufferSourceNode[] = [];
   private preroll: Float32Array[] = [];
   private prerollSamples = 0;
@@ -196,8 +228,12 @@ export class VoiceCall {
   }
 
   private async startMicrophone(shared?: AudioContext) {
-    const capture = new MicCapture(frame => { if (this.socket?.readyState === WebSocket.OPEN) this.socket.send(frame.buffer); },
-      samples => this.detectSpeech(samples));
+    // 外放半双工: while the AI's voice may still be in the room, the frame goes up as the same length of silence —
+    // Doubao's timeline stays continuous, it just hears nothing (the speaker's echo is never recognised as you).
+    const capture = new MicCapture(frame => {
+      if (this.socket?.readyState !== WebSocket.OPEN) return;
+      this.socket.send(this.status.halfDuplex && this.aiAudible() ? new Int16Array(frame.length).buffer : frame.buffer);
+    }, samples => this.detectSpeech(samples));
     this.capture = capture;
     const context = await capture.start(shared);
     if (this.stopped) { capture.stop(); return; }
@@ -210,8 +246,33 @@ export class VoiceCall {
       this.events.push({ type: "microphone", ...device });
       logDesktop("microphone", "device", JSON.stringify(device));
     }
+    this.checkRoute();
+    navigator.mediaDevices?.addEventListener?.("devicechange", this.checkRoute);
     this.micTimer = window.setInterval(() => this.checkMicrophone(), MIC_CHECK_MS);
   }
+
+  /** 外放半双工 on an iPhone / iPad whose call plays on its own speaker (`speakerCall`); computed at start and again
+   *  whenever a device comes or goes (headphones plugged in or out mid-call). Elsewhere always full duplex. */
+  private readonly checkRoute = async (event?: Event) => {
+    if (!isIosWebKit()) return;
+    const label = this.capture?.deviceInfo()?.label ?? "";
+    let inputs: string[] | undefined;
+    if (event) {
+      try {
+        inputs = (await navigator.mediaDevices.enumerateDevices()).filter(device => device.kind === "audioinput").map(device => microphoneLabel(device.label));
+      } catch { inputs = []; } // the list unreadable: assume the speaker
+    }
+    if (!this.capture) return;
+    const halfDuplex = speakerCall(label, inputs);
+    if (halfDuplex !== this.status.halfDuplex) {
+      this.events.push({ type: "route", halfDuplex, label });
+      this.update({ halfDuplex });
+    }
+  };
+
+  /** The AI's voice is (or was ECHO_TAIL_MS ago) coming out of this device. */
+  private aiAudible() { return this.scheduled.length > 0 || this.preroll.length > 0 || performance.now() < this.audibleUntil; }
+  private audibleUntil = 0;
 
   private micTimer?: number;
   /** Date.now() of the last sounding microphone block, of entering listening (0 = not listening). */
@@ -281,7 +342,8 @@ export class VoiceCall {
       const level = Math.min(1, rms / 0.2);
       if (Math.abs(level - (this.status.level ?? 0)) >= 0.02) this.update({ level });
     }
-    if (!this.scheduled.length) { this.loudFrames = 0; return; }
+    // 外放半双工: the microphone is not sent while the AI plays, so there is no barge-in to pre-empt by ducking.
+    if (!this.scheduled.length || this.status.halfDuplex) { this.loudFrames = 0; return; }
     this.loudFrames = rms > 0.04 ? this.loudFrames + 1 : 0;
     if (this.loudFrames >= 3) { this.loudFrames = 0; this.duckForBargeIn(); }
   }
@@ -333,7 +395,7 @@ export class VoiceCall {
     if (!this.audioContext) return;
     const samples = decodeOutputAudio(Uint8Array.from(atob(base64), c => c.charCodeAt(0)), encoding);
     if (!samples.length) return;
-    if (this.playhead === 0 && !this.preroll.length) {
+    if (this.playFrame === 0 && !this.preroll.length) {
       // First frame of a reply: one log line with the decoded peak (speech ≈ 0.2–0.6; a wrong
       // sample format reads as ≈1.0 every time) so a noisy machine can be diagnosed from its log.
       let peak = 0;
@@ -341,7 +403,7 @@ export class VoiceCall {
       logDesktop("audio", `encoding=${encoding} frames=${samples.length} peak=${peak.toFixed(3)}`);
       this.underrunLogged = false;
     }
-    if (this.preroll.length || this.playhead === 0) {
+    if (this.preroll.length || this.playFrame === 0) {
       // Hold the start of a reply until the preroll bound, then schedule the whole run contiguously
       // from one base time; a late frame no longer punches a hole the next one must fill.
       this.preroll.push(samples);
@@ -361,33 +423,50 @@ export class VoiceCall {
     this.preroll = []; this.prerollSamples = 0;
   }
 
-  /** One frame at `startAt` (the preroll base) or at the playhead; a playhead left behind by a
-   *  network stall is realigned just ahead of now with a 2 ms fade instead of stacking gaps. */
+  /** One frame at `startAt` (the preroll base) or right after the previous one; a run left behind by
+   *  a network stall is realigned just ahead of now with a 2 ms fade instead of stacking gaps.
+   *  Frames are resampled to the context rate here and start on whole sample positions: a 24 kHz
+   *  buffer per frame left a seam at every frame boundary — the browser's own resampler cannot see
+   *  the next frame, and at 44.1 / 16 kHz each start time rounded to a neighbouring sample, so frames
+   *  overlapped or left a one-sample hole (measured 11-03 in WebKit and Chromium: jumps up to half
+   *  of full scale; resampled as one stream the output equals a single continuous buffer). */
   private schedule(samples: Float32Array, startAt?: number) {
     const context = this.audioContext;
     if (!context) return;
-    let at = startAt ?? this.playhead;
-    if (at < context.currentTime) {
-      at = context.currentTime + REALIGN_DELAY;
+    const rate = context.sampleRate;
+    const out = resampleOutput(samples, rate, this.resampler);
+    if (!out.length) return;
+    let at = startAt !== undefined ? Math.round(startAt * rate) : this.playFrame;
+    if (at < context.currentTime * rate) {
+      const behind = this.playFrame / rate;
+      at = Math.round((context.currentTime + REALIGN_DELAY) * rate);
       if (!this.underrunLogged) {
         this.underrunLogged = true;
-        logDesktop("audio", `underrun: playhead ${this.playhead.toFixed(3)}s behind ${context.currentTime.toFixed(3)}s, realigned +${REALIGN_DELAY}s`);
+        logDesktop("audio", `underrun: playhead ${behind.toFixed(3)}s behind ${context.currentTime.toFixed(3)}s, realigned +${REALIGN_DELAY}s`);
       }
-      const fade = Math.min(FADE_SAMPLES, samples.length);
-      for (let i = 0; i < fade; i += 1) samples[i] *= i / fade;
+      const fade = Math.min(Math.round(rate * FADE_SECONDS), out.length);
+      for (let i = 0; i < fade; i += 1) out[i] *= i / fade;
     }
-    const buffer = context.createBuffer(1, samples.length, OUTPUT_RATE);
-    buffer.getChannelData(0).set(samples);
+    const buffer = context.createBuffer(1, out.length, rate);
+    buffer.getChannelData(0).set(out);
     const source = context.createBufferSource();
     source.buffer = buffer;
     source.connect(this.gain ?? context.destination);
-    source.start(at);
-    this.playhead = at + buffer.duration;
+    source.start(at / rate);
+    this.playFrame = at + out.length;
     this.scheduled.push(source);
+    if (!this.status.playing) this.update({ playing: true });
     source.onended = () => {
       this.scheduled = this.scheduled.filter(item => item !== source);
-      if (!this.scheduled.length) this.playhead = 0; // the reply is over; the next one re-prerolls
+      if (!this.scheduled.length) this.resetPlayhead(); // the reply is over; the next one re-prerolls
     };
+  }
+
+  /** The reply's playback is over (played out or dropped): the next one re-prerolls, and the room's tail starts. */
+  private resetPlayhead() {
+    this.playFrame = 0; this.resampler = { last: 0, pos: 0 };
+    this.audibleUntil = performance.now() + ECHO_TAIL_MS + (this.audioContext?.outputLatency ?? 0) * 1000;
+    if (this.status.playing) this.update({ playing: false });
   }
 
   /** Barge-in confirmed by the server (or a manual stop): drop everything queued so the assistant
@@ -396,7 +475,7 @@ export class VoiceCall {
     for (const source of this.scheduled) { try { source.stop(); } catch { /* already ended */ } }
     this.scheduled = [];
     this.preroll = []; this.prerollSamples = 0;
-    this.playhead = 0;
+    this.resetPlayhead();
     this.restoreGain();
   }
 
@@ -425,6 +504,8 @@ export class VoiceCall {
     if (this.micTimer !== undefined) { clearInterval(this.micTimer); this.micTimer = undefined; }
     this.listeningSince = 0;
     if (this.status.micSilent) this.status = { ...this.status, micSilent: false };
+    if (this.status.halfDuplex !== undefined) this.status = { ...this.status, halfDuplex: undefined };
+    navigator.mediaDevices?.removeEventListener?.("devicechange", this.checkRoute);
     this.flushPlayback();
     this.capture?.stop(); this.capture = undefined; // the shared AudioContext stays for the next hold or call
     setAudioSession("playback");
@@ -459,6 +540,23 @@ export function decodeOutputAudio(bytes: Uint8Array, encoding: "f32le" | "s16le"
   for (let i = 0; i < frames; i += 1) {
     out[i] = encoding === "s16le" ? view.getInt16(i * 2, true) / 32768 : Math.max(-1, Math.min(1, view.getFloat32(i * 4, true)));
   }
+  return out;
+}
+
+/** One 24 kHz frame of a reply → samples at the context rate, linear interpolation carried across
+ *  frames (`carry.last` = the previous frame's final sample, `carry.pos` = the read position in this
+ *  frame, −1…0 lying between the two), so consecutive frames read as one continuous stream. */
+function resampleOutput(frame: Float32Array, rate: number, carry: { last: number; pos: number }): Float32Array {
+  if (rate === OUTPUT_RATE) return frame;
+  const step = OUTPUT_RATE / rate;
+  const out = new Float32Array(Math.max(0, Math.floor((frame.length - 1 - carry.pos) / step) + 1));
+  for (let n = 0; n < out.length; n += 1) {
+    const pos = carry.pos + n * step, i = Math.floor(pos), f = pos - i;
+    const a = i < 0 ? carry.last : frame[i];
+    out[n] = a + ((i + 1 < frame.length ? frame[i + 1] : a) - a) * f;
+  }
+  carry.pos += out.length * step - frame.length;
+  carry.last = frame[frame.length - 1];
   return out;
 }
 
@@ -571,6 +669,8 @@ export function orbState(status: VoiceCallStatus): OrbState {
 }
 
 export function orbLabel(status: VoiceCallStatus): string {
+  // 外放半双工: the AI's voice still playing here, the microphone closed — whatever the server's state says.
+  if (status.halfDuplex && status.playing && status.state !== "error" && status.state !== "idle") return "AI 在说 · 外放不听";
   switch (status.state) {
     case "connecting": return "接通中…";
     case "listening": return status.muted ? "已静音" : status.micSilent ? "没收到麦克风声音" : "听你说";

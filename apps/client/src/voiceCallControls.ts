@@ -13,6 +13,8 @@ export interface VoiceCallControls {
   review: () => void;
   stop: () => void;
   mute: (muted: boolean) => void;
+  /** 打断: stop the AI's voice now and listen (the same as a spoken 停 that the server confirmed). */
+  interrupt: () => void;
   /** A failed start: the next click retries. */
   retry: () => void;
   /** A failed start the user closes (no microphone, say): back to idle without retrying. */
@@ -22,7 +24,7 @@ export interface VoiceCallControls {
 /**
  * The page's one call, shared by the floating AI orb and the 对话面板 call bar.
  * Both read the same store and run the same start/stop; only the owner (`register`,
- * the always-mounted orb) publishes `disclosure: voice-call|voice-mute`, so the two
+ * the always-mounted orb) publishes `disclosure: voice-call|voice-mute|voice-playback`, so the two
  * surfaces never fight over one registry key.
  */
 export function useVoiceCall({ baseUrl, sessionId, voiceAvailable, register = false }: {
@@ -42,8 +44,11 @@ export function useVoiceCall({ baseUrl, sessionId, voiceAvailable, register = fa
     apply: wanted => { if (wanted) start(); else stop(); } });
   useDisclosureSurface("voice-mute", { available: register && available && inCall, state: Boolean(status.muted),
     apply: muted => voiceCallStore.mute(muted) });
+  // 打断 as a command: open = the AI's voice is playing here; closing it stops the voice and listens.
+  useDisclosureSurface("voice-playback", { available: register && available && inCall, state: Boolean(status.playing),
+    apply: open => { if (open) throw new Error("只能打断 AI 正在说的话，不能让它开口"); voiceCallStore.interrupt(); } });
   useEffect(() => { if (register && !baseUrl && voiceCallStore.inCall()) voiceCallStore.stop(); }, [register, baseUrl]);
-  return { status, inCall, available, start, review, stop, mute: muted => voiceCallStore.mute(muted), retry,
+  return { status, inCall, available, start, review, stop, mute: muted => voiceCallStore.mute(muted), interrupt: () => voiceCallStore.interrupt(), retry,
     dismiss: () => voiceCallStore.dismissError() };
 }
 

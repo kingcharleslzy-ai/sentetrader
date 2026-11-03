@@ -176,6 +176,7 @@ export function useWorkspaceUiControl({ workspace, connectedRuntimeUrl, market, 
   const micSilent = useSyncExternalStore(voiceCallStore.subscribe, () => voiceCallStore.snapshot().micSilent === true, () => false);
   const micLabel = useSyncExternalStore(voiceCallStore.subscribe, () => voiceCallStore.snapshot().micLabel, () => undefined);
   const micSuggestion = useSyncExternalStore(voiceCallStore.subscribe, () => voiceCallStore.snapshot().micSuggestion, () => undefined);
+  const halfDuplex = useSyncExternalStore(voiceCallStore.subscribe, () => voiceCallStore.snapshot().halfDuplex === true, () => false);
   const compat = useClientCompat();
   const webUpdate = useWebUpdate();
   const { chartSettings, setChartSettings, dockSide, setDockSide, panelWidth, panelMaxWidth, setPanelWidth, positionsBar, setPositionsBar, pinnedSymbols, resetLayout } = layout;
@@ -763,7 +764,9 @@ export function useWorkspaceUiControl({ workspace, connectedRuntimeUrl, market, 
       shortcuts, notificationPermission: typeof Notification === "undefined" ? "unsupported" : Notification.permission },
     // 按住说话 is the user's physical input (no command): its state and hold key are observable only.
     // micSilent: the live call is listening, unmuted, and its microphone has delivered no sound for ~4 s.
-    voice: { ptt: ptt.state, pttShortcut: shortcuts.ptt,
+    // halfDuplex: an iPhone / iPad call on its own speaker — the microphone is not sent while the AI's voice plays
+    // (disclosures.voice-playback is that voice; closing it is 打断).
+    voice: { ptt: ptt.state, pttShortcut: shortcuts.ptt, ...(halfDuplex ? { halfDuplex: true } : {}),
       ...(micSilent ? { micSilent: true, ...(micLabel ? { micLabel } : {}), ...(micSuggestion ? { micSuggestion } : {}) } : {}) },
     connection: { mode: workspace.mode, status: workspace.connection, modelConnected: workspace.agentAccount?.authenticated,
       version: workspace.updater.info?.currentVersion, build: CLIENT_BUILD.commit, compat: compat.state },

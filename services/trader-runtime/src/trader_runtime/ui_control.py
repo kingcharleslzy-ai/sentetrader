@@ -1625,6 +1625,8 @@ def describe_ui_change(changes: dict[str, Any]) -> str:
         name, opened = str(value.get("name") or ""), bool(value.get("open"))
         if key == "disclosure" and name == "voice-call":
             return f"开始接通语音通话（{VOICE_CALL_TAP_HINT}）" if opened else "挂断语音通话"
+        if key == "disclosure" and name == "voice-playback" and not opened:
+            return "打断 AI 说话，开始听"
         return f"{'打开' if opened else '关闭'}「{name}」{'对话框' if key == 'dialog' else ''}"
     return f"界面 {key} 已改为 {value}"
 

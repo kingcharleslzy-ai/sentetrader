@@ -42,7 +42,7 @@ class WorkspacePolicy:
             "看五档 / 盘口 / 阶梯 = panel: order（下单面板顶部就是五档，没有单独的阶梯面板）。"
             "打开对话 / 看对话 = panel: ai；看看策略 / 策略面板 = panel: strategy；打开持仓 / 持仓面板 = panel: positions（说底栏 / 持仓栏才是 positionsBar）。"
             "对话面板里：开始通话 / 接通 / 打电话 = disclosure {name: voice-call, open: true}，结束通话 / 挂断 = 同名 open: false，"
-            "静音 / 取消静音 = disclosure voice-mute（这是通话开关，不是 update_preferences 的偏好）；"
+            "静音 / 取消静音 = disclosure voice-mute（这是通话开关，不是 update_preferences 的偏好）；打断 AI（通话里让它别说了）= disclosure {name: voice-playback, open: false}；"
             "对话面板只放对话，没有筛选（旧的 aiFilter 只打开对话面板）；"
             "历史对话 = disclosure chat-history，新对话 = chatSession {new: true}。"
             "策略面板三个标签 = strategyTab: library（策略库）| detail（详情）| running（运行中）；看运行中的策略 / 盯盘 = strategyTab: running；"

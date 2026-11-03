@@ -1,5 +1,5 @@
 import { AccountAccessContext } from "../../hooks/useAccountAccess";
-import { Mic, MicOff, Phone, PhoneOff, RotateCcw, X } from "lucide-react";
+import { Hand, Mic, MicOff, Phone, PhoneOff, RotateCcw, X } from "lucide-react";
 import { useContext, useEffect, useRef, useState } from "react";
 import { CLIENT_BUILD } from "../../clientBuild";
 import { callDuration, type VoiceCallControls } from "../../voiceCallControls";
@@ -84,7 +84,7 @@ function CallWave({ status }: { status: VoiceCallStatus }) {
 export function CallBar({ call, unavailableReason, slot }: { call: VoiceCallControls; unavailableReason?: string; slot: "header" | "bar" }) {
   const access = useContext(AccountAccessContext);
   const blocked = access?.reason("voice-call");
-  const { status, inCall, available, start, stop, mute, retry, dismiss } = call;
+  const { status, inCall, available, start, stop, mute, interrupt, retry, dismiss } = call;
   const connecting = status.state === "connecting";
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -125,10 +125,26 @@ export function CallBar({ call, unavailableReason, slot }: { call: VoiceCallCont
           {status.muted ? <MicOff /> : <Mic />}
         </button>
       </div>
+      {status.playing ? <button type="button" data-agent-target="call-interrupt" className="fdw-call-interrupt" aria-label="打断 AI"
+        onClick={interrupt}><Hand />打断</button> : null}
       <button type="button" data-agent-target="call-end" className="fdw-call-end" aria-label="结束语音通话" onClick={stop}><PhoneOff />结束通话</button>
+      {status.halfDuplex ? <HalfDuplexNote /> : null}
       {status.micSilent && status.state === "listening" && !status.muted ? <MicSilentHint label={status.micLabel} suggestion={status.micSuggestion} /> : null}
     </div>
   );
+}
+
+/** 外放半双工's "?": what "AI 说话时不听" means and how to interrupt (the call bar's line and the phone's call strip). */
+export function HalfDuplexHelp() {
+  return <HelpTip helpKey="voice-half-duplex" label="外放：AI 说话时不听">
+    手机用自己的扬声器通话时，AI 的声音会被麦克风录回去、被当成你说的话。所以这时 AI 说话期间（和说完后约半秒）不听你说话，
+    AI 说完就照常听。想中途打断，点“打断”，或等它说完再说。戴上耳机（AirPods、有线或蓝牙耳机）就不受这个限制，可以直接开口打断。
+  </HelpTip>;
+}
+
+/** 外放半双工's status line on an iPhone / iPad speaker call. */
+function HalfDuplexNote() {
+  return <p className="fdw-call-duplex" role="note" data-agent-target="call-half-duplex"><span>外放：AI 说话时不听</span><HalfDuplexHelp /></p>;
 }
 
 /** The live bar's 没有收到麦克风声音 line: the microphone in use, what to do now, the how-to behind its "?". The
