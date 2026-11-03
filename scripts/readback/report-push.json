@@ -1,5 +1,5 @@
 {
-  "about": "通用报告推送（#1285，2026-11-03）：作战表、调研今日判断、快讯与本周重要数据、相关报道、今日复盘、习惯对照打开后内容出来，且窗口自己没去读这些接口（来自推送）。只读，不写数据。",
+  "about": "通用报告推送（#1285）与本地拼装（#1288，2026-11-03）：作战表（推送每品种一行、本机按自选与交易笔记拼装）、调研今日判断（按品种共用）、快讯与本周重要数据（固定读原油：事件多，“已研讨”分批查，控制台无 422）、相关报道、今日复盘、习惯对照打开后内容出来，且窗口自己没去读这些接口（来自推送）。只读，不写数据。",
   "steps": [
     {"ui": {"view": "trade"}, "expect": {"view": "trade"}},
     {"ui": {"panel": "news"}, "expect": {"panel": "news"}},
@@ -7,8 +7,9 @@
     {"screenshot": "report-push-sheet"},
     {"ui": {"news": {"tab": "desk"}}, "expect": {"news.tab": "desk", "news.desk.status": "ready"}, "noReads": "/api/research/desk$"},
     {"screenshot": "report-push-desk"},
+    {"ui": {"news": {"pinnedSymbol": "INE.sc2612"}}, "expect": {"news.pinnedSymbol": "INE.sc2612"}},
     {"ui": {"news": {"tab": "flash"}}, "expect": {"news.tab": "flash", "news.flash.status": "ok", "news.flash.calendarStatus": {"exists": true}},
-     "noReads": "/api/research/(flash|calendar)$"},
+     "noReads": "/api/research/(flash|calendar)$", "timeoutMs": 30000},
     {"screenshot": "report-push-flash"},
     {"ui": {"news": {"tab": "news"}}, "expect": {"news.tab": "news", "news.news.count": {"exists": true}}, "noReads": "/api/research/news$",
      "timeoutMs": 30000},
