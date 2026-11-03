@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { requestJson } from "../api";
+import { feedReportServes, REPORT_RECHECK_MS, reportKey, useFeedReport } from "../feedView";
 import { LONG_READ_TIMEOUT_MS } from "../requestTimeout";
 
 export type RoundTrip = { id: string; symbol: string; direction: string; volume: number; openTime: number; closeTime: number; openPrice: number; closePrice: number; gross: number; fees: number | null; net: number | null;
@@ -31,11 +32,15 @@ export type TradeReviewData = {
 
 /**
  * Round trips from `/api/trade-review`: one contract when `symbol` is given, the whole
- * account otherwise. Polls every 5 s while `enabled`; the review view and the positions
- * bar share this so neither keeps its own copy of the pairing rules.
+ * account otherwise. Every 5 s while `enabled`; the review view and the positions
+ * bar share this so neither keeps its own copy of the pairing rules. The session's own account's whole review comes over
+ * the push (通用报告推送 2026-11-03); the read runs only while the push does not serve it (one contract, the USD
+ * sub-account, an older Runtime).
  */
 export function useTradeReview({ baseUrl, symbol, accountId, enabled = true }: { baseUrl: string | undefined; symbol?: string; accountId?: string | null; enabled?: boolean }) {
   const [result, setResult] = useState<{ baseUrl: string; symbol?: string; accountId?: string | null; review?: TradeReviewData; error: string }>();
+  const report = enabled && accountId && !symbol ? reportKey("trade-review", { account: accountId }) : undefined;
+  const pushed = useFeedReport<TradeReviewData>(baseUrl, report);
   useEffect(() => {
     setResult(undefined);
     // null waits for the live account; omitted keeps existing replay/single-account reads.
@@ -43,6 +48,7 @@ export function useTradeReview({ baseUrl, symbol, accountId, enabled = true }: {
     let cancelled = false; let timer: ReturnType<typeof setTimeout>;
     const query = symbol ? `?symbol=${encodeURIComponent(symbol)}` : "";
     const poll = async () => {
+      if (feedReportServes(baseUrl, report)) { timer = setTimeout(poll, REPORT_RECHECK_MS); return; }
       try {
         const next = await requestJson<TradeReviewData>(`${baseUrl}/api/trade-review${query}`, {
           headers: accountId === undefined ? undefined : { "X-AI-Trader-Account": accountId }, timeoutMs: LONG_READ_TIMEOUT_MS
@@ -54,7 +60,9 @@ export function useTradeReview({ baseUrl, symbol, accountId, enabled = true }: {
     };
     void poll();
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [baseUrl, symbol, accountId, enabled]);
+  }, [baseUrl, symbol, accountId, enabled]); // eslint-disable-line react-hooks/exhaustive-deps
+  // After the reset above, so a review already pushed for the new account shows at once.
+  useEffect(() => { if (pushed && baseUrl) setResult({ baseUrl, symbol, accountId, review: pushed, error: "" }); }, [pushed, report]); // eslint-disable-line react-hooks/exhaustive-deps
   const current = enabled && accountId !== null && result?.baseUrl === baseUrl
     && result?.symbol === symbol && result?.accountId === accountId ? result : undefined;
   return { review: current?.review, error: current?.error ?? "" };

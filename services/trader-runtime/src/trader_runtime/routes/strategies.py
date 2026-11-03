@@ -9,6 +9,7 @@ from uuid import uuid4
 from fastapi import FastAPI, HTTPException, Query, Request, status
 
 from ..proposals import ProposalConflict
+from ..runtime_feed import FeedReport
 from ..skill_registry import human_request, require_skill
 from ..wiring.accounts import require_account_write, require_execution_owner
 from ..wiring.context import RuntimeContext
@@ -251,6 +252,17 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
             return strategy_monitor_payload(strategy_id, user_id)
         except KeyError as error:
             raise HTTPException(status_code=404, detail="strategy_not_found") from error
+
+    # 通用报告推送 (2026-11-03): a strategy's run state on screen (running card, detail, 我的策略 card, phone) goes out
+    # over the push, read every 3 s while it runs and every 10 s otherwise (the cards' former cadences), once for every
+    # window of its owner showing it. Only how the state reaches the page changed; the monitor itself is untouched.
+    async def monitor_report(user_id: str, _account: Any, params: dict[str, str]) -> dict[str, object]:
+        return strategy_monitor_payload(params.get("id", ""), user_id)
+
+    ctx.runtime_feed.add_report("strategy-monitor", FeedReport(
+        monitor_report,
+        lambda answer: 3.0 if answer is not None and answer.get("status") == "monitoring" else 10.0,
+        frozenset({"id"}), per_user=True))
 
     @application.post("/api/strategies/{strategy_id}/monitor/start")
     async def start_strategy_monitor(

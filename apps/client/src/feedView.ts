@@ -40,6 +40,8 @@ const reportWants = new Map<number, string>();
 /** When each shown report key entered the view: its first frame is awaited this long before the reader reads. */
 const reportSince = new Map<string, number>();
 const reportsRefused = new Set<string>();
+/** The report keys in the view the Runtime last acknowledged (see flush). */
+let heldReports = new Set<string>();
 /** Waiting for a report's first push stops after this long: the reader then reads it itself. */
 export const REPORT_GRACE_MS = 3_000;
 /** How often a reader whose report the push serves looks again whether it still does (no request). */
@@ -93,7 +95,7 @@ function changed() {
   if (key !== currentKey) { currentKey = key; listeners.forEach(listener => listener()); }
   const shown = new Set(reportWants.values());
   for (const report of shown) if (!reportSince.has(report)) reportSince.set(report, Date.now());
-  for (const report of [...reportSince.keys()]) if (!shown.has(report)) { reportSince.delete(report); forgetFeedReport(report); }
+  for (const report of [...reportSince.keys()]) if (!shown.has(report)) reportSince.delete(report);
   schedule(DEBOUNCE_MS);
 }
 
@@ -110,6 +112,7 @@ async function flush() {
   const focusCurrent = () => target === current && focus === wanted;
   const revision = wanted?.revision;
   const text = viewText(current.baseUrl), view = viewRevision;
+  const told = new Set(reportsRefused.has(current.baseUrl) ? [] : reportSince.keys());
   current.inFlight = true;
   try {
     await Promise.all([
@@ -129,7 +132,14 @@ async function flush() {
         try {
           await requestJson(`${current.baseUrl}/api/sessions/${encodeURIComponent(current.sessionId)}/feed/view`, { method: "PUT", body: text });
           // A reply from before a reconnect cannot acknowledge the new Runtime's subscription.
-          if (target === current && viewRevision === view) sentBody = text;
+          if (target === current && viewRevision === view) {
+            sentBody = text;
+            // A pushed report is dropped only once the Runtime took a view without it: the Runtime forgets what this
+            // client holds at that same point, so the key shown again gets its current content once. A key that left
+            // and came back between two sends (one panel closing as another opens it) never left the view; it stays.
+            for (const report of heldReports) if (!told.has(report)) forgetFeedReport(report);
+            heldReports = told;
+          }
         } catch (error) {
           const status = (error as { status?: number }).status;
           const detail = (error as { detail?: { detail?: unknown } }).detail?.detail;
@@ -270,7 +280,7 @@ export function useFeedReport<T>(baseUrl: string | undefined, key: string | unde
 
 /** Tests: forget every reader, target and remembered Runtime. */
 export function resetFeedViewForTests() {
-  reportWants.clear(); reportSince.clear(); reportsRefused.clear();
+  reportWants.clear(); reportSince.clear(); reportsRefused.clear(); heldReports = new Set();
   wants.clear(); target = undefined; focus = undefined; ++viewRevision; unsupported.clear(); sentBody = ""; currentKey = "";
   if (timer !== undefined) clearTimeout(timer);
   timer = undefined;

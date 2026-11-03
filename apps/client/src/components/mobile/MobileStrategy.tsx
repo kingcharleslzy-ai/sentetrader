@@ -3,7 +3,8 @@ import { FlaskConical, OctagonX, Plus } from "lucide-react";
 import { getStrategyMonitor, setStrategyMonitoring, stopStrategyMonitoring, type InstrumentCatalog, type StrategyDrawdown,
   type StrategyFunds, type StrategyMonitorSnapshot } from "../../api";
 import { DrawdownStatus, FundsLines } from "../StrategyRiskBlocks";
-import { launchBlockedReason, needsAnswersOf, periodLabel, resumeAfterDrawdown, strategiesChanged, strategyError, strategySymbol, strategyText, useStrategies, validateAndStart, type SavedStrategy } from "../../strategyApi";
+import { launchBlockedReason, needsAnswersOf, periodLabel, resumeAfterDrawdown, strategiesChanged, strategyError, strategySymbol, strategyText, useStrategies, validateAndStart, type SavedStrategy, type StrategyList } from "../../strategyApi";
+import { feedReportServes, reportKey, useFeedReports } from "../../feedView";
 import { runStrategyBacktest, useBacktestCard } from "../../strategyBacktests";
 import { launchDefaults } from "../StrategySignalAction";
 import { actionText, attemptStatusLabel, monitorTime } from "../../strategyMonitorDisplay";
@@ -49,6 +50,13 @@ const LIST_MS = 60_000;
 const DETAIL_MS = 15_000;
 const RUNNING = new Set(["monitoring", "paused"]);
 const HOLDING = { long: "多", short: "空" } as const;
+
+/** The running and paused instances in the strategy list (a library strategy without a scope runs as itself). */
+function instancesOf(result: StrategyList): SavedStrategy[] {
+  const own = result.items.filter(item => item.definition.plan && !item.definition.instrumentScope);
+  return [...(result.executions ?? []), ...own].filter(item => RUNNING.has(item.status));
+}
+const monitorKey = (item: SavedStrategy) => reportKey("strategy-monitor", { id: item.strategyId });
 
 function runOf(item: SavedStrategy, library: SavedStrategy | undefined, monitor: StrategyMonitorSnapshot | undefined): MobileStrategyRun {
   const plan = item.definition.plan;
@@ -97,6 +105,10 @@ export function useMobileStrategies({ baseUrl, rootUrl, enabled, detailed, chart
   const active = enabled && Boolean(baseUrl);
   const list = useStrategies(active ? baseUrl : undefined, detailed ? DETAIL_MS : LIST_MS);
   const failed = list.isError;
+  // Each running instance's monitor comes over the push (通用报告推送 2026-11-03); one the push does not serve is read
+  // with the list, as before.
+  const monitorKeys = useMemo(() => active && detailed && list.data ? instancesOf(list.data).map(monitorKey) : [], [active, detailed, list.data]);
+  const pushedMonitors = useFeedReports<StrategyMonitorSnapshot>(baseUrl, monitorKeys);
   useEffect(() => {
     if (!active || !baseUrl) { setRuns([]); setMine([]); setLoaded(false); return; }
     const result = list.data;
@@ -104,9 +116,9 @@ export function useMobileStrategies({ baseUrl, rootUrl, enabled, detailed, chart
     if (!result) { if (list.isError) setLoaded(true); return; }
     let alive = true;
     const library = result.items.filter(item => item.definition.plan);
-    const executions = result.executions ?? [];
-    const instances = [...executions, ...library.filter(item => !item.definition.instrumentScope)].filter(item => RUNNING.has(item.status));
-    void (detailed ? Promise.all(instances.map(item => getStrategyMonitor(baseUrl, item.strategyId).catch(() => undefined))) : Promise.resolve([])).then(monitors => {
+    const instances = instancesOf(result);
+    void (detailed ? Promise.all(instances.map(item => feedReportServes(baseUrl, monitorKey(item)) ? pushedMonitors.get(monitorKey(item))
+      : getStrategyMonitor(baseUrl, item.strategyId).catch(() => undefined))) : Promise.resolve([])).then(monitors => {
       if (!alive) return;
       const owner = (run: SavedStrategy) => library.find(item => item.strategyId === run.definition.libraryStrategyId);
       setRuns(instances.map((item, index) => runOf(item, owner(item), monitors[index])));
@@ -118,7 +130,7 @@ export function useMobileStrategies({ baseUrl, rootUrl, enabled, detailed, chart
       setLoaded(true);
     });
     return () => { alive = false; };
-  }, [active, baseUrl, detailed, list.data, list.dataUpdatedAt, list.isError]);
+  }, [active, baseUrl, detailed, list.data, list.dataUpdatedAt, list.isError, pushedMonitors]);
   const { refetch } = list;
   const reload = useCallback(async () => { await refetch(); }, [refetch]);
   const act = useCallback(async (strategyId: string, action: "pause" | "start" | "resume-drawdown" | "stop" | "stop-close") => {

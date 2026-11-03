@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Send } from "lucide-react";
-import { getStrategyMonitor, type StrategyMonitorSnapshot } from "../api";
+import { getStrategyMonitor, requestJson, type StrategyMonitorSnapshot } from "../api";
+import { feedReportServes, REPORT_RECHECK_MS, reportKey, useFeedReport } from "../feedView";
 import { strategyText, type PlanRow, type SavedStrategy } from "../strategyApi";
 import type { StrategyBacktestResult } from "../strategyBacktests";
 import type { CompareCard } from "../strategyCompare";
@@ -24,22 +25,57 @@ export function cardMoney(value: number, signed = true): string {
 }
 const percent = (value: number | null | undefined) => value == null ? "—" : `${Math.round(value)}%`;
 
-/** The instance's monitor for a card, read every `ms` (运行中 / 已暂停 only). */
+/** The instance's monitor for a card, every `ms` (运行中 / 已暂停 only). It comes over the push (通用报告推送 2026-11-03,
+ *  `strategy-monitor?id=`); the read runs only while the push does not serve it. */
 export function useInstanceMonitor(baseUrl: string, strategyId: string | undefined, ms = 10_000, refresh?: unknown) {
   const [monitor, setMonitor] = useState<StrategyMonitorSnapshot>();
   const [unavailable, setUnavailable] = useState(false);
+  const report = strategyId ? reportKey("strategy-monitor", { id: strategyId }) : undefined;
+  const pushed = useFeedReport<StrategyMonitorSnapshot>(baseUrl, report);
+  const shown = useRef({ report, refresh });
   useEffect(() => {
-    setMonitor(undefined);
+    // `refresh` (the instance's 执行方式 changed here) reads it once at once, whatever the push holds.
+    const again = shown.current.report === report && shown.current.refresh !== refresh;
+    shown.current = { report, refresh };
+    if (!again) setMonitor(undefined);
     if (!strategyId) return;
     let cancelled = false; let timer: ReturnType<typeof setTimeout>;
-    const poll = async () => {
+    const poll = async (now = false) => {
+      if (!now && feedReportServes(baseUrl, report)) { timer = setTimeout(poll, REPORT_RECHECK_MS); return; }
       try { const state = await getStrategyMonitor(baseUrl, strategyId); if (!cancelled) { setMonitor(state); setUnavailable(false); } }
       catch { if (!cancelled) setUnavailable(true); }
       finally { if (!cancelled) timer = setTimeout(poll, ms); }
     };
-    void poll(); return () => { cancelled = true; clearTimeout(timer); };
-  }, [baseUrl, strategyId, ms, refresh]);
+    void poll(again); return () => { cancelled = true; clearTimeout(timer); };
+  }, [baseUrl, strategyId, ms, refresh]); // eslint-disable-line react-hooks/exhaustive-deps
+  // After the reset above, so a monitor already pushed shows at once.
+  useEffect(() => { if (pushed) { setMonitor(pushed); setUnavailable(false); } }, [pushed, report]);
   return { monitor, unavailable };
+}
+
+/** A strategy's condition readings (`GET /api/strategy-plans/{id}/conditions`) every 3 s while `enabled`: over the push
+ *  (`strategy-conditions?id=`) when it serves them, read here otherwise; `error` is the failed read's. */
+export function useStrategyConditions<T>(baseUrl: string, strategyId: string | undefined, enabled: boolean) {
+  const [state, setState] = useState<{ id: string; value?: T; error?: unknown }>();
+  const report = enabled && strategyId ? reportKey("strategy-conditions", { id: strategyId }) : undefined;
+  const pushed = useFeedReport<T>(baseUrl, report);
+  useEffect(() => {
+    setState(undefined);
+    if (!enabled || !strategyId) return;
+    let cancelled = false; let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      if (feedReportServes(baseUrl, report)) { timer = setTimeout(poll, REPORT_RECHECK_MS); return; }
+      try {
+        const value = await requestJson<T>(`${baseUrl}/api/strategy-plans/${strategyId}/conditions`);
+        if (!cancelled) setState({ id: strategyId, value });
+      } catch (error) { if (!cancelled) setState({ id: strategyId, error }); }
+      finally { if (!cancelled) timer = setTimeout(poll, 3000); }
+    };
+    void poll(); return () => { cancelled = true; clearTimeout(timer); };
+  }, [baseUrl, strategyId, enabled]); // eslint-disable-line react-hooks/exhaustive-deps
+  // After the reset above, so readings already pushed show at once.
+  useEffect(() => { if (pushed && strategyId) setState({ id: strategyId, value: pushed }); }, [pushed, report]); // eslint-disable-line react-hooks/exhaustive-deps
+  return enabled && state?.id === strategyId ? state : undefined;
 }
 
 export type CardState = { key: "running" | "paused" | "idle" | "draft"; label: string };

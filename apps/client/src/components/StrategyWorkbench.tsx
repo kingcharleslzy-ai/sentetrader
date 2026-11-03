@@ -1,6 +1,7 @@
 import { AccountAccessContext } from "../hooks/useAccountAccess";
 import { HelpTip, RuleRow, SectionCard, SideBySide, StatTiles, type StatTile } from "./Blocks";
 import { feedLiveNow } from "../runtimeFeed";
+import { feedReportServes, REPORT_RECHECK_MS, reportKey, useFeedReport } from "../feedView";
 import { actionText, monitorDisplay, monitorTime, attemptStatusLabel } from "../strategyMonitorDisplay";
 import { UiNavigationContext } from "../uiNavigation";
 import { useDisclosureSurface, useUiSurface } from "../uiSurfaces";
@@ -31,7 +32,7 @@ import { chooseLabVariant, getLab } from "../strategyLab/labApi";
 import { loadCompare, startCompare, useCompare } from "../strategyCompare";
 import { DrawdownStatus, FundsLines } from "./StrategyRiskBlocks";
 import { AskAiInput, ClashLine, CompareBlock, ResultHead, ResultSummary, RuleRows, SignalRows, StrategyCard,
-  useInstanceMonitor, type CardState } from "./StrategyHome";
+  useInstanceMonitor, useStrategyConditions, type CardState } from "./StrategyHome";
 import { ScaleOutFields } from "./ScaleOutFields";
 import { StrategyEditorCard } from "./StrategyEditorCard";
 import { StrategyStarts, TemplateStartSelect } from "./StrategyStarts";
@@ -558,8 +559,6 @@ function StrategyWorkbenchContent({ rootUrl, baseUrl, symbol, chartTimeframe = 6
   const context = `${baseUrl}|${symbol}|${selected}`;
   const activeContext = useRef(context);
   activeContext.current = context;
-  const [conditions, setConditions] = useState<{ conditions: ConditionReading[] }>();
-  const [conditionError, setConditionError] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [stage, setStage] = useState("");
@@ -639,27 +638,34 @@ function StrategyWorkbenchContent({ rootUrl, baseUrl, symbol, chartTimeframe = 6
     setSelected(previous => items.some(item => item.strategyId === previous) || previous === pendingSelect.current ? previous : items[0]?.strategyId || "");
   }, [list.dataUpdatedAt]);
   useEffect(() => { if (list.isError) setError(strategyError(list.error, "策略列表读取失败")); }, [list.errorUpdatedAt]);
+  // The selected instance's run state and condition readings come over the push (通用报告推送 2026-11-03); each is read
+  // here only while the push does not serve it.
+  const monitorReport = executionId && tab === "detail" ? reportKey("strategy-monitor", { id: executionId }) : undefined;
+  const pushedMonitor = useFeedReport<StrategyMonitorSnapshot>(baseUrl, monitorReport);
+  const [monitorError, setMonitorError] = useState("");
   useEffect(() => {
-    setConditions(undefined); setConditionError(""); setMonitorUnavailable(false);
+    setMonitorError(""); setMonitorUnavailable(false);
     if (!executionId || tab !== "detail") return;
     let cancelled = false; let timer: ReturnType<typeof setTimeout>;
     const poll = async () => {
+      if (feedReportServes(baseUrl, monitorReport)) { timer = setTimeout(poll, REPORT_RECHECK_MS); return; }
       const epoch = monitorEpoch.current;
       const active = () => !cancelled && !operation.current && epoch === monitorEpoch.current;
       try {
         const state = await getStrategyMonitor(baseUrl, executionId);
-        if (active()) { setMonitor(state); setMonitorUnavailable(false); }
-        if (!needsAnswers && ["monitoring", "ready", "paused"].includes(state.status)) {
-          try {
-            const detail = await requestJson<typeof conditions>(`${baseUrl}/api/strategy-plans/${executionId}/conditions`);
-            if (active()) { setConditions(detail); setConditionError(""); }
-          } catch (error) { if (active()) { setConditions(undefined); setConditionError(strategyError(error, "暂时无法读取条件，请刷新行情后重试。", closedMessage)); } }
-        }
-      } catch (error) { if (active()) { setMonitorUnavailable(true); setConditionError(strategyError(error, "运行状态暂不可用")); } }
+        if (active()) { setMonitor(state); setMonitorUnavailable(false); setMonitorError(""); }
+      } catch (error) { if (active()) { setMonitorUnavailable(true); setMonitorError(strategyError(error, "运行状态暂不可用")); } }
       finally { if (!cancelled) timer = setTimeout(poll, 3000); }
     };
     void poll(); return () => { cancelled = true; clearTimeout(timer); };
-  }, [baseUrl, executionId, tab, needsAnswers, closedMessage]);
+  }, [baseUrl, executionId, tab]); // eslint-disable-line react-hooks/exhaustive-deps
+  // An operation in flight sets the monitor from its own answer.
+  useEffect(() => { if (pushedMonitor && !operation.current) { setMonitor(pushedMonitor); setMonitorUnavailable(false); setMonitorError(""); } }, [pushedMonitor, monitorReport]);
+  const conditionRead = useStrategyConditions<{ conditions: ConditionReading[] }>(baseUrl, executionId,
+    tab === "detail" && !needsAnswers && ["monitoring", "ready", "paused"].includes(currentMonitor?.status ?? ""));
+  const conditions = conditionRead?.value;
+  const conditionError = monitorError
+    || (conditionRead?.error ? strategyError(conditionRead.error, "暂时无法读取条件，请刷新行情后重试。", closedMessage) : "");
   const edit = () => { if (current) editDraft(current, symbolFor(current)); };
   const editOrNew = () => { if (current?.definition.plan) editDraft(current, symbolFor(current)); else newDraft(); };
   // 上线运行 (2026-09-25): opens the launch dialog (contract + 执行方式); `dialog: strategy-launch`.
@@ -1161,28 +1167,13 @@ function RunningCard({ run, library, baseUrl, scope, instruments, autonomy, busy
   busy: boolean; stage: string; logOpen: boolean; onLogChange: (open: boolean) => void; onPause: () => void; onResume: () => void; onResumeDrawdown: () => void;
   onStop: (close: boolean) => void; onSignalAction: (action: SignalAction) => void; onAskAi?: AskAi; explainBlocked?: string | null;
 }) {
-  const [monitor, setMonitor] = useState<StrategyMonitorSnapshot>();
-  const [unavailable, setUnavailable] = useState(false);
-  const [readings, setReadings] = useState<ConditionReading[]>();
+  // Its monitor and condition readings come over the push (通用报告推送 2026-11-03), read here only while it does not
+  // serve them; a changed 执行方式 reads the monitor once at once.
+  const { monitor, unavailable } = useInstanceMonitor(baseUrl, run.strategyId, 3000, run.signalAction);
+  const readings = useStrategyConditions<{ conditions: ConditionReading[] }>(baseUrl, run.strategyId, Boolean(monitor))?.value?.conditions;
   useDisclosureSurface("strategy-run-log", { id: run.strategyId, state: logOpen, apply: onLogChange });
   // 停止并平仓 asks first (`disclosure: strategy-stop-confirm` with the instance id).
   const [stopping, setStopping] = useDisclosureSurface("strategy-stop-confirm", { id: run.strategyId });
-  useEffect(() => {
-    let cancelled = false; let timer: ReturnType<typeof setTimeout>;
-    const poll = async () => {
-      try {
-        const state = await getStrategyMonitor(baseUrl, run.strategyId);
-        if (cancelled) return;
-        setMonitor(state); setUnavailable(false);
-        try {
-          const detail = await requestJson<{ conditions: ConditionReading[] }>(`${baseUrl}/api/strategy-plans/${run.strategyId}/conditions`);
-          if (!cancelled) setReadings(detail?.conditions);
-        } catch { if (!cancelled) setReadings(undefined); }
-      } catch { if (!cancelled) setUnavailable(true); }
-      finally { if (!cancelled) timer = setTimeout(poll, 3000); }
-    };
-    void poll(); return () => { cancelled = true; clearTimeout(timer); };
-  }, [baseUrl, run.strategyId, run.signalAction]);
   const status = monitor?.status || run.status;
   const display = monitorDisplay({ status, decision: monitor?.decision, monitorState: monitor?.monitorState }, unavailable);
   const plan = library.definition.plan ?? run.definition.plan;

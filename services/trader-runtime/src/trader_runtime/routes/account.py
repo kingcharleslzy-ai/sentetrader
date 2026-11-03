@@ -373,20 +373,28 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
         user_id = await current_user(request)
         context = await review_context(request, user_id, currency)
         try:
-            review = await account_trade_review(
-                store, context.account.provider, application.state.fee_settings, user_id,
-                symbol=None, days=366, trading_account_id=context.account.account_id,
-                desk=ctx.services.research_desk)
+            return await pnl_of(user_id, context.account, months)
         except (KeyError, ValueError, RuntimeError) as error:
             raise HTTPException(status_code=409, detail="成交或合约参数尚不可用") from error
+
+    async def pnl_of(user_id: str, account: Any, months: int = 12) -> dict[str, object]:
+        review = await account_trade_review(
+            store, account.provider, application.state.fee_settings, user_id,
+            symbol=None, days=366, trading_account_id=account.account_id,
+            desk=ctx.services.research_desk)
         preferences = application.state.preference_store.get(user_id)["preferences"] or {}
         # 本金：设置里的“本金”是人民币账户的；外盘美元子账户按开户的 10 万美元算（2026-10-21：以前把人民币本金
         # 套在美元账上，总盈亏成了约 -90 万）。
-        ledger_currency = account_currency(context.account.account_id)
+        ledger_currency = account_currency(account.account_id)
         principal = PAPER_FOREIGN_INITIAL_BALANCE if ledger_currency == "USD" else preferences.get("initialBalance")
         return {**account_pnl(review, daily=store.list_account_daily(
-            trading_account_id=context.account.account_id), initial_balance=principal,
+            trading_account_id=account.account_id), initial_balance=principal,
             months=months), "currency": ledger_currency, "breakdown": review.get("breakdown")}
+
+    # 通用报告推送 (2026-11-03): the 复盘 panel's 账户盈亏 (the session's own account) goes out over the push, read every
+    # 5 s per account like the panel used to — one read however many windows show it.
+    ctx.runtime_feed.add_report("account-pnl", FeedReport(
+        lambda user_id, account, _params: pnl_of(user_id, account), lambda answer: 5.0, frozenset({"account"}), account=True))
 
     async def _review(request: Request, user_id: str, *, days: int, symbol: str | None = None,
                       currency: str | None = None) -> tuple[Any, dict]:

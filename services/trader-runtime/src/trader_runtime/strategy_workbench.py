@@ -26,6 +26,7 @@ from .browser_backtests import (
 from .instruments import account_currency, foreign_product_of, foreign_tradable, strategy_scope_symbol
 from .memory_stats import review_breakdown
 from .order_backfill import backfill_order_fills
+from .runtime_feed import FeedReadError, FeedReport
 from .store import utc_now
 from .strategy_backtest import (
     BacktestDataError,
@@ -708,15 +709,31 @@ def register_workbench(application, current_user, root, adapter, store, broker, 
     @application.get("/api/strategy-plans/{identifier}/conditions")
     async def conditions(identifier: str, request: Request):
         user = await current_user(request)
+
+        async def foreign_source(symbol: str) -> Any:
+            # 外盘三期：外盘策略的条件读数与它的监控同一个账户（美元子账户）的行情。
+            return (await ctx.account_for_symbol(request, user, symbol)).account.provider
         try:
-            item = store.get_strategy_draft(identifier, user_id=user)
-            source = provider
-            if ctx is not None and foreign_product_of(item["symbol"]) is not None:
-                # 外盘三期：外盘策略的条件读数与它的监控同一个账户（美元子账户）的行情。
-                source = (await ctx.account_for_symbol(request, user, item["symbol"])).account.provider
-            return await asyncio.to_thread(evaluate_plan, source, item["definition"], item["symbol"])
+            return await plan_conditions(user, identifier, foreign_source)
         except (KeyError, ValueError, RuntimeError) as error:
             raise HTTPException(409, f"条件暂不可用：{error}") from error
+
+    async def plan_conditions(user: str, identifier: str, foreign_source: Any) -> dict:
+        item = store.get_strategy_draft(identifier, user_id=user)
+        source = provider
+        if ctx is not None and foreign_product_of(item["symbol"]) is not None:
+            source = await foreign_source(item["symbol"])
+        return await asyncio.to_thread(evaluate_plan, source, item["definition"], item["symbol"])
+
+    if ctx is not None:
+        async def not_session_account(_symbol: str) -> Any:
+            raise FeedReadError("report_account_other")  # the USD sub-account's readings: that window reads them itself
+
+        # 通用报告推送 (2026-11-03): a running strategy's condition readings on screen go out over the push, read every
+        # 3 s per strategy (the running card's former cadence) once for every window showing it.
+        ctx.runtime_feed.add_report("strategy-conditions", FeedReport(
+            lambda user, _account, params: plan_conditions(user, params.get("id", ""), not_session_account),
+            lambda answer: 3.0, frozenset({"id"}), per_user=True))
 
     # 规则回测 (策略积木·第一期 B, 2026-09-25): the user's own rules over history, read-only. Since
     # 策略页改版第八批 (2026-10-08) every result is kept in SQLite (store/backtests.py, newest 5 per
@@ -1151,3 +1168,14 @@ def register_workbench(application, current_user, root, adapter, store, broker, 
             return review
         return await with_foreign_review(review, store, fees, user, accounts=ctx.services.accounts,
                                          account_id=account.account_id, symbol=symbol, days=days, desk=desk)
+
+    if ctx is not None:
+        async def trade_review_report(user: str, account: Any, _params: dict[str, str]) -> dict:
+            """成交 (the account's round trips, last 30 days) over the push: what GET /api/trade-review answers
+            without symbol or days, for the session's own account."""
+            return await account_trade_review(store, account.provider, fees, user, symbol=None, days=30,
+                                              trading_account_id=account.account_id, desk=ctx.services.research_desk)
+
+        # 通用报告推送 (2026-11-03): read every 5 s per account (the 成交 tab's former cadence), once for every window.
+        ctx.runtime_feed.add_report("trade-review", FeedReport(
+            trade_review_report, lambda answer: 5.0, frozenset({"account"}), account=True))
