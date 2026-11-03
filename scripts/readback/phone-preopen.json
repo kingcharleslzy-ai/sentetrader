@@ -1,0 +1,13 @@
+{
+  "about": "开盘前手机自选与报价（#1297）：日盘收盘后到夜盘开盘前，今天页自选和看盘 · 报价的自选板里没成交的品种价格灰显昨结算、涨跌幅位置写“盘前”（报价列表选了涨跌幅列才有），不再只有“—”（截图 01、02）。只在盘前时段有“盘前”可看；开盘后改看价格和涨跌幅正常。只读，不写数据。",
+  "device": "phone",
+  "steps": [
+    {"ui": {"mobileTab": "ai"}, "expect": {"mobileTab": "ai", "observation.text": {"includes": "盘前"}}, "timeoutMs": 20000},
+    {"screenshot": "01-home-watchlist", "scrollTo": "自选"},
+    {"ui": {"mobileTab": "market"}, "expect": {"mobileTab": "market"}},
+    {"ui": {"mobileMarket": {"view": "quotes"}}},
+    {"ui": {"mobileMarket": {"board": "watchlist"}}, "expect": {"observation.text": {"includes": "沪金2612"}}},
+    {"screenshot": "02-quotes-watchlist"},
+    {"ui": {"mobileTab": "ai"}, "expect": {"mobileTab": "ai"}}
+  ]
+}
