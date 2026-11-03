@@ -324,12 +324,14 @@ export function decimalsForTick(tick: number | null | undefined): number {
   return tickDecimals(tick);
 }
 
+// One formatter per decimal count: toLocaleString with options builds a new one on every call (~40× slower), and a
+// phone's 报价 list formats hundreds of cells on each push.
+const numberFormats = new Map<number, Intl.NumberFormat>();
 export function formatNumber(value: number | null | undefined, decimals = 0): string {
   if (value === null || value === undefined || !Number.isFinite(value)) return "—";
-  return value.toLocaleString("zh-CN", {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals
-  });
+  let format = numberFormats.get(decimals);
+  if (!format) numberFormats.set(decimals, format = new Intl.NumberFormat("zh-CN", { minimumFractionDigits: decimals, maximumFractionDigits: decimals }));
+  return format.format(value);
 }
 
 /** A fee in 元: small amounts keep up to 2 decimals (螺纹 0.31 must not read “约 0”). */

@@ -51,7 +51,8 @@ export function useRuntimeSession(mode: RuntimeMode, reconnectKey = 0, replayPat
     stream.current = openEventStream(url, id,
       event => { if (epoch !== streamEpoch.current) return; if (!applyFeedEvent(id, event)) dispatch({type: "event", event}); },
       message => { if (epoch === streamEpoch.current) dispatch({type: "local-warning", message}); },
-      () => { if (epoch === streamEpoch.current) { markFeedStreamAlive(id); setRuntimeActivityAt(Date.now()); } },
+      // Freshness is judged over 30 s: a frame within 5 s of the last stamp keeps it, so heartbeats do not re-render the window.
+      () => { if (epoch === streamEpoch.current) { markFeedStreamAlive(id); setRuntimeActivityAt(last => last !== undefined && Date.now() - last < 5_000 ? last : Date.now()); } },
       connected => {
         if (epoch !== streamEpoch.current) return;
         if (connected) {

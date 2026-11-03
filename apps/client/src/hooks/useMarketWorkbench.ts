@@ -143,11 +143,14 @@ export function useMarketWorkbench({ handle, marketStatus, feed, replaySymbol, c
   // Only the market channel answers for the market: an execution-control push a second
   // ago says nothing about a quote that stopped updating a minute ago.
   feedCovers.current = feedActive && feedIsLive(feed, "market") && feedMarketMatches;
-  useEffect(() => {
-    if (!feedActive || !feed.market || !feedMarketMatches) return;
-    setMarket(feed.market);
-    setMarketError(undefined);
-  }, [feed.market, feedActive, feedMarketMatches, setMarket, setMarketError]);
+  // A pushed market is taken while rendering, not in an effect after it: each patch (several a second) re-renders the
+  // window once instead of twice.
+  const pushedMarket = feedActive && feedMarketMatches ? feed.market : undefined;
+  const [adopted, setAdopted] = useState<{ market?: MarketWorkbenchSnapshot; baseUrl: string }>();
+  if (adopted?.market !== pushedMarket || adopted?.baseUrl !== baseUrl) {
+    setAdopted({ market: pushedMarket, baseUrl });
+    if (pushedMarket) { setMarket(pushedMarket); setMarketError(undefined); }
+  }
   useEffect(() => {
     if (!feedActive || !sessionId || !symbol) return;
     return registerFeedFocus(baseUrl, sessionId, async current => {

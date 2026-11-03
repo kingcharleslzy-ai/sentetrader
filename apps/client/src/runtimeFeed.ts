@@ -300,9 +300,26 @@ export function resetFeed(sessionId?: string) {
 
 const subscribe = (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; };
 
-/** Snapshots for one session, or for the window's active session when none is given. */
+const SNAPSHOT_CHANNELS = ["account", "market", "activity", "execution"] as const;
+const snapshotViews = new Map<string, RuntimeFeedState>();
+/** The state without its board and reports (their readers subscribe to them alone), the same object until one of the
+ *  other snapshots or their channels changes: the board's patch every second must not re-render the whole window. */
+function snapshotView(key: string): RuntimeFeedState {
+  const state = states.get(key) ?? EMPTY;
+  const last = snapshotViews.get(key);
+  if (last && last.sessionId === state.sessionId
+      && SNAPSHOT_CHANNELS.every(channel => last[channel] === state[channel] && last.channels[channel] === state.channels[channel])) return last;
+  const { board: _board, reports: _reports, ...rest } = state;
+  const { board: _boardChannel, ...channels } = state.channels;
+  const view = { ...rest, channels };
+  snapshotViews.set(key, view);
+  return view;
+}
+
+/** Snapshots for one session, or for the window's active session when none is given — account, market, activity and
+ *  execution only: the board is `useFeedBoard`'s, the reports `useFeedReportEntries`'. */
 export function useRuntimeFeed(sessionId?: string): RuntimeFeedState {
-  return useSyncExternalStore(subscribe, () => states.get(sessionId ?? activeSessionId ?? "") ?? EMPTY);
+  return useSyncExternalStore(subscribe, () => snapshotView(sessionId ?? activeSessionId ?? ""));
 }
 
 /** The active session's pushed board and its channel state only: a board reader re-renders on board
