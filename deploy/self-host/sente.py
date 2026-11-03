@@ -12,6 +12,8 @@ Data, secrets and logs live in SENTE_HOME (default ~/.sente); nothing is written
 """
 from __future__ import annotations
 
+import contextlib
+import ctypes
 import getpass
 import json
 import os
@@ -180,7 +182,11 @@ def serve() -> int:
     (HOME / "data").mkdir(parents=True, exist_ok=True)
     LOGS.mkdir(parents=True, exist_ok=True)
     plan = components(config)
-    (HOME / "serve.pid").write_text(str(os.getpid()), encoding="utf-8")
+    marker = HOME / "serve.pid"
+    # PID plus creation time names this one process; only the Windows uninstall reads it (kill_marked_serve).
+    mark = f"{os.getpid()} {windows_created(ctypes.windll.kernel32.GetCurrentProcess())}" if WINDOWS \
+        else str(os.getpid())
+    marker.write_text(mark, encoding="utf-8")
     children: dict[str, subprocess.Popen] = {}
     started: dict[str, float] = {}
     stopping = False
@@ -191,29 +197,72 @@ def serve() -> int:
 
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
-    while not stopping:
-        for name, (command, extra) in plan.items():
-            child = children.get(name)
-            if child is not None and child.poll() is None:
-                continue
-            # A process that keeps dying (wrong 快期 password, port taken) is retried every 30 s, not spun.
-            if child is not None and time.monotonic() - started[name] < 30:
-                continue
-            with open(LOGS / f"{name}.log", "a", encoding="utf-8") as log:
-                # No console window per child under the windowless pythonw of the Windows task.
-                children[name] = subprocess.Popen(
-                    command, cwd=HOME, env={**os.environ, **extra}, stdout=log, stderr=subprocess.STDOUT,
-                    creationflags=subprocess.CREATE_NO_WINDOW if WINDOWS else 0)
-            started[name] = time.monotonic()
-        time.sleep(1)
-    for child in children.values():
-        child.terminate()
-    for child in children.values():
-        try:
-            child.wait(timeout=10)
-        except subprocess.TimeoutExpired:
-            child.kill()
+    try:
+        while not stopping:
+            for name, (command, extra) in plan.items():
+                child = children.get(name)
+                if child is not None and child.poll() is None:
+                    continue
+                # A process that keeps dying (wrong 快期 password, port taken) is retried every 30 s, not spun.
+                if child is not None and time.monotonic() - started[name] < 30:
+                    continue
+                with open(LOGS / f"{name}.log", "a", encoding="utf-8") as log:
+                    # No console window per child under the windowless pythonw of the Windows task.
+                    children[name] = subprocess.Popen(
+                        command, cwd=HOME, env={**os.environ, **extra}, stdout=log, stderr=subprocess.STDOUT,
+                        creationflags=subprocess.CREATE_NO_WINDOW if WINDOWS else 0)
+                started[name] = time.monotonic()
+            time.sleep(1)
+    finally:
+        # Also on a failed start (a Popen or log file that cannot open): end every child already started,
+        # one failure not stopping the rest.
+        for child in children.values():
+            with contextlib.suppress(OSError):
+                child.terminate()
+        for child in children.values():
+            try:
+                child.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                with contextlib.suppress(OSError):
+                    child.kill()
+        with contextlib.suppress(OSError):
+            if marker.read_text(encoding="utf-8") == mark:
+                marker.unlink()
     return 0
+
+
+def windows_created(handle: int) -> int | None:
+    """A process's creation time (Windows FILETIME) from a handle to it; None when it cannot be read."""
+    from ctypes import wintypes
+    times = [wintypes.FILETIME() for _ in range(4)]
+    if not ctypes.windll.kernel32.GetProcessTimes(ctypes.c_void_p(handle), *(ctypes.byref(t) for t in times)):
+        return None
+    return times[0].dwHighDateTime << 32 | times[0].dwLowDateTime
+
+
+def kill_marked_serve() -> None:
+    """Windows: end the `serve` that serve.pid names, with its children, only while it is still that process.
+
+    After a stop or a reboot the number may belong to another program; a bare, stale or unreadable marker
+    is never a kill authorisation.
+    """
+    marker = HOME / "serve.pid"
+    try:
+        pid, created = map(int, marker.read_text(encoding="utf-8").split())
+    except (OSError, ValueError):
+        pid = created = None
+    if pid is not None:
+        kernel32 = ctypes.windll.kernel32
+        kernel32.OpenProcess.restype = ctypes.c_void_p
+        # The open handle keeps Windows from giving the PID to a new process between the check and the kill.
+        handle = kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+        if handle:
+            try:
+                if windows_created(handle) == created:
+                    subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True, check=False)
+            finally:
+                kernel32.CloseHandle(ctypes.c_void_p(handle))
+    marker.unlink(missing_ok=True)
 
 
 def service(action: str) -> int:
@@ -242,9 +291,7 @@ def service(action: str) -> int:
         subprocess.run(["launchctl", "bootstrap", domain, str(plist)], check=True)
     elif WINDOWS:
         # schtasks /End kills only `serve`; the tree kill takes its three children with it.
-        pid = HOME / "serve.pid"
-        if pid.exists():
-            subprocess.run(["taskkill", "/PID", pid.read_text().strip(), "/T", "/F"], capture_output=True, check=False)
+        kill_marked_serve()
         subprocess.run(["schtasks", "/End", "/TN", "Sente"], capture_output=True, check=False)
         subprocess.run(["schtasks", "/Delete", "/TN", "Sente", "/F"], capture_output=True, check=False)
         if action == "uninstall":
