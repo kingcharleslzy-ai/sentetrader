@@ -329,7 +329,7 @@ AI 球、对话面板与简讯的界面行为见帮助主题 voice-realtime、ac
 | “收起了 N 条次要消息”折叠 | `disclosure: {name: "flash-minor" / "news-minor", open}`（有次要消息时才有） | `disclosures.flash-minor` / `disclosures.news-minor`、`state.news.flash.minor` / `.minorReports`、`state.news.news.minor` |
 | “AI 筛掉了 N 条无关新闻”折叠 | `disclosure: {name: "flash-dropped" / "news-dropped", open}`（有筛掉的条目时才有） | `disclosures.flash-dropped` / `disclosures.news-dropped`、`state.news.flash.dropped` / `state.news.news.dropped`、展开后的分组文本 |
 | 快讯原样条目（宏观 / 全部）：品种标签、正文折叠、原文 | 品种标签＝`symbol`（该品种主力合约）；正文折叠只改显示行数（全文在快照文本与 `items[].text`）；原文是外链 | 页面文本与控件（标签 aria-label“切到 X 主力合约”，title 带合约代码） |
-| 今日作战表 | `news: {tab: "sheet"}`（数据 `GET /api/research/sheet`，只读、不调模型）；“看调研”＝切图表合约并 `news: {tab: "desk"}`；推送与提醒记录点开直达（`?open=research:sheet`、提醒 `target.page: "sheet"`） | `state.news.sheet`（status、rows、high、mid、low、top、playbookCount、error）、页面文本 |
+| 今日作战表 | `news: {tab: "sheet"}`（数据 `GET /api/research/sheet`，只读、不调模型；网页与客户端由推送的每品种一行在本机按自选与交易笔记拼装，结果相同）；“看调研”＝切图表合约并 `news: {tab: "desk"}`；推送与提醒记录点开直达（`?open=research:sheet`、提醒 `target.page: "sheet"`） | `state.news.sheet`（status、rows、high、mid、low、top、playbookCount、error）、页面文本 |
 | 今日判断的过时提示与重新判断 | “按最新消息重新判断”与“重新判断”＝`news: {deskRejudge: true}`（＝`POST /api/research/desk/refresh?symbol=`）；“让 AI 们辩一轮”见下方辩论行 | `state.news.desk.stale`、`.change`、`.rejudge`、`.refreshing`、页面文本 |
 | 关键数据格 | 一格＝`news: {deskSource: 事实 id}`（`tiles[].ref`；数据同 `GET /api/research/desk` 的 `tiles`） | `state.news.desk.tiles`、`.highlight`、页面文本（aria-label 如“主力 AU2612 910.58，看来源”） |
 | 多空对照的依据编号 | 编号＝`news: {deskSource: 事实 id}`（`basis`） | `state.news.desk.bull`、`.bear`、`.conclusion`、页面文本（aria-label“依据 N” / “依据 N，生成后已更新”） |

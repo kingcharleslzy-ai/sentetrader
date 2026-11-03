@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field
 
+from ..instruments import FOREIGN_BY_KEY
 from ..research_data import DATASETS
 from ..research_debate import DebateUnavailable, EventProductError
 from ..research_live import FLASH_INCLUDE_MAX, FLASH_OFFICIAL_HOURS_MAX
@@ -44,6 +46,9 @@ DEBATE_MESSAGES = {
 def debate_error(code: str, message: str | None = None, status: int | None = None, **extra: Any) -> HTTPException:
     known = DEBATE_MESSAGES.get(code, (422, code))
     return HTTPException(status_code=status or known[0], detail={"code": code, "message": message or known[1], **extra})
+
+
+SHEET_PRODUCT = re.compile(r"[A-Z]{2,6}\.[A-Za-z]{1,6}")
 
 
 def _number(params: dict[str, str], name: str, default: int, low: int, high: int) -> int:
@@ -310,15 +315,26 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
 
     # 通用报告推送 (2026-11-03): the reads above that a window keeps on screen go out over its push stream instead of
     # each panel re-reading on its own timer (runtime_feed.report_round). Each answers exactly what its HTTP read
-    # answers, read once per key (per reader for the desk and the sheet) on the panel's former cadence.
+    # answers, read once per key for everyone on the panel's former cadence. What is the user's own (which 自选 the
+    # sheet lists, which 打法 it names) is put together on the device from the shared rows (owner 2026-11-03).
     live = ctx.services.research_live
 
-    async def sheet_report(user_id: str, _account: Any, _params: dict[str, str]) -> dict[str, Any]:
-        return await ctx.services.battle_sheet.user_sheet(user_id)
+    async def sheet_row_report(_user: str, _account: Any, params: dict[str, str]) -> dict[str, Any]:
+        """今日作战表's row of one 自选品种 (domestic "SHFE.au"): the same row GET /api/research/sheet ranks."""
+        product = params.get("product", "")
+        if not SHEET_PRODUCT.fullmatch(product) or product in FOREIGN_BY_KEY:
+            raise ValueError("report_param_invalid")
+        return await ctx.services.battle_sheet.product_row(product)
 
-    async def desk_report(user_id: str, _account: Any, params: dict[str, str]) -> dict[str, Any]:
-        return await ctx.services.research_desk.report(_symbol(params), generator=desk_generator(user_id),
-                                                       user_id=user_id, fast=True)
+    async def desk_report(_user: str, _account: Any, params: dict[str, str]) -> dict[str, Any]:
+        """One read of a product's 调研 for everyone showing it. The judgment is shared per product; a new one may be
+        started by a reader whose tier includes web research (with that reader's model, as their own read would) —
+        the reader only decides whether one may start, never what anyone sees."""
+        viewers = feed.report_viewers("desk", params)
+        starter = next((user for user in viewers if desk_generator(user) is not None), None)
+        return await ctx.services.research_desk.report(
+            _symbol(params), generator=desk_generator(starter) if starter else None,
+            user_id=starter or (viewers[0] if viewers else None), fast=True)
 
     async def news_report(_user: str, _account: Any, params: dict[str, str]) -> dict[str, Any]:
         return await ctx.services.research_brief.brief(_symbol(params), "news")
@@ -344,9 +360,9 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
         judgment = answer.get("judgment") or {}
         return judgment.get("status") == "pending" or bool(judgment.get("refreshing")) or bool(answer.get("factsRefreshing"))
 
-    # 今日作战表: its per-product rows are computed at most once a minute and shared; 5 s shows a new 自选 soon.
-    feed.add_report("sheet", FeedReport(sheet_report, _every(5, 5, 30), per_user=True, volatile=frozenset({"generatedAt"})))
-    feed.add_report("desk", FeedReport(desk_report, _every(4, 600, 30, desk_busy), frozenset({"symbol"}), per_user=True))
+    # 今日作战表: each row is computed at most once a minute and shared; 5 s shows a new 自选 soon.
+    feed.add_report("sheet-row", FeedReport(sheet_row_report, _every(5, 5, 30), frozenset({"product"})))
+    feed.add_report("desk", FeedReport(desk_report, _every(4, 600, 30, desk_busy), frozenset({"symbol"})))
     feed.add_report("news", FeedReport(news_report, _every(15, 1800, 60, screening), frozenset({"symbol"})))
     feed.add_report("summary", FeedReport(summary_report, _every(1800, 1800, 300), frozenset({"symbol"})))
     feed.add_report("flash", FeedReport(flash_report, _every(15, 60, 60, screening),

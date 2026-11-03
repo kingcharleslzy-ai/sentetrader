@@ -122,8 +122,9 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
         starts the board over with one full frame, and a page coming back gets a full chart too.
 
         `reports` (通用报告推送, 2026-11-03): the cloud reports on screen, each as a name plus its GET's
-        query: sheet (/api/research/sheet), desk / news / summary ?symbol= (/api/research/desk, news,
-        summary), flash ?product|products|tag, hours, limit (/api/research/flash, the full feed),
+        query: sheet-row ?product= (one domestic 自选品种's row of /api/research/sheet, shared by everyone;
+        the device ranks the rows and names its 打法 itself), desk / news / summary ?symbol=
+        (/api/research/desk — one read for everyone showing it —, news, summary), flash ?product|products|tag, hours, limit (/api/research/flash, the full feed),
         calendar ?days, region, product, briefs (/api/app/briefs), and the session account's
         habits ?account= and daily-review ?account=&tradingDay= (/api/account/habits, daily-review).
         Each one goes out as feed.report {key, status, report} — that GET's answer — once now and then

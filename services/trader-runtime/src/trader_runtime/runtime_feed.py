@@ -319,6 +319,20 @@ class RuntimeFeed:
         """A report the push serves, registered next to its HTTP read (routes)."""
         self._reports[name] = report
 
+    def report_viewers(self, name: str, params: dict[str, str]) -> list[str]:
+        """The users whose visible windows show this report now (a shared report's read may need one of them)."""
+        users: list[str] = []
+        for session_id in self.broker.subscribed_session_ids():
+            state = self._sessions.get(session_id)
+            if state is None or not state.visible or state.user_id in users:
+                continue
+            for key in state.reports:
+                shown, _, query = key.partition("?")
+                if shown == name and dict(parse_qsl(query)) == params:
+                    users.append(state.user_id)
+                    break
+        return users
+
     def reports_due(self, name: str) -> None:
         """Something changed a report of this name (a rejudge, an adopted debate): read it again now."""
         for (key, _user, _account), read in self._report_reads.items():

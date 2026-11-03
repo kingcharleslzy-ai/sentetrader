@@ -5,7 +5,8 @@ bars (昨高 / 昨低, the 开盘区间 = the trading day's first 15 minutes, th
 the newest 快讯 events from the 调研 page's screened events, and a priority from how strong the news is
 and how close the price sits to a key level. No direction is shown (owner decision: the sheet names levels
 and setups, not 偏多 / 偏空). The product part is shared and reads no account; the user's part — which
-products (their 自选) and which of their 打法 may show up near those levels — is put together per request.
+products (their 自选) and which of their 打法 may show up near those levels — is put together per request here,
+and on the user's device from the pushed rows (apps/client/src/battleSheet.ts mirrors `sheet` and `playbooks_for`).
 """
 from __future__ import annotations
 
@@ -176,7 +177,7 @@ class BattleSheet:
         return row
 
     async def user_sheet(self, user_id: str) -> dict[str, Any]:
-        """One user's sheet from their 自选 and 打法 — what GET /api/research/sheet answers and the report push sends."""
+        """One user's sheet from their 自选 and 打法 — what GET /api/research/sheet answers (the push sends the rows)."""
         products = list(self.store.user_preferences(user_id).watchlist.products)
         return await self.sheet(products, self.store.list_playbooks(user_id=user_id))
 

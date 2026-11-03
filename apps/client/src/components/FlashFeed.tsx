@@ -101,6 +101,21 @@ export const quotesByProduct = (rows: readonly { productId: string; changePercen
 /** Today's debates of the shown events by event id and product key ("au:e123…"): one merged event can concern
  *  several products, and each product's debate is its own (its own 今日判断). */
 export const debatedKey = (eventId: string, product: string) => `${product.slice(product.lastIndexOf(".") + 1).toLowerCase()}:${eventId}`;
+/** The 已研讨 read takes at most 60 event ids in at most 1200 characters (the Runtime's bounds on GET
+ *  /api/research/debates): a product with more events on screen (原油: 291) is asked in batches, not refused with 422. */
+const DEBATE_BATCH_IDS = 60;
+const DEBATE_BATCH_CHARS = 1200;
+function debateBatches(ids: readonly string[]): string[][] {
+  const batches: string[][] = [];
+  let current: string[] = [], length = 0;
+  for (const id of ids) {
+    if (current.length && (current.length >= DEBATE_BATCH_IDS || length + 1 + id.length > DEBATE_BATCH_CHARS)) { batches.push(current); current = []; length = 0; }
+    length += (current.length ? 1 : 0) + id.length;
+    current.push(id);
+  }
+  if (current.length) batches.push(current);
+  return batches;
+}
 export function useDebatedEvents(baseUrl: string | undefined, ids: string[], enabled: boolean): Map<string, DebateSummary> {
   const version = useDebateVersion();
   const key = ids.join(",");
@@ -111,10 +126,10 @@ export function useDebatedEvents(baseUrl: string | undefined, ids: string[], ena
   useEffect(() => {
     if (!baseUrl || !enabled || !key) return;
     let active = true;
-    void listDebates(baseUrl, { events: key.split(","), limit: 60 }).then(result => {
+    void Promise.all(debateBatches(key.split(",")).map(events => listDebates(baseUrl, { events, limit: DEBATE_BATCH_IDS }))).then(results => {
       if (!active) return;
       const map = new Map<string, DebateSummary>();
-      for (const item of result.items) {
+      for (const result of results) for (const item of result.items) {
         const id = item.topic.eventId;
         const slot = id ? debatedKey(id, item.productKey) : "";
         if (id && !map.has(slot) && item.researchDay === result.day && !["failed", "cancelled"].includes(item.status)) map.set(slot, item);

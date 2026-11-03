@@ -60,7 +60,7 @@ export function mainContract(product: string, instruments: readonly InstrumentCa
  * and one button that asks the AI about this judgment. A visitor reads the desk's public facts (the AI
  * judgment, the 新闻面 line and 快讯 are for signed-in readers; 问 AI opens the login).
  */
-export function MobileResearch({ baseUrl, symbol, productName, judgment, watchlist, instruments, onSelectSymbol, onOpenContracts, handlers, guest, onRefresh }: {
+export function MobileResearch({ baseUrl, symbol, productName, judgment, watchlist, watchlistRead = false, instruments, onSelectSymbol, onOpenContracts, handlers, guest, onRefresh }: {
   baseUrl: string | undefined;
   /** The shown contract; the page reads its product. */
   symbol: string | undefined;
@@ -69,6 +69,8 @@ export function MobileResearch({ baseUrl, symbol, productName, judgment, watchli
   judgment: Judgment | null;
   /** The account's starred products ("SHFE.rb"). */
   watchlist: string[];
+  /** The 自选 has been read (今日作战表 is then put together on this device). */
+  watchlistRead?: boolean;
   instruments: readonly InstrumentCatalogItem[];
   onSelectSymbol: (symbol: string) => void;
   /** “+ 自选”: the contract list, where a star adds the product. */
@@ -133,7 +135,7 @@ export function MobileResearch({ baseUrl, symbol, productName, judgment, watchli
       <main className="fdm-content" ref={pull.ref}>
         {guest ? null : <PullIndicator phase={pull.phase} />}
         {/* 今日作战表 (第 5 批): the page opens on the 自选 ranked; a row's 看调研 switches the desk below to it. */}
-        {guest ? null : <BattleSheet baseUrl={baseUrl} visible compact onOpen={onSelectSymbol} />}
+        {guest ? null : <BattleSheet baseUrl={baseUrl} visible watchlist={watchlistRead ? watchlist : undefined} compact onOpen={onSelectSymbol} />}
         {!symbol ? (
           <div className="fdm-empty"><Search aria-hidden="true" /><strong>还没有选择合约</strong><span>点“+ 自选”挑一个品种。</span></div>
         ) : (

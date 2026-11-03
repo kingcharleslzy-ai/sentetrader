@@ -1574,7 +1574,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
             ai: props.guest ? signIn("今天", "登录后 AI 帮你盯盘、给出判断，按住就能和它说话。") : undefined,
             research: <MobileResearch baseUrl={connectedRuntimeUrl} symbol={quote?.symbol ?? props.selectedSymbol}
               productName={researchProduct}
-              judgment={desk.card} watchlist={watchlist} instruments={props.instruments?.items ?? []}
+              judgment={desk.card} watchlist={watchlist} watchlistRead={Boolean(prefs.document)} instruments={props.instruments?.items ?? []}
               onSelectSymbol={selectContract} onOpenContracts={() => setContractOpen(true)} handlers={mobileCardHandlers}
               guest={props.guest && { baseUrl: props.guest.baseUrl, onExpired: props.guest.reportExpired }} onRefresh={reloadQuoteDesk} />,
             market: <MobileMarket market={market} name={contractName} decimals={decimals} chartView={chartView}
@@ -1634,7 +1634,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     switch (panel) {
       case "ai": return props.guest ? null : aiDock();
       case "news": return <NewsPanel baseUrl={props.guest?.baseUrl ?? connectedRuntimeUrl} guest={Boolean(props.guest)} replay={Boolean(props.replayActive)} onGuestExpired={props.guest?.reportExpired} symbol={quote?.symbol} onClose={() => closeDock("news")}
-          watchProducts={flashWatchProducts} instruments={props.instruments?.items} onSelectSymbol={selectContract}
+          watchProducts={flashWatchProducts} watchlist={prefs.document ? watchlist : undefined} instruments={props.instruments?.items} onSelectSymbol={selectContract}
           debate={props.guest ? undefined : debate} tab={newsTab} onTab={setNewsTab} />;
       case "reminders": return props.guest ? null : <RemindersPanel tab={remindersTab} onTab={setRemindersTab} onClose={() => closeDock("reminders")}
           center={reminderCenter} settings={reminderSettings} mine={myReminders} />;

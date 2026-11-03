@@ -1,6 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { requestJson } from "../api";
-import { feedReportServes, REPORT_RECHECK_MS, useFeedReport } from "../feedView";
+import { assembleSheet, SHEET_LIMIT, type SharedSheetRow } from "../battleSheet";
+import { feedReportServes, feedViewServes, REPORT_RECHECK_MS, reportKey, useFeedReports } from "../feedView";
+import { isForeignProductKey } from "./futures/support";
+import { usePlaybooks } from "./playbooks/PlaybookPage";
 import { trimPriceZeros } from "./chartPriceFormat";
 import { SectionCard } from "./Blocks";
 import "./BattleSheet.css";
@@ -36,21 +39,42 @@ function levelText(levels: SheetLevel[]) {
  * 高 / 中 / 低 by the Runtime (news strength + distance to the nearest key level), each with its key levels,
  * the 调研 · 快讯 events it cites and the user's 打法 that may show up there. No 偏多 / 偏空 anywhere.
  * `onOpen` switches the chart to the row's contract and opens 品种调研.
- * Pushed (2026-11-02; 通用报告推送 2026-11-03): while the tab shows, the Runtime sends the sheet on the session's stream
- * when it changes (feed.report "sheet"); the read below runs only while the push does not serve it (stream down, older Runtime).
+ * Put together here (按人的拼装在本地, owner 2026-11-03): while the tab shows, the Runtime pushes each 自选品种's shared row
+ * when it changes (feed.report "sheet-row?product="); this device ranks them and names the user's 打法 from its own 自选
+ * (`watchlist`, once read) and 交易笔记 (battleSheet.ts). The whole-sheet read below runs only while that cannot be done
+ * (stream down, older Runtime, 自选 or 笔记 not read).
  */
-export function BattleSheet({ baseUrl, visible, compact = false, onOpen, onState }: { baseUrl: string | undefined; visible: boolean;
+export function BattleSheet({ baseUrl, visible, watchlist, compact = false, onOpen, onState }: { baseUrl: string | undefined; visible: boolean;
+  /** The account's 自选 once read (undefined until then). */
+  watchlist?: readonly string[];
   compact?: boolean; onOpen?: (symbol: string) => void; onState?: (state: SheetState) => void }) {
   const [report, setReport] = useState<SheetReport>();
   const [error, setError] = useState("");
-  const pushed = useFeedReport<SheetReport>(baseUrl, visible ? "sheet" : undefined);
-  useEffect(() => { if (pushed) { setReport({ ...pushed, foreign: pushed.foreign ?? [] }); setError(""); } }, [pushed]);
+  const playbooks = usePlaybooks(visible && watchlist ? baseUrl : undefined);
+  const local = Boolean(visible && watchlist && playbooks.loaded && !playbooks.error);
+  const products = useMemo(() => local ? watchlist!.filter(key => !isForeignProductKey(key)).slice(0, SHEET_LIMIT) : [], [local, watchlist]);
+  const keys = useMemo(() => products.map(product => reportKey("sheet-row", { product })), [products]);
+  const pushed = useFeedReports<SharedSheetRow>(baseUrl, keys);
+  const assembled = useMemo(() => local ? assembleSheet(watchlist!,
+    new Map(products.flatMap((product, index) => pushed.has(keys[index]) ? [[product, pushed.get(keys[index])!] as const] : [])), playbooks.items)
+    : undefined, [local, watchlist, products, keys, pushed, playbooks.items]);
+  useEffect(() => {
+    if (!assembled) return;
+    // Same content: keep the shown sheet (and its 更新 time).
+    const content = (value: SheetReport) => JSON.stringify([value.rows, value.foreign, value.over, value.playbookCount]);
+    setReport(previous => previous && content(previous) === content(assembled) ? previous : assembled);
+    setError("");
+  }, [assembled]);
+  const served = useRef<() => boolean>(() => false);
+  // While the 笔记 are still being read on a window the push serves, wait for them rather than read the whole sheet.
+  served.current = () => watchlist !== undefined && !playbooks.loaded ? feedViewServes(baseUrl)
+    : local && keys.every(key => feedReportServes(baseUrl, key));
   useEffect(() => {
     if (!visible || !baseUrl) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout>;
     const load = async () => {
-      if (feedReportServes(baseUrl, "sheet")) { timer = setTimeout(() => void load(), REPORT_RECHECK_MS); return; }
+      if (served.current()) { timer = setTimeout(() => void load(), REPORT_RECHECK_MS); return; }
       try {
         const next = await requestJson<SheetReport>(`${baseUrl}/api/research/sheet`);
         // An older Runtime (or a proxy page) answers something else: say so instead of drawing it.

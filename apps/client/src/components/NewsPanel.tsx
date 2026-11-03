@@ -54,7 +54,9 @@ export type NewsNavigation = { tab?: Tab; pinnedSymbol?: string | null; flashFil
   /** 调研页 (第七批): press 按最新消息重新判断 / open 资料来源 at one fact id. Both switch to 调研. */
   deskRejudge?: boolean; deskSource?: string };
 /** `replay`: news and research are today's, so a replay (looking at a past day) shows none of them. */
-export function NewsPanel({ baseUrl, symbol, guest = false, replay = false, onGuestExpired, onClose, watchProducts = [], instruments, onSelectSymbol, debate, tab: shownTab, onTab }: { baseUrl: string | undefined; symbol: string | undefined; guest?: boolean; replay?: boolean;
+export function NewsPanel({ baseUrl, symbol, guest = false, replay = false, onGuestExpired, onClose, watchProducts = [], watchlist, instruments, onSelectSymbol, debate, tab: shownTab, onTab }: { baseUrl: string | undefined; symbol: string | undefined; guest?: boolean; replay?: boolean;
+  /** 今日作战表: the account's 自选 once read (the sheet is put together from it on this device). */
+  watchlist?: readonly string[];
   /** A guest read answered 401: the session ended; the workspace shows its reconnect prompt. */
   onGuestExpired?: () => void; onClose: () => void;
   /** 快讯 · 持仓与自选: the open positions' and the watchlist's products ("SHFE.au"). */
@@ -160,7 +162,7 @@ export function NewsPanel({ baseUrl, symbol, guest = false, replay = false, onGu
     <div className="news-panel-content" role="tabpanel" aria-label={LABELS.get(tab)}>
       {replay ? <p role="status">回放中不显示新闻和研究数据：它们是今天的，会提前透露回放那天之后的行情。</p> : <>
         {seen.has("sheet") && !guest ? <div className="news-panel-tab" hidden={tab !== "sheet"} data-agent-target="news:sheet">
-          <BattleSheet baseUrl={baseUrl} visible={tab === "sheet"} onState={onSheetState}
+          <BattleSheet baseUrl={baseUrl} visible={tab === "sheet"} watchlist={watchlist} onState={onSheetState}
             onOpen={onSelectSymbol ? symbolToOpen => { setPinnedSymbol(null); onSelectSymbol(symbolToOpen); setTab("desk"); } : undefined} />
         </div> : null}
         <div className="news-panel-tab" hidden={tab !== "desk"}>
