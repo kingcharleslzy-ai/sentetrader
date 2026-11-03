@@ -8,12 +8,16 @@ from __future__ import annotations
 
 import gc
 import linecache
-import resource
 import threading
 import tracemalloc
 from collections import Counter
 from datetime import UTC, datetime
 from typing import Any
+
+try:
+    import resource
+except ImportError:  # Windows (self-host): no getrusage, the peak reads as unknown.
+    resource = None  # type: ignore[assignment]
 
 MAX_FRAMES = 25
 _lock = threading.Lock()
@@ -34,7 +38,7 @@ def _rss_kb() -> int | None:
 def _status() -> dict[str, Any]:
     traced, peak = tracemalloc.get_traced_memory() if tracemalloc.is_tracing() else (0, 0)
     return {"tracing": tracemalloc.is_tracing(), "startedAt": _state["startedAt"], "frames": _state["frames"],
-            "rssKb": _rss_kb(), "maxRssKb": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
+            "rssKb": _rss_kb(), "maxRssKb": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss if resource else None,
             "tracedKb": traced // 1024, "tracedPeakKb": peak // 1024}
 
 

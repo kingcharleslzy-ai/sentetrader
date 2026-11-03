@@ -47,7 +47,6 @@
 from __future__ import annotations
 
 import argparse
-import fcntl
 import json
 import math
 import os
@@ -95,6 +94,11 @@ from .paper_book import (
 )
 from .paper_fill import IDEAL, FillModel
 from .paper_sources import MarketSourceRelay, SourceAccount, parse_sources
+
+if sys.platform == "win32":
+    import msvcrt
+else:
+    import fcntl
 
 PAPER_SERVICE = "ai-trader-paper-engine"
 DEFAULT_PAPER_PORT = 19011
@@ -496,7 +500,10 @@ class PaperEngine:
             os.makedirs(directory, exist_ok=True)
         lock_fd = os.open(f"{self.db_path}.lock", os.O_CREAT | os.O_RDWR, 0o600)
         try:
-            fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            if sys.platform == "win32":  # self-host on Windows: no flock; a byte lock is held until close
+                msvcrt.locking(lock_fd, msvcrt.LK_NBLCK, 1)
+            else:
+                fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except OSError as error:
             os.close(lock_fd)
             raise RuntimeError("paper_engine_lock_held") from error

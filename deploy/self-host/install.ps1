@@ -1,4 +1,4 @@
-# Sente 自建版安装（Windows）。在仓库根目录运行：powershell -ExecutionPolicy Bypass -File deploy\self-host\install.ps1
+﻿# Sente 自建版安装（Windows）。在仓库根目录运行：powershell -ExecutionPolicy Bypass -File deploy\self-host\install.ps1
 # 更新：git pull 后再运行一次。国内网络可先设 UV_DEFAULT_INDEX（PyPI 镜像）与 npm 镜像。
 $ErrorActionPreference = "Stop"
 Set-Location (Join-Path $PSScriptRoot "..\..")
@@ -23,13 +23,15 @@ function Install-Project($name, $extra) {
 Install-Project trader-runtime research
 Install-Project tqkq-sidecar tqkq
 
-Run npm ci
+# npm.cmd, not npm: PowerShell would pick npm.ps1, which reads its arguments back from the calling line and fails
+# ("索引超出了数组界限") when called through Run.
+Run npm.cmd ci
 # The commit labels the build and goes into version.json beside it (as the web image does).
 $sha = (git rev-parse HEAD 2>$null); if (-not $sha) { $sha = "self-host" }
 $env:AI_TRADER_BUILD_SHA = $sha
 $env:VITE_CLOUD_RUNTIME_URL = "same-origin"; $env:VITE_DEFAULT_RUNTIME_MODE = "cloud"
 $env:VITE_CLOUD_AUTH_MODE = "owner-password"; $env:VITE_APP_BASE_PATH = "/"
-Run npm --workspace @ai-trader/client run build
+Run npm.cmd --workspace @ai-trader/client run build
 $versionFile = "apps\client\dist\version.json"
 $version = Get-Content $versionFile -Raw | ConvertFrom-Json
 $version.commit = $sha

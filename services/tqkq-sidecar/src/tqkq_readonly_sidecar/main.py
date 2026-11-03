@@ -3515,6 +3515,10 @@ def reexec_allowed(now: float | None = None) -> bool:
 def reexec_process() -> None:
     """Start this process over in place (all TqApi sessions, threads and loops from scratch); the
     environment carries the time so a persistent upstream failure cannot loop re-execs."""
+    if sys.platform == "win32":
+        # Windows has no in-place exec (execv starts a second process outside the self-host supervisor, which
+        # would start yet another): exit and let the supervisor start it over.
+        os._exit(75)
     os.environ[REEXEC_ENV] = str(time.time())
     os.execv(sys.executable, sys.orig_argv)
 
