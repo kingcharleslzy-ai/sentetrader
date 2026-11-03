@@ -5,6 +5,7 @@ import { useDisclosureSurface } from "../../uiSurfaces";
 import type { DurationSeconds, MobileMarketPreferences } from "../../userPreferences";
 import { marketErrorMessage } from "../../hooks/useMarketWorkbench";
 import { FALLBACK_PRICE_TITLE, chartDayQuote, formatNumber } from "../futures/support";
+import { Presence } from "../motion";
 import { CELL_DURATIONS, MULTI_LAYOUTS, durationLabel, resolveCells, type MultiLayout, type ResolvedCell } from "./mobileMarketPrefs";
 
 type Duration = MarketWorkbenchSnapshot["durationSeconds"];
@@ -175,6 +176,7 @@ export function MobileMultiChart({ baseUrl, market, layout, onLayout, onCell, cu
           </div>;
         })}
       </div>
+      <Presence>
       {editCell ? <div className="fdm-sheet-backdrop" onClick={event => { if (event.target === event.currentTarget) setEditing(null); }}>
         <section className="fdm-sheet fdm-mm-sheet" role="dialog" aria-label={`第 ${editCell.index + 1} 格`}>
           <div className="fdm-sheet-grip" aria-hidden="true" />
@@ -196,6 +198,7 @@ export function MobileMultiChart({ baseUrl, market, layout, onLayout, onCell, cu
           </div>
         </section>
       </div> : null}
+      </Presence>
     </main>
   );
 }

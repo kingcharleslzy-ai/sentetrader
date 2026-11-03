@@ -21,6 +21,10 @@
 
 .fdm-row-sheet { position: fixed; inset: 0; z-index: 60; display: flex; align-items: flex-end; background: var(--overlay); animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; --enter-transform: none; }
 .fdm-row-sheet > .fdm-sheet { max-height: 80%; animation: ui-panel-in var(--dur-3) var(--ease-out) backwards; --enter-transform: translateY(100%); }
+/* Leaving (动效第二批): the sheet slides back down as the dim fades. */
+.fdm-row-sheet[data-closing] { pointer-events: none; animation: ui-panel-out var(--dur-2) var(--ease-out) forwards; }
+.fdm-row-sheet[data-closing] > .fdm-sheet { animation: ui-panel-out var(--dur-2) var(--ease-out) forwards; }
+.ui-presence[data-closing] > .fdm-row-undo { animation: ui-panel-out var(--dur-2) var(--ease-out) forwards; }
 .fdm-row-sheet-head { display: grid; gap: var(--space-0); padding: var(--space-2) var(--space-4) var(--space-3); }
 .fdm-row-sheet-head strong { font-size: var(--font-lg); overflow-wrap: anywhere; }
 .fdm-row-sheet-head small { color: var(--muted); font-size: var(--font-sm); }

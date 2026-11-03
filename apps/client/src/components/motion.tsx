@@ -49,3 +49,32 @@ export function useStepMotion(index: number): SwapMotion | undefined {
   if (step.index !== index) setStep({ index, motion: index > step.index ? "next" : "prev" });
   return step.motion;
 }
+
+/** 进出场: whether something that is `open` still shows, and whether it is on its way out (--dur-2 after it closed; none under reduced
+ *  motion). For content that can still render from current state while it leaves; `Presence` keeps the last of it otherwise. */
+export function usePresence(open: boolean): { shown: boolean; closing: boolean } {
+  const [saved, setState] = useState({ open, closing: false });
+  // The render that sees `open` change answers with the new state already (its caller may act on it before React renders again).
+  const state = saved.open === open ? saved : { open, closing: !open && motionMs("--dur-2") > 0 };
+  if (state !== saved) setState(state);
+  useEffect(() => {
+    if (!state.closing) return;
+    const timer = window.setTimeout(() => setState(current => ({ ...current, closing: false })), motionMs("--dur-2"));
+    return () => window.clearTimeout(timer);
+  }, [state.closing]);
+  return { shown: open || state.closing, closing: !open && state.closing };
+}
+
+/**
+ * 进出场 (动效方案, owner 2026-11-03): `children` as given; when they go (null or false) the last of them stays for --dur-2 marked
+ * `data-closing` (taking no input) so CSS plays the way out — theme.css `.ui-presence`, each sheet's own rule. The wrapper has no box
+ * (display: contents), so what it holds lays out as before.
+ */
+export function Presence({ children }: { children: ReactNode }) {
+  const open = Boolean(children);
+  const last = useRef<ReactNode>(null);
+  if (open) last.current = children;
+  const { shown, closing } = usePresence(open);
+  if (!shown) last.current = null;
+  return shown ? <div className="ui-presence" data-closing={closing ? "" : undefined}>{open ? children : last.current}</div> : null;
+}

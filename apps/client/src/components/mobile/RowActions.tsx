@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type HTMLAttributes, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { Presence, usePresence } from "../motion";
 import { useMobileLayout } from "../../hooks/useMobileLayout";
 import { useDisclosureSurface } from "../../uiSurfaces";
 import "./RowActions.css";
@@ -46,11 +47,10 @@ const setUndo = (next: Undo | null) => {
 /** The 撤销 bar (once, in the phone layout's foot). */
 export function RowUndo() {
   const current = useSyncExternalStore(listener => { undoListeners.add(listener); return () => { undoListeners.delete(listener); }; }, () => undo, () => undo);
-  if (!current) return null;
-  return <div className="fdm-row-undo" role="status" data-agent-target="mobile-row-undo" key={current.key}>
+  return <Presence>{current ? <div className="fdm-row-undo" role="status" data-agent-target="mobile-row-undo" key={current.key}>
     <span>{current.text}</span>
     <button type="button" onClick={() => { setUndo(null); current.run(); }}>撤销</button>
-  </div>;
+  </div> : null}</Presence>;
 }
 
 /**
@@ -70,6 +70,7 @@ export function useRowActions({ id, title, subtitle, actions }: { id: string; ti
   const [sheet, setSheet] = useState(false);
   const [armed, setArmed] = useState<string | null>(null);
   const suppress = useRef(false);
+  const sheetShown = usePresence(sheet);
   const swipeActions = actions.filter(action => !action.menuOnly).slice(0, 2);
   const width = swipeActions.length * BUTTON_PX;
   const close = useCallback(() => {
@@ -191,7 +192,7 @@ export function useRowActions({ id, title, subtitle, actions }: { id: string; ti
   const extra = <>
     {tray || swiped ? <span className="fdm-swipe-tray" style={{ width }}>
       {swipeActions.map(action => button(action, "tray"))}</span> : null}
-    {sheet ? createPortal(<div className="fdm-row-sheet" onClick={event => { event.stopPropagation(); if (event.target === event.currentTarget) close(); }}>
+    {sheetShown.shown ? createPortal(<div className="fdm-row-sheet" data-closing={sheetShown.closing ? "" : undefined} onClick={event => { event.stopPropagation(); if (event.target === event.currentTarget) close(); }}>
       <section className="fdm-sheet" role="menu" aria-label={`${title} 的操作`} data-agent-target={`row-actions:${id}`}>
         <span className="fdm-sheet-grip" aria-hidden="true" />
         <header className="fdm-row-sheet-head"><strong>{title}</strong>{subtitle ? <small>{subtitle}</small> : null}</header>

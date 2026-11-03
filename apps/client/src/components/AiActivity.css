@@ -73,7 +73,7 @@
 .activity-trade[data-new-fill] { animation:ui-fill-arrival var(--dur-2) var(--ease-out); }
 .activity-trade[data-new-fill] .activity-trade-pnl { animation:ui-fill-arrival var(--dur-2) var(--ease-out); }
 .ai-floating-card { animation:ui-panel-in var(--dur-2) var(--ease-out) backwards; }
-.ai-floating-card[data-closing] { pointer-events:none; animation:ui-panel-in var(--dur-2) var(--ease-out) reverse forwards; }
+.ai-floating-card[data-closing] { pointer-events:none; animation:ui-panel-out var(--dur-2) var(--ease-out) forwards; }
 @media (prefers-reduced-motion:reduce) {
   .ai-orb-dot::after { animation: none; }
   .activity-trade[data-new-fill],.activity-trade[data-new-fill] .activity-trade-pnl,.ai-floating-card { animation:none !important; }

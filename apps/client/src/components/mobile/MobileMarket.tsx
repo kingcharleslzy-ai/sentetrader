@@ -15,7 +15,7 @@ import { FALLBACK_PRICE_TITLE, chartDayQuote, foreignChartSource, formatNumber }
 import type { ChartIndicatorPatch } from "../chartIndicatorEditor";
 import type { ChartIndicatorConfig } from "../chartIndicators";
 import { RollingText, usePriceFlash } from "./mobileMotion";
-import { Swap, useStepMotion } from "../motion";
+import { Presence, Swap, useStepMotion } from "../motion";
 import { MARKET_VIEWS, shownSubPane, subPaneName } from "./mobileMarketPrefs";
 import type { MobileMarketHandle } from "./useMobileMarket";
 import { MobileQuotes, quoteRows, type QuoteRow } from "./MobileQuotes";
@@ -302,10 +302,10 @@ export function MobileMarket({ market, name, decimals, chartView, onSelectDurati
         </section>
       </main>}
       </Swap>
-      {desk.available && desk.toolbarOpen ? <MobileDrawingSheet desk={desk} onError={setDrawingError} /> : null}
-      {desk.available ? <MobileDrawingSettings desk={desk} period={drawingPeriod} /> : null}
+      <Presence>{desk.available && desk.toolbarOpen ? <MobileDrawingSheet desk={desk} onError={setDrawingError} /> : null}</Presence>
+      <Presence>{desk.available && desk.items.some(item => item.id === desk.settingsId) ? <MobileDrawingSettings desk={desk} period={drawingPeriod} /> : null}</Presence>
       {loupe ? <DrawingLoupe drag={loupe} tick={quote?.priceTick} /> : null}
-      {sheetOpen && view === "single" ? <MobileSubPaneSheet indicators={indicators} onChange={onIndicatorsChange} onClose={() => setSheetOpen(false)} status={indicatorStatus} /> : null}
+      <Presence>{sheetOpen && view === "single" ? <MobileSubPaneSheet indicators={indicators} onChange={onIndicatorsChange} onClose={() => setSheetOpen(false)} status={indicatorStatus} /> : null}</Presence>
     </section>
   );
 }

@@ -556,6 +556,12 @@
   border-top: 1px solid var(--line); border-radius: var(--radius-card) var(--radius-card) 0 0; background: var(--panel); box-shadow: var(--shadow-3);
   padding-bottom: env(safe-area-inset-bottom);
 }
+/* A sheet over its page (列设置, 副图设置, 多图格, 画线; 动效第二批): the dim fades in and the sheet rises from the bottom; closing
+   (`Presence`) plays it back down. Sheets on a full-screen page take the layer's own motion below. */
+.fdm-sheet-backdrop { animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; --enter-transform: none; }
+.fdm-sheet-backdrop > :is(.fdm-sheet, .fdw-draw-settings) { animation: ui-panel-in var(--dur-3) var(--ease-out) backwards; --enter-transform: translateY(100%); }
+.ui-presence[data-closing] .fdm-sheet-backdrop { animation: ui-panel-out var(--dur-2) var(--ease-out) forwards; }
+.ui-presence[data-closing] .fdm-sheet-backdrop > :is(.fdm-sheet, .fdw-draw-settings) { animation: ui-panel-out var(--dur-2) var(--ease-out) forwards; }
 .fdm-sheet-grip { align-self: center; width: 36px; height: 4px; margin-top: var(--space-2); border-radius: var(--radius-sm); background: var(--line-strong); }
 .fdm-sheet-head { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-4) var(--space-3); }
 .fdm-sheet-head > span { flex: 1 1 auto; min-width: 0; display: grid; gap: var(--space-0); }
@@ -622,6 +628,8 @@
 .fdm-shell .app-help-card { width: 100vw; height: 100dvh; max-width: 100vw; max-height: 100dvh; margin: 0; border: 0; border-radius: 0; }
 .fdm-shell .app-help-card > header button { min-width: 44px; min-height: 44px; }
 .fdm-shell .fdw-drawer.contracts { width: 100vw; padding: var(--space-3) var(--space-4); }
+/* The phone's drawer covers the whole page: no blur behind it to redraw while it slides. */
+.fdm-shell .fdw-drawer-backdrop { backdrop-filter: none; }
 .fdm-shell .fdw-drawer > header button { width: 44px; height: 44px; }
 .fdm-shell .fdw-contract-list button { min-height: 48px; }
 /* 通知 → the conversation: the card that was opened is marked for a moment. */
@@ -681,14 +689,14 @@
   content: ""; position: absolute; inset: 0; background: var(--overlay);
   opacity: calc(1 - var(--fdm-drag, 0)); animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; --enter-transform: none;
 }
-.fdm-layer > .fdm-sheet-backdrop { background: transparent; }
+.fdm-layer > .fdm-sheet-backdrop { background: transparent; animation: none; }
 .fdm-layer > .fdm-overlay, .fdm-layer > .fdm-sheet-backdrop > .fdm-sheet { animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; --enter-transform: translateY(12px); }
 /* A bottom sheet (下单) is pushed up from the bottom edge. */
 .fdm-layer:not([data-closing]) > .fdm-sheet-backdrop > .fdm-sheet { animation-duration: var(--dur-3); --enter-transform: translateY(100%); }
 .fdm-layer[data-closing] { pointer-events: none; }
-.fdm-layer[data-closing]::before { animation: ui-panel-in var(--dur-2) var(--ease-out) reverse forwards; --enter-transform: none; }
-.fdm-layer[data-closing] > .fdm-overlay, .fdm-layer[data-closing] > .fdm-sheet-backdrop > .fdm-sheet { animation: ui-panel-in var(--dur-2) var(--ease-out) reverse forwards; --enter-transform: translateY(12px); }
-.fdm-layer[data-closing] > .fdm-install-mask { animation: ui-panel-in var(--dur-2) var(--ease-out) reverse forwards; --enter-transform: none; }
+.fdm-layer[data-closing]::before { animation: ui-panel-out var(--dur-2) var(--ease-out) forwards; --enter-transform: none; }
+.fdm-layer[data-closing] > .fdm-overlay, .fdm-layer[data-closing] > .fdm-sheet-backdrop > .fdm-sheet { animation: ui-panel-out var(--dur-2) var(--ease-out) forwards; --enter-transform: translateY(12px); }
+.fdm-layer[data-closing] > .fdm-install-mask { animation: ui-panel-out var(--dur-2) var(--ease-out) forwards; --enter-transform: none; }
 .fdm-layer > .fdm-install-mask { animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; --enter-transform: none; }
 .fdm-layer :is(.fdm-head, .fdm-sheet-head, .fdm-sheet-grip, .fdw-positions-dock > header) { -webkit-user-select: none; user-select: none; }
 /* 设置 and the 使用说明卡 (their own dialogs, full screen on the phone) slide up as they open. */

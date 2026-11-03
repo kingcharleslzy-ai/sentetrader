@@ -827,6 +827,12 @@
   backdrop-filter: blur(3px);
 }
 
+/* 抽屉 (动效第二批): the dim fades in and the drawer slides in from its side; leaving (`Presence`) plays it back. */
+.fdw-drawer-backdrop { animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; --enter-transform: none; }
+.fdw-drawer { animation: ui-panel-in var(--dur-3) var(--ease-out) backwards; --enter-transform: translateX(-100%); }
+.fdw-drawer.positions { --enter-transform: translateX(100%); }
+.ui-presence[data-closing] :is(.fdw-drawer-backdrop, .fdw-drawer) { animation: ui-panel-out var(--dur-2) var(--ease-out) forwards; }
+
 .fdw-shell ~ .approval-backdrop {
   z-index: 130;
 }

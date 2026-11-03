@@ -6,7 +6,7 @@ import { marketErrorMessage } from "../../hooks/useMarketWorkbench";
 import { useDisclosureSurface } from "../../uiSurfaces";
 import { FALLBACK_PRICE_TITLE, dayQuote, formatNumber, watchlistKey, watchlistMainSymbol } from "../futures/support";
 import { SwipeRow, type RowAction } from "./RowActions";
-import { Swap, useStepMotion } from "../motion";
+import { Presence, Swap, useStepMotion } from "../motion";
 import { QUOTE_BOARDS, QUOTE_COLUMNS, QUOTE_COLUMNS_MAX, type QuoteBoard, type QuoteColumn } from "./mobileMarketPrefs";
 
 /** One 报价 row: a board row (a product's main contract) or a held month the board does not carry. */
@@ -314,6 +314,7 @@ export function MobileQuotes({ baseUrl, board, foreign, boardError, boardId, col
         ))}
         </Swap>
       </div>
+      <Presence>
       {columnsOpen ? <div className="fdm-sheet-backdrop" onClick={event => { if (event.target === event.currentTarget) setColumnsOpen(false); }}>
         <section className="fdm-sheet fdm-mm-sheet" role="dialog" aria-label="报价列">
           <div className="fdm-sheet-grip" aria-hidden="true" />
@@ -332,6 +333,7 @@ export function MobileQuotes({ baseUrl, board, foreign, boardError, boardId, col
           </div>
         </section>
       </div> : null}
+      </Presence>
     </main>
   );
 }

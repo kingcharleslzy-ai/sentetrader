@@ -132,6 +132,7 @@ import { onDeepLinkMessage, takeDeepLink, type DeepLink } from "../deepLink";
 import { useBriefSubscriptions } from "./BriefSubscriptions";
 import { buildFlowItems } from "./futures/aiFlow";
 import { FONT_SCALE_OPTIONS } from "../appearance";
+import { Presence } from "./motion";
 
 /** Open, these hold an order, a trading confirmation or unsaved strategy edits: no self-reload then. */
 const BUSY_DIALOGS = ["quick-order-confirm", "abandon-order", "strategy-launch", "protection-reprice-confirm"];
@@ -1308,9 +1309,9 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     {!props.guest && <><AppHelp baseUrl={props.runtimeBaseUrl} isOwner={isOwner} /><HighlightLayer /><TourIndicator /></>}
   </>;
   const trailing = <>
-    {contractOpen ? <ContractDrawer workspace={workspace} query={query} onQueryChange={setQuery} onSelect={selectContract} onClose={() => { setContractOpen(false); setContractPinMode(false); }} recentSymbols={recentSymbols}
+    <Presence>{contractOpen ? <ContractDrawer workspace={workspace} query={query} onQueryChange={setQuery} onSelect={selectContract} onClose={() => { setContractOpen(false); setContractPinMode(false); }} recentSymbols={recentSymbols}
       board={board.snapshot} product={contractProduct} onProductChange={setContractProduct}
-      watchlist={watchlist} onToggleWatchlist={watchlistChange} watchlistStatus={watchlistStatus || undefined} /> : null}
+      watchlist={watchlist} onToggleWatchlist={watchlistChange} watchlistStatus={watchlistStatus || undefined} /> : null}</Presence>
 
     {settingsOpen && !props.guest?.loginOpen ? <WorkspaceSettings workspace={workspace} page={settingsPage} onPageChange={setSettingsPage} onClose={() => setSettingsOpen(false)}
       model={model} tradingAccounts={tradingAccounts} connectedRuntimeUrl={connectedRuntimeUrl} desktopVersion={desktopVersion}
@@ -1324,7 +1325,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
       quickSkipConfirm={quickSkipConfirm} setQuickSkipConfirm={setQuickSkipConfirm} quickSkipConfirmScoped={Boolean(props.preferencesScope)} initialBalance={initialBalance} setInitialBalance={setInitialBalance} voiceAvailable={voiceAvailable}
       ownerStatus={ownerPlan.status} preferences={prefs} skills={skills} routines={routineActions} mobile={mobile} /> : null}
 
-    {accessNotice && (!settingsOpen || props.guest?.loginOpen) ? <div className="toast" role="status">{accessNotice}</div> : null}
+    <Presence>{accessNotice && (!settingsOpen || props.guest?.loginOpen) ? <div className="toast" role="status">{accessNotice}</div> : null}</Presence>
     {signalNotice ? <p className="fdw-signal-notice" role="status" data-testid="strategy-signal-notice">{signalNotice}</p> : null}
     {!props.guest && !uiControlHealth.registered ? <div className="fdw-global-error" role="status" data-agent-target="ui-control-health">界面命令不可用：登记失败（{uiControlHealth.detail.slice(0, 160) || "/api/ui/pulse 422"}）</div> : null}
   </>;

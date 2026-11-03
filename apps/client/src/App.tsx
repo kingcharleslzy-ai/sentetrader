@@ -27,6 +27,7 @@ import { cloudRuntimeAuthMode, defaultRuntimeMode, isTauriRuntime } from "./runt
 import { chartQuoteBlockedReason } from "./marketSession";
 import { useAppearance } from "./hooks/useAppearance";
 import { GuestAppearanceContext } from "./guestAppearance";
+import { Presence } from "./components/motion";
 
 export function App() {
   const [mode] = useState<RuntimeMode>(defaultRuntimeMode);
@@ -253,7 +254,7 @@ function TradingApp(replayProps: ReplayWorkspaceProps & { mode: RuntimeMode }) {
           setReconnectKey((value) => value + 1);
         } : undefined}
       />
-      {toast ? <div className="toast" data-kind={toast.kind} role={toast.kind === "error" ? "alert" : "status"}><i aria-hidden="true">{{success: "✓", info: "i", warning: "!", error: "!"}[toast.kind]}</i><span>{toast.text}</span></div> : null}
+      <Presence>{toast ? <div className="toast" data-kind={toast.kind} role={toast.kind === "error" ? "alert" : "status"}><i aria-hidden="true">{{success: "✓", info: "i", warning: "!", error: "!"}[toast.kind]}</i><span>{toast.text}</span></div> : null}</Presence>
       {desktop ? <DesktopUpdateDialog updater={desktopUpdater} /> : null}
       {ownerLogin}
     </>

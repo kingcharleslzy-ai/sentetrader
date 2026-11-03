@@ -13,7 +13,7 @@ import { orbLabel } from "../../voiceRealtime";
 import "../futures/AiCommandBar.css";
 import { HoldToTalk, HoldToTalkLive } from "./HoldToTalk";
 import { RollingText, usePriceFlash, useRiseKey } from "./mobileMotion";
-import { motionMs, Swap, type SwapMotion } from "../motion";
+import { Swap, usePresence, type SwapMotion } from "../motion";
 import { RowUndo } from "./RowActions";
 import { PullIndicator, usePullToRefresh } from "./usePullToRefresh";
 import { UnreadBadge } from "../reminders/ReminderCenter";
@@ -79,15 +79,9 @@ const standalone = () => (typeof window.matchMedia === "function" && window.matc
 function OverlayLayer({ overlay, onClose }: { overlay: ReactNode; onClose: () => void }) {
   const last = useRef<ReactNode>(null);
   if (overlay) last.current = overlay;
-  const [open, setOpen] = useState(Boolean(overlay));
-  const [closing, setClosing] = useState(false);
   // Without a closing duration (reduced motion) the page goes at once.
-  if (Boolean(overlay) !== open) { setOpen(Boolean(overlay)); setClosing(!overlay && motionMs("--dur-2") > 0); }
-  useEffect(() => {
-    if (!closing) return;
-    const timer = window.setTimeout(() => { setClosing(false); last.current = null; }, motionMs("--dur-2"));
-    return () => window.clearTimeout(timer);
-  }, [closing]);
+  const { shown } = usePresence(Boolean(overlay));
+  if (!shown) last.current = null;
   const [layer, setLayer] = useState<HTMLDivElement | null>(null);
   const close = useRef(onClose);
   close.current = onClose;
@@ -154,7 +148,7 @@ function OverlayLayer({ overlay, onClose }: { overlay: ReactNode; onClose: () =>
       layer.removeEventListener("click", onClick, true);
     };
   }, [layer]);
-  const node = overlay || (closing ? last.current : null);
+  const node = overlay || last.current;
   if (!node) return null;
   return <div ref={setLayer} className="fdm-layer" data-closing={overlay ? undefined : ""}>{node}</div>;
 }
