@@ -178,6 +178,9 @@ export function useBriefs(baseUrl: string | undefined, enabled: boolean, replay:
 const seenBriefIds = new Set<string>();
 /** v2 is written only when the user moves the orb; v1 was written on every mount, so its
  *  bottom-right corner ({1,1}) is the old default rather than a chosen place. */
+/** Half the orb label's max-width (220px) plus a margin: its centre stays this far inside the window, so a long
+ *  state ("AI 在说 · 外放不听") under an orb parked at an edge is not cut off. */
+const ORB_LABEL_HALF = 118;
 const FLOAT_POSITION_KEY = "ai-trader-ai-float-position-v2";
 const LEGACY_POSITION_KEY = "ai-trader-ai-float-position-v1";
 /** The orb's place as fractions of its safe area (the chart minus its price/time axes, see
@@ -357,7 +360,7 @@ export function AiOrb({ baseUrl, symbol, replay, activity, error, config, onBrie
       {unread && <i className="ai-orb-dot" />}
     </button>
     {beside ? <div className="ai-orb-beside" style={{ left: besideLeft, width: besideWidth, ...besidePlace }}>{beside}</div> : null}
-    {voice && (inCall || callStatus.state === "error") ? <span className="ai-orb-label" role="status" data-state={callStatus.state} style={{ left: left + 28, top: top + 60 > size.height - 24 ? top - 26 : top + 60 }}>{callLabel}</span> : null}
+    {voice && (inCall || callStatus.state === "error") ? <span className="ai-orb-label" role="status" data-state={callStatus.state} style={{ left: size.width > 2 * ORB_LABEL_HALF ? Math.min(Math.max(left + 28, ORB_LABEL_HALF), size.width - ORB_LABEL_HALF) : left + 28, top: top + 60 > size.height - 24 ? top - 26 : top + 60 }}>{callLabel}</span> : null}
     {menuOpen ? (
       <menu className="ai-orb-menu" role="menu" aria-label="AI 球菜单" style={{ left: menuLeft, top: menuTop }}>
         {inCall ? <li><button type="button" role="menuitem" onClick={() => { call.mute(!callStatus.muted); setMenuOpen(false); }}>{callStatus.muted ? <><Mic />取消静音</> : <><MicOff />静音</>}</button></li> : null}
