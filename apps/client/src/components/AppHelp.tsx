@@ -4,6 +4,7 @@ import { isRequestTimeout } from "../requestTimeout";
 import { startTour, type TourStep } from "../uiTour";
 import { useDialogSurface, useUiSurface } from "../uiSurfaces";
 import "./AppHelp.css";
+import { Presence } from "./motion";
 
 /**
  * 使用说明 (2026-09-25 两层重做): a search box and grouped navigation on the left (a drop-down on a
@@ -178,7 +179,7 @@ export function AppHelp({ baseUrl, isOwner = false }: { baseUrl?: string; isOwne
   const topicButton = (id: string) => data && <li key={id}><button type="button" aria-current={id === current ? "page" : undefined} onClick={() => select(id)}>
     <Marked text={data.topics[id].title} query={needle} /></button></li>;
   return <>
-    {menu && <div className="app-help-menu" role="menu" style={{ left: menu.x, top: menu.y }}><button type="button" role="menuitem" onClick={() => openAppHelp(menu.topic)}>查看相关说明</button></div>}
+    <Presence>{menu && <div className="app-help-menu" role="menu" style={{ left: menu.x, top: menu.y }}><button type="button" role="menuitem" onClick={() => openAppHelp(menu.topic)}>查看相关说明</button></div>}</Presence>
     <dialog ref={dialog} className="app-help-card" onCancel={close} aria-label="使用说明">
       <header><strong>使用说明</strong><button type="button" aria-label="关闭说明" onClick={close}>×</button></header>
       {error ? <p role="alert" className="app-help-status">{error}<button type="button" className="ghost-button" data-agent-target="help:retry" onClick={retryRead}>重试</button></p>

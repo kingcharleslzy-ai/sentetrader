@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { useDisclosureSurface } from "../../uiSurfaces";
 import { LAYOUTS_MAX, type WorkspaceLayoutChange, type WorkspaceLayoutsHandle } from "./workspaceLayouts";
+import { Presence } from "../motion";
 
 /**
  * 自由布局 (2026-11-02): the top bar's 布局 dropdown (`disclosure: workspace-layouts`) — switch between 盘前 / 盘中 /
@@ -31,7 +32,7 @@ export function LayoutMenu({ handle, onError }: { handle: WorkspaceLayoutsHandle
         data-agent-target="workspace-layouts" onClick={() => setOpen(!open)}>
         <span>{current?.name ?? "布局"}</span><ChevronDown />
       </button>
-      {open ? <div className="fdw-layout-list" data-agent-target="workspace-layouts-menu">
+      <Presence>{open ? <div className="fdw-layout-list" data-agent-target="workspace-layouts-menu">
         {layouts.items.map(item => <div key={item.id}>
           {renaming === item.id
             ? <form className="fdw-layout-form" onSubmit={event => { event.preventDefault(); if (run({ rename: { id: item.id, name: draft } })) setRenaming(null); }}>
@@ -50,7 +51,7 @@ export function LayoutMenu({ handle, onError }: { handle: WorkspaceLayoutsHandle
             onChange={event => setDraft(event.target.value)} />
           <button type="submit" className="primary-button" disabled={Boolean(renaming) || layouts.items.length >= LAYOUTS_MAX}>另存布局</button>
         </form>
-      </div> : null}
+      </div> : null}</Presence>
     </span>
   );
 }

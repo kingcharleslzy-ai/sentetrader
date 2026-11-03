@@ -3,6 +3,7 @@ import { ChevronDown, Eye, EyeOff, Lock, LockOpen, Magnet, Trash2, X } from "luc
 import { DRAWING_GROUPS, DRAWING_TOOLS, toolSpec, type DrawingGroup } from "../../chartDrawingModel";
 import { DrawingToolIcon } from "./DrawingToolIcon";
 import type { DrawingDesk } from "./useDrawingDesk";
+import { Presence } from "../motion";
 
 const LONG_PRESS_MS = 380;
 
@@ -69,7 +70,7 @@ export function DrawingToolbar({ desk, onSwitchError }: { desk: DrawingDesk; onS
             </button>
             {many ? <button type="button" className="fdw-draw-more" aria-label={`${group.label}：更多工具`} aria-haspopup="menu" aria-expanded={openGroup === group.id}
               onClick={() => toggleList(group.id)}><ChevronDown aria-hidden="true" /></button> : null}
-            {openGroup === group.id ? (
+            <Presence>{openGroup === group.id ? (
               <div className="fdw-draw-flyout" role="menu" aria-label={`${group.label}工具`}>
                 <strong>{group.label}</strong>
                 {tools.map(item => (
@@ -79,7 +80,7 @@ export function DrawingToolbar({ desk, onSwitchError }: { desk: DrawingDesk; onS
                   </button>
                 ))}
               </div>
-            ) : null}
+            ) : null}</Presence>
           </div>
         );
       })}

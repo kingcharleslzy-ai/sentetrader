@@ -12,6 +12,7 @@ import { BrandMark } from "../BrandMark";
 import { applyUiSurface } from "../../uiSurfaces";
 import "./WorkspaceHeader.css";
 import { headerFitClasses, useHeaderFit } from "./useHeaderFit";
+import { Presence } from "../motion";
 
 /** Tabs shown in full before the rest fold into the "…" menu. */
 const VISIBLE_TABS = 6;
@@ -121,7 +122,7 @@ export function WorkspaceHeader({ workspace, view, onSelectView, recoveryButton,
           {folded.length ? (
             <span className="fdw-contract-tab fdw-contract-more">
               <button type="button" className="fdw-tab-menu-trigger" aria-label={`更多合约 ${folded.length}`} aria-expanded={menu === "more"} aria-haspopup="menu" onClick={() => setMenu(menu === "more" ? null : "more")}><MoreHorizontal /></button>
-              {menu === "more" ? (
+              <Presence>{menu === "more" ? (
                 <div className="fdw-tab-menu" role="menu" aria-label="更多合约">
                   {folded.map(symbol => (
                     <div key={symbol} role="none">
@@ -130,7 +131,7 @@ export function WorkspaceHeader({ workspace, view, onSelectView, recoveryButton,
                     </div>
                   ))}
                 </div>
-              ) : null}
+              ) : null}</Presence>
             </span>
           ) : null}
           {!replay && pinnedSymbols.length < 8 ? <button type="button" className="fdw-contract-add" aria-label="钉住合约" title="钉住合约" onClick={onPinContract}><Plus /></button> : null}
@@ -140,7 +141,7 @@ export function WorkspaceHeader({ workspace, view, onSelectView, recoveryButton,
           <button type="button" className="fdw-tab-menu-trigger" role="tab" aria-selected={view === "trade" && !replay} aria-expanded={menu === "pick"} aria-haspopup="menu" onClick={() => setMenu(menu === "pick" ? null : "pick")}>
             {current ? label(current) : <span>选择合约</span>}<ChevronDown />
           </button>
-          {menu === "pick" ? (
+          <Presence>{menu === "pick" ? (
             <div className="fdw-tab-menu" role="menu" aria-label="钉住的合约">
               {pinnedSymbols.map(symbol => (
                 <div key={symbol} role="none">
@@ -150,7 +151,7 @@ export function WorkspaceHeader({ workspace, view, onSelectView, recoveryButton,
               ))}
               {!replay && pinnedSymbols.length < 8 ? <button type="button" role="menuitem" className="fdw-tab-menu-add" onClick={() => { setMenu(null); onPinContract(); }}><Plus />钉住合约…</button> : null}
             </div>
-          ) : null}
+          ) : null}</Presence>
         </div>
         <i className="fdw-nav-divider" aria-hidden="true" />
         <span className="fdw-view-group">

@@ -25,6 +25,7 @@ import { useDrawingDesk, type DrawingPreferencePatch } from "./useDrawingDesk";
 import { usePlaybooks } from "../playbooks/PlaybookPage";
 import { useConditionReminderLines } from "../reminders/MyReminders";
 import "./ChartDrawing.css";
+import { Presence } from "../motion";
 
 export { snapToTick } from "../../chartDrawingModel";
 
@@ -318,7 +319,7 @@ function ChartStageContent({ workspace, market, chartView, decimals, chartSettin
         ) : null}
       </div>
       {selectedPrice !== undefined ? <div className="fdw-selected-price"><CircleCheck />候选价 {formatNumber(selectedPrice, decimals)}<button type="button" aria-label="清除候选价" onClick={() => setSelectedPrice(undefined)}><X /></button></div> : null}
-      {menu ? <ChartContextMenu menu={menu} actions={menuActions} onSub={sub => setMenu(current => current ? { ...current, sub } : current)} onClose={() => setMenu(undefined)} /> : null}
+      <Presence>{menu ? <ChartContextMenu menu={menu} actions={menuActions} onSub={sub => setMenu(current => current ? { ...current, sub } : current)} onClose={() => setMenu(undefined)} /> : null}</Presence>
     </div>
   );
 }

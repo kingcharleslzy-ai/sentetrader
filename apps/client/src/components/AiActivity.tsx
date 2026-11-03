@@ -24,6 +24,7 @@ import { workbenchClient, responseData, type WorkbenchConfig, type ActivitySnaps
 export type { ChartExtension } from "../runtimeClient";
 import { HelpButton } from "./AppHelp";
 import "./AiActivity.css";
+import { Presence } from "./motion";
 
 const defaultConfig: WorkbenchConfig = { showAiActivity: true, showTradeMarkers: true, showMarketBriefs: true, extensions: [] };
 export function useAppWorkbench(baseUrl: string | undefined, symbol: string | undefined) {
@@ -361,14 +362,14 @@ export function AiOrb({ baseUrl, symbol, replay, activity, error, config, onBrie
     </button>
     {beside ? <div className="ai-orb-beside" style={{ left: besideLeft, width: besideWidth, ...besidePlace }}>{beside}</div> : null}
     {voice && (inCall || callStatus.state === "error") ? <span className="ai-orb-label" role="status" data-state={callStatus.state} style={{ left: size.width > 2 * ORB_LABEL_HALF ? Math.min(Math.max(left + 28, ORB_LABEL_HALF), size.width - ORB_LABEL_HALF) : left + 28, top: top + 60 > size.height - 24 ? top - 26 : top + 60 }}>{callLabel}</span> : null}
-    {menuOpen ? (
+    <Presence>{menuOpen ? (
       <menu className="ai-orb-menu" role="menu" aria-label="AI 球菜单" style={{ left: menuLeft, top: menuTop }}>
         {inCall ? <li><button type="button" role="menuitem" onClick={() => { call.mute(!callStatus.muted); setMenuOpen(false); }}>{callStatus.muted ? <><Mic />取消静音</> : <><MicOff />静音</>}</button></li> : null}
         {inCall ? <li><button type="button" role="menuitem" onClick={hangUp}><PhoneOff />挂断</button></li> : null}
         <li><button type="button" role="menuitem" onClick={() => { onOpenChat(); if (inCall) hangUp(); setMenuOpen(false); }}><MessageSquareText />切文字</button></li>
         <li><button type="button" role="menuitem" onClick={() => showCard()}><Activity />AI 动态{unread ? "（有新）" : ""}</button></li>
       </menu>
-    ) : null}
+    ) : null}</Presence>
     {(open||closing) && <section inert={closing} aria-hidden={closing||undefined} data-closing={closing||undefined} data-auto={auto||undefined} id="ai-floating-card" className="ai-floating-card" role="region" aria-label="AI 动态卡片" style={{ width: cardWidth, maxHeight: cardHeight, left:cardLeft,top:cardTop,transformOrigin:`${left+28-cardLeft}px ${top+28-cardTop}px` }}
       onPointerEnter={() => { if (auto) { window.clearTimeout(autoTimer.current); setAuto(false); setUnread(false); } }}>
       <header><div><strong>AI 动态</strong><small>{operating?"AI 操作中":fresh?"待机":"连接待确认"}</small></div><button type="button" aria-label="收起 AI 动态" onClick={closeCard}>×</button></header>

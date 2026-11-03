@@ -14,6 +14,7 @@ import { contractLabel, formatSigned, moneyUnit, signClass } from "../futures/su
 import { PullIndicator, usePullToRefresh } from "./usePullToRefresh";
 import { SwipeRow, type RowAction } from "./RowActions";
 import { useDisclosureSurface } from "../../uiSurfaces";
+import { Presence } from "../motion";
 
 /** A running or paused strategy instance as the 策略 tab and AI 首页's AI 正在盯 show it. */
 export interface MobileStrategyRun {
@@ -303,10 +304,10 @@ function StopMenu({ stop }: { stop: MobileStop }) {
   return <div className="fdm-stop" data-agent-target="mobile-execution-stop">
     <button type="button" className="fdm-stop-toggle" aria-expanded={open} aria-haspopup="menu" disabled={stop.disabled}
       onClick={() => setOpen(value => !value)}><OctagonX aria-hidden="true" />停止</button>
-    {open ? <div className="fdm-stop-menu" role="menu" aria-label="停止">
+    <Presence>{open ? <div className="fdm-stop-menu" role="menu" aria-label="停止">
       {stop.status !== "HALT_OPENS" ? <button type="button" role="menuitem" onClick={() => pick(stop.onHaltOpens)}>只停新开仓</button> : null}
       <button type="button" role="menuitem" data-tone="danger" onClick={() => pick(stop.onEmergency)}>急停…</button>
-    </div> : null}
+    </div> : null}</Presence>
   </div>;
 }
 
