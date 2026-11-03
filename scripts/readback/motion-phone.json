@@ -1,0 +1,30 @@
+{
+  "about": "动效四批（#1301–#1304）手机部分：底部标签来回切、进出“我的”、全部持仓开合、看盘报价/多图/单图、换板块、报价列设置弹层与长按菜单开合，每步切完画面落在新状态、旧画面不残留（截图 01–06 看有没有叠影、半透明残留）；价格口径（#1299）另见 price-basis.json。只读，不写数据。",
+  "device": "phone",
+  "steps": [
+    {"ui": {"mobileTab": "ai"}, "expect": {"mobileTab": "ai"}},
+    {"ui": {"mobileTab": "research"}, "expect": {"mobileTab": "research"}},
+    {"ui": {"mobileTab": "market"}, "expect": {"mobileTab": "market"}},
+    {"ui": {"mobileTab": "ai"}, "expect": {"mobileTab": "ai"}},
+    {"screenshot": "01-tabs-back-home"},
+    {"ui": {"mobileTab": "me"}, "expect": {"mobileTab": "me"}},
+    {"screenshot": "02-me"},
+    {"ui": {"mobileTab": "ai"}, "expect": {"mobileTab": "ai"}},
+    {"ui": {"mobilePage": "positions"}},
+    {"screenshot": "03-positions-open"},
+    {"ui": {"mobilePage": null}},
+    {"ui": {"mobileTab": "market"}, "expect": {"mobileTab": "market"}},
+    {"ui": {"mobileMarket": {"view": "multi"}}},
+    {"ui": {"mobileMarket": {"view": "single"}}},
+    {"ui": {"mobileMarket": {"view": "quotes"}}},
+    {"ui": {"mobileMarket": {"board": "main"}}, "expect": {"observation.text": {"includes": "螺纹"}}, "timeoutMs": 20000},
+    {"screenshot": "04-quotes-main"},
+    {"ui": {"disclosure": {"name": "mobile-quote-columns", "open": true}}},
+    {"screenshot": "05-columns-sheet"},
+    {"ui": {"disclosure": {"name": "mobile-quote-columns", "open": false}}},
+    {"ui": {"disclosure": {"name": "row-actions", "id": "quote:SHFE.rb2701", "open": true}}},
+    {"ui": {"disclosure": {"name": "row-actions", "id": "quote:SHFE.rb2701", "open": false}}},
+    {"screenshot": "06-after-closes"},
+    {"ui": {"mobileTab": "ai"}, "expect": {"mobileTab": "ai"}}
+  ]
+}

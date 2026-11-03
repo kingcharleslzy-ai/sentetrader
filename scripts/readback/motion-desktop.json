@@ -1,0 +1,11 @@
+{
+  "about": "动效第四批（#1304）电脑部分：右侧面板开合、布局下拉开合，关完不残留（截图 01–02）。只读，不写数据。",
+  "steps": [
+    {"ui": {"panel": "order"}},
+    {"screenshot": "01-panel-open"},
+    {"ui": {"panel": null}},
+    {"ui": {"disclosure": {"name": "workspace-layouts", "open": true}}},
+    {"ui": {"disclosure": {"name": "workspace-layouts", "open": false}}},
+    {"screenshot": "02-after-closes"}
+  ]
+}
