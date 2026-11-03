@@ -6,6 +6,7 @@ import { marketErrorMessage } from "../../hooks/useMarketWorkbench";
 import { useDisclosureSurface } from "../../uiSurfaces";
 import { FALLBACK_PRICE_TITLE, dayQuote, formatNumber, watchlistKey, watchlistMainSymbol } from "../futures/support";
 import { SwipeRow, type RowAction } from "./RowActions";
+import { Swap, useStepMotion } from "../motion";
 import { QUOTE_BOARDS, QUOTE_COLUMNS, QUOTE_COLUMNS_MAX, type QuoteBoard, type QuoteColumn } from "./mobileMarketPrefs";
 
 /** One 报价 row: a board row (a product's main contract) or a held month the board does not carry. */
@@ -244,6 +245,7 @@ export function MobileQuotes({ baseUrl, board, foreign, boardError, boardId, col
   // A sideways swipe on the list moves to the next / previous 板块.
   const swipe = useRef<{ x: number; y: number } | null>(null);
   const boardIndex = QUOTE_BOARDS.findIndex(item => item.id === boardId);
+  const boardMotion = useStepMotion(boardIndex);
   const shift = (step: number) => {
     const next = QUOTE_BOARDS[boardIndex + step];
     if (next) onBoard(next.id);
@@ -281,6 +283,8 @@ export function MobileQuotes({ baseUrl, board, foreign, boardError, boardId, col
           const dx = touch.clientX - start.x, dy = touch.clientY - start.y;
           if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) shift(dx < 0 ? 1 : -1);
         }}>
+        {/* 动效方案 (2026-11-03): another 板块 slides in from its side of the tabs. */}
+        <Swap id={boardId} motion={boardMotion} className="fdm-quote-rows">
         {boardId === "FOREIGN" ? <ForeignRows foreign={foreign} columns={columns} connected={Boolean(baseUrl)} onOpen={onOpen} /> : null}
         {boardId === "FOREIGN" ? null : boardError ? <p className="fdm-note" role="alert">{board ? "上次报价；" : ""}{boardError}</p> : null}
         {boardId === "FOREIGN" ? null : !baseUrl ? <p className="fdm-note" role="status">{board ? "上次报价；" : ""}行情未连接，连接后读取报价</p>
@@ -308,6 +312,7 @@ export function MobileQuotes({ baseUrl, board, foreign, boardError, boardId, col
             })}
           </button></SwipeRow>
         ))}
+        </Swap>
       </div>
       {columnsOpen ? <div className="fdm-sheet-backdrop" onClick={event => { if (event.target === event.currentTarget) setColumnsOpen(false); }}>
         <section className="fdm-sheet fdm-mm-sheet" role="dialog" aria-label="报价列">

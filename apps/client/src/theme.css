@@ -345,6 +345,19 @@ html[data-font-scale="extra-large"] { --font-xs: 13px; --font-sm: 14px; --font-m
 @keyframes ui-panel-in { from { opacity: 0; transform: var(--enter-transform, translateY(8px)); } to { opacity: 1; transform: var(--rest-transform, none); } }
 @keyframes ui-fill-arrival { from { background-color: var(--accent-soft); opacity: .65; } to { background-color: transparent; opacity: 1; } }
 @keyframes ui-ai-thinking { 50% { opacity: .4; } }
+/* 换场 (motion.tsx `Swap`, 动效方案 2026-11-03): the screen that leaves and the one that enters, by `motion`. */
+@keyframes ui-swap-in { from { opacity: var(--swap-from-opacity, 1); transform: var(--swap-from, none); } }
+@keyframes ui-swap-out { to { opacity: var(--swap-to-opacity, 1); transform: var(--swap-to, none); } }
+[data-swap-enter] { position: relative; z-index: 1; background: var(--swap-bg, var(--bg)); animation: ui-swap-in var(--dur-2) var(--ease-out) backwards; }
+[data-swap-exit] { position: absolute; z-index: 0; margin: 0; background: var(--swap-bg, var(--bg)); pointer-events: none; animation: ui-swap-out var(--dur-2) var(--ease-out) forwards; }
+:is([data-swap-enter="next"], [data-swap-enter="push"]) { --swap-from: translateX(100%); }
+:is([data-swap-exit="next"], [data-swap-exit="push"]) { --swap-to: translateX(-30%); --swap-to-opacity: 0; }
+[data-swap-enter="prev"] { --swap-from: translateX(-100%); }
+[data-swap-exit="prev"] { --swap-to: translateX(30%); --swap-to-opacity: 0; }
+[data-swap-enter="pop"] { z-index: 0; --swap-from: translateX(-30%); --swap-from-opacity: 0; }
+[data-swap-exit="pop"] { z-index: 1; --swap-to: translateX(100%); }
+[data-swap-enter="fade"] { --swap-from: translateX(12px); --swap-from-opacity: 0; }
+[data-swap-exit="fade"] { --swap-to: translateX(-12px); --swap-to-opacity: 0; }
 /* 按住说话 (手机, 2026-11-01): a ripple spreading from the held key. */
 @keyframes ui-ring { from { opacity: .7; transform: scale(1); } to { opacity: 0; transform: scale(1.35); } }
 @media (prefers-reduced-motion: reduce) {

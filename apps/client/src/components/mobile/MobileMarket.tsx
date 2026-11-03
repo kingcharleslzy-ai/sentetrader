@@ -15,6 +15,7 @@ import { FALLBACK_PRICE_TITLE, chartDayQuote, foreignChartSource, formatNumber }
 import type { ChartIndicatorPatch } from "../chartIndicatorEditor";
 import type { ChartIndicatorConfig } from "../chartIndicators";
 import { RollingText, usePriceFlash } from "./mobileMotion";
+import { Swap, useStepMotion } from "../motion";
 import { MARKET_VIEWS, shownSubPane, subPaneName } from "./mobileMarketPrefs";
 import type { MobileMarketHandle } from "./useMobileMarket";
 import { MobileQuotes, quoteRows, type QuoteRow } from "./MobileQuotes";
@@ -112,6 +113,7 @@ export function MobileMarket({ market, name, decimals, chartView, onSelectDurati
 }) {
   const { market: prefs, update, sheetOpen, setSheetOpen } = mobileMarket;
   const view = prefs.view;
+  const viewMotion = useStepMotion(MARKET_VIEWS.findIndex(item => item.id === view));
   const foreign = useForeignBoard(guest ? undefined : baseUrl, view === "quotes" && prefs.board === "FOREIGN");
   const quote = market?.quote;
   const panes = indicators.subPaneList;
@@ -237,6 +239,8 @@ export function MobileMarket({ market, name, decimals, chartView, onSelectDurati
           {MARKET_VIEWS.map(item => <button type="button" key={item.id} aria-pressed={item.id === view} onClick={() => update({ view: item.id })}>{item.label}</button>)}
         </div>
       </header>
+      {/* 动效方案 (2026-11-03): 报价 → 多图 → 单图 slide in their order (a tapped 报价 row comes in from the right). */}
+      <Swap id={view} motion={viewMotion} className="fdm-market-view">
       {view === "quotes" ? <MobileQuotes baseUrl={baseUrl} board={board} foreign={foreign} boardError={boardError} boardId={prefs.board} columns={prefs.columns}
         onBoard={board => update({ board })} onColumns={columns => update({ columns })} positions={positions} watchlist={watchlist}
         instruments={instruments} currentSymbol={quote?.symbol} onOpen={symbol => onOpenChart(symbol)} guest={guest} onSignIn={signIn}
@@ -297,6 +301,7 @@ export function MobileMarket({ market, name, decimals, chartView, onSelectDurati
           </ul> : <p className="fdm-note">还没有自选或持仓。点上面的合约名，在合约列表里点星标加自选。</p>}
         </section>
       </main>}
+      </Swap>
       {desk.available && desk.toolbarOpen ? <MobileDrawingSheet desk={desk} onError={setDrawingError} /> : null}
       {desk.available ? <MobileDrawingSettings desk={desk} period={drawingPeriod} /> : null}
       {loupe ? <DrawingLoupe drag={loupe} tick={quote?.priceTick} /> : null}

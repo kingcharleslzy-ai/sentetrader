@@ -13,6 +13,7 @@ import { orbLabel } from "../../voiceRealtime";
 import "../futures/AiCommandBar.css";
 import { HoldToTalk, HoldToTalkLive } from "./HoldToTalk";
 import { RollingText, usePriceFlash, useRiseKey } from "./mobileMotion";
+import { motionMs, Swap, type SwapMotion } from "../motion";
 import { RowUndo } from "./RowActions";
 import { PullIndicator, usePullToRefresh } from "./usePullToRefresh";
 import { UnreadBadge } from "../reminders/ReminderCenter";
@@ -58,12 +59,7 @@ export function locateCard(id: string, { scope = ".fdm-chat", tries: limit = 10 
 
 /** Tab order, for the direction a new page slides in from. */
 const TAB_ORDER: MobileTab[] = ["ai", "research", "market", "strategy", "me"];
-type ViewMotion = "none" | "next" | "prev" | "push";
 
-const motionMs = (token: string) => {
-  const value = getComputedStyle(document.documentElement).getPropertyValue(token).trim();
-  return value.endsWith("ms") ? parseFloat(value) : value.endsWith("s") ? parseFloat(value) * 1000 : 0;
-};
 
 /** Where a drag may close a full-screen page: its head or the sheet's grip, not its content. */
 const DRAG_HANDLE = ".fdm-head, .fdm-sheet-head, .fdm-sheet-grip, .fdw-positions-dock > header";
@@ -237,12 +233,12 @@ export function MobileWorkspace({ tab, onTab, onOpenChat, onBell, quote, symbolN
   const flash = usePriceFlash(quote?.lastPrice, quote?.symbol);
   const dotKey = useRiseKey(unread);
   const feedPull = usePullToRefresh(onRefreshFeed ?? (() => undefined), Boolean(onRefreshFeed) && tab === "ai");
-  // A new tab page slides in from the side of the tab it came from; the chat and 我的 push in from the right.
-  const [view, setView] = useState<{ tab: MobileTab; motion: ViewMotion; moved: boolean }>({ tab, motion: "none", moved: false });
+  // A new tab page slides in from the side of the tab it came from; the chat and 我的 push in from the right and slide back out to it.
+  const [view, setView] = useState<{ tab: MobileTab; motion?: SwapMotion; moved: boolean }>({ tab, moved: false });
   if (view.tab !== tab) {
     const from = TAB_ORDER.indexOf(view.tab === "chat" || view.tab === "me" ? "ai" : view.tab);
     const to = TAB_ORDER.indexOf(tab === "chat" || tab === "me" ? "ai" : tab);
-    setView({ tab, moved: true, motion: tab === "chat" || tab === "me" ? "push" : (view.tab === "chat" || view.tab === "me") && tab === "ai" ? "none" : to > from ? "next" : to < from ? "prev" : "none" });
+    setView({ tab, moved: true, motion: tab === "chat" || tab === "me" ? "push" : (view.tab === "chat" || view.tab === "me") && tab === "ai" ? "pop" : to > from ? "next" : to < from ? "prev" : undefined });
   }
   // 打字: a tap on the key. The sheet is rendered within the tap and its input focused in the same gesture, the only
   // way iOS raises the keyboard for a field that did not exist before the tap.
@@ -274,7 +270,7 @@ export function MobileWorkspace({ tab, onTab, onOpenChat, onBell, quote, symbolN
   const lock = command && call?.available && !call.inCall ? () => { if (access?.require("voice-call") ?? true) call.start(); } : undefined;
   return (
     <div className="fdm-body" data-mobile-tab={tab} data-mobile-overlay={overlay ? "" : undefined}>
-      <div className="fdm-view" key={tab} data-motion={view.motion === "none" ? undefined : view.motion}>
+      <Swap id={tab} motion={view.motion} className="fdm-view">
       {tab === "chat" ? chat : tab !== "ai" || pages.ai ? <>
         {notices}
         {tab === "ai" ? pages.ai : pages[tab]}
@@ -295,7 +291,7 @@ export function MobileWorkspace({ tab, onTab, onOpenChat, onBell, quote, symbolN
         {notices}
         <main className="fdm-content" ref={feedPull.ref}><PullIndicator phase={feedPull.phase} />{feed}</main>
       </>}
-      </div>
+      </Swap>
       <OverlayLayer overlay={overlay} onClose={onCloseOverlay ?? (() => undefined)} />
       <footer className="fdm-foot" hidden={barHidden} data-over-page={overlay && overlayTabs ? "" : undefined}>
         <RowUndo />

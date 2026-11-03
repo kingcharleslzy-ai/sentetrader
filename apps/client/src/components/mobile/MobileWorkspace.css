@@ -280,8 +280,10 @@
   color: var(--ink); background: transparent; font-size: var(--font-md);
 }
 .fdm-head-action:disabled { color: var(--muted); opacity: .6; }
-.fdm-page > .fdm-content { display: flex; flex-direction: column; gap: var(--space-3); }
-.fdm-page > .fdm-content > * { flex-shrink: 0; }
+:is(.fdm-page, .fdm-market-view) > .fdm-content { display: flex; flex-direction: column; gap: var(--space-3); }
+:is(.fdm-page, .fdm-market-view) > .fdm-content > * { flex-shrink: 0; }
+/* 看盘's 报价 / 多图 / 单图 swap in this box (`Swap`). */
+.fdm-market-view { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
 .fdm-note { margin: 0; color: var(--muted); font-size: var(--font-sm); line-height: 1.5; overflow-wrap: anywhere; }
 .fdm-note[role="alert"] { color: var(--warning); }
 
@@ -630,11 +632,10 @@
 /* ── 手机版动效 (2026-10-06): the approved batch-one motion. Durations come from theme.css, whose
    reduced-motion setting zeroes them; the loops and travel below are switched off there too. ── */
 
-/* 切换底部标签: the new page slides 16 px in from the side of the tab it came from and fades in;
-   the chat pushes in from the right. The old page simply unmounts. */
-.fdm-view[data-motion="next"] { animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; --fdm-dx: 1; }
-.fdm-view[data-motion="prev"] { animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; --fdm-dx: -1; }
-.fdm-view[data-motion="push"] { animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; }
+/* 切换底部标签 and 看盘's 报价 / 多图 / 单图 (动效方案 2026-11-03): the shared swap (motion.tsx `Swap`, theme.css) — the old page slides
+   out while the new one slides in from the side of the tab it came from; the chat and 我的 push in from the right and slide back out.
+   Nothing shows past the phone's edge meanwhile. */
+.fdm-body:has([data-swap-exit]) { overflow: clip; }
 /* The light-blue pill under the current tab slides to it; the icon gives one small bounce. The
    colour itself still switches at once (see .fdm-tabs > button). */
 /* It spans the whole tab, icon and label, so it grows with the font (2026-11-02: a fixed 30 px block cut the label in half). */
@@ -797,7 +798,7 @@
   .fdm-hold[aria-pressed="true"]::before, .fdm-hold[aria-pressed="true"]::after,
   .fdm-ptr[data-phase="refreshing"] .fdm-ptr-stone svg, .fdm-install-pointer, .fdm-skeleton > i { animation: none; }
   .fdm-shell .fdm-hold[aria-pressed="true"] { transform: none !important; }
-  .fdm-watching > h3::before, .fdm-view[data-motion], .fdm-feed-item[data-arrive], .fdm-feed-item[data-arrive] > *, .fdm-feed-item[data-reveal], .fdm-new-pill { animation: none; }
+  .fdm-watching > h3::before, .fdm-feed-item[data-arrive], .fdm-feed-item[data-arrive] > *, .fdm-feed-item[data-reveal], .fdm-new-pill { animation: none; }
 }
 
 /* 锁屏提醒 (2026-10-06, mobilePage: push): the 我的 groups' look; the card that replaces 这台设备 where
@@ -997,8 +998,8 @@
 .fdm-quotes { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
 .fdm-quotes-bar { flex: none; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-4); border-bottom: 1px solid var(--line); }
 .fdm-quotes-bar > .fdm-quote-boards { flex: 1 1 auto; min-width: 0; }
-.fdm-quote-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
-.fdm-quote-list > .fdm-note { padding: var(--space-3) var(--space-4); }
+.fdm-quote-list { position: relative; flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+:is(.fdm-quote-list, .fdm-quote-rows) > .fdm-note { padding: var(--space-3) var(--space-4); }
 .fdm-quote-row {
   width: 100%; display: grid; grid-template-columns: minmax(0, 1.45fr) repeat(var(--fdm-quote-columns, 3), minmax(0, 1fr));
   align-items: center; gap: var(--space-2); min-height: 52px; padding: var(--space-2) var(--space-4);
