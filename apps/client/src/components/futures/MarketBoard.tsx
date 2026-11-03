@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Columns3, Search } from "lucide-react";
 import { sameContract, type ForeignBoardSnapshot, type MarketBoardRow, type MarketBoardSnapshot } from "../../api";
 import { useDisclosureSurface } from "../../uiSurfaces";
@@ -51,6 +51,66 @@ function quietRow(row: MarketBoardRow): boolean {
  * the foreign product key, “COMEX.GC”); the 自选 filter lists the starred foreign rows after the domestic ones
  * (外盘代码统一 2026-10-21).
  */
+/** One figure of a board row (the domestic columns; 外盘 prices keep their own precision, see `cell` in MarketBoard). */
+function boardCell(column: BoardColumn, row: MarketBoardRow) {
+  switch (column) {
+    case "last": {
+      const price = dayQuote(row);
+      return <span key={column} className={`fdw-board-cell num${price.fallback ? " fallback" : ""}`}
+        title={price.fallback ? FALLBACK_PRICE_TITLE : undefined}>{formatBoardPrice(price.price)}</span>;
+    }
+    case "change": {
+      const change = dayQuote(row).change;
+      return <span key={column} className={`fdw-board-cell num ${signClass(change)}`}>{change === null ? "—" : formatSigned(change, 2)}</span>;
+    }
+    case "changePercent": {
+      const { note, changePercent: percent } = dayQuote(row);
+      return <span key={column} className={`fdw-board-cell num ${quietRow(row) ? "" : signClass(percent)}`}>{note ?? (percent === null ? "—" : `${percent > 0 ? "+" : ""}${percent.toFixed(2)}%`)}</span>;
+    }
+    case "volume":
+      return <span key={column} className="fdw-board-cell num">{formatVolume(row.volume)}</span>;
+    case "openInterest":
+      return <span key={column} className="fdw-board-cell num">{formatVolume(row.openInterest)}</span>;
+    case "openInterestChange":
+      return <span key={column} className={`fdw-board-cell num ${signClass(row.openInterestChange)}`}>
+        {row.openInterestChange === null || row.openInterestChange === undefined ? "—" : `${row.openInterestChange > 0 ? "+" : ""}${formatVolume(row.openInterestChange)}`}</span>;
+    case "quoteTime":
+      return <span key={column} className="fdw-board-cell num">{formatQuoteTime(row.quoteTime)}</span>;
+    default:
+      return <span key={column} className="fdw-board-cell num">{formatBoardPrice(row[column])}</span>;
+  }
+}
+
+/**
+ * One domestic board row. Memoized (电脑版流畅度 ①, 2026-11-04): a pushed patch keeps every unchanged row's object, so only the
+ * rows whose figures moved render again instead of the whole table on every update.
+ */
+const BoardRow = memo(function BoardRow({ row, columns, gridTemplate, selected, starred, onSelect, onToggle }: {
+  row: MarketBoardRow; columns: string; gridTemplate: string; selected: boolean;
+  /** undefined: no star (the window cannot change the watchlist). */
+  starred: boolean | undefined;
+  onSelect: (symbol: string) => void; onToggle: (product: string) => void;
+}) {
+  const product = `${row.exchangeId}.${row.productId}`;
+  return (
+    // A div, not a button: the row holds the star button (HTML forbids nesting one button
+    // in another); Enter and Space keep the row's own click-through reachable.
+    <div role="button" tabIndex={0}
+      className={`fdw-board-row ${quietRow(row) ? "quiet" : ""} ${selected ? "active" : ""}`}
+      aria-label={`${row.productName} ${row.symbol}`}
+      style={{ gridTemplateColumns: gridTemplate }}
+      onClick={() => onSelect(row.symbol)}
+      onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelect(row.symbol); } }}>
+      <span className="fdw-board-cell name">
+        {starred !== undefined ? <WatchlistStar product={product} name={row.productName} starred={starred} onToggle={onToggle} /> : null}
+        <strong>{row.productName}</strong><small>{row.productId.toUpperCase()}</small>
+      </span>
+      <span className="fdw-board-cell">{row.instrumentId}</span>
+      {columns.split(",").map(column => boardCell(column as BoardColumn, row))}
+    </div>
+  );
+});
+
 export function MarketBoard({ snapshot, foreign, error, query, onQueryChange, exchange, onExchangeChange, sort, onSortChange,
   columns, onColumnsChange, columnsStatus, watchlist, productNames, onToggleWatchlist, watchlistStatus,
   availableExchanges, selectedSymbol, onSelect }: {
@@ -85,6 +145,11 @@ export function MarketBoard({ snapshot, foreign, error, query, onQueryChange, ex
 }) {
   const editable = Boolean(onColumnsChange);
   const starChange = onToggleWatchlist;
+  // Stable for the memoized rows; each call reaches the latest handler.
+  const handlers = useRef({ onSelect, starChange });
+  handlers.current = { onSelect, starChange };
+  const selectRow = useCallback((symbol: string) => handlers.current.onSelect(symbol), []);
+  const toggleStar = useCallback((product: string) => handlers.current.starChange?.(product), []);
   const starred = useMemo(() => new Set(watchlist), [watchlist]);
   const chips = useMemo(() =>
     BOARD_EXCHANGES.filter(item => availableExchanges.includes(item.code)), [availableExchanges]);
@@ -180,32 +245,7 @@ export function MarketBoard({ snapshot, foreign, error, query, onQueryChange, ex
         : column === "change" ? `${value > 0 ? "+" : ""}${formatNumber(value, foreignRow.decimals)}` : formatNumber(value, foreignRow.decimals);
       return <span key={column} className={`fdw-board-cell num ${column === "change" ? signClass(value) : ""}`}>{text}</span>;
     }
-    switch (column) {
-      case "last": {
-        const price = dayQuote(row);
-        return <span key={column} className={`fdw-board-cell num${price.fallback ? " fallback" : ""}`}
-          title={price.fallback ? FALLBACK_PRICE_TITLE : undefined}>{formatBoardPrice(price.price)}</span>;
-      }
-      case "change": {
-        const change = dayQuote(row).change;
-        return <span key={column} className={`fdw-board-cell num ${signClass(change)}`}>{change === null ? "—" : formatSigned(change, 2)}</span>;
-      }
-      case "changePercent": {
-        const { note, changePercent: percent } = dayQuote(row);
-        return <span key={column} className={`fdw-board-cell num ${quietRow(row) ? "" : signClass(percent)}`}>{note ?? (percent === null ? "—" : `${percent > 0 ? "+" : ""}${percent.toFixed(2)}%`)}</span>;
-      }
-      case "volume":
-        return <span key={column} className="fdw-board-cell num">{formatVolume(row.volume)}</span>;
-      case "openInterest":
-        return <span key={column} className="fdw-board-cell num">{formatVolume(row.openInterest)}</span>;
-      case "openInterestChange":
-        return <span key={column} className={`fdw-board-cell num ${signClass(row.openInterestChange)}`}>
-          {row.openInterestChange === null || row.openInterestChange === undefined ? "—" : `${row.openInterestChange > 0 ? "+" : ""}${formatVolume(row.openInterestChange)}`}</span>;
-      case "quoteTime":
-        return <span key={column} className="fdw-board-cell num">{formatQuoteTime(row.quoteTime)}</span>;
-      default:
-        return <span key={column} className="fdw-board-cell num">{formatBoardPrice(row[column])}</span>;
-    }
+    return boardCell(column, row);
   };
   return (
     <div className="fdw-quote-board" data-agent-target="board" data-testid="market-board" ref={boardRef}>
@@ -245,8 +285,6 @@ export function MarketBoard({ snapshot, foreign, error, query, onQueryChange, ex
       </div>
       <div className="fdw-board-body">
         {rows.map(row => {
-          const quiet = quietRow(row);
-          const product = `${row.exchangeId}.${row.productId}`;
           if (foreignById.has(row.symbol)) {
             // 报价页外盘行可点 (所有者 2026-10-19 方案 A): opens the same chart as 合约选择's 海外主连.
             const chart = foreignById.get(row.symbol)?.chartSymbol ?? undefined;
@@ -266,23 +304,8 @@ export function MarketBoard({ snapshot, foreign, error, query, onQueryChange, ex
               </div>
             );
           }
-          return (
-            // A div, not a button: the row holds the star button (HTML forbids nesting one button
-            // in another); Enter and Space keep the row's own click-through reachable.
-            <div role="button" tabIndex={0} key={row.symbol}
-              className={`fdw-board-row ${quiet ? "quiet" : ""} ${sameContract(row.symbol, selectedSymbol) ? "active" : ""}`}
-              aria-label={`${row.productName} ${row.symbol}`}
-              style={{ gridTemplateColumns: gridTemplate }}
-              onClick={() => onSelect(row.symbol)}
-              onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelect(row.symbol); } }}>
-              <span className="fdw-board-cell name">
-                {starChange ? <WatchlistStar product={product} name={row.productName} starred={starred.has(product)} onToggle={starChange} /> : null}
-                <strong>{row.productName}</strong><small>{row.productId.toUpperCase()}</small>
-              </span>
-              <span className="fdw-board-cell">{row.instrumentId}</span>
-              {shownColumns.map(column => cell(column, row))}
-            </div>
-          );
+          return <BoardRow key={row.symbol} row={row} columns={shownColumns.join(",")} gridTemplate={gridTemplate} selected={sameContract(row.symbol, selectedSymbol)}
+            starred={starChange ? starred.has(`${row.exchangeId}.${row.productId}`) : undefined} onSelect={selectRow} onToggle={toggleStar} />;
         })}
         {absent.map(entry => (
           <div key={entry.product} className="fdw-board-row quiet absent" style={{ gridTemplateColumns: gridTemplate }}

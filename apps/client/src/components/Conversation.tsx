@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, memo, useEffect, useState } from "react";
 import { Volume2 } from "lucide-react";
 import type { FlowItem } from "./futures/aiFlow";
 import type { AgentTask } from "@ai-trader/ui-events";
@@ -320,7 +320,8 @@ const tableRule = (line: string) => /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\
  * a `| … |` block becomes a real table (the `|---|` rule row is dropped). No markdown library —
  * this is the whole vocabulary the reply contract allows.
  */
-function MessageBody({ text, id }: { text: string; id: string }) {
+// Memoized (电脑版流畅度 ①): the conversation renders again on every workspace update; a message body changes only with its text.
+const MessageBody = memo(function MessageBody({ text, id }: { text: string; id: string }) {
   const blocks: ({ kind: "table"; rows: string[][] } | { kind: "text"; lines: string[] })[] = [];
   for (const rawLine of text.split(/\r?\n/)) {
     const line = rawLine.trimEnd();
@@ -359,7 +360,7 @@ function MessageBody({ text, id }: { text: string; id: string }) {
       <span key={lineIndex}>{lineIndex ? <br /> : null}<MessageText text={line} /></span>
     ))}</p>
   ))}{sources?.length ? <AdviceSources section={{ key: "sources", title: "参考依据", lines: sources }} id={id} /> : null}</>;
-}
+});
 
 const startupStatusMessages = new Set([
   "Codex 已连接到 AI Trader 完整工程区。TqKq 仅提供只读数据，真实下单能力保持关闭。",
@@ -498,6 +499,9 @@ function Turn({
   );
 }
 
+/** How many of the newest rows a conversation draws before the rest. */
+const LATEST_ROWS = 12;
+
 /**
  * The conversation: turns and the AI's briefs merged on time into one stream.
  */
@@ -519,9 +523,20 @@ export function Conversation({
     ...(systemItems ?? []).map(item => ({ key: `flow:${item.id}`, time: item.time, order: 0,
       node: <BriefCard item={item} askAi={actions.askAi} key={item.id} /> })),
   ].sort((a, b) => a.time - b.time || a.order - b.order);
+  // 电脑版流畅度 ① (2026-11-04): a long conversation opens on its latest rows; the earlier ones follow once the browser is idle
+  // (opening the AI dock drew every turn at once — 0.3 s of blocked input). The dock stays on the newest message meanwhile.
+  const [whole, setWhole] = useState(rows.length <= LATEST_ROWS);
+  useEffect(() => {
+    if (whole) return;
+    // Safari has no requestIdleCallback: a short timer stands in.
+    const idle = (window as Partial<Window>).requestIdleCallback;
+    if (!idle) { const timer = window.setTimeout(() => setWhole(true), 200); return () => window.clearTimeout(timer); }
+    const handle = idle(() => setWhole(true), { timeout: 600 });
+    return () => window.cancelIdleCallback(handle);
+  }, [whole]);
   return (
     <main className="conversation" aria-live="polite" data-testid="conversation">
-      {rows.map(row => <Fragment key={row.key}>{row.node}</Fragment>)}
+      {(whole ? rows : rows.slice(-LATEST_ROWS)).map(row => <Fragment key={row.key}>{row.node}</Fragment>)}
     </main>
   );
 }

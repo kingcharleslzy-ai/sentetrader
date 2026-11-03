@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useImperativeHandle, useRef, type ReactNode, type Ref } from "react";
+import { createContext, useContext, useEffect, useImperativeHandle, useRef, useState, type ReactNode, type Ref } from "react";
 import { X } from "lucide-react";
 import { DockviewReact, type DockviewApi, type IDockviewPanelHeaderProps, type IDockviewPanelProps, type SerializedDockview } from "dockview-react";
 import "dockview-react/dist/styles/dockview.css";
@@ -25,7 +25,22 @@ export interface SideDockHandle {
 const RenderPanel = createContext<(panel: DockPanel) => ReactNode>(() => null);
 function Slot({ api }: IDockviewPanelProps) {
   const render = useContext(RenderPanel);
-  return <div className="fdw-dock-slot">{render(api.id as DockPanel)}</div>;
+  // A panel behind another tab is off screen (dockview takes its content out of the page): it keeps what it last showed
+  // instead of rendering again on every workspace update, and catches up the moment its tab shows (电脑版流畅度 ①,
+  // 2026-11-04). Whether it is on screen is read from the page itself — dockview's own visibility event misses a panel
+  // that another newly opened tab covers.
+  const [visible, setVisible] = useState(true);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const element = box.current;
+    if (!element || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(entries => setVisible(entries[entries.length - 1].isIntersecting));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  const shown = useRef<ReactNode>(null);
+  if (visible || shown.current === null) shown.current = render(api.id as DockPanel);
+  return <div className="fdw-dock-slot" ref={box}>{shown.current}</div>;
 }
 const COMPONENTS = { slot: Slot };
 /** The tab (dockview makes it draggable): the panel's name and a close for just this panel, in Chinese. */

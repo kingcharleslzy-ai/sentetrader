@@ -434,6 +434,8 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   const skills = useSkills(connectedRuntimeUrl, props.state.runtime).skills;
   const access = useAccountAccess({ guest: Boolean(props.guest), skills, status: ownerPlan.status,
     onLogin: props.onOpenCloudLogin, onNotice: setAccessNotice });
+  // One object while access and its notice stay the same: a new one on every render re-rendered every panel that reads it (电脑版流畅度 ①).
+  const accessContext = useMemo(() => ({ ...access, message: accessNotice }), [access, accessNotice]);
   accessRef.current = access;
   // A card made for another account than the session's (a strategy's card after the conversation switched, #1011)
   // names its own account under its title: the display name from the account directory.
@@ -1531,7 +1533,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
       </section>
     ) : null;
     return (
-      <AccountAccessContext.Provider value={{ ...access, message: accessNotice }}><UiNavigationContext.Provider value={navigation}><div
+      <AccountAccessContext.Provider value={accessContext}><UiNavigationContext.Provider value={navigation}><div
         className={`fdm-shell app-theme-${resolvedTheme}`}
         data-testid="mobile-workspace"
         data-theme-preference={chartSettings.theme}
@@ -1673,7 +1675,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     }
   };
   return (
-    <AccountAccessContext.Provider value={{ ...access, message: accessNotice }}><UiNavigationContext.Provider value={navigation}><div
+    <AccountAccessContext.Provider value={accessContext}><UiNavigationContext.Provider value={navigation}><div
       className={`fdw-shell fdw-${view} ${rightDock ? "dock-open" : "dock-closed"} app-theme-${resolvedTheme}`}
       data-right-dock={rightDock ?? "closed"}
       data-dock-side={dockSide}
