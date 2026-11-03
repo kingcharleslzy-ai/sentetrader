@@ -1166,7 +1166,7 @@ def opening_gate(
 
 def _order_safety(ctx: PlanContext, symbol: str) -> tuple[dict[str, Any], None] | Refuse:
     """下单安全检查（所有入口的开仓都有）：合约在目录里（不在已由 `_open` 拒绝）且没到期；报价新鲜、交易时段、
-    最小变动价位、涨跌停与账户最新由 build_candidate 在写卡时核对，不过同样不出卡。到期日读不到（历史回放的导出）
+    最小变动价位、涨跌停与账户最新由 build_candidate 在写卡时核对，不过同样不出卡。到期日读不到（旧版边车的历史回放导出）
     不当作到期。"""
     item = catalog_item(ctx.provider, symbol)
     try:

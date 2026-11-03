@@ -165,8 +165,8 @@ async def test_replay_finish_retries_only_definitely_unsent_orders(tmp_path, fai
     app, provider, gateway, snapshot, context = replay_fixture(tmp_path, 'DCE.i2609')
     if failure == 'before_prepare':
         provider.position_items[0]['frozenToday'] = 2
-        with pytest.raises(Exception, match='close_volume_unavailable'):
-            await context.finish()
+        await context.finish()  # A refused close pauses the replay with its notice, never a 500 (11-03).
+        assert context.error and not context.playing and context.ending
         assert not context.end_orders and gateway.submit_count == 0
         provider.position_items[0]['frozenToday'] = 0
     elif failure in {'not_dispatched', 'retry_unknown'}:
@@ -191,6 +191,15 @@ async def test_replay_finish_retries_only_definitely_unsent_orders(tmp_path, fai
         assert gateway.submit_count == 2
     if failure in {'unknown', 'retry_unknown'}:
         assert not context.playing
+    app.state.store.close()
+
+
+async def test_replay_finish_closes_at_the_minute_book_price_despite_float_noise(tmp_path):
+    # TqBacktest's minute-derived book is close ± tick in float (11-03 IC2612: limit_price_not_on_tick).
+    app, provider, gateway, _, context = replay_fixture(tmp_path, 'CFFEX.IF2609')
+    provider.price_tick, provider.last, provider.bid = 0.2, 823.4, 823.4 - 0.2
+    await context.finish()
+    assert gateway.submit_count == 1 and gateway.request['limitPrice'] == 823.2
     app.state.store.close()
 
 

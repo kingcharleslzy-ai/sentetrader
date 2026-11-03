@@ -580,10 +580,13 @@ class ReplayContext:
                             symbol=snapshot["symbol"], side="sell_close" if direction == "long" else "buy_close",
                             volume=volume, position_bucket=bucket, price_intent="aggressive", reason="结束历史回放并平仓",
                             before_dispatch=record_identity)
-                    except Exception:
-                        self.error = "停盘平仓未完成，已暂停；再次处理时会先检查原委托。"
+                    except Exception as error:  # noqa: BLE001
+                        # A failed close is the replay's paused state, not a 500 (11-03 IC2612): the
+                        # next play/step runs this check again; a recorded identity is never resent.
+                        log.warning("replay finish close failed: %s", error)
+                        self.error = "停盘平仓未完成，已暂停；点播放或单步会再试，先检查原委托、不重复下单。"
                         self.playing = False
-                        raise
+                        return
                     # A replay order sent between steps is only queued in the SDK, so it reads UNKNOWN
                     # until the next step fills it (#932 11-02): keep playing — that step's query
                     # settles it, and one still unknown after it pauses at the check above.

@@ -259,6 +259,11 @@ class HistoricalSession(OfficialTqKqSession):
         equity = account["balance"]
         pnl = account["closeProfit"] + account["positionProfit"] - account["commission"]
         exchange, instrument = self.symbol.split(".")
+        # Days to expiry as of the replayed trading day (the live catalog's expireRestDays, natural days):
+        # without it the AI's order check reads the contract's expiry as unknown (11-03 IC2612).
+        expire_at = finite_number(getattr(self.quotes[self.symbol], "expire_datetime", None))
+        expiry = ({} if expire_at is None else
+                  {"expireRestDays": (datetime.fromtimestamp(expire_at, CHINA_TIMEZONE).date() - self.day).days})
         return {
             "clock": snapshot.captured_at,
             "settled": settlement is not None,
@@ -275,7 +280,7 @@ class HistoricalSession(OfficialTqKqSession):
             "instrument": {"symbol": self.symbol, "exchangeId": exchange, "instrumentId": instrument,
                            "instrumentName": quote["name"], "productId": instrument.rstrip("0123456789"),
                            "priceTick": quote["priceTick"], "volumeMultiple": quote["volumeMultiple"],
-                           "isMain": False},
+                           "isMain": False, **expiry},
         }
 
     def _annotate_trading_days(self, bars):

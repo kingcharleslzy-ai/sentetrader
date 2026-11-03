@@ -455,7 +455,12 @@ class SimulationOrderService:
             ("SELL", "passive"): "askPrice1",
             ("SELL", "aggressive"): "bidPrice1",
         }.get((cls._direction(side), price_intent), "price")
-        return finite_positive(market.get(price_field), "limit_price_unavailable")
+        price = finite_positive(market.get(price_field), "limit_price_unavailable")
+        tick = finite_positive(market.get("priceTick"), "price_tick_missing")
+        # A replay's minute-derived book is the bar close ± one tick in float (TqBacktest), e.g.
+        # 7123.4 - 0.2 = 7123.199999999999: snap only that float noise; a real off-grid quote still fails.
+        steps = (price / tick).to_integral_value()
+        return steps * tick if abs(price / tick - steps) < Decimal("1e-8") else price
 
     def reprice_protective_close(
         self, client_order_id: str, *, user_id: str, price_intent: str, volume: int,

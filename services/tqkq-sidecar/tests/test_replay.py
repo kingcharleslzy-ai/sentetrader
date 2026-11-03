@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from tqkq_readonly_sidecar.main import OfficialTqKqSession, Snapshot
+from tqkq_readonly_sidecar.main import CHINA_TIMEZONE, OfficialTqKqSession, Snapshot
 from tqkq_readonly_sidecar.replay import HistoricalSession, ReplayActor, validate_request
 
 
@@ -176,9 +176,11 @@ def test_export_preserves_historical_time_and_hides_future_bars():
     session._kline_serials = {(session.symbol, 60): SimpleNamespace(itertuples=lambda **kwargs: iter(rows))}
     session.api.is_serial_ready = lambda serial: True
     session._annotate_trading_days = lambda bars: [{**bar, "tradingDay": "2026-09-04"} for bar in bars]
+    session.quotes[session.symbol].expire_datetime = datetime(2026, 12, 15, 15, tzinfo=CHINA_TIMEZONE).timestamp()
     result = session.export()
     assert len(result["workbenches"]["60"]["bars"]) == 2
     assert result["clock"] == now.isoformat()
+    assert result["instrument"]["expireRestDays"] == 102  # natural days from the replayed day 09-04
 
 
 def test_export_marks_loading_periods_without_blocking_or_leaking_future_bars():
