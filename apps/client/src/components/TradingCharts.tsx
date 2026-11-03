@@ -37,6 +37,7 @@ import {
 } from "./chartIndicators";
 import { decimalsForTick, formatNumber, formatSigned } from "./futures/support";
 import "./TradingCharts.css";
+import { Presence } from "./motion";
 
 /** Account chart preferences (设置 → 图表, `preferences.chart`) the chart draws with. The indicator
  * fields (均线 / 布林带 / 副图清单) are optional: an older Runtime document predates them and the
@@ -1095,13 +1096,13 @@ export function TradingCharts({
             mainRange={() => mainChartRef.current?.chart.timeScale().getVisibleLogicalRange() ?? null} />
         </section>
       </Fragment>)}
-      {popover ? <ChartPopover
+      <Presence>{popover ? <ChartPopover
         title={popover.open.kind === "ma" ? "均线与布林带" : popover.open.kind === "add" ? "添加副图" : `${SUB_PANE_NAMES[popover.open.type]} 副图`}
         anchorRect={popover.rect} onClose={closePopover} width={popover.open.kind === "ma" ? 360 : 320}>
         {popover.open.kind === "ma" ? <MaLinesEditor indicators={indicators} onChange={changeIndicators} status={editorStatus} />
           : popover.open.kind === "add" ? <AddPaneChooser indicators={indicators} onAdd={addPane} status={editorStatus} />
           : <SubPaneEditor index={paneTypes.indexOf(popover.open.type)} indicators={indicators} onChange={changeIndicators} status={editorStatus} />}
-      </ChartPopover> : null}
+      </ChartPopover> : null}</Presence>
     </div>
   );
 }

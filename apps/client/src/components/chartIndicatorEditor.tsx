@@ -5,6 +5,7 @@ import {
   MA_LINES_MAX, MA_PERIOD_MAX, MA_PERIOD_MIN, SUB_PANE_NAMES, SUB_PANE_TYPES, SUB_PANES_MAX,
   type BollConfig, type ChartIndicatorConfig, type KdParams, type MacdParams, type MaLineConfig, type SarConfig, type SubPaneType
 } from "./chartIndicators";
+import { usePresenceClosing } from "./motion";
 
 /**
  * 图表指标可配置 (2026-10-02): the indicator editors. The chart's label popovers and the
@@ -144,6 +145,7 @@ export function ChartPopover({ title, anchorRect, onClose, children, width = 340
   title: string; anchorRect: DOMRect; onClose: () => void; children: ReactNode; width?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const closing = usePresenceClosing();
   useEffect(() => {
     const outside = (event: PointerEvent) => {
       if (event.target instanceof Node && ref.current?.contains(event.target)) return;
@@ -159,7 +161,7 @@ export function ChartPopover({ title, anchorRect, onClose, children, width = 340
   const left = Math.max(8, Math.min(anchorRect.left, window.innerWidth - rendered - 8));
   const top = Math.min(anchorRect.bottom + 6, Math.max(8, window.innerHeight - 240));
   return (
-    <div className="fdw-ind-popover" role="dialog" aria-label={title} style={{ position: "fixed", left, top, width }} ref={ref}>
+    <div className="fdw-ind-popover" role="dialog" aria-label={title} style={{ position: "fixed", left, top, width }} ref={ref} data-closing={closing || undefined}>
       <div className="fdw-ind-popover-title"><strong>{title}</strong><button type="button" aria-label="关闭" onClick={onClose}>×</button></div>
       <div className="fdw-ind-popover-body">{children}</div>
     </div>

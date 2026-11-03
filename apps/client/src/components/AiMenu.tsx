@@ -3,6 +3,7 @@ import { useContext, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { Bot, ChevronDown } from "lucide-react";
 import { useDisclosureSurface } from "../uiSurfaces";
 import "./AiMenu.css";
+import { Presence } from "./motion";
 
 /** 对象级 AI (2026-09-25): the object a question is about; rides in the turn's workspaceContext. */
 export interface AiFocus {
@@ -64,12 +65,12 @@ export function AiMenu({ focus, items, onAsk, disabled, compact }: {
     onKeyDown={event => { if (event.key === "Escape" && open) { event.stopPropagation(); setOpen(false); } }}>
     <button type="button" className="ai-menu-trigger" aria-haspopup="menu" aria-expanded={open} disabled={disabled}
       aria-label={`AI：${focus.label}`} onClick={() => setOpen(value => !value)}><Bot size={14}/>AI<ChevronDown size={12}/></button>
-    {open ? <div ref={list} className={`ai-menu-list${start ? " start" : ""}`} role="menu" aria-label={`问 AI：${focus.label}`}>
+    <Presence>{open ? <div ref={list} className={`ai-menu-list${start ? " start" : ""}`} role="menu" aria-label={`问 AI：${focus.label}`}>
       {items.map(item => <button type="button" role="menuitem" key={item.label}
         title={item.blocked ?? (item.action ? item.prompt : `发送：${item.prompt}`)}
         onClick={() => { if (item.blocked) { if (access?.deny) access.deny(item.blocked); else setNotice(item.blocked); return; } setOpen(false); if (item.action) item.action(); else onAsk(item.prompt, focus); }}>{item.label}</button>)}
       {items.some(item => item.blocked) ? <small>{items.find(item => item.blocked)?.blocked}</small> : null}
-    </div> : null}
+    </div> : null}</Presence>
     {notice && <small role="status">{notice}</small>}
   </div>;
 }

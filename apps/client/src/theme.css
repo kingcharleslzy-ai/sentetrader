@@ -377,6 +377,25 @@ html[data-font-scale="extra-large"] { --font-xs: 13px; --font-sm: 14px; --font-m
 [data-tick^="down"] { --tick-bg: var(--market-down-soft); }
 [data-tick$="-a"]::after { animation: ui-flash-a var(--dur-3) var(--ease-out); }
 [data-tick$="-b"]::after { animation: ui-flash-b var(--dur-3) var(--ease-out); }
+/* 弹出小窗、面板和对话框 (动效第四批): a popover, menu or tip fades in and, through `Presence`, out; a side-dock panel's content fades in
+   as it opens; a modal dialog rises into place over a fading dim. A dialog's way out needs the browser to keep it in the top layer while
+   it fades (overlay); without that (Safari / the macOS app today) it closes at once as before, rather than dropping out of place. */
+@keyframes ui-fade-in { from { opacity: 0; } }
+@keyframes ui-fade-out { to { opacity: 0; } }
+:where(.fdw-ind-popover, .ai-menu-list, .help-tip-pop) { animation: ui-fade-in var(--dur-1) var(--ease-out) backwards; }
+:where(.fdw-dock-slot) { animation: ui-fade-in var(--dur-2) var(--ease-out) backwards; }
+:where(.fdw-ind-popover, .help-tip-pop)[data-closing], .ui-presence[data-closing] > .ai-menu-list { pointer-events: none; animation: ui-fade-out var(--dur-1) var(--ease-out) forwards; }
+:where(dialog:modal) { animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; --enter-transform: translateY(8px); }
+:where(dialog:modal)::backdrop { animation: ui-fade-in var(--dur-2) var(--ease-out) backwards; }
+/* A dialog the page takes away (`Presence`, e.g. 设置) stays open while it fades, on every browser. */
+.ui-presence[data-closing] dialog { animation: ui-panel-out var(--dur-2) var(--ease-out) forwards; --enter-transform: translateY(8px); }
+.ui-presence[data-closing] dialog::backdrop { animation: ui-fade-out var(--dur-2) var(--ease-out) forwards; }
+@supports (overlay: auto) {
+  :where(dialog) { transition: opacity var(--dur-2) var(--ease-out), translate var(--dur-2) var(--ease-out), overlay var(--dur-2) allow-discrete, display var(--dur-2) allow-discrete; }
+  :where(dialog:not([open])) { opacity: 0; translate: 0 8px; }
+  :where(dialog)::backdrop { transition: opacity var(--dur-2) var(--ease-out), overlay var(--dur-2) allow-discrete, display var(--dur-2) allow-discrete; }
+  :where(dialog:not([open]))::backdrop { opacity: 0; }
+}
 /* 按住说话 (手机, 2026-11-01): a ripple spreading from the held key. */
 @keyframes ui-ring { from { opacity: .7; transform: scale(1); } to { opacity: 0; transform: scale(1.35); } }
 @media (prefers-reduced-motion: reduce) {

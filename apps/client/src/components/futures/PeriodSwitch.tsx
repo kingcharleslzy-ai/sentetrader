@@ -5,6 +5,7 @@ import type { MarketWorkbenchSnapshot } from "../../api";
 import { ChartPopover } from "../chartIndicatorEditor";
 import { useDisclosureSurface } from "../../uiSurfaces";
 import { periods } from "./support";
+import { Presence } from "../motion";
 
 type Duration = MarketWorkbenchSnapshot["durationSeconds"];
 
@@ -92,7 +93,7 @@ export function PeriodSwitch({ chartView, duration, onSelectDuration, onSelectCh
           aria-label={face.active ? `更多周期（当前 ${face.label}）` : "更多周期"} onClick={openMore}>{face.label}<ChevronDown aria-hidden="true" /></button>
       ) : null}
       {/* Portaled out of `.fdw-chart-tools` (overflow: hidden), like the alerts popover. */}
-      {popover && collapsed ? createPortal(
+      <Presence>{popover && collapsed ? createPortal(
         <ChartPopover title="更多周期" anchorRect={popover.rect} onClose={() => setPopover(undefined)} width={220}>
           <div className="fdw-period-more-list">
             {morePeriods.map(period => (
@@ -100,7 +101,7 @@ export function PeriodSwitch({ chartView, duration, onSelectDuration, onSelectCh
                 onClick={() => choose(period.value)}>{period.label}</button>
             ))}
           </div>
-        </ChartPopover>, document.body) : null}
+        </ChartPopover>, document.body) : null}</Presence>
     </div>
   );
 }

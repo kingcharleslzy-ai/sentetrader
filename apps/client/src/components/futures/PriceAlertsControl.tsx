@@ -6,6 +6,7 @@ import { ChartPopover } from "../chartIndicatorEditor";
 import { useDisclosureSurface } from "../../uiSurfaces";
 import { alertLine, type PriceAlertsHandle } from "../../hooks/usePriceAlerts";
 import "./PriceAlertsControl.css";
+import { Presence } from "../motion";
 
 /** 到价提醒 (2026-10-02): the phone's 看盘 设提醒 button and its popover — this contract's form and
  *  alerts, the rest read-mostly. On the computer the chart toolbar's bell is the 提醒中心 since
@@ -44,12 +45,12 @@ export function PriceAlertsControl({ alerts, symbol, name, priceTick, lastPrice,
       {/* Portaled out of `.fdw-chart-tools` (overflow: hidden): a fixed-position child of the
        *  toolbar is not clipped on screen, but the observation's visibility walk measures it
        *  against the toolbar's bounds and would report the popover's title row as invisible. */}
-      {popover ? createPortal(
+      <Presence>{popover ? createPortal(
         <ChartPopover title="到价提醒" anchorRect={popover.rect} onClose={() => setPopover(undefined)} width={340}>
           <PriceAlertsPopover alerts={alerts} symbol={symbol} name={name}
             priceTick={priceTick} lastPrice={lastPrice} formKey={`${symbol ?? ""}:${popover.seq}`}
             onSwitchContract={onSwitchContract} />
-        </ChartPopover>, document.body) : null}
+        </ChartPopover>, document.body) : null}</Presence>
     </div>
   );
 }

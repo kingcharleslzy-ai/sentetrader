@@ -10,6 +10,7 @@ import {
   formatTime, formatVolume, signClass, type BoardColumn, type BoardExchange, type BoardSort, type BoardSortKey
 } from "./support";
 import "./MarketBoard.css";
+import { Presence } from "../motion";
 
 /** The columns a header click (and the boardSort command) may sort by; the others are plain labels. */
 const SORT_KEYS: ReadonlySet<BoardColumn> = new Set(["changePercent", "volume", "openInterest", "openInterestChange"]);
@@ -298,11 +299,11 @@ export function MarketBoard({ snapshot, foreign, error, query, onQueryChange, ex
           : isForeign ? (foreign?.snapshot?.rows.length ? "没有匹配的品种" : shownError ? "外盘暂时不可用" : "正在读取外盘…")
           : snapshot ? (query ? "没有匹配的品种" : "暂无报价") : error ? "报价总表暂时不可用" : "正在读取报价…"}</p> : null}
       </div>
-      {popover && onColumnsChange ? (
+      <Presence>{popover && onColumnsChange ? (
         <ChartPopover title="列设置" anchorRect={popover.rect} onClose={() => setPopover(undefined)} width={280}>
           <BoardColumnsEditor columns={columns} onChange={onColumnsChange} status={columnsStatus} />
         </ChartPopover>
-      ) : null}
+      ) : null}</Presence>
     </div>
   );
 }

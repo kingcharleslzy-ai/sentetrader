@@ -1313,7 +1313,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
       board={board.snapshot} product={contractProduct} onProductChange={setContractProduct}
       watchlist={watchlist} onToggleWatchlist={watchlistChange} watchlistStatus={watchlistStatus || undefined} /> : null}</Presence>
 
-    {settingsOpen && !props.guest?.loginOpen ? <WorkspaceSettings workspace={workspace} page={settingsPage} onPageChange={setSettingsPage} onClose={() => setSettingsOpen(false)}
+    <Presence>{settingsOpen && !props.guest?.loginOpen ? <WorkspaceSettings workspace={workspace} page={settingsPage} onPageChange={setSettingsPage} onClose={() => setSettingsOpen(false)}
       model={model} tradingAccounts={tradingAccounts} connectedRuntimeUrl={connectedRuntimeUrl} desktopVersion={desktopVersion}
       agentModelLabel={agentModelLabel} apiSetupRequired={apiSetupRequired} apiProviderName={apiProviderName} preferenceStatus={preferenceStatus}
       chartSettings={chartSettings} setChartSettings={setChartSettings} chartIndicators={chartIndicators} onChartIndicatorsChange={chartIndicatorsChange} chartIndicatorStatus={prefs.status}
@@ -1323,7 +1323,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
       recoveryButton={recoveryButton} armedStopCount={armedStopCount} onEmergencyStop={() => setEmergencyOpen(true)}
       onHaltOpens={() => props.onStopAiExecution(false, "opens")}
       quickSkipConfirm={quickSkipConfirm} setQuickSkipConfirm={setQuickSkipConfirm} quickSkipConfirmScoped={Boolean(props.preferencesScope)} initialBalance={initialBalance} setInitialBalance={setInitialBalance} voiceAvailable={voiceAvailable}
-      ownerStatus={ownerPlan.status} preferences={prefs} skills={skills} routines={routineActions} mobile={mobile} /> : null}
+      ownerStatus={ownerPlan.status} preferences={prefs} skills={skills} routines={routineActions} mobile={mobile} /> : null}</Presence>
 
     <Presence>{accessNotice && (!settingsOpen || props.guest?.loginOpen) ? <div className="toast" role="status">{accessNotice}</div> : null}</Presence>
     {signalNotice ? <p className="fdw-signal-notice" role="status" data-testid="strategy-signal-notice">{signalNotice}</p> : null}

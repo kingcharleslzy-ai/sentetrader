@@ -1,6 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useDisclosureSurface } from "../uiSurfaces";
+import { usePresence } from "./motion";
 import "./Blocks.css";
 
 /**
@@ -63,6 +64,8 @@ export function HelpTip({ helpKey, label, children, className }: { helpKey: stri
   const button = useRef<HTMLButtonElement>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [place, setPlace] = useState<{ left: number; top: number; width: number; above: boolean }>();
+  // 动效第四批: the tip fades out for a moment after it closes.
+  const popShown = usePresence(open);
   const popId = `help-tip-${useId().replace(/:/g, "")}`;
   const show = () => { clearTimeout(closeTimer.current); setOpen(true); };
   const hide = () => { clearTimeout(closeTimer.current); closeTimer.current = setTimeout(() => { if (!pinned.current) setOpen(false); }, HOVER_CLOSE_MS); };
@@ -98,7 +101,8 @@ export function HelpTip({ helpKey, label, children, className }: { helpKey: stri
       aria-describedby={open ? popId : undefined}
       onFocus={() => { if (!quiet.current) show(); }} onBlur={() => { if (!pinned.current) hide(); }}
       onClick={() => { if (open && pinned.current) close(); else { pinned.current = true; show(); } }}>?</button>
-    {open ? createPortal(<span id={popId} ref={pop} role="tooltip" className="help-tip-pop" data-testid={`help-tip-${helpKey}`} data-above={place?.above || undefined}
+    {popShown.shown ? createPortal(<span id={popId} ref={pop} role="tooltip" className="help-tip-pop" data-testid={`help-tip-${helpKey}`} data-above={place?.above || undefined}
+      data-closing={popShown.closing || undefined}
       style={place ? { left: place.left, top: place.top, width: place.width } : undefined}
       onPointerEnter={event => { if (event.pointerType === "mouse") show(); }} onPointerLeave={event => { if (event.pointerType === "mouse") hide(); }}>{children}</span>,
     button.current?.closest("dialog") ?? document.body) : null}

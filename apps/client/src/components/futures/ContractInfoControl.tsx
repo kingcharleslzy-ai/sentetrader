@@ -10,6 +10,7 @@ import { CME_HOURS_HELP, cmeHours } from "../../marketSession";
 import { decimalsForTick, formatFee, formatNumber, isForeignSymbol, moneyUnit } from "./support";
 import { deliveryBadgeText, scheduleLines } from "./deliveryInfo";
 import "./ContractInfoControl.css";
+import { Presence } from "../motion";
 
 /**
  * 合约信息卡 (2026-10-02)：合约头部的 ⓘ 与交割提醒标。卡分四块——一手（乘数、每跳盈亏、
@@ -48,10 +49,10 @@ export function ContractInfoControl({ quote, item, runtimeUrl }: Props) {
         aria-haspopup="dialog" title="合约信息" onClick={openPopover}><Info aria-hidden="true" /></button>
       {/* Portaled out of `.fdw-market-head` (overflow: hidden), same rule as the alerts bell: a
        *  clipped popover would be reported invisible by the observation's visibility walk. */}
-      {popover ? createPortal(
+      <Presence>{popover ? createPortal(
         <ChartPopover title="合约信息" anchorRect={popover.rect} onClose={() => setPopover(undefined)} width={360}>
           <ContractInfoCard quote={quote} item={item} runtimeUrl={runtimeUrl} />
-        </ChartPopover>, document.body) : null}
+        </ChartPopover>, document.body) : null}</Presence>
     </div>
   );
 }

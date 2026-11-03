@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type HTMLAttributes, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type HTMLAttributes, type ReactNode } from "react";
 
 /** A motion token from theme.css in milliseconds (0 under reduced motion, which zeroes the tokens). */
 export const motionMs = (token: string) => {
@@ -70,11 +70,17 @@ export function usePresence(open: boolean): { shown: boolean; closing: boolean }
  * `data-closing` (taking no input) so CSS plays the way out — theme.css `.ui-presence`, each sheet's own rule. The wrapper has no box
  * (display: contents), so what it holds lays out as before.
  */
+const PresenceClosing = createContext(false);
+/** Inside a `Presence`: whether it is on its way out — for content it renders elsewhere (a portal), which its CSS cannot reach. */
+export const usePresenceClosing = () => useContext(PresenceClosing);
+
 export function Presence({ children }: { children: ReactNode }) {
   const open = Boolean(children);
   const last = useRef<ReactNode>(null);
   if (open) last.current = children;
   const { shown, closing } = usePresence(open);
   if (!shown) last.current = null;
-  return shown ? <div className="ui-presence" data-closing={closing ? "" : undefined}>{open ? children : last.current}</div> : null;
+  return shown ? <PresenceClosing.Provider value={closing}>
+    <div className="ui-presence" data-closing={closing ? "" : undefined}>{open ? children : last.current}</div>
+  </PresenceClosing.Provider> : null;
 }
