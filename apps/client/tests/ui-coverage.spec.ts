@@ -183,6 +183,14 @@ test("every user-operable control is commandable or reachable, and visible to th
     if (data?.status === "ok") return route.fulfill({ response: response! });
     await route.fulfill({ json: auditHabits() });
   });
+  // 通用报告推送 (#1285, #1292): the session's own pnl, review and habits come over the push, which the routes above
+  // never see. The audit's view leaves those three out, so the panels read them themselves and get the injected ones.
+  await page.route("**/feed/view", async route => {
+    const body = route.request().method() === "PUT" ? route.request().postDataJSON() : undefined;
+    if (!Array.isArray(body?.reports)) return route.fallback();
+    await route.fallback({ postData: JSON.stringify({ ...body,
+      reports: body.reports.filter((key: string) => !/^(account-pnl|daily-review|habits)(\?|$)/.test(key)) }) });
+  });
   await briefRoutes(page);
   await routineRoutes(page);
   await reminderRoutes(page);
@@ -222,9 +230,10 @@ test("every user-operable control is commandable or reachable, and visible to th
     // "rejected" is retried too: boardSort/boardExchange write the preference back ~500 ms after they
     // apply, and the state that write produces carries a newer revision, so a command enqueued in that
     // window is refused as stale (the board's 3 s quote polling does not change the state) — a race,
-    // not a verdict. A genuinely broken command stays rejected after the attempts.
+    // not a verdict. A genuinely broken command stays rejected after the attempts. The attempts span the
+    // report push's grace (~4 s): a fold whose block is fed by a report the view leaves out (below) shows after it.
     let status = "timeout";
-    for (let attempt = 0; attempt < 5; attempt += 1) {
+    for (let attempt = 0; attempt < 10; attempt += 1) {
       const windowId = await currentWindow(device);
       const current = await detail(device);
       const receipt = await (await page.request.post(`${runtime}/api/app/ui/commands?waitMs=5000`, { headers, data: {
