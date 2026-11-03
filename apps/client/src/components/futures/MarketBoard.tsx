@@ -6,7 +6,7 @@ import { ChartPopover } from "../chartIndicatorEditor";
 import { BoardColumnsEditor } from "./BoardColumnsEditor";
 import { WatchlistStar } from "./WatchlistStar";
 import {
-  BOARD_COLUMN_LABELS, BOARD_EXCHANGES, FOREIGN_BOARD, boardPrice, formatBoardPrice, formatNumber, formatQuoteTime, formatSigned,
+  BOARD_COLUMN_LABELS, BOARD_EXCHANGES, FOREIGN_BOARD, boardPrice, boardStatusNote, formatBoardPrice, formatNumber, formatQuoteTime, formatSigned,
   formatTime, formatVolume, signClass, type BoardColumn, type BoardExchange, type BoardSort, type BoardSortKey
 } from "./support";
 import "./MarketBoard.css";
@@ -21,12 +21,6 @@ const GRID_TRACKS: Record<BoardColumn, string> = {
   upperLimit: "minmax(76px,.95fr)", lowerLimit: "minmax(76px,.95fr)", quoteTime: "minmax(84px,.95fr)",
 };
 
-/** 当日无成交 / 盘前 / 读不到报价的行：灰显，涨跌幅位置改说原因。 */
-function statusNote(row: MarketBoardRow): string | null {
-  if (row.status === "market_quote_no_trade") return "未成交";
-  if (row.status === "market_quote_pre_open") return "盘前";
-  return null;
-}
 
 /** 外盘 rows in the board's row shape: the 合约 column says 主连 and the quote unit; no click-through. */
 function foreignRows(snapshot: ForeignBoardSnapshot | undefined): MarketBoardRow[] {
@@ -40,7 +34,7 @@ function foreignRows(snapshot: ForeignBoardSnapshot | undefined): MarketBoardRow
 }
 
 function quietRow(row: MarketBoardRow): boolean {
-  return statusNote(row) !== null || row.status === "market_quote_unavailable";
+  return boardStatusNote(row) !== null || row.status === "market_quote_unavailable";
 }
 
 /**
@@ -194,7 +188,7 @@ export function MarketBoard({ snapshot, foreign, error, query, onQueryChange, ex
       case "change":
         return <span key={column} className={`fdw-board-cell num ${signClass(row.change)}`}>{row.change === null || row.change === undefined ? "—" : formatSigned(row.change, 2)}</span>;
       case "changePercent": {
-        const note = statusNote(row);
+        const note = boardStatusNote(row);
         const percent = row.changePercent;
         return <span key={column} className={`fdw-board-cell num ${quietRow(row) ? "" : signClass(percent)}`}>{note ?? (percent === null || percent === undefined ? "—" : `${percent > 0 ? "+" : ""}${percent.toFixed(2)}%`)}</span>;
       }

@@ -4,7 +4,7 @@ import { sameContract, getMarketQuotes, type AccountPosition, type ForeignBoardS
   type MarketBoardSnapshot } from "../../api";
 import { marketErrorMessage } from "../../hooks/useMarketWorkbench";
 import { useDisclosureSurface } from "../../uiSurfaces";
-import { formatNumber, watchlistKey, watchlistMainSymbol } from "../futures/support";
+import { boardStatusNote, formatNumber, watchlistKey, watchlistMainSymbol } from "../futures/support";
 import { SwipeRow, type RowAction } from "./RowActions";
 import { QUOTE_BOARDS, QUOTE_COLUMNS, QUOTE_COLUMNS_MAX, type QuoteBoard, type QuoteColumn } from "./mobileMarketPrefs";
 
@@ -14,14 +14,20 @@ export interface QuoteRow {
   /** False for a held non-main month: its figures come from the visible-row quote read. */
   onBoard: boolean;
   values: Partial<Record<QuoteColumn, number | null>>;
+  /** 盘前 / 未成交: said in the 涨跌幅 cell (`boardStatusNote`). */
+  note?: string | null;
+  /** No trade yet this trading day: the price is 昨结算, greyed (the board's `boardPrice`). */
+  fallback?: boolean;
 }
 
 const decimalsOf = (tick: number | null | undefined) => tick && tick < 1 ? Math.min(4, String(tick).split(".")[1]?.length ?? 0) : 0;
 
-function rowValues(row: MarketBoardRow | undefined): QuoteRow["values"] {
-  if (!row) return {};
-  return { last: row.last, changePercent: row.changePercent, change: row.change, openInterest: row.openInterest,
-    bid: row.bidPrice1 ?? null, ask: row.askPrice1 ?? null, volume: row.volume, openInterestChange: row.openInterestChange };
+function rowFigures(row: MarketBoardRow | undefined): Pick<QuoteRow, "values" | "note" | "fallback"> {
+  if (!row) return { values: {} };
+  const last = row.last ?? row.preSettlement;
+  return { values: { last, changePercent: row.changePercent, change: row.change, openInterest: row.openInterest,
+    bid: row.bidPrice1 ?? null, ask: row.askPrice1 ?? null, volume: row.volume, openInterestChange: row.openInterestChange },
+    note: boardStatusNote(row), fallback: row.last == null && last != null };
 }
 
 /**
@@ -44,7 +50,7 @@ export function quoteRows({ board, boardId, positions, watchlist, instruments, e
     const product = live ? `${live.exchangeId}.${live.productId}` : item ? watchlistKey(item) : "";
     return { symbol: live?.symbol ?? item?.symbol ?? symbol, name: item?.instrumentName || live?.instrumentName || symbol,
       code: live?.instrumentId ?? item?.instrumentId ?? symbol.split(".")[1] ?? symbol, decimals: decimalsOf(item?.priceTick),
-      starred: starred.has(product), holding, onBoard: Boolean(live), values: rowValues(live ?? extra.get(key)) };
+      starred: starred.has(product), holding, onBoard: Boolean(live), ...rowFigures(live ?? extra.get(key)) };
   };
   if (boardId === "watchlist") {
     const rows = new Map<string, QuoteRow>();
@@ -218,7 +224,7 @@ export function MobileQuotes({ baseUrl, board, foreign, boardError, boardId, col
   const offBoard = useMemo(() => offBoardKey ? offBoardKey.split(",") : [], [offBoardKey]);
   const wanted = useMemo(() => offBoard.filter(symbol => visible.includes(symbol)), [offBoard, visible]);
   const extra = useVisibleQuotes(guest ? undefined : baseUrl, wanted);
-  const rows = useMemo(() => listedRows.map(row => row.onBoard ? row : {...row, values: rowValues(extra.rows.get(row.symbol.toUpperCase()))}),
+  const rows = useMemo(() => listedRows.map(row => row.onBoard ? row : {...row, ...rowFigures(extra.rows.get(row.symbol.toUpperCase()))}),
     [listedRows, extra.rows]);
   // Which off-board rows are on screen: the observer follows the list's own scroll.
   useEffect(() => {
@@ -296,7 +302,9 @@ export function MobileQuotes({ baseUrl, board, foreign, boardError, boardId, col
             {columns.map(column => {
               const value = row.values[column];
               const tone = TONED.has(column) ? direction(row.values.changePercent ?? row.values.change) : column === "openInterestChange" ? direction(value) : undefined;
-              return <span key={column} className="fdm-quote-value" data-direction={tone}>{cellText(column, value, row.decimals)}</span>;
+              const fallback = column === "last" && row.fallback;
+              return <span key={column} className={`fdm-quote-value${fallback ? " fallback" : ""}`} data-direction={tone}
+                title={fallback ? "还没有成交，显示昨结算价" : undefined}>{column === "changePercent" && row.note ? row.note : cellText(column, value, row.decimals)}</span>;
             })}
           </button></SwipeRow>
         ))}

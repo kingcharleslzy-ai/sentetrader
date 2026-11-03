@@ -738,7 +738,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     watchlist: [], instruments: props.instruments?.items ?? [], extra: EMPTY_BOARD_ROWS }).map(row => {
     const held = (homePositions ?? []).filter(position => sameContract(position.symbol, row.symbol));
     return { symbol: row.symbol, name: row.name, code: row.code, decimals: row.decimals, holding: row.holding,
-      last: row.values.last ?? held[0]?.lastPrice ?? null, changePercent: row.values.changePercent ?? null,
+      last: row.values.last ?? held[0]?.lastPrice ?? null, changePercent: row.values.changePercent ?? null, note: row.note, fallback: row.fallback,
       floating: held.reduce((sum, position) => sum + (Number(position.unrealizedPnl) || 0), 0) };
   }), [phoneHome, board.snapshot, homePositions, props.instruments]);
   const homeWatch = useMemo(() => !phoneHome ? [] : quoteRows({ board: board.snapshot, boardId: "watchlist", positions: [], watchlist,
@@ -747,7 +747,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   const homeCells = useMemo(() => homeWatch.map((row, index) => ({ index, symbol: row.symbol, duration: 900 as const, auto: false })), [homeWatch]);
   const homeCurves = useMultiChartReads(connectedRuntimeUrl, homeCells, phoneHome, NO_OWN_CHART);
   const homeWatchRows = useMemo<HomeQuote[]>(() => homeWatch.map(row => ({ symbol: row.symbol, name: row.name, code: row.code, decimals: row.decimals,
-    last: row.values.last ?? null, changePercent: row.values.changePercent ?? null,
+    last: row.values.last ?? null, changePercent: row.values.changePercent ?? null, note: row.note, fallback: row.fallback,
     curve: homeCurves.get(`${row.symbol.toUpperCase()}@900`)?.market?.bars?.slice(-48).map(bar => bar.close) })), [homeWatch, homeCurves]);
   // The desktop board is not on screen in the phone layout: neither of its reads runs there.
   // 外盘 rows are read for the 外盘 chip, and for 自选 when it holds a foreign product (外盘代码统一 2026-10-21).

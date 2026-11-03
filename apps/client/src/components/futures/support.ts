@@ -151,6 +151,13 @@ export function boardPrice(row: { last: number | null; preSettlement: number | n
   return { text: formatBoardPrice(row.preSettlement), fallback: row.preSettlement !== null && Number.isFinite(row.preSettlement) };
 }
 
+/** 当日无成交 / 盘前 rows: the 涨跌幅 cell says why instead of a number (the board and the phone lists). */
+export function boardStatusNote(row: { status?: string }): string | null {
+  if (row.status === "market_quote_no_trade") return "未成交";
+  if (row.status === "market_quote_pre_open") return "盘前";
+  return null;
+}
+
 export const LAYOUT_STORAGE_KEY = "ai-trader-workspace-layout-v3";
 
 /** The shared width (对话 / 下单 / 持仓) in a window narrower than 1280 px, and the width saved before it followed the window. */
