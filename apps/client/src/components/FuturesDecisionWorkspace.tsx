@@ -132,7 +132,7 @@ import { onDeepLinkMessage, takeDeepLink, type DeepLink } from "../deepLink";
 import { useBriefSubscriptions } from "./BriefSubscriptions";
 import { buildFlowItems } from "./futures/aiFlow";
 import { FONT_SCALE_OPTIONS } from "../appearance";
-import { Presence } from "./motion";
+import { Presence, useEnterMotion, useStepMotion } from "./motion";
 
 /** Open, these hold an order, a trading confirmation or unsaved strategy edits: no self-reload then. */
 const BUSY_DIALOGS = ["quick-order-confirm", "abandon-order", "strategy-launch", "protection-reprice-confirm"];
@@ -436,6 +436,11 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     onLogin: props.onOpenCloudLogin, onNotice: setAccessNotice });
   // One object while access and its notice stay the same: a new one on every render re-rendered every panel that reads it (电脑版流畅度 ①).
   const accessContext = useMemo(() => ({ ...access, message: accessNotice }), [access, accessNotice]);
+  // 电脑版换场 (2026-11-04): 交易 / 报价 / 复盘 come in from their side; a new period, chart view or 多图 grid fades the chart in;
+  // another layout fades the whole window in. Nothing is remounted (the chart keeps its canvas).
+  const coreRef = useRef<HTMLElement>(null);
+  const chartAreaRef = useRef<HTMLDivElement>(null);
+  const shellRef = useRef<HTMLDivElement>(null);
   accessRef.current = access;
   // A card made for another account than the session's (a strategy's card after the conversation switched, #1011)
   // names its own account under its title: the display name from the account directory.
@@ -727,6 +732,9 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
       if (!opening && layout.charts) desktopCharts.restore(layout.charts);
     },
     changeKey: JSON.stringify([dock, dockGroups, desktopCharts.charts, chartCurrent]) });
+  useEnterMotion(coreRef, view, useStepMotion(["trade", "board", "review"].indexOf(view)));
+  useEnterMotion(chartAreaRef, `${chartView}@${props.duration}#${desktopCharts.charts.layout}`, "fade");
+  useEnterMotion(shellRef, workspaceLayouts.layouts.current, "fade");
   // The phone's 报价 · 外盘 板块 has its own read too: only that board open means no domestic board.
   const phoneForeignOnly = phoneMarket && mobileMarket.market.view === "quotes" && mobileMarket.market.board === "FOREIGN";
   const boardWant = useMemo<BoardWant>(() => contractOpen || phoneMarket || (!phoneHome && boardExchange === "all") ? { all: true }
@@ -1675,7 +1683,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     }
   };
   return (
-    <AccountAccessContext.Provider value={accessContext}><UiNavigationContext.Provider value={navigation}><div
+    <AccountAccessContext.Provider value={accessContext}><UiNavigationContext.Provider value={navigation}><div ref={shellRef}
       className={`fdw-shell fdw-${view} ${rightDock ? "dock-open" : "dock-closed"} app-theme-${resolvedTheme}`}
       data-right-dock={rightDock ?? "closed"}
       data-dock-side={dockSide}
@@ -1729,13 +1737,13 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
                 watchlistStar={watchlistHead} onToggleWatchlist={watchlistChange} watchlistStatus={watchlistStatus || undefined}
  />}
 
-              <section className={`fdw-market-core ${view} ${view === "review" ? "side-open" : "side-closed"}`}>
+              <section ref={coreRef} className={`fdw-market-core ${view} ${view === "review" ? "side-open" : "side-closed"}`}>
                 {view === "board" ? <MarketBoard snapshot={board.snapshot} foreign={foreignBoard} error={board.error} query={boardQuery} onQueryChange={setBoardQuery}
                   exchange={boardExchange} onExchangeChange={setBoardExchange} sort={boardSort} onSortChange={setBoardSort}
                   columns={boardColumns} onColumnsChange={boardColumnsChange} columnsStatus={prefs.status}
                   availableExchanges={boardExchanges} selectedSymbol={props.selectedSymbol} onSelect={selectBoardContract}
                   watchlist={watchlist} productNames={boardProductNames} onToggleWatchlist={watchlistChange} watchlistStatus={watchlistStatus || undefined} /> : (
-                <div className="fdw-chart-area">
+                <div className="fdw-chart-area" ref={chartAreaRef}>
                 {blockingMarketState}
                 {market && <ChartGrid enabled={gridAvailable} handle={desktopCharts} baseUrl={connectedRuntimeUrl} own={{ market, error: props.marketError }}
                   nameOf={symbol => contractLabel(symbol, props.instruments)} chartSettings={chartSettings} setChartSettings={setChartSettings}

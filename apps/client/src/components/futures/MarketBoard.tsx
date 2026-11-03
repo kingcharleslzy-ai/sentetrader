@@ -11,6 +11,7 @@ import {
 } from "./support";
 import "./MarketBoard.css";
 import { Presence } from "../motion";
+import { useEnterMotion, useStepMotion } from "../motion";
 
 /** The columns a header click (and the boardSort command) may sort by; the others are plain labels. */
 const SORT_KEYS: ReadonlySet<BoardColumn> = new Set(["changePercent", "volume", "openInterest", "openInterestChange"]);
@@ -185,6 +186,9 @@ export function MarketBoard({ snapshot, foreign, error, query, onQueryChange, ex
       .map(product => ({ product, name: productNames[product] ?? product.split(".")[1] ?? product }))
       .filter(entry => !needle || `${entry.name}${entry.product}`.toLowerCase().includes(needle));
   }, [exchange, snapshot, foreign?.snapshot, watchlist, productNames, query]);
+  // 换交易所 (电脑版换场): the rows come in from the side of the chip they were picked from.
+  const bodyRef = useRef<HTMLDivElement>(null);
+  useEnterMotion(bodyRef, exchange, useStepMotion(["watchlist", "all", ...chips.map(item => item.code)].indexOf(exchange)));
   const shownError = isForeign ? foreign?.error ?? "" : error;
   const updatedAt = isForeign ? foreign?.snapshot?.fetchedAt : snapshot?.capturedAt;
   const labels = foreign?.snapshot?.sourceLabels ?? {};
@@ -283,7 +287,7 @@ export function MarketBoard({ snapshot, foreign, error, query, onQueryChange, ex
         ))}
         {foldedCount ? <button type="button" className="fdw-board-fold" onClick={openColumns}>+{foldedCount} 列已收起</button> : null}
       </div>
-      <div className="fdw-board-body">
+      <div className="fdw-board-body" ref={bodyRef}>
         {rows.map(row => {
           if (foreignById.has(row.symbol)) {
             // 报价页外盘行可点 (所有者 2026-10-19 方案 A): opens the same chart as 合约选择's 海外主连.

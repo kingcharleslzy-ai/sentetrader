@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type HTMLAttributes, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type HTMLAttributes, type ReactNode, type RefObject } from "react";
 
 /** A motion token from theme.css in milliseconds (0 under reduced motion, which zeroes the tokens). */
 export const motionMs = (token: string) => {
@@ -83,4 +83,22 @@ export function Presence({ children }: { children: ReactNode }) {
   return shown ? <PresenceClosing.Provider value={closing}>
     <div className="ui-presence" data-closing={closing ? "" : undefined}>{open ? children : last.current}</div>
   </PresenceClosing.Provider> : null;
+}
+
+/**
+ * 原地进场 (电脑版换场, 2026-11-04): when `key` changes the element plays its way in — next / prev from the side it comes
+ * from, fade in place — without remounting what it holds (a chart keeps its canvas; `Swap` would build it again). Transform
+ * and opacity only, through the Web Animations API; nothing under reduced motion or on the first key.
+ */
+export function useEnterMotion(ref: RefObject<HTMLElement | null>, key: string, motion: SwapMotion | undefined) {
+  const shown = useRef(key);
+  useEffect(() => {
+    if (key === shown.current) return;
+    shown.current = key;
+    const element = ref.current, ms = motionMs("--dur-2");
+    if (!element || !ms || !motion || typeof element.animate !== "function") return;
+    const from = motion === "next" || motion === "push" ? "translateX(24px)" : motion === "prev" || motion === "pop" ? "translateX(-24px)" : "none";
+    const easing = getComputedStyle(document.documentElement).getPropertyValue("--ease-out").trim() || "ease-out";
+    element.animate([{ opacity: motion === "fade" ? 0.35 : 0, transform: from }, { opacity: 1, transform: "none" }], { duration: ms, easing });
+  }, [key, motion, ref]);
 }
