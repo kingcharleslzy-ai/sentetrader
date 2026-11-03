@@ -92,6 +92,10 @@ export interface MarketSnapshot {
   /** 新浪（备用） on a backup quote. */
   source?: string;
   marketSessionStatus?: "trading" | "closed" | "unknown";
+  /** 价格口径 (2026-11-03): 昨结算, and market_quote_pre_open / market_quote_no_trade before the day's first trade
+   *  (the price is then a stand-in) — the card shows them by the client's one rule (`dayQuote`). */
+  preSettlement?: number | null;
+  dataErrorCode?: string | null;
   trend: "up" | "down" | "flat";
   summary: string;
   priceCurve: number[];
@@ -100,7 +104,8 @@ export interface MarketSnapshot {
   peers?: MarketPeer[];
 }
 
-export interface MarketPeer { symbol: string; name: string; price: number; changePercent: number; dataStatus?: "stale" | "backup" | null }
+export interface MarketPeer { symbol: string; name: string; price: number; changePercent: number; dataStatus?: "stale" | "backup" | null;
+  preSettlement?: number | null; dataErrorCode?: string | null }
 
 export interface StrategyCondition {
   label: string;

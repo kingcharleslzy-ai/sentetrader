@@ -6,7 +6,7 @@ import { ChartPopover } from "../chartIndicatorEditor";
 import { BoardColumnsEditor } from "./BoardColumnsEditor";
 import { WatchlistStar } from "./WatchlistStar";
 import {
-  BOARD_COLUMN_LABELS, BOARD_EXCHANGES, FOREIGN_BOARD, boardPrice, boardStatusNote, formatBoardPrice, formatNumber, formatQuoteTime, formatSigned,
+  BOARD_COLUMN_LABELS, BOARD_EXCHANGES, FALLBACK_PRICE_TITLE, FOREIGN_BOARD, dayQuote, formatBoardPrice, formatNumber, formatQuoteTime, formatSigned,
   formatTime, formatVolume, signClass, type BoardColumn, type BoardExchange, type BoardSort, type BoardSortKey
 } from "./support";
 import "./MarketBoard.css";
@@ -34,7 +34,7 @@ function foreignRows(snapshot: ForeignBoardSnapshot | undefined): MarketBoardRow
 }
 
 function quietRow(row: MarketBoardRow): boolean {
-  return boardStatusNote(row) !== null || row.status === "market_quote_unavailable";
+  return dayQuote(row).note !== null || row.status === "market_quote_unavailable";
 }
 
 /**
@@ -181,16 +181,17 @@ export function MarketBoard({ snapshot, foreign, error, query, onQueryChange, ex
     }
     switch (column) {
       case "last": {
-        const price = boardPrice(row);
+        const price = dayQuote(row);
         return <span key={column} className={`fdw-board-cell num${price.fallback ? " fallback" : ""}`}
-          title={price.fallback ? "还没有成交，显示昨结算价" : undefined}>{price.text}</span>;
+          title={price.fallback ? FALLBACK_PRICE_TITLE : undefined}>{formatBoardPrice(price.price)}</span>;
       }
-      case "change":
-        return <span key={column} className={`fdw-board-cell num ${signClass(row.change)}`}>{row.change === null || row.change === undefined ? "—" : formatSigned(row.change, 2)}</span>;
+      case "change": {
+        const change = dayQuote(row).change;
+        return <span key={column} className={`fdw-board-cell num ${signClass(change)}`}>{change === null ? "—" : formatSigned(change, 2)}</span>;
+      }
       case "changePercent": {
-        const note = boardStatusNote(row);
-        const percent = row.changePercent;
-        return <span key={column} className={`fdw-board-cell num ${quietRow(row) ? "" : signClass(percent)}`}>{note ?? (percent === null || percent === undefined ? "—" : `${percent > 0 ? "+" : ""}${percent.toFixed(2)}%`)}</span>;
+        const { note, changePercent: percent } = dayQuote(row);
+        return <span key={column} className={`fdw-board-cell num ${quietRow(row) ? "" : signClass(percent)}`}>{note ?? (percent === null ? "—" : `${percent > 0 ? "+" : ""}${percent.toFixed(2)}%`)}</span>;
       }
       case "volume":
         return <span key={column} className="fdw-board-cell num">{formatVolume(row.volume)}</span>;

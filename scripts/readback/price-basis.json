@@ -1,0 +1,66 @@
+{
+  "about": "价格 / 涨跌幅统一口径（所有者 11-03 晚报：看盘自选没价，点进图再回来只有那一行有价）：看盘报价的自选板、单图下面“自选 · 持仓标记”、多图格子每行都有价格和涨跌幅；没成交的品种价格灰显昨结算、涨跌幅位置写“盘前”或“未成交”，不再是“—”或 0.00%（截图 01–03；测试账号报价列表没选涨跌幅列，涨跌看截图 02 的单图列表）。夜盘时段没有夜盘的品种（郑商所苹果等、中金所）分别是“盘前”和当天收盘价；日盘收盘后到夜盘开盘前整张表都是“盘前”。只读，不写数据。",
+  "device": "phone",
+  "steps": [
+    {
+      "ui": {
+        "mobileTab": "market"
+      },
+      "expect": {
+        "mobileTab": "market"
+      }
+    },
+    {
+      "ui": {
+        "mobileMarket": {
+          "view": "quotes"
+        }
+      }
+    },
+    {
+      "ui": {
+        "mobileMarket": {
+          "board": "watchlist"
+        }
+      },
+      "expect": {
+        "observation.text": {
+          "includes": "沪金2612"
+        }
+      },
+      "timeoutMs": 20000
+    },
+    {
+      "screenshot": "01-quotes-watchlist"
+    },
+    {
+      "ui": {
+        "mobileMarket": {
+          "view": "single"
+        }
+      }
+    },
+    {
+      "screenshot": "02-single-watch-list",
+      "scrollTo": "自选 · 持仓标记"
+    },
+    {
+      "ui": {
+        "mobileMarket": {
+          "view": "multi"
+        }
+      }
+    },
+    {
+      "screenshot": "03-multi"
+    },
+    {
+      "ui": {
+        "mobileTab": "ai"
+      },
+      "expect": {
+        "mobileTab": "ai"
+      }
+    }
+  ]
+}

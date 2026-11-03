@@ -6,7 +6,7 @@ import { TradingCharts, type ChartPreferences, type TradingChartSettings } from 
 import { HelpTip } from "../Blocks";
 import { useMultiChartReads } from "../mobile/MobileMultiChart";
 import { durationLabel } from "../mobile/mobileMarketPrefs";
-import { decimalsForTick, formatNumber } from "./support";
+import { FALLBACK_PRICE_TITLE, chartDayQuote, decimalsForTick, formatNumber } from "./support";
 import { CHART_LAYOUTS, type DesktopChartsChange, type DesktopChartsHandle, type ShownCell } from "./desktopCharts";
 import "./ChartGrid.css";
 
@@ -101,13 +101,15 @@ export function ChartGrid({ enabled, handle, baseUrl, own, nameOf, chartSettings
 
 function CellHead({ cell, market, name, onSelect, extra }: { cell: ShownCell; market: MarketWorkbenchSnapshot | undefined; name: string; onSelect?: () => void; extra?: ReactNode }) {
   const quote = market?.quote;
-  const change = quote?.changePercent;
+  const day = chartDayQuote(quote);
+  const change = day.changePercent;
   const period = durationLabel(cell.duration);
   const content = <>
     <strong>{name}</strong>
-    {quote ? <span className="fdw-chart-cell-price" data-direction={change ? change > 0 ? "up" : "down" : undefined}>
-      {formatNumber(quote.lastPrice, decimalsForTick(quote.priceTick))}
-      <small>{`${(change ?? 0) > 0 ? "+" : ""}${(change ?? 0).toFixed(2)}%`}</small></span> : null}
+    {quote ? <span className={`fdw-chart-cell-price${day.fallback ? " fallback" : ""}`} title={day.fallback ? FALLBACK_PRICE_TITLE : undefined}
+      data-direction={change ? change > 0 ? "up" : "down" : undefined}>
+      {formatNumber(day.price, decimalsForTick(quote.priceTick))}
+      <small>{day.note ?? (change === null ? "—" : `${change > 0 ? "+" : ""}${change.toFixed(2)}%`)}</small></span> : null}
     <small className="fdw-chart-cell-period">{period}{cell.auto ? " · 自动" : ""}</small>
   </>;
   return onSelect

@@ -4,7 +4,7 @@ import { sameContract, getMarketQuotes, type AccountPosition, type ForeignBoardS
   type MarketBoardSnapshot } from "../../api";
 import { marketErrorMessage } from "../../hooks/useMarketWorkbench";
 import { useDisclosureSurface } from "../../uiSurfaces";
-import { boardStatusNote, formatNumber, watchlistKey, watchlistMainSymbol } from "../futures/support";
+import { FALLBACK_PRICE_TITLE, dayQuote, formatNumber, watchlistKey, watchlistMainSymbol } from "../futures/support";
 import { SwipeRow, type RowAction } from "./RowActions";
 import { QUOTE_BOARDS, QUOTE_COLUMNS, QUOTE_COLUMNS_MAX, type QuoteBoard, type QuoteColumn } from "./mobileMarketPrefs";
 
@@ -14,9 +14,9 @@ export interface QuoteRow {
   /** False for a held non-main month: its figures come from the visible-row quote read. */
   onBoard: boolean;
   values: Partial<Record<QuoteColumn, number | null>>;
-  /** 盘前 / 未成交: said in the 涨跌幅 cell (`boardStatusNote`). */
+  /** 盘前 / 未成交: said in the 涨跌幅 cell (`dayQuote`). */
   note?: string | null;
-  /** No trade yet this trading day: the price is 昨结算, greyed (the board's `boardPrice`). */
+  /** No trade yet this trading day: the price is 昨结算, greyed (`dayQuote`). */
   fallback?: boolean;
 }
 
@@ -24,10 +24,10 @@ const decimalsOf = (tick: number | null | undefined) => tick && tick < 1 ? Math.
 
 function rowFigures(row: MarketBoardRow | undefined): Pick<QuoteRow, "values" | "note" | "fallback"> {
   if (!row) return { values: {} };
-  const last = row.last ?? row.preSettlement;
-  return { values: { last, changePercent: row.changePercent, change: row.change, openInterest: row.openInterest,
+  const day = dayQuote(row);
+  return { values: { last: day.price, changePercent: day.changePercent, change: day.change, openInterest: row.openInterest,
     bid: row.bidPrice1 ?? null, ask: row.askPrice1 ?? null, volume: row.volume, openInterestChange: row.openInterestChange },
-    note: boardStatusNote(row), fallback: row.last == null && last != null };
+    note: day.note, fallback: day.fallback };
 }
 
 /**
@@ -304,7 +304,7 @@ export function MobileQuotes({ baseUrl, board, foreign, boardError, boardId, col
               const tone = TONED.has(column) ? direction(row.values.changePercent ?? row.values.change) : column === "openInterestChange" ? direction(value) : undefined;
               const fallback = column === "last" && row.fallback;
               return <span key={column} className={`fdm-quote-value${fallback ? " fallback" : ""}`} data-direction={tone}
-                title={fallback ? "还没有成交，显示昨结算价" : undefined}>{column === "changePercent" && row.note ? row.note : cellText(column, value, row.decimals)}</span>;
+                title={fallback ? FALLBACK_PRICE_TITLE : undefined}>{column === "changePercent" && row.note ? row.note : cellText(column, value, row.decimals)}</span>;
             })}
           </button></SwipeRow>
         ))}

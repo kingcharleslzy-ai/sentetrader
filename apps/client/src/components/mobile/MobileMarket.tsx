@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, PenLine, Settings2, Star } from "lucide-react";
-import { sameContract, type AccountPosition, type InstrumentCatalogItem, type MarketBoardSnapshot, type MarketWorkbenchSnapshot } from "../../api";
+import { sameContract, type AccountPosition, type InstrumentCatalogItem, type MarketBoardRow, type MarketBoardSnapshot, type MarketWorkbenchSnapshot } from "../../api";
 import type { PriceAlertsHandle } from "../../hooks/usePriceAlerts";
 import type { ChartDrawingsHandle } from "../../hooks/useChartDrawings";
 import type { HandleDrag } from "../chartDrawingInteraction";
@@ -11,13 +11,13 @@ import { TradingCharts, type ChartPreferences, type TradingChartSettings } from 
 import { TimeshareChart } from "../TimeshareChart";
 import { PriceAlertsControl } from "../futures/PriceAlertsControl";
 import { ContractInfoControl } from "../futures/ContractInfoControl";
-import { foreignChartSource, formatNumber, watchlistMainSymbol } from "../futures/support";
+import { FALLBACK_PRICE_TITLE, chartDayQuote, foreignChartSource, formatNumber } from "../futures/support";
 import type { ChartIndicatorPatch } from "../chartIndicatorEditor";
 import type { ChartIndicatorConfig } from "../chartIndicators";
 import { RollingText, usePriceFlash } from "./mobileMotion";
 import { MARKET_VIEWS, shownSubPane, subPaneName } from "./mobileMarketPrefs";
 import type { MobileMarketHandle } from "./useMobileMarket";
-import { MobileQuotes } from "./MobileQuotes";
+import { MobileQuotes, quoteRows, type QuoteRow } from "./MobileQuotes";
 import { useForeignBoard } from "../../hooks/useForeignBoard";
 import { MobileMultiChart } from "./MobileMultiChart";
 import { MobileSubPaneSheet } from "./MobileSubPaneSheet";
@@ -35,40 +35,22 @@ const PERIOD_NAMES: Record<number, string> = { 60: "1 分钟", 180: "3 分钟", 
 
 const direction = (change: number | null | undefined) => change === undefined || change === null || !Number.isFinite(change) || change === 0 ? undefined : change > 0 ? "up" : "down";
 const percent = (change: number | null | undefined) => change === undefined || change === null || !Number.isFinite(change) ? "—" : `${change > 0 ? "+" : ""}${change.toFixed(2)}%`;
-const displayName = (item: InstrumentCatalogItem | undefined, fallback: string) => item?.instrumentName || fallback;
-
-interface WatchRow { symbol: string; name: string; last: number | null; changePercent: number | null; decimals: number; holding: string; starred: boolean }
-
-/** 自选 · 持仓标记: the open positions' contracts first, then the starred products' main contracts. */
+/** 自选 · 持仓标记 under the single chart: the 报价 list's 自选 rows (one price rule, `dayQuote`); a held month the
+ *  board does not carry takes the open chart's quote while it is the one on screen. */
 export function marketRows({ positions, watchlist, board, instruments, quote }: {
   positions: AccountPosition[]; watchlist: string[]; board: MarketBoardSnapshot | undefined;
   instruments: readonly InstrumentCatalogItem[]; quote: MarketWorkbenchSnapshot["quote"] | undefined;
-}): WatchRow[] {
-  const rows = new Map<string, WatchRow>();
-  const decimalsOf = (tick: number | null | undefined) => tick && tick < 1 ? Math.min(4, String(tick).split(".")[1]?.length ?? 0) : 0;
-  const add = (symbol: string, starred: boolean) => {
-    const key = symbol.toUpperCase();
-    if (rows.has(key)) { if (starred) rows.get(key)!.starred = true; return; }
-    const item = instruments.find(entry => entry.symbol.toUpperCase() === key);
-    const live = board?.rows.find(row => row.symbol.toUpperCase() === key);
-    const current = quote && quote.symbol.toUpperCase() === key ? quote : undefined;
-    const held = positions.filter(position => sameContract(position.symbol, key))
-      .map(position => `${position.direction === "long" ? "多" : "空"}${position.volume}`).join(" ");
-    rows.set(key, { symbol, name: displayName(item, live?.instrumentName ?? symbol), holding: held, starred,
-      last: current?.lastPrice ?? live?.last ?? null, changePercent: current?.changePercent ?? live?.changePercent ?? null,
-      decimals: decimalsOf(item?.priceTick ?? current?.priceTick) });
-  };
-  positions.forEach(position => add(position.symbol, false));
-  for (const product of watchlist) {
-    const live = board?.rows.find(row => `${row.exchangeId}.${row.productId}` === product);
-    const main = live?.symbol ?? watchlistMainSymbol(instruments, product);
-    if (main) add(main, true);
-  }
-  return [...rows.values()];
+}): QuoteRow[] {
+  return quoteRows({ board, boardId: "watchlist", positions, watchlist, instruments, extra: NO_EXTRA_QUOTES }).map(row => {
+    if (row.onBoard || !quote || !sameContract(row.symbol, quote.symbol)) return row;
+    const day = chartDayQuote(quote);
+    return { ...row, values: { ...row.values, last: day.price, changePercent: day.changePercent, change: day.change }, note: day.note, fallback: day.fallback };
+  });
 }
+const NO_EXTRA_QUOTES: ReadonlyMap<string, MarketBoardRow> = new Map();
 
 /** 多图's automatic cells: 自选 and held contracts, then the busiest main contracts on the board. */
-export function autoChartSymbols(rows: readonly WatchRow[], board: MarketBoardSnapshot | undefined): string[] {
+export function autoChartSymbols(rows: readonly { symbol: string }[], board: MarketBoardSnapshot | undefined): string[] {
   const busiest = [...(board?.rows ?? [])].filter(row => row.last != null).sort((a, b) => (b.volume ?? 0) - (a.volume ?? 0)).map(row => row.symbol);
   return [...rows.map(row => row.symbol), ...busiest];
 }
@@ -149,7 +131,8 @@ export function MobileMarket({ market, name, decimals, chartView, onSelectDurati
     return autoSymbols.filter((symbol, index, list) => list.findIndex(other => sameContract(other, symbol)) === index).slice(0, 40)
       .map(symbol => ({ symbol, name: names.get(symbol.toUpperCase()) ?? board?.rows.find(row => row.symbol === symbol)?.instrumentName ?? symbol }));
   }, [autoSymbols, instruments, board]);
-  const tone = direction(quote?.changePercent);
+  const day = chartDayQuote(quote);
+  const tone = direction(day.changePercent);
   const flash = usePriceFlash(quote?.lastPrice, quote?.symbol);
   // 手机画线: the computer's desk (same records, switches, defaults, UI commands and snapshot), on the single chart only.
   const savePreferences = useMemo(() => onIndicatorsChange
@@ -244,7 +227,7 @@ export function MobileMarket({ market, name, decimals, chartView, onSelectDurati
             {quote ? <ContractInfoControl quote={quote} item={instruments.find(item => sameContract(item.symbol, quote.symbol))} runtimeUrl={guest ? undefined : baseUrl} /> : null}
           </div>
           {quote ? <span className="fdm-market-price" data-direction={tone} data-flash={flash}>
-            <b><RollingText text={formatNumber(quote.lastPrice, decimals)} identity={quote.symbol} /></b><small><RollingText text={percent(quote.changePercent)} identity={quote.symbol} /></small>
+            <b className={day.fallback ? "fallback" : undefined} title={day.fallback ? FALLBACK_PRICE_TITLE : undefined}><RollingText text={formatNumber(day.price, decimals)} identity={quote.symbol} /></b><small><RollingText text={day.note ?? percent(day.changePercent)} identity={quote.symbol} /></small>
             {/* 新浪备用 (2026-10-07): the same mark as the desktop price. */}
             {market?.dataStatus === "backup" ? <em className="fdm-backup-badge" data-testid="quote-backup" title="快期行情暂不可用，这是新浪备用行情，可能延迟几秒；只供看盘，不能下单">备用 · 新浪</em> : null}
             {foreignChartSource(quote.symbol, quote.source, market?.source) ? <em className="fdm-backup-badge" data-testid="quote-foreign-source">{foreignChartSource(quote.symbol, quote.source, market?.source)}</em> : null}
@@ -304,8 +287,9 @@ export function MobileMarket({ market, name, decimals, chartView, onSelectDurati
                 <button type="button" aria-current={sameContract(row.symbol, quote?.symbol) ? "true" : undefined}
                   aria-label={`看 ${row.name}`} onClick={() => onSelectSymbol(row.symbol)}>
                   <span className="fdm-watch-name">{row.starred ? <Star aria-hidden="true" /> : null}<strong>{row.name}</strong>{row.holding ? <em>{row.holding}</em> : null}</span>
-                  <span className="fdm-watch-price" data-direction={direction(row.changePercent)}>
-                    <b>{formatNumber(row.last, row.decimals)}</b><small>{percent(row.changePercent)}</small>
+                  <span className="fdm-watch-price" data-direction={direction(row.values.changePercent)}>
+                    <b className={row.fallback ? "fallback" : undefined} title={row.fallback ? FALLBACK_PRICE_TITLE : undefined}>{formatNumber(row.values.last, row.decimals)}</b>
+                    <small>{row.note ?? percent(row.values.changePercent)}</small>
                   </span>
                 </button>
               </SwipeRow>

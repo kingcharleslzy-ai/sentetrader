@@ -144,19 +144,41 @@ export function formatQuoteTime(value: string | null | undefined): string {
   return value.slice(11, 19) || value;
 }
 
-/** A board row's price cell: the last trade, or — before the first trade of the trading day
- *  (盘前, holidays, 当日无成交) — 昨结算 shown as a fallback the cell greys out and titles. */
-export function boardPrice(row: { last: number | null; preSettlement: number | null }): { text: string; fallback: boolean } {
-  if (row.last !== null && Number.isFinite(row.last)) return { text: formatBoardPrice(row.last), fallback: false };
-  return { text: formatBoardPrice(row.preSettlement), fallback: row.preSettlement !== null && Number.isFinite(row.preSettlement) };
+export interface DayQuote {
+  /** The figure shown as the price: the last trade, else 昨结算 (`fallback`). */
+  price: number | null;
+  /** No trade yet this trading day: the price is 昨结算, shown greyed with FALLBACK_PRICE_TITLE. */
+  fallback: boolean;
+  /** Against 昨结算 (#751); null while `note` stands in their place. */
+  change: number | null;
+  changePercent: number | null;
+  /** 盘前 / 未成交: said where the 涨跌幅 goes instead of a number. */
+  note: string | null;
+}
+export const FALLBACK_PRICE_TITLE = "还没有成交，显示昨结算价";
+const QUOTE_NOTES: Record<string, string> = { market_quote_pre_open: "盘前", market_quote_no_trade: "未成交" };
+
+/**
+ * 价格 / 涨跌幅口径 (owner 2026-11-03): the one rule every list, chart head and card shows a contract's price by.
+ * 盘中 and 休市 (the day's last trade still current): the last trade and its change against 昨结算. 盘前 (the trading
+ * day switched, no trade yet) and 当日无成交: 昨结算 greyed, and 盘前 / 未成交 where the change goes — the chart's
+ * stand-in quote (the last bar's close at 0.00%) is never shown as a reading. Nothing read: no figures ("—").
+ * `status` is a board row's `status` or a chart quote's `dataErrorCode`.
+ */
+export function dayQuote(quote: { last?: number | null; preSettlement?: number | null; change?: number | null;
+  changePercent?: number | null; status?: string | null } | undefined): DayQuote {
+  const finite = (value: number | null | undefined) => value !== null && value !== undefined && Number.isFinite(value) ? value : null;
+  const note = QUOTE_NOTES[quote?.status ?? ""] ?? null;
+  const last = note ? null : finite(quote?.last);
+  if (last !== null) return { price: last, fallback: false, change: finite(quote?.change), changePercent: finite(quote?.changePercent), note };
+  const settlement = finite(quote?.preSettlement);
+  return { price: settlement, fallback: settlement !== null, change: null, changePercent: null, note };
 }
 
-/** 当日无成交 / 盘前 rows: the 涨跌幅 cell says why instead of a number (the board and the phone lists). */
-export function boardStatusNote(row: { status?: string }): string | null {
-  if (row.status === "market_quote_no_trade") return "未成交";
-  if (row.status === "market_quote_pre_open") return "盘前";
-  return null;
-}
+/** dayQuote of a chart / snapshot quote (`lastPrice`, `dataErrorCode`). */
+export const chartDayQuote = (quote: { lastPrice?: number | null; preSettlement?: number | null; changePercent?: number | null;
+  dataErrorCode?: string | null } | undefined) => quote ? dayQuote({ last: quote.lastPrice, preSettlement: quote.preSettlement,
+  changePercent: quote.changePercent, status: quote.dataErrorCode }) : dayQuote(undefined);
 
 export const LAYOUT_STORAGE_KEY = "ai-trader-workspace-layout-v3";
 

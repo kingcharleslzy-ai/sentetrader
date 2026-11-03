@@ -3,7 +3,7 @@ import { Menu } from "lucide-react";
 import { sameContract, type MarketWorkbenchSnapshot } from "../../api";
 import { MarketSessionCard } from "../MarketSessionCard";
 import type { FuturesDecisionWorkspaceProps } from "./props";
-import { foreignChartSource, formatAge, formatNumber, formatTime, isForeignSymbol, signClass } from "./support";
+import { FALLBACK_PRICE_TITLE, chartDayQuote, foreignChartSource, formatAge, formatNumber, formatTime, isForeignSymbol, signClass } from "./support";
 import type { PriceAlertsHandle } from "../../hooks/usePriceAlerts";
 import type { ChartDrawingsHandle } from "../../hooks/useChartDrawings";
 import { ContractInfoControl } from "./ContractInfoControl";
@@ -72,6 +72,7 @@ export function MarketCommand({ workspace, market, headerCurrentContract, chartV
   // without a night session before Monday), or nobody has traded the contract today.
   const preOpen = quote.dataErrorCode === "market_quote_pre_open";
   const noTrade = quote.dataErrorCode === "market_quote_no_trade";
+  const day = chartDayQuote(quote);
   // 回放 (#932 X3, owner 2026-10-19): the replay's minute-derived quote carries no 昨结 basis,
   // day open/high/low or day volume — say so instead of a 0.00% / "—" / 0 that reads as data.
   // 持仓 comes with the replay's bars and stays.
@@ -94,7 +95,9 @@ export function MarketCommand({ workspace, market, headerCurrentContract, chartV
                 item={workspace.instruments?.items.find(entry => entry.symbol.toUpperCase() === quote.symbol.toUpperCase())} />
             </div>
             {preOpen || noTrade
-              ? <div className="fdw-pre-open" data-testid="quote-pre-open"><strong>{noTrade ? formatNumber(quote.lastPrice, decimals) : "—"}</strong><span>{noTrade ? "今日暂无成交，显示最近收盘价" : (market.marketSessionStatus ?? quote.marketSessionStatus) === "closed" && !isForeignSymbol(quote.symbol) ? "无夜盘，开盘前无最新行情" : "开盘前无最新行情"}</span></div>
+              // 价格口径 (2026-11-03, `dayQuote`): 昨结算 greyed and 盘前 / 未成交, as every list and card shows it.
+              ? <div className="fdw-pre-open" data-testid="quote-pre-open"><strong title={FALLBACK_PRICE_TITLE}>{formatNumber(day.price, decimals)}</strong>
+                <span title={noTrade ? "今日暂无成交" : (market.marketSessionStatus ?? quote.marketSessionStatus) === "closed" && !isForeignSymbol(quote.symbol) ? "无夜盘，开盘前无最新行情" : "开盘前无最新行情"}>{day.note}</span></div>
               : <div className={replay ? undefined : signClass(quote.changePercent)}><strong key={tick.n} data-tick={tick.dir}>{formatNumber(quote?.lastPrice, decimals)}</strong>
                 {replay ? <span className="fdw-replay-omitted" data-testid="quote-replay-change">涨跌幅 回放不显示</span>
                   : <span>{changePositive ? "+" : ""}{quote?.changePercent.toFixed(2)}%</span>}

@@ -117,6 +117,9 @@ class MarketPeer(Payload):
     changePercent: float
     # stale / backup when this contract's own read was not current (the main quote's badge covers only itself).
     dataStatus: Literal["stale", "backup"] | None = None
+    # 价格口径 (2026-11-03): 昨结算 and the no-trade-yet code (盘前 / 未成交), as on the main quote.
+    preSettlement: float | None = None
+    dataErrorCode: str | None = None
 
 
 class MarketSnapshot(Payload):
@@ -131,6 +134,10 @@ class MarketSnapshot(Payload):
     # backup: Sina's quote while TqKq is down (sina_market) — shown, never traded on.
     dataStatus: Literal["simulated", "normal", "stale", "backup"]
     source: str | None = None
+    # 价格口径 (2026-11-03): before the day's first trade `price` is a stand-in (the last bar's close at 0.00%);
+    # the card shows 昨结算 and 盘前 / 未成交 instead (market_quote_pre_open / market_quote_no_trade).
+    preSettlement: float | None = None
+    dataErrorCode: str | None = None
     trend: Literal["up", "down", "flat"]
     summary: str
     priceCurve: list[float]

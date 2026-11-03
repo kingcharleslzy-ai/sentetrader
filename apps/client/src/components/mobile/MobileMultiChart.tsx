@@ -4,7 +4,7 @@ import { readMarketWorkbench } from "../../marketCache";
 import { useDisclosureSurface } from "../../uiSurfaces";
 import type { DurationSeconds, MobileMarketPreferences } from "../../userPreferences";
 import { marketErrorMessage } from "../../hooks/useMarketWorkbench";
-import { formatNumber } from "../futures/support";
+import { FALLBACK_PRICE_TITLE, chartDayQuote, formatNumber } from "../futures/support";
 import { CELL_DURATIONS, MULTI_LAYOUTS, durationLabel, resolveCells, type MultiLayout, type ResolvedCell } from "./mobileMarketPrefs";
 
 type Duration = MarketWorkbenchSnapshot["durationSeconds"];
@@ -153,7 +153,8 @@ export function MobileMultiChart({ baseUrl, market, layout, onLayout, onCell, cu
           const quoted = read?.market?.quote.name;
           const name = item?.instrumentName || (quoted && !quoted.includes(".") ? quoted : cell.symbol ? cell.symbol.split(".").pop()! : "空格");
           const quote = read?.market?.quote;
-          const tone = quote?.changePercent ? quote.changePercent > 0 ? "up" : "down" : undefined;
+          const day = chartDayQuote(quote);
+          const tone = day.changePercent ? day.changePercent > 0 ? "up" : "down" : undefined;
           const period = durationLabel(cell.duration);
           return <div className="fdm-multi-cell" key={cell.index} data-testid={`mobile-multi-cell-${cell.index}`}
             onTouchStart={() => { held.current = false; clearTimeout(hold.current); hold.current = setTimeout(() => { held.current = true; setEditing(cell.index); }, 550); }}
@@ -163,9 +164,9 @@ export function MobileMultiChart({ baseUrl, market, layout, onLayout, onCell, cu
             </button>
             <button type="button" className="fdm-multi-body" aria-label={`看 ${name} ${period} 单图`} disabled={!cell.symbol}
               onClick={() => { if (held.current) { held.current = false; return; } if (cell.symbol) onOpen(cell.symbol, cell.duration); }}>
-              <span className="fdm-multi-price" data-direction={tone}>
-                {quote ? formatNumber(quote.lastPrice, decimalsOf(item?.priceTick ?? quote.priceTick)) : "—"}
-                {quote ? <small>{`${quote.changePercent > 0 ? "+" : ""}${quote.changePercent.toFixed(2)}%`}</small> : null}
+              <span className={`fdm-multi-price${day.fallback ? " fallback" : ""}`} title={day.fallback ? FALLBACK_PRICE_TITLE : undefined} data-direction={tone}>
+                {quote ? formatNumber(day.price, decimalsOf(item?.priceTick ?? quote.priceTick)) : "—"}
+                {quote ? <small>{day.note ?? (day.changePercent === null ? "—" : `${day.changePercent > 0 ? "+" : ""}${day.changePercent.toFixed(2)}%`)}</small> : null}
               </span>
               {read?.market ? <MiniKline bars={read.market.bars} label={`${name} ${period} K 线`} />
                 : !error ? <span className="fdm-note" role="status">{!cell.symbol ? "没有可补位的合约" : "正在读取…"}</span> : null}

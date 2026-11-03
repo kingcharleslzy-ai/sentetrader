@@ -93,6 +93,7 @@ html[data-font-scale="extra-large"] .ac-figures > .stat-tiles { grid-template-co
   color: var(--warning); background: var(--warning-soft); font-size: var(--font-md);
 }
 .mc-peers .mc-peer-price { color: var(--ink); font-variant-numeric: tabular-nums; }
+.mc-peers .mc-peer-price.fallback, .market-price.fallback { color: var(--muted); }
 .mc-peers .mc-peer-change { min-width: 4.5em; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
 .mc-change[data-dir="up"], .mc-peers .mc-peer-change[data-dir="up"] { color: var(--market-up); }
 .mc-change[data-dir="down"], .mc-peers .mc-peer-change[data-dir="down"] { color: var(--market-down); }

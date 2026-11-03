@@ -5,7 +5,7 @@ import type { MarketQuoteSnapshot } from "../../api";
 import { AccountAccessContext } from "../../hooks/useAccountAccess";
 import { HalfDuplexHelp } from "../futures/CallBar";
 import type { PushToTalk } from "../futures/PushToTalk";
-import { formatNumber } from "../futures/support";
+import { FALLBACK_PRICE_TITLE, chartDayQuote, formatNumber } from "../futures/support";
 import { AiCommandResult, type AiCommand } from "../futures/useAiCommand";
 import { pushToTalkStore, setPttTarget } from "../../pushToTalk";
 import type { VoiceCallControls } from "../../voiceCallControls";
@@ -229,9 +229,10 @@ export function MobileWorkspace({ tab, onTab, onOpenChat, onBell, quote, symbolN
   const [slideCancel, setSlideCancel] = useState(false);
   const onSlideCancelChange = useCallback((armed: boolean) => setSlideCancel(armed), []);
   const active = tab === "chat" || tab === "me" ? "ai" : tab;
-  const change = quote?.changePercent;
-  const direction = change === undefined || change === null || !Number.isFinite(change) || change === 0 ? undefined : change > 0 ? "up" : "down";
-  const price = quote ? `${formatNumber(quote.lastPrice, decimals)} ${change === undefined || change === null ? "" : `${change > 0 ? "+" : ""}${change.toFixed(2)}%`}`.trim() : "";
+  const day = chartDayQuote(quote);
+  const change = day.changePercent;
+  const direction = change === null || change === 0 ? undefined : change > 0 ? "up" : "down";
+  const price = quote ? `${formatNumber(day.price, decimals)} ${day.note ?? (change === null ? "" : `${change > 0 ? "+" : ""}${change.toFixed(2)}%`)}`.trim() : "";
   const name = symbolName || quote?.name || quote?.symbol;
   const flash = usePriceFlash(quote?.lastPrice, quote?.symbol);
   const dotKey = useRiseKey(unread);
@@ -284,7 +285,7 @@ export function MobileWorkspace({ tab, onTab, onOpenChat, onBell, quote, symbolN
           <strong>{TITLES[tab]}</strong>
           {quote ? (
             <button type="button" className="fdm-quote" aria-label={`看盘：${name} ${price}`} onClick={() => onTab("market")}>
-              <span className="fdm-quote-label">{name}</span><span className="fdm-quote-price" data-direction={direction} data-flash={flash}><RollingText text={price} identity={quote.symbol} /></span>
+              <span className="fdm-quote-label">{name}</span><span className={`fdm-quote-price${day.fallback ? " fallback" : ""}`} title={day.fallback ? FALLBACK_PRICE_TITLE : undefined} data-direction={direction} data-flash={flash}><RollingText text={price} identity={quote.symbol} /></span>
             </button>
           ) : null}
           <button type="button" className="fdm-head-chat" aria-label="AI 对话" title="AI 对话" onClick={onOpenChat}><MessageSquare aria-hidden="true" /></button>

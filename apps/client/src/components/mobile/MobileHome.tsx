@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Bell, ChevronDown } from "lucide-react";
 import { HelpTip } from "../Blocks";
-import { formatNumber, formatSigned, signClass } from "../futures/support";
+import { FALLBACK_PRICE_TITLE, formatNumber, formatSigned, signClass } from "../futures/support";
 import { Sparkline } from "../Sparkline";
 import { CardSkeleton } from "./MobileFeed";
 import { RollingText } from "./mobileMotion";
@@ -186,7 +186,7 @@ export function MobileHome({ rows, pending, renderCard, quickPending, now, accou
         {holdings.map(row => <SwipeRow key={row.symbol} id={`holding:${row.symbol}`} title={`${row.name} ${row.holding ?? ""}`.trim()} actions={holdingActions?.(row) ?? []}>
           <button type="button" className="fdm-hq" onClick={() => onOpenSymbol(row.symbol)} aria-label={`${row.name} ${row.holding ?? ""}`.trim()}>
           <span className="fdm-hq-name"><b>{row.name}</b>{row.holding ? <em data-side={row.holding.startsWith("多") ? "long" : "short"}>{row.holding}</em> : null}</span>
-          <span className={row.fallback ? "fallback" : undefined} title={row.fallback ? "还没有成交，显示昨结算价" : undefined}>{formatNumber(row.last, row.decimals)}</span>
+          <span className={row.fallback ? "fallback" : undefined} title={row.fallback ? FALLBACK_PRICE_TITLE : undefined}>{formatNumber(row.last, row.decimals)}</span>
           <span className={signClass(row.changePercent)}>{row.note ?? (row.changePercent == null ? "—" : `${formatSigned(row.changePercent, 2)}%`)}</span>
           <b className={signClass(row.floating)}>{row.floating == null ? "—" : formatSigned(row.floating, 0)}</b>
         </button></SwipeRow>)}
@@ -197,7 +197,7 @@ export function MobileHome({ rows, pending, renderCard, quickPending, now, accou
           <button type="button" className="fdm-hq fdm-hq-watch" onClick={() => onOpenSymbol(row.symbol)} aria-label={row.name}>
           <span className="fdm-hq-name"><b>{row.name}</b><small>{row.code}</small></span>
           <span className={`fdm-hq-spark ${signClass(row.changePercent)}`}>{row.curve && row.curve.length > 1 ? <Sparkline values={row.curve} className="fdm-spark" label={`${row.name} 走势`} /> : null}</span>
-          <span className={row.fallback ? "fallback" : undefined} title={row.fallback ? "还没有成交，显示昨结算价" : undefined}>{formatNumber(row.last, row.decimals)}</span>
+          <span className={row.fallback ? "fallback" : undefined} title={row.fallback ? FALLBACK_PRICE_TITLE : undefined}>{formatNumber(row.last, row.decimals)}</span>
           <b className={signClass(row.changePercent)}>{row.note ?? (row.changePercent == null ? "—" : `${formatSigned(row.changePercent, 2)}%`)}</b>
         </button></SwipeRow>) : <p className="fdm-note">还没有自选。到看盘 · 报价或合约列表里点星标加。</p>}
       </section>

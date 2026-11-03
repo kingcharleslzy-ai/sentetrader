@@ -591,6 +591,9 @@ class TurnCards:
                         "price": float(payload["price"]), "changePercent": float(payload["changePercent"])}
             except (KeyError, TypeError, ValueError):
                 return self.market
+            for key in ("preSettlement", "dataErrorCode"):
+                if payload.get(key) is not None:
+                    peer[key] = payload[key]
             status = str(payload.get("dataStatus") or "")
             if status in _STATUS_WARNINGS:
                 # A stale / backup peer says so on its row, and the text keeps its own warning (#878 review).

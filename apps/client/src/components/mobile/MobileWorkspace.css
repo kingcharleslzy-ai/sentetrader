@@ -399,7 +399,8 @@
 .fdm-hq .positive { color: var(--market-up); }
 .fdm-hq .negative { color: var(--market-down); }
 .fdm-hq > b { font-weight: 600; }
-.fdm-hq > .fallback, .fdm-quote-value.fallback { color: var(--muted); }
+.fdm-hq > .fallback, .fdm-quote-value.fallback, .fdm-watch-price .fallback, .fdm-market-price .fallback,
+.fdm-quote-price.fallback, .fdm-multi-price.fallback { color: var(--muted); }
 .fdm-hq-name { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-0) var(--space-1); min-width: 0; }
 .fdm-hq-name > b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 .fdm-hq-watch .fdm-hq-name { flex-direction: column; align-items: flex-start; flex-wrap: nowrap; }

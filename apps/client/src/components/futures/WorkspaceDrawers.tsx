@@ -2,7 +2,7 @@ import { ChevronDown, Search, X } from "lucide-react";
 import { Fragment, useMemo } from "react";
 import { sameContract, type InstrumentCatalogItem, type MarketBoardSnapshot } from "../../api";
 import type { FuturesDecisionWorkspaceProps } from "./props";
-import { BOARD_EXCHANGES, boardPrice, decimalsForTick, formatNumber, signClass, watchlistKey } from "./support";
+import { BOARD_EXCHANGES, FALLBACK_PRICE_TITLE, dayQuote, decimalsForTick, formatBoardPrice, formatNumber, signClass, watchlistKey } from "./support";
 import { deliveryBadgeText } from "./deliveryInfo";
 import { WatchlistStar } from "./WatchlistStar";
 import "./ContractInfoControl.css";
@@ -162,6 +162,7 @@ export function ContractDrawer({ workspace, query, onQueryChange, onSelect, onCl
               ?? (group.exchangeId === "KQD" ? "海外主连" : group.exchangeId) : null;
           const expanded = exact ? watchlistKey(exact) === group.key : product === group.key;
           const quote = board?.rows.find(item => item.exchangeId === group.exchangeId && item.productId === group.productId);
+          const figures = quote ? dayQuote(quote) : undefined;
           const months = monthsOf(group);
           return (
           <Fragment key={group.key}>
@@ -171,8 +172,8 @@ export function ContractDrawer({ workspace, query, onQueryChange, onSelect, onCl
               <button type="button" className={sameContract(group.main.symbol, workspace.selectedSymbol) ? "active" : ""}
                 aria-label={`${group.productName} ${group.main.symbol}`} onClick={() => onSelect(group.main.symbol)}>
                 <span><strong>{group.productName}</strong><small>{group.main.symbol}{group.exchangeId === "KQD" && !group.main.strategyScope ? <i className="fdw-quote-only">仅行情</i> : null}</small></span>
-                {quote ? <span className="fdw-product-quote"><b className={boardPrice(quote).fallback ? "fallback" : undefined} title={boardPrice(quote).fallback ? "还没有成交，显示昨结算价" : undefined}>{boardPrice(quote).text}</b>
-                  <small className={signClass(quote.changePercent)}>{quote.changePercent === null || quote.changePercent === undefined ? "—" : `${quote.changePercent > 0 ? "+" : ""}${quote.changePercent.toFixed(2)}%`}</small></span> : null}
+                {figures ? <span className="fdw-product-quote"><b className={figures.fallback ? "fallback" : undefined} title={figures.fallback ? FALLBACK_PRICE_TITLE : undefined}>{formatBoardPrice(figures.price)}</b>
+                  <small className={signClass(figures.changePercent)}>{figures.note ?? (figures.changePercent === null ? "—" : `${figures.changePercent > 0 ? "+" : ""}${figures.changePercent.toFixed(2)}%`)}</small></span> : null}
               </button>
               {onToggleWatchlist ? <WatchlistStar product={group.key} name={group.productName} starred={starred.has(group.key)} onToggle={onToggleWatchlist} /> : null}
               <button type="button" className="fdw-product-expand" aria-expanded={expanded} aria-label={`${group.months.length} 个月份`}

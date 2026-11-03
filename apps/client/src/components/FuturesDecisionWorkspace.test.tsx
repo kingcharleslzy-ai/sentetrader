@@ -1898,11 +1898,12 @@ test("顶栏收起等级累加：等级 6 带全部收起类名，警告与权�
   }
 });
 
-test("开盘前无最新行情：K 线照画，价格位显示破折号与提示，不显示行情不可用", () => {
+test("开盘前无最新行情：K 线照画，价格位显示昨结算与“盘前”，不显示行情不可用", () => {
   const preOpen = { ...market, dataStatus: "stale" as const, isCached: true, marketSessionStatus: "closed" as const,
     quote: { ...market.quote, marketSessionStatus: "closed" as const, dataStatus: "stale" as const, dataErrorCode: "market_quote_pre_open" } };
   render(<FuturesDecisionWorkspace {...props({ market: preOpen, simulationEnabled: false, simulationBlockedReason: "行情非实时" }) as any} />);
-  expect(screen.getByTestId("quote-pre-open")).toHaveTextContent("—无夜盘，开盘前无最新行情");
+  expect(screen.getByTestId("quote-pre-open")).toHaveTextContent(/盘前$/);
+  expect(screen.getByTitle("无夜盘，开盘前无最新行情")).toBeInTheDocument();
   expect(screen.queryByText("当前行情暂时不可用")).toBeNull();
   expect(screen.getByLabelText("K 线图")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /开盘前，查看交易时间/ })).toBeInTheDocument();
@@ -1927,11 +1928,11 @@ test("新浪备用行情：价格旁、时段标签与连接胶囊都标明备�
   expect(screen.getByTestId("ticket-blocked-reason")).toHaveTextContent("备用行情（新浪）只供看盘");
 });
 
-test("今日无成交：K 线照画，价格位显示最近收盘价与提示，时段标签为无成交", () => {
+test("今日无成交：K 线照画，价格位显示昨结算与“未成交”，时段标签为无成交", () => {
   const preOpen = { ...market, dataStatus: "stale" as const, isCached: true, marketSessionStatus: "closed" as const,
     quote: { ...market.quote, marketSessionStatus: "trading" as const, dataStatus: "stale" as const, dataErrorCode: "market_quote_no_trade" } };
   render(<FuturesDecisionWorkspace {...props({ market: preOpen, simulationEnabled: false, simulationBlockedReason: "行情非实时" }) as any} />);
-  expect(screen.getByTestId("quote-pre-open")).toHaveTextContent("今日暂无成交，显示最近收盘价");
+  expect(screen.getByTestId("quote-pre-open")).toHaveTextContent(/未成交$/);
   expect(screen.queryByText("当前行情暂时不可用")).toBeNull();
   expect(screen.getByLabelText("K 线图")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /无成交，查看交易时间/ })).toBeInTheDocument();
