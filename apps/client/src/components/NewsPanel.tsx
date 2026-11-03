@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { BookOpenText, PanelRightClose } from "lucide-react";
 import { guestRequest } from "../guestApi";
 import { requestJson, type InstrumentCatalogItem } from "../api";
+import { feedReportServes, REPORT_RECHECK_MS, reportKey, useFeedReport } from "../feedView";
 import { LONG_READ_TIMEOUT_MS } from "../requestTimeout";
 import { useUiSurface } from "../uiSurfaces";
 import { SectionCard } from "./Blocks";
@@ -120,12 +121,17 @@ export function NewsPanel({ baseUrl, symbol, guest = false, replay = false, onGu
     }
   } }, [tab, pinnedSymbol, readingSymbol, replay, desk, sheet, flashFilter, flashSort, flash, guest, newsState?.count, newsState?.screen, newsState?.dropped, newsState?.pending, newsState?.unscreened, newsState?.events, newsState?.major,
     newsState?.other, newsState?.minor, newsState?.minorReports]);
+  // 通用报告推送 (2026-11-03): a member's 相关报道 come over the push (read once for every window, again soon while the AI
+  // screens new reports); the read below runs only while the push does not serve them, and for guests.
+  const newsKey = !guest && readingSymbol && newsSeen && !replay ? reportKey("news", { symbol: readingSymbol }) : undefined;
+  const pushedNews = useFeedReport<News>(baseUrl, newsKey);
   useEffect(() => {
     setResult(undefined); setError("");
     if (!baseUrl || !readingSymbol || !newsSeen || replay) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout>;
     const load = async () => {
+      if (feedReportServes(baseUrl, newsKey)) { timer = setTimeout(load, REPORT_RECHECK_MS); return; }
       try {
         const path = `/api/${guest ? "guest/" : ""}research/news?symbol=${encodeURIComponent(readingSymbol)}`;
         const next = await (guest ? guestRequest<News>(baseUrl, path, { timeoutMs: LONG_READ_TIMEOUT_MS }) : requestJson<News>(`${baseUrl}${path}`, { timeoutMs: LONG_READ_TIMEOUT_MS }));
@@ -141,7 +147,9 @@ export function NewsPanel({ baseUrl, symbol, guest = false, replay = false, onGu
     };
     void load();
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [baseUrl, readingSymbol, guest, newsSeen, replay]);
+  }, [baseUrl, readingSymbol, guest, newsSeen, replay, newsKey]);
+  // After the read effect, which clears the previous product's result first.
+  useEffect(() => { if (pushedNews) { setResult(pushedNews); setError(""); } }, [pushedNews]);
   const technicalError = error || news?.error;
   const startEvent = useCallback((event: NewsEvent, eventSymbol?: string) => debates?.start({ eventId: event.id, origin: "flash", title: eventHeadline(event),
     symbol: eventSymbol }), [debates]);

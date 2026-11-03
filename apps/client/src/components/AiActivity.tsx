@@ -18,6 +18,7 @@ import { useQuery } from "@tanstack/react-query";
 import { readNetworkMode, readQueryClient, useReadIdentity } from "../runtimeClient";
 import { useIdentityFence } from "../hooks/useIdentityFence";
 import { feedIsLive, feedLiveNow, useRuntimeFeed } from "../runtimeFeed";
+import { feedReportServes, useFeedReport } from "../feedView";
 import { activeTradingAccount, onTradingAccountChange } from "../tradingAccountScope";
 import { workbenchClient, responseData, type WorkbenchConfig, type ActivitySnapshot } from "../runtimeClient";
 export type { ChartExtension } from "../runtimeClient";
@@ -132,8 +133,15 @@ export function useBriefs(baseUrl: string | undefined, enabled: boolean, replay:
   const searchStatus = useSyncExternalStore(subscribeSearchStatus, () => searchStatuses.get(statusKey) ?? "等待检索", () => "等待检索");
   const setSearchStatus = (status: string) => publishSearchStatus(statusKey, status);
   const key = ["workbench", identity, baseUrl, "briefs"] as const;
+  // 通用报告推送 (2026-11-03): the list comes over the push (read every 15 s for this user on the Runtime, whatever the
+  // number of windows); the query reads it itself only while the push does not serve it.
+  const pushed = useFeedReport<{ items: ProductBrief[] }>(baseUrl, active ? "briefs" : undefined);
+  useEffect(() => { if (pushed) readQueryClient.setQueryData(key, pushed); }, [pushed]); // eslint-disable-line react-hooks/exhaustive-deps
   const briefs = useQuery({ queryKey: key, enabled: active, networkMode: readNetworkMode(baseUrl),
-    queryFn: ({ signal }) => listProductBriefs(baseUrl!, signal),
+    queryFn: ({ signal }) => {
+      const held = readQueryClient.getQueryData<{ items: ProductBrief[] }>(key);
+      return held && feedReportServes(baseUrl, "briefs") ? Promise.resolve(held) : listProductBriefs(baseUrl!, signal);
+    },
     // A search runs at most every 10 minutes and invalidates this on completion; the interval catches the rest.
     refetchInterval: () => feedLiveNow() ? 60_000 : 15000
   }, readQueryClient);

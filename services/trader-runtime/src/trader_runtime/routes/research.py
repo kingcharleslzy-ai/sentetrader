@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from ..research_data import DATASETS
 from ..research_debate import DebateUnavailable, EventProductError
 from ..research_live import FLASH_INCLUDE_MAX, FLASH_OFFICIAL_HOURS_MAX
+from ..runtime_feed import FeedReport
 from ..skill_registry import skill_allowed, skill_by_id
 from ..wiring.context import RuntimeContext
 
@@ -45,9 +46,31 @@ def debate_error(code: str, message: str | None = None, status: int | None = Non
     return HTTPException(status_code=status or known[0], detail={"code": code, "message": message or known[1], **extra})
 
 
+def _number(params: dict[str, str], name: str, default: int, low: int, high: int) -> int:
+    """A report key's integer, held to its HTTP read's bounds."""
+    value = int(params.get(name, default))
+    if not low <= value <= high:
+        raise ValueError("report_param_invalid")
+    return value
+
+
+def _symbol(params: dict[str, str]) -> str:
+    symbol = params.get("symbol", "")
+    if not 3 <= len(symbol) <= 40:
+        raise ValueError("research_symbol_invalid")
+    return symbol
+
+
+def _every(busy: float, idle: float, failed: float, is_busy: Any = lambda answer: False) -> Any:
+    """A report's cadence: `busy` while the answer says work is under way (the AI judging, a judgment being
+    written), `idle` otherwise, `failed` after a failed read — the same intervals the panels used to poll on."""
+    return lambda answer: failed if answer is None else busy if is_busy(answer) else idle
+
+
 def register(application: FastAPI, ctx: RuntimeContext) -> None:
     research = ctx.services.research
     current_user = ctx.current_user
+    feed = ctx.runtime_feed
 
     @application.get("/api/research/summary")
     async def research_summary(request: Request, symbol: str = Query(min_length=3, max_length=40)) -> dict[str, object]:
@@ -111,10 +134,12 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
         unavailable / current."""
         user_id = await current_user(request)
         try:
-            return await ctx.services.research_desk.report(symbol, generator=desk_generator(user_id), force=True,
-                                                            user_id=user_id)
+            answer = await ctx.services.research_desk.report(symbol, generator=desk_generator(user_id), force=True,
+                                                              user_id=user_id)
         except ValueError as error:
             raise HTTPException(status_code=422, detail=str(error)) from error
+        feed.reports_due("desk")  # every window showing the product sees the re-read / the new judgment
+        return answer
 
     # 多 AI 研讨 (2026-10-11): the model adapter is resolved per reader exactly like the desk's (`desk_generator`:
     # the recorded fake in browser tests, else `adapter_for_user` — in cloud mode application.state.adapter is a
@@ -139,6 +164,8 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
                     "id": str(event["id"]), **who, "text": str(event["text"])})
             else:
                 await broker.publish_transient(session_id, kind="result", name="feed.ui", payload={"reason": "research-debate"})
+        if event.get("kind") != "delta":
+            feed.reports_due("desk")  # a debate's step can change the product's 今日判断 (its 已研讨, an adopted one)
         if event.get("kind") == "done":
             from ..reminders import ReminderSpec, deliver
             from ..web_push import PushMessage, deep_link
@@ -218,7 +245,9 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
         user_id = await current_user(request)
         debate_allowed(user_id)
         try:
-            return debates.adopt(debate_id)  # on the loop, like the desk's own judgment writes
+            adopted = debates.adopt(debate_id)  # on the loop, like the desk's own judgment writes
+            feed.reports_due("desk")
+            return adopted
         except LookupError as error:
             raise debate_error("research_debate_unknown") from error
         except ValueError as error:
@@ -278,6 +307,51 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
         keeps only the events related to that product's category (`otherCount`: the rest)."""
         await current_user(request)
         return await asyncio.to_thread(ctx.services.research_live.calendar_feed, days, region, product)
+
+    # 通用报告推送 (2026-11-03): the reads above that a window keeps on screen go out over its push stream instead of
+    # each panel re-reading on its own timer (runtime_feed.report_round). Each answers exactly what its HTTP read
+    # answers, read once per key (per reader for the desk and the sheet) on the panel's former cadence.
+    live = ctx.services.research_live
+
+    async def sheet_report(user_id: str, _account: Any, _params: dict[str, str]) -> dict[str, Any]:
+        return await ctx.services.battle_sheet.user_sheet(user_id)
+
+    async def desk_report(user_id: str, _account: Any, params: dict[str, str]) -> dict[str, Any]:
+        return await ctx.services.research_desk.report(_symbol(params), generator=desk_generator(user_id),
+                                                       user_id=user_id, fast=True)
+
+    async def news_report(_user: str, _account: Any, params: dict[str, str]) -> dict[str, Any]:
+        return await ctx.services.research_brief.brief(_symbol(params), "news")
+
+    async def summary_report(_user: str, _account: Any, params: dict[str, str]) -> dict[str, Any]:
+        return await asyncio.to_thread(research.summary, _symbol(params))
+
+    async def flash_report(_user: str, _account: Any, params: dict[str, str]) -> dict[str, Any]:
+        wanted = [value.strip() for value in params["products"].split(",") if value.strip()][:30] if "products" in params else None
+        return await asyncio.to_thread(
+            live.flash_feed, params.get("product"), params.get("tag"), _number(params, "hours", 24, 1, FLASH_OFFICIAL_HOURS_MAX),
+            _number(params, "limit", 50, 1, 200), wanted, False)
+
+    async def calendar_report(_user: str, _account: Any, params: dict[str, str]) -> dict[str, Any]:
+        return await asyncio.to_thread(live.calendar_feed, _number(params, "days", 7, 1, 7), params.get("region"),
+                                       params.get("product"))
+
+    def screening(answer: dict[str, Any]) -> bool:
+        screen, brief = answer.get("screen") or {}, answer.get("brief") or {}
+        return (screen.get("mode") == "ai" and bool(screen.get("pending"))) or brief.get("status") == "writing" or bool(brief.get("writing"))
+
+    def desk_busy(answer: dict[str, Any]) -> bool:
+        judgment = answer.get("judgment") or {}
+        return judgment.get("status") == "pending" or bool(judgment.get("refreshing")) or bool(answer.get("factsRefreshing"))
+
+    # 今日作战表: its per-product rows are computed at most once a minute and shared; 5 s shows a new 自选 soon.
+    feed.add_report("sheet", FeedReport(sheet_report, _every(5, 5, 30), per_user=True, volatile=frozenset({"generatedAt"})))
+    feed.add_report("desk", FeedReport(desk_report, _every(4, 600, 30, desk_busy), frozenset({"symbol"}), per_user=True))
+    feed.add_report("news", FeedReport(news_report, _every(15, 1800, 60, screening), frozenset({"symbol"})))
+    feed.add_report("summary", FeedReport(summary_report, _every(1800, 1800, 300), frozenset({"symbol"})))
+    feed.add_report("flash", FeedReport(flash_report, _every(15, 60, 60, screening),
+                                        frozenset({"product", "products", "tag", "hours", "limit"})))
+    feed.add_report("calendar", FeedReport(calendar_report, _every(60, 60, 60), frozenset({"days", "region", "product"})))
 
     @application.get("/api/research/{dataset}")
     async def research_dataset(request: Request, dataset: str, symbol: str = Query(min_length=3, max_length=40)) -> dict[str, object]:

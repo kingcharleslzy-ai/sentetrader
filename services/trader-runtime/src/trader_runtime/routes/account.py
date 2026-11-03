@@ -24,6 +24,7 @@ from ..instruments import account_currency, foreign_trade_name
 from ..paper_accounts import PAPER_FOREIGN_INITIAL_BALANCE, PaperEngineError, PaperProvider
 from ..review_picks import review_picks
 from ..risk import decimal_value, risk_budget_summary
+from ..runtime_feed import FeedReport
 from ..strategy_workbench import account_trade_review
 from ..wiring.accounts import ACCOUNT_HEADER, account_status_payload, effective_account_role
 from ..wiring.context import RuntimeContext
@@ -447,9 +448,24 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
         the comparison most. Fewer than 5 计划内 trades: status insufficient. currency picks the CNY/USD review
         ledger without switching the chat's trading account. Read-only."""
         user_id = await current_user(request)
-        context, review = await _review(request, user_id, days=90, currency=currency)
+        context = await review_context(request, user_id, currency)
+        try:
+            return await habits_of(user_id, context.account)
+        except (KeyError, ValueError, RuntimeError) as error:
+            raise HTTPException(status_code=409, detail="成交或合约参数尚不可用") from error
+
+    async def habits_of(user_id: str, account: Any) -> dict[str, object]:
+        review = await account_trade_review(
+            store, account.provider, application.state.fee_settings, user_id,
+            symbol=None, days=90, trading_account_id=account.account_id, desk=ctx.services.research_desk)
         result = habit_compare(review["trades"], basis="gross" if review.get("costSource") == "account" else "net")
-        return {**result, "days": 90, "currency": account_currency(context.account.account_id)}
+        return {**result, "days": 90, "currency": account_currency(account.account_id)}
+
+    # 通用报告推送 (2026-11-03): the 习惯对照 on screen goes out over the push (the session's own account), read
+    # once a minute per account like the panel used to.
+    ctx.runtime_feed.add_report("habits", FeedReport(
+        lambda user_id, account, _params: habits_of(user_id, account),
+        lambda answer: 60.0, frozenset({"account"}), account=True))
 
     @application.put("/api/account/trade-notes/{round_id}")
     async def put_trade_note(request: Request, round_id: str, body: TradeNoteRequest) -> dict[str, object]:

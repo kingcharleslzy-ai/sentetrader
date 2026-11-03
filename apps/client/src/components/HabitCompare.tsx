@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { requestJson } from "../api";
 import type { ReviewTag } from "../dailyReview";
+import { feedReportServes, REPORT_RECHECK_MS, reportKey, useFeedReport } from "../feedView";
 import { useDisclosureSurface } from "../uiSurfaces";
 import { SectionCard, SideBySide, StatTiles } from "./Blocks";
 import { TagChip } from "./DailyReview";
@@ -23,14 +24,19 @@ const money = (value: number) => formatSigned(value, 0);
 const plain = (value: number) => Math.round(Math.abs(value)).toLocaleString("zh-CN");
 
 /** 习惯对照's data (GET /api/account/habits) for the ledger the panel shows; an older Runtime answers 404 and the
- *  block simply never appears. Re-read once a minute: it is a 90-day look, not a live figure. */
+ *  block simply never appears. Checked once a minute: it is a 90-day look, not a live figure. The session's own account's
+ *  comes over the push (通用报告推送 2026-11-03); the read runs only while the push does not serve it. */
 export function useHabitCompare({ baseUrl, accountId }: { baseUrl: string | undefined; accountId?: string | null }) {
   const key = `${baseUrl}|${accountId ?? ""}`;
   const [data, setData] = useState<{ key: string; value: HabitCompareData }>();
+  const report = accountId ? reportKey("habits", { account: accountId }) : undefined;
+  const pushed = useFeedReport<HabitCompareData>(baseUrl, report);
+  useEffect(() => { if (pushed) setData({ key, value: pushed }); }, [pushed]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!baseUrl || accountId === null) return;
     let cancelled = false; let timer: ReturnType<typeof setTimeout>;
     const read = async () => {
+      if (feedReportServes(baseUrl, report)) { timer = setTimeout(read, REPORT_RECHECK_MS); return; }
       try {
         const value = await requestJson<HabitCompareData>(`${baseUrl}/api/account/habits`, {
           headers: accountId ? { "X-AI-Trader-Account": accountId } : undefined });

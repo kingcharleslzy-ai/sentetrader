@@ -176,7 +176,7 @@ class BattleSheet:
         return row
 
     async def user_sheet(self, user_id: str) -> dict[str, Any]:
-        """One user's sheet from their 自选 and 打法 — what GET /api/research/sheet answers and feed.sheet pushes."""
+        """One user's sheet from their 自选 and 打法 — what GET /api/research/sheet answers and the report push sends."""
         products = list(self.store.user_preferences(user_id).watchlist.products)
         return await self.sheet(products, self.store.list_playbooks(user_id=user_id))
 

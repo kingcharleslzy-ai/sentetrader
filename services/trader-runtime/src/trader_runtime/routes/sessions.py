@@ -119,7 +119,17 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
         """What this session's window shows (2026-10-12): page visibility and the 报价总表 rows on
         screen. The push sends the board (feed.board, then feed.board-patch) only to a visible
         window that shows it, and pauses the chart market while the page is hidden; every call
-        starts the board over with one full frame, and a page coming back gets a full chart too."""
+        starts the board over with one full frame, and a page coming back gets a full chart too.
+
+        `reports` (通用报告推送, 2026-11-03): the cloud reports on screen, each as a name plus its GET's
+        query: sheet (/api/research/sheet), desk / news / summary ?symbol= (/api/research/desk, news,
+        summary), flash ?product|products|tag, hours, limit (/api/research/flash, the full feed),
+        calendar ?days, region, product, briefs (/api/app/briefs), and the session account's
+        habits ?account= and daily-review ?account=&tradingDay= (/api/account/habits, daily-review).
+        Each one goes out as feed.report {key, status, report} — that GET's answer — once now and then
+        only when it changed, read once per key (per user where the answer is the user's) on its own
+        cadence. A key the Runtime does not serve (another account's, an unknown name) gets one
+        feed.report with status unavailable; the window reads it itself. Guests get no reports."""
         user_id = await current_user(request)
         require_session(session_id, user_id)
         want = None
@@ -129,7 +139,9 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
             want = BoardWant.of(everything=body.board.all, exchanges=body.board.exchanges,
                                 products=body.board.products, symbols=body.board.symbols, key=body.board.key)
         try:
-            state = runtime_feed.set_view(session_id, visible=body.visible, board=want)
+            # Guests read their own guest routes: no report push for them.
+            reports = frozenset(body.reports) if not guest_request(request) else frozenset()
+            state = runtime_feed.set_view(session_id, visible=body.visible, board=want, reports=reports)
         except KeyError as error:
             raise HTTPException(status_code=404, detail="session_not_found") from error
         return {"sessionId": session_id, "visible": state.visible, "board": state.board is not None}

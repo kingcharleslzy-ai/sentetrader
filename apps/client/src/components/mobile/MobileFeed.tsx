@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ResearchJudgmentCard as Judgment } from "@ai-trader/ui-events";
 import { requestJson } from "../../api";
+import { feedReportServes, REPORT_RECHECK_MS, reportKey, useFeedReports } from "../../feedView";
 import { LONG_READ_TIMEOUT_MS } from "../../requestTimeout";
 import type { DeskReport } from "../ResearchDesk";
 import { deskJudgmentCard } from "./feedItems";
@@ -17,25 +18,34 @@ const DESK_LOADING: DeskState = { card: null, failed: false, loading: true };
  *  order given; `loading` until a product's first read returns (读取中, not yet 暂无); `failed` while
  *  a product's last read failed with nothing read yet (the next read retries). The desk keeps one shared judgment per product, so reading more products starts no
  *  per-user generation. `reload` reads every product again now (下拉刷新); what was read stays
- *  until the new read lands, and a failed reload keeps it. */
+ *  until the new read lands, and a failed reload keeps it. Each judgment comes over the push while it serves them
+ *  (通用报告推送 2026-11-03, the 调研 tab's own key); the reads run only while it does not. */
 export function useDeskJudgments(baseUrl: string | undefined, symbols: readonly string[]): { items: DeskState[]; reload: () => Promise<void> } {
   const key = symbols.join(",");
   const [states, setStates] = useState<Record<string, DeskState>>({});
   const reader = useRef<() => Promise<void>>(async () => undefined);
+  const last = useRef(new Map<string, Judgment>());
+  const reports = useMemo(() => (key ? key.split(",") : []).map(symbol => reportKey("desk", { symbol })), [key]);
+  const pushed = useFeedReports<DeskReport>(baseUrl, reports);
   useEffect(() => {
     setStates({});
+    last.current = new Map();
     const list = key ? key.split(",") : [];
     reader.current = async () => undefined;
     if (!baseUrl || !list.length) return;
     let active = true;
     const timers = new Map<string, number>();
-    const last = new Map<string, Judgment>();
     const read = async (symbol: string) => {
+      if (feedReportServes(baseUrl, reportKey("desk", { symbol }))) {
+        window.clearTimeout(timers.get(symbol));
+        timers.set(symbol, window.setTimeout(() => void read(symbol), REPORT_RECHECK_MS));
+        return;
+      }
       let next: Judgment | null = null;
       let failed = false;
       try {
         next = deskJudgmentCard(await requestJson<DeskReport>(`${baseUrl}/api/research/desk?symbol=${encodeURIComponent(symbol)}`, { timeoutMs: LONG_READ_TIMEOUT_MS }));
-        last.set(symbol, next);
+        last.current.set(symbol, next);
         if (active) setStates(current => ({ ...current, [symbol]: { card: next, failed: false, loading: false } }));
       } catch {
         // The feed shows what it has and the next read retries; a judgment still being written says the check
@@ -49,7 +59,7 @@ export function useDeskJudgments(baseUrl: string | undefined, symbols: readonly 
       }
       if (!active) return;
       // A judgment being written, or a failed read of one (or of nothing yet), is looked at again soon.
-      const kept = next ?? last.get(symbol);
+      const kept = next ?? last.current.get(symbol);
       const soon = next?.status === "pending" || (failed && (!kept || kept.status === "pending"));
       window.clearTimeout(timers.get(symbol));
       timers.set(symbol, window.setTimeout(() => void read(symbol), soon ? DESK_PENDING_MS : DESK_REFRESH_MS));
@@ -58,6 +68,15 @@ export function useDeskJudgments(baseUrl: string | undefined, symbols: readonly 
     list.forEach(symbol => void read(symbol));
     return () => { active = false; timers.forEach(timer => window.clearTimeout(timer)); };
   }, [baseUrl, key]);
+  useEffect(() => {
+    for (const symbol of key ? key.split(",") : []) {
+      const report = pushed.get(reportKey("desk", { symbol }));
+      if (!report) continue;
+      const card = deskJudgmentCard(report);
+      last.current.set(symbol, card);
+      setStates(current => current[symbol]?.card === card ? current : { ...current, [symbol]: { card, failed: false, loading: false } });
+    }
+  }, [pushed]); // eslint-disable-line react-hooks/exhaustive-deps
   const reading = Boolean(baseUrl);
   const items = useMemo(() => (key ? key.split(",") : []).map(symbol => states[symbol] ?? (reading ? DESK_LOADING : DESK_EMPTY)), [key, states, reading]);
   const reload = useCallback(() => reader.current(), []);

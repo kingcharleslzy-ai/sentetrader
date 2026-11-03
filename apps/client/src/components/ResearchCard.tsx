@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { requestJson } from "../api";
 import { LONG_READ_TIMEOUT_MS } from "../requestTimeout";
 import { SectionCard } from "./Blocks";
+import { feedReportServes, REPORT_RECHECK_MS, reportKey, useFeedReport } from "../feedView";
 import { guestRequest } from "../guestApi";
 import { useUiSurface } from "../uiSurfaces";
 
@@ -34,7 +35,7 @@ function line(item: Item): { value: string; detail: string; tone: "ok" | "stale"
 // shows SHFE's weekly warehouse stock instead.
 const LABELS: Array<[string, string]> = [["spot_basis", "基差"], ["warehouse_receipt", "仓单"], ["position_rank", "持仓排名"], ["term_structure", "期限结构"], ["fees_margin", "保证金"]];
 
-/** Product research in the news panel, refreshed every 30 minutes. */
+/** Product research in the news panel: pushed on change for members (通用报告推送 2026-11-03), else read every 30 minutes. */
 export function ResearchCard({ baseUrl, symbol, replay, defaultOpen = true, guest = false, onGuestExpired }: { baseUrl: string | undefined; symbol: string | undefined; replay: boolean; defaultOpen?: boolean; guest?: boolean; onGuestExpired?: () => void }) {
   const [summary, setSummary] = useState<ResearchSummary>();
   const expired = useRef(onGuestExpired);
@@ -48,11 +49,14 @@ export function ResearchCard({ baseUrl, symbol, replay, defaultOpen = true, gues
   // The card exists only with data; an absent card is not commandable or reported.
   const rendered = !replay && Boolean(symbol) && available.length > 0;
   useUiSurface("monitorCard:research", { state: open ? "expanded" : "collapsed", apply: value => setOpen(Boolean(value)) }, [open], rendered);
+  const summaryKey = !guest && symbol && !replay ? reportKey("summary", { symbol }) : undefined;
+  const pushed = useFeedReport<ResearchSummary>(baseUrl, summaryKey);
   useEffect(() => {
     setSummary(undefined); setFailure(undefined);
     if (!baseUrl || !symbol || replay) return;
     let cancelled = false; let timer: ReturnType<typeof setTimeout>;
     const load = async () => {
+      if (feedReportServes(baseUrl, summaryKey)) { timer = setTimeout(load, REPORT_RECHECK_MS); return; }
       try { const path = `/api/${guest ? "guest/" : ""}research/summary?symbol=${encodeURIComponent(symbol)}`; const next = await (guest ? guestRequest<ResearchSummary>(baseUrl, path, { timeoutMs: LONG_READ_TIMEOUT_MS }) : requestJson<ResearchSummary>(`${baseUrl}${path}`, { timeoutMs: LONG_READ_TIMEOUT_MS })); if (!cancelled) { setSummary(next); setFailure(undefined); } }
       catch (cause) {
         if (cancelled) return;
@@ -63,7 +67,8 @@ export function ResearchCard({ baseUrl, symbol, replay, defaultOpen = true, gues
     };
     void load();
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [baseUrl, symbol, replay, guest]);
+  }, [baseUrl, symbol, replay, guest, summaryKey]);
+  useEffect(() => { if (pushed) { setSummary(pushed); setFailure(undefined); } }, [pushed]);
   if (replay || !symbol) return null;
   if (current?.foreign) return <SectionCard title="研究数据"><div className="section-card-body"><p role="status">{current.notice}</p></div></SectionCard>;
   if (!rendered || !current) return <SectionCard title="研究数据"><div className="section-card-body">{error || current ? <p role="alert">研究数据暂不可用</p> : <p role="status">加载中…</p>}</div></SectionCard>;

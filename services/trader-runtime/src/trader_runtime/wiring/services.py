@@ -89,7 +89,7 @@ class RuntimeServices:
     news_search: NewsSearchService
     research_brief: ResearchBriefService
     research_desk: ResearchDeskService
-    # 今日作战表: one instance for the HTTP read and the push (feed.sheet), sharing the per-product rows.
+    # 今日作战表: one instance for the HTTP read and the push (feed.report "sheet"), sharing the per-product rows.
     battle_sheet: BattleSheet
     research_live: ResearchLiveService
     foreign_market: ForeignMarketService

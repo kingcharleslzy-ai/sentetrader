@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { requestJson, type InstrumentCatalogItem } from "../api";
+import { feedReportServes, REPORT_RECHECK_MS, useFeedReport } from "../feedView";
 import { readFlashFeed } from "../flashCache";
 import { useMarketBoard } from "../hooks/useMarketBoard";
 import { listDebates, researchDayNow, useDebateVersion, type DebateSummary } from "../researchDebate";
@@ -158,7 +159,7 @@ export function FlashFeed({ baseUrl, symbol, visible, filter, onFilterChange, so
   baseUrl: string | undefined;
   /** The panel's reading contract (the chart's, unless pinned): 当前品种 filters on its product. */
   symbol: string | undefined;
-  /** The tab is showing: only then does the feed load and refresh every minute. */
+  /** The tab is showing: only then is the feed shown (pushed on change, else read every minute). */
   visible: boolean;
   filter: FlashFilter;
   onFilterChange: (filter: FlashFilter) => void;
@@ -182,6 +183,13 @@ export function FlashFeed({ baseUrl, symbol, visible, filter, onFilterChange, so
     : filter === "watch" ? (watchIds.length ? `products=${encodeURIComponent(watchIds.join(","))}&limit=${SHOWN}` : null)
     : `limit=${SHOWN}`;
   const key = `${filter}|${request}|${watchKey}`;
+  // 通用报告推送 (2026-11-03): the tab's feed and 本周重要数据 come over the push while it shows (the full feed, read
+  // once for every window on the Runtime); the reads below run only while the push does not serve them.
+  const calendarQuery = `days=7${filter === "product" && product ? `&product=${encodeURIComponent(product)}` : ""}`;
+  const flashKey = visible && request !== null ? `flash?hours=24&${request}` : undefined;
+  const calendarKey = visible ? `calendar?${calendarQuery}` : undefined;
+  const pushedFlash = useFeedReport<FlashFeedResponse>(baseUrl, flashKey);
+  const pushedCalendar = useFeedReport<CalendarResponse>(baseUrl, calendarKey);
   const [feed, setFeed] = useState<{ key: string; status: FlashFeedResponse["status"]; items: FlashItem[]; fresh: ReadonlySet<string>; screen?: FlashScreen; sources?: string[];
     events?: NewsEvent[]; layers?: NewsLayers; brief?: NewsBrief; tonight?: TonightEvent[]; error?: string; lastPoll?: FlashFeedResponse["lastPoll"] }>();
   const [calendar, setCalendar] = useState<CalendarResponse>();
@@ -191,6 +199,21 @@ export function FlashFeed({ baseUrl, symbol, visible, filter, onFilterChange, so
   // Two loads of one filter can overlap (the minute timer and the "soon" re-read): only the newest may land (#516).
   const loads = useRef(0);
   const [now, setNow] = useState(() => new Date());
+  /** A feed for this filter, read or pushed: kept, its newly arrived items highlighted briefly (none on the first). */
+  const showFeed = (value: FlashFeedResponse) => {
+    const items = value.items.slice(0, SHOWN);
+    const before = known.current.get(key);
+    known.current.set(key, new Set(items.map(item => item.id)));
+    const { screen, events, layers, brief, tonight, sources, error: code, lastPoll } = value;
+    setFeed({ key, status: value.status, items, screen, sources, events, layers, brief, tonight, error: code, lastPoll,
+      fresh: new Set(before ? items.filter(item => !before.has(item.id)).map(item => item.id) : []) });
+    setError("");
+    setNow(new Date());
+  };
+  const showFeedRef = useRef(showFeed);
+  showFeedRef.current = showFeed;
+  useEffect(() => { if (pushedFlash) { ++loads.current; showFeedRef.current(pushedFlash); } }, [pushedFlash]);
+  useEffect(() => { if (pushedCalendar) { setCalendar(pushedCalendar); setCalendarError(false); } }, [pushedCalendar]);
 
   useEffect(() => {
     if (!visible || !baseUrl) return;
@@ -198,33 +221,50 @@ export function FlashFeed({ baseUrl, symbol, visible, filter, onFilterChange, so
     let soon: ReturnType<typeof setTimeout> | undefined;
     const load = async () => {
       clearTimeout(soon);
+      if (feedReportServes(baseUrl, flashKey)) {
+        // Pushed: nothing to read; look again shortly whether it still is. The times on screen move on once a minute.
+        setNow(current => Date.now() - current.getTime() >= FLASH_REFRESH_MS - REPORT_RECHECK_MS ? new Date() : current);
+        soon = setTimeout(() => { void load(); }, REPORT_RECHECK_MS);
+        return;
+      }
       const mine = ++loads.current;
       setNow(new Date());
-      const flash = request === null ? Promise.resolve<FlashFeedResponse>({ status: "ok", items: [] })
-        : readFlashFeed<FlashFeedResponse>(baseUrl, `hours=24&${request}`);
-      // 本周重要数据: 当前品种 lists only the data related to its product; the other views list the whole week.
-      const calendarPath = `${baseUrl}/api/research/calendar?days=7${filter === "product" && product ? `&product=${encodeURIComponent(product)}` : ""}`;
-      const [flashResult, calendarResult] = await Promise.allSettled([flash, requestJson<CalendarResponse>(calendarPath)]);
-      if (cancelled || mine !== loads.current) return;
-      if (flashResult.status === "fulfilled") {
-        const items = flashResult.value.items.slice(0, SHOWN);
-        // A newly arrived item is highlighted briefly; the first read of a filter highlights nothing.
-        const before = known.current.get(key);
-        known.current.set(key, new Set(items.map(item => item.id)));
-        const { screen, events, layers, brief, tonight, sources, error: code, lastPoll } = flashResult.value;
-        setFeed({ key, status: flashResult.value.status, items, screen, sources, events, layers, brief, tonight, error: code, lastPoll,
-          fresh: new Set(before ? items.filter(item => !before.has(item.id)).map(item => item.id) : []) });
-        setError("");
+      try {
+        const value = request === null ? { status: "ok" as const, items: [] } : await readFlashFeed<FlashFeedResponse>(baseUrl, `hours=24&${request}`);
+        if (cancelled || mine !== loads.current) return;
+        showFeedRef.current(value);
         // The AI is still reading new items, or the analyst is writing the 要点: read again soon.
+        const { screen, brief } = value as FlashFeedResponse;
         if ((screen?.mode === "ai" && screen.pending > 0) || brief?.status === "writing" || brief?.writing) soon = setTimeout(() => { void load(); }, PENDING_REFRESH_MS);
-      } else setError(flashResult.reason instanceof Error ? flashResult.reason.message : "快讯加载失败");
-      if (calendarResult.status === "fulfilled") { setCalendar(calendarResult.value); setCalendarError(false); } else setCalendarError(true);
+      } catch (cause) {
+        if (cancelled || mine !== loads.current) return;
+        setError(cause instanceof Error ? cause.message : "快讯加载失败");
+      }
     };
     void load();
     const timer = setInterval(() => { void load(); }, FLASH_REFRESH_MS);
     return () => { cancelled = true; clearInterval(timer); clearTimeout(soon); };
     // `key` carries filter, request and the watched products.
   }, [visible, baseUrl, key]); // eslint-disable-line react-hooks/exhaustive-deps
+  // 本周重要数据: 当前品种 lists only the data related to its product; the other views list the whole week.
+  useEffect(() => {
+    if (!visible || !baseUrl) return;
+    let cancelled = false;
+    let soon: ReturnType<typeof setTimeout> | undefined;
+    const load = async () => {
+      clearTimeout(soon);
+      if (feedReportServes(baseUrl, calendarKey)) { soon = setTimeout(() => { void load(); }, REPORT_RECHECK_MS); return; }
+      try {
+        const value = await requestJson<CalendarResponse>(`${baseUrl}/api/research/calendar?${calendarQuery}`);
+        if (!cancelled) { setCalendar(value); setCalendarError(false); }
+      } catch {
+        if (!cancelled) setCalendarError(true);
+      }
+    };
+    void load();
+    const timer = setInterval(() => { void load(); }, FLASH_REFRESH_MS);
+    return () => { cancelled = true; clearInterval(timer); clearTimeout(soon); };
+  }, [visible, baseUrl, calendarQuery]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Never paint the previous filter's list while the new one loads.
   const current = feed?.key === key ? feed : undefined;

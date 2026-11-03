@@ -1,6 +1,6 @@
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { requestJson } from "./api";
-import { onBoardResync, onMarketResync } from "./runtimeFeed";
+import { feedReportLiveNow, feedReportRefused, feedStreamAlive, forgetFeedReport, onBoardResync, onMarketResync, useFeedReportEntries } from "./runtimeFeed";
 
 /**
  * 只推看得见的 (2026-10-12): what this window shows, told to the Runtime with
@@ -13,6 +13,11 @@ import { onBoardResync, onMarketResync } from "./runtimeFeed";
  * focus and view are sent again on every stream (re)open, after a board patch that missed its base, and on any
  * change. A Runtime without the route (older) is remembered per base URL and never asked again;
  * the board readers then keep polling as before.
+ *
+ * 通用报告推送 (2026-11-03): the same view names the cloud reports the mounted readers show (`reports`, each a
+ * name plus its read's query, e.g. "desk?symbol=SHFE.au2612"); the Runtime pushes each one on change (feed.report).
+ * A reader shows what is pushed and reads the report itself only while the push does not serve it
+ * (`feedReportServes`); a Runtime that refuses the field (older) is remembered per base URL and never sent it again.
  */
 export interface BoardWant {
   /** Every row (the board view's 全部, the contract drawer, the phone 报价 list). */
@@ -31,6 +36,14 @@ const wants = new Map<number, BoardWant>();
 let nextWant = 0;
 let target: { baseUrl: string; sessionId: string; inFlight: boolean; again: boolean } | undefined;
 const unsupported = new Set<string>();
+const reportWants = new Map<number, string>();
+/** When each shown report key entered the view: its first frame is awaited this long before the reader reads. */
+const reportSince = new Map<string, number>();
+const reportsRefused = new Set<string>();
+/** Waiting for a report's first push stops after this long: the reader then reads it itself. */
+export const REPORT_GRACE_MS = 3_000;
+/** How often a reader whose report the push serves looks again whether it still does (no request). */
+export const REPORT_RECHECK_MS = 2_000;
 let sentBody = "";
 let viewRevision = 0;
 interface FocusWant {
@@ -67,15 +80,20 @@ export function unionBoardWant(items: Iterable<BoardWant>): ViewBoard | undefine
   return { all: false, exchanges, products, symbols, key: `w:${fnv(JSON.stringify([exchanges, products, symbols]))}` };
 }
 
-function viewText() {
+function viewText(baseUrl: string) {
   const board = unionBoardWant(wants.values());
   const visible = typeof document === "undefined" || document.visibilityState !== "hidden";
-  return JSON.stringify({ visible, board: board ?? null });
+  const reports = reportsRefused.has(baseUrl) ? [] : [...reportSince.keys()].sort();
+  // Without reports the body stays what an older Runtime accepts.
+  return JSON.stringify(reports.length ? { visible, board: board ?? null, reports } : { visible, board: board ?? null });
 }
 
 function changed() {
   const key = unionBoardWant(wants.values())?.key ?? "";
   if (key !== currentKey) { currentKey = key; listeners.forEach(listener => listener()); }
+  const shown = new Set(reportWants.values());
+  for (const report of shown) if (!reportSince.has(report)) reportSince.set(report, Date.now());
+  for (const report of [...reportSince.keys()]) if (!shown.has(report)) { reportSince.delete(report); forgetFeedReport(report); }
   schedule(DEBOUNCE_MS);
 }
 
@@ -91,7 +109,7 @@ async function flush() {
   const wanted = focus;
   const focusCurrent = () => target === current && focus === wanted;
   const revision = wanted?.revision;
-  const text = viewText(), view = viewRevision;
+  const text = viewText(current.baseUrl), view = viewRevision;
   current.inFlight = true;
   try {
     await Promise.all([
@@ -116,6 +134,8 @@ async function flush() {
           const status = (error as { status?: number }).status;
           const detail = (error as { detail?: { detail?: unknown } }).detail?.detail;
           if ((status === 404 && detail === "Not Found") || status === 405) unsupported.add(current.baseUrl);
+          // An older Runtime refuses the reports field: send the view without it; its readers keep reading.
+          else if (status === 422 && text.includes('"reports"') && !reportsRefused.has(current.baseUrl)) { reportsRefused.add(current.baseUrl); schedule(0); }
           else if (status !== 401 && status !== 403 && target === current) schedule(RETRY_MS);
         }
       })(),
@@ -174,6 +194,8 @@ export function setFeedViewTarget(baseUrl: string, sessionId: string) {
 
 /** The stream (re)opened, or a board patch missed its base: send the view again for full frames. */
 export function resendFeedView() {
+  // A new stream starts the reports over: their first frames are awaited again before readers read.
+  for (const key of reportSince.keys()) reportSince.set(key, Date.now());
   ++viewRevision;
   sentBody = "";
   schedule(0);
@@ -201,8 +223,54 @@ export function useBoardWant(want: BoardWant | undefined): string {
   return useSyncExternalStore(subscribe, () => currentKey, () => currentKey);
 }
 
+/** Report keys: a name and its read's query, in the order given (undefined values left out). */
+export function reportKey(name: string, params: Record<string, string | number | null | undefined> = {}): string {
+  const query = new URLSearchParams(Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== "")
+    .map(([field, value]) => [field, String(value)])).toString();
+  return query ? `${name}?${query}` : name;
+}
+
+/**
+ * Non-reactive, for a reader's timer: does the push serve this report on this Runtime — delivering it now, or its first
+ * frame still due (the key entered the view under REPORT_GRACE_MS ago on a live stream)? While it does, the reader does
+ * not read the report itself.
+ */
+export function feedReportServes(baseUrl: string | undefined, key: string | undefined, now = Date.now()): boolean {
+  if (!key || !feedViewServes(baseUrl) || reportsRefused.has(baseUrl!)) return false;
+  if (feedReportLiveNow(key, now)) return true;
+  if (feedReportRefused(key)) return false;
+  const since = reportSince.get(key);
+  return since !== undefined && now - since < REPORT_GRACE_MS && feedStreamAlive(now);
+}
+
+/**
+ * Show these cloud reports in this window's view (none while `keys` is empty) and get what the push sent for each, by
+ * key. A value is the report's HTTP answer; the reader applies it like its own read and keeps it when the key goes.
+ */
+export function useFeedReports<T>(baseUrl: string | undefined, keys: readonly string[]): ReadonlyMap<string, T> {
+  const text = baseUrl ? keys.join("\n") : "";
+  useEffect(() => {
+    if (!text) return;
+    const slots = text.split("\n").map(key => { const slot = ++nextWant; reportWants.set(slot, key); return slot; });
+    changed();
+    return () => { slots.forEach(slot => reportWants.delete(slot)); changed(); };
+  }, [text]);
+  const entries = useFeedReportEntries();
+  return useMemo(() => {
+    const found = new Map<string, T>();
+    if (text) for (const key of text.split("\n")) if (entries?.[key]?.status === "ok") found.set(key, entries[key].value as T);
+    return found;
+  }, [entries, text]);
+}
+
+/** One report (see useFeedReports); undefined key: none. */
+export function useFeedReport<T>(baseUrl: string | undefined, key: string | undefined): T | undefined {
+  return useFeedReports<T>(baseUrl, key ? [key] : []).get(key ?? "");
+}
+
 /** Tests: forget every reader, target and remembered Runtime. */
 export function resetFeedViewForTests() {
+  reportWants.clear(); reportSince.clear(); reportsRefused.clear();
   wants.clear(); target = undefined; focus = undefined; ++viewRevision; unsupported.clear(); sentBody = ""; currentKey = "";
   if (timer !== undefined) clearTimeout(timer);
   timer = undefined;

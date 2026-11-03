@@ -3,6 +3,7 @@ import { MessagesSquare, RefreshCw } from "lucide-react";
 import { requestJson } from "../api";
 import { useDebateVersion } from "../researchDebate";
 import { LONG_READ_TIMEOUT_MS } from "../requestTimeout";
+import { feedReportServes, REPORT_RECHECK_MS, reportKey, useFeedReport } from "../feedView";
 import { guestRequest } from "../guestApi";
 import { useDisclosureSurface } from "../uiSurfaces";
 import { SectionCard, SideBySide, StatTiles } from "./Blocks";
@@ -182,6 +183,10 @@ export function ResearchDesk({ baseUrl, symbol, guest = false, compact = false, 
   const sourceRows = current?.facts.length ?? 0;
   const [sourcesOpen, setSourcesOpen] = useDisclosureSurface("desk-sources", { available: sourceRows > 0 });
 
+  // 通用报告推送 (2026-11-03): a member's 调研 comes over the push (the Runtime reads it again soon while a judgment is
+  // written, and at once after 重新判断 or a debate); the read below runs only while the push does not serve it, and for guests.
+  const deskKey = guest ? undefined : reportKey("desk", { symbol });
+  const pushedDesk = useFeedReport<DeskReport>(baseUrl, deskKey);
   useEffect(() => {
     if (!baseUrl) return;
     let cancelled = false;
@@ -189,6 +194,7 @@ export function ResearchDesk({ baseUrl, symbol, guest = false, compact = false, 
     let tries = 0;
     let misses = 0;
     const load = async () => {
+      if (feedReportServes(baseUrl, deskKey)) { timer = setTimeout(load, REPORT_RECHECK_MS); return; }
       let delay = REFRESH_MS;
       try {
         const path = `/api/${guest ? "guest/" : ""}research/desk?symbol=${encodeURIComponent(symbol)}`;
@@ -210,7 +216,8 @@ export function ResearchDesk({ baseUrl, symbol, guest = false, compact = false, 
     };
     void load();
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [baseUrl, symbol, guest, reload, reloadSignal, debates]);
+  }, [baseUrl, symbol, guest, reload, reloadSignal, debates, deskKey]);
+  useEffect(() => { if (pushedDesk) { setReport(pushedDesk); setFailure(undefined); } }, [pushedDesk]);
 
   const judgment = current?.judgment;
   const ready = judgment?.status === "ready";

@@ -875,8 +875,23 @@ def register(application: FastAPI, ctx: Any) -> None:
         生成那个 CME 交易日的复盘，金额是美元（currency USD），`generateAt` 是这个时点的北京时间。只读。"""
         user_id = await current_user(request)
         account = (await ctx.account_context(request, user_id)).account
-        record = store.get_daily_review(user_id=user_id, account_id=account.account_id, trading_day=tradingDay)
-        return view(record, store.daily_review_days(user_id=user_id, account_id=account.account_id), account.account_id)
+        return read(user_id, account.account_id, tradingDay)
+
+    def read(user_id: str, account_id: str, trading_day: str | None) -> dict[str, Any]:
+        record = store.get_daily_review(user_id=user_id, account_id=account_id, trading_day=trading_day)
+        return view(record, store.daily_review_days(user_id=user_id, account_id=account_id), account_id)
+
+    async def review_report(user_id: str, account: Any, params: dict[str, str]) -> dict[str, Any]:
+        day = params.get("tradingDay")
+        if day is not None and not re.fullmatch(DAY, day):
+            raise ValueError("report_param_invalid")
+        return read(user_id, account.account_id, day)
+
+    # 通用报告推送 (2026-11-03): the 今日复盘 on screen goes out over the push (the session's own account), checked
+    # once a minute like the panel used to, so the 15:15 review shows without a reload.
+    from .runtime_feed import FeedReport
+    ctx.runtime_feed.add_report("daily-review", FeedReport(review_report, lambda answer: 60.0,
+                                                           frozenset({"account", "tradingDay"}), account=True))
 
     @application.post("/api/account/daily-review/regenerate")
     async def regenerate_daily_review(request: Request, body: RegenerateBody) -> dict[str, Any]:
@@ -893,7 +908,8 @@ def register(application: FastAPI, ctx: Any) -> None:
             raise HTTPException(409, "成交或合约参数尚不可用") from error
         if payload is None:
             raise HTTPException(409, {"code": "no_fills", "message": "这个交易日没有成交，不生成复盘"})
-        record = store.get_daily_review(user_id=user_id, account_id=account.account_id, trading_day=payload["tradingDay"])
+        ctx.runtime_feed.reports_due("daily-review")
+        record =store.get_daily_review(user_id=user_id, account_id=account.account_id, trading_day=payload["tradingDay"])
         return view(record, store.daily_review_days(user_id=user_id, account_id=account.account_id), account.account_id)
 
     @application.post("/api/account/daily-review/observation")
@@ -959,6 +975,7 @@ def register(application: FastAPI, ctx: Any) -> None:
                                                             **({"memoryId": memory_id} if memory_id else {})}}
             store.save_daily_review(user_id=user_id, account_id=account.account_id, trading_day=body.tradingDay,
                                     payload=payload, version=int(record["version"]), connection=db)
+        ctx.runtime_feed.reports_due("daily-review")  # the user's other windows show the answer too
         return {"tradingDay": body.tradingDay, "observation": payload["observation"], "memoryId": memory_id}
 
 __all__ = ["DailyReviewService", "Reminder", "TAG_LABELS", "TAG_RULES", "annotate_round_tags", "build_legs",

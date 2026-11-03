@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { requestJson } from "../api";
-import { feedLiveNow, useFeedSheet } from "../runtimeFeed";
+import { feedReportServes, REPORT_RECHECK_MS, useFeedReport } from "../feedView";
 import { trimPriceZeros } from "./chartPriceFormat";
 import { SectionCard } from "./Blocks";
 import "./BattleSheet.css";
@@ -36,21 +36,21 @@ function levelText(levels: SheetLevel[]) {
  * 高 / 中 / 低 by the Runtime (news strength + distance to the nearest key level), each with its key levels,
  * the 调研 · 快讯 events it cites and the user's 打法 that may show up there. No 偏多 / 偏空 anywhere.
  * `onOpen` switches the chart to the row's contract and opens 品种调研.
- * Pushed (2026-11-02): the Runtime sends the sheet on the session's stream when it changes (feed.sheet), so opening
- * shows the last one at once; the read below runs only while the push does not deliver it (stream down, older Runtime).
+ * Pushed (2026-11-02; 通用报告推送 2026-11-03): while the tab shows, the Runtime sends the sheet on the session's stream
+ * when it changes (feed.report "sheet"); the read below runs only while the push does not serve it (stream down, older Runtime).
  */
 export function BattleSheet({ baseUrl, visible, compact = false, onOpen, onState }: { baseUrl: string | undefined; visible: boolean;
   compact?: boolean; onOpen?: (symbol: string) => void; onState?: (state: SheetState) => void }) {
-  const pushed = useFeedSheet();
-  const [read, setReport] = useState<SheetReport>();
-  const [readError, setError] = useState("");
-  const report = pushed ?? read;
-  const error = pushed ? "" : readError;
+  const [report, setReport] = useState<SheetReport>();
+  const [error, setError] = useState("");
+  const pushed = useFeedReport<SheetReport>(baseUrl, visible ? "sheet" : undefined);
+  useEffect(() => { if (pushed) { setReport({ ...pushed, foreign: pushed.foreign ?? [] }); setError(""); } }, [pushed]);
   useEffect(() => {
     if (!visible || !baseUrl) return;
     let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
     const load = async () => {
-      if (feedLiveNow("sheet")) return;
+      if (feedReportServes(baseUrl, "sheet")) { timer = setTimeout(() => void load(), REPORT_RECHECK_MS); return; }
       try {
         const next = await requestJson<SheetReport>(`${baseUrl}/api/research/sheet`);
         // An older Runtime (or a proxy page) answers something else: say so instead of drawing it.
@@ -59,10 +59,10 @@ export function BattleSheet({ baseUrl, visible, compact = false, onOpen, onState
       } catch (cause) {
         if (!cancelled) setError(cause instanceof Error ? cause.message : "作战表读取失败");
       }
+      if (!cancelled) timer = setTimeout(() => void load(), REFRESH_MS);
     };
     void load();
-    const timer = window.setInterval(() => void load(), REFRESH_MS);
-    return () => { cancelled = true; window.clearInterval(timer); };
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [visible, baseUrl]);
   const rows = report?.rows ?? [];
   useEffect(() => {

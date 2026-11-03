@@ -11,6 +11,7 @@ from .app_help import help_snapshot, resolve_topic
 from .data_providers import provider_read_snapshot
 from .instruments import SYMBOL_PATTERN
 from .preferences import register_preferences
+from .runtime_feed import FeedReport
 from .skill_registry import skill_block_reason, skill_by_id
 from .ui_control import TourStep, register_ui_control
 from .workbench_extensions import WorkbenchConfig
@@ -271,6 +272,13 @@ def register_workbench_api(app, ctx, extensions, briefs):
         """AI 简报：带 symbol 只读该合约（1.6.x 契约）；不带 symbol 合并读取全部订阅品种
         （新闻 + 异动，按时间新到旧，每条带 product/productName/symbol）。"""
         return await briefs.read(await current_user(request), symbol)
+
+    async def briefs_report(user: str, _account: Any, _params: dict[str, str]) -> dict[str, Any]:
+        return BriefsSnapshot.model_validate(await briefs.read(user, None)).model_dump(mode="json", exclude_none=True)
+
+    # 通用报告推送 (2026-11-03): the merged AI 简报 on screen goes out over the push, read every 15 s per reader (the
+    # floating ball's former cadence) so a finished search shows without each window asking.
+    ctx.runtime_feed.add_report("briefs", FeedReport(briefs_report, lambda answer: 15.0, per_user=True))
 
     @app.post("/api/app/briefs/refresh", response_model=BriefRefreshResult, response_model_exclude_none=True)
     async def refresh_app_briefs(request: Request, body: BriefRefresh):

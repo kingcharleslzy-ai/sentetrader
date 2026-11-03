@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { requestJson } from "./api";
+import { feedReportServes, REPORT_RECHECK_MS, reportKey, useFeedReport } from "./feedView";
 
 /** 今日复盘 (2026-10-06): one trading day's review, as GET /api/account/daily-review returns it. */
 export type ReviewTag = "plan" | "remind" | "adhoc";
@@ -50,8 +51,9 @@ function errorCode(error: unknown): string | undefined {
 }
 
 /**
- * The account's 今日复盘: the latest review (or the day picked), re-read every minute so the 15:15 one
- * appears without a reload; 重新生成 and 本周一件事's 记住 go through the same routes the AI uses.
+ * The account's 今日复盘: the latest review (or the day picked), checked every minute so the 15:15 one
+ * appears without a reload — the session's own account's over the push (通用报告推送 2026-11-03), read here only while
+ * the push does not serve it; 重新生成 and 本周一件事's 记住 go through the same routes the AI uses.
  */
 export function useDailyReview({ baseUrl, accountId, enabled = true }: { baseUrl: string | undefined; accountId?: string | null; enabled?: boolean }) {
   const [day, setDay] = useState<string | null>(null);
@@ -61,11 +63,15 @@ export function useDailyReview({ baseUrl, accountId, enabled = true }: { baseUrl
   const key = `${baseUrl}|${accountId ?? ""}`;
   const headers = accountId ? { "X-AI-Trader-Account": accountId } : undefined;
   useEffect(() => { setDay(null); setNotice(""); }, [key]);
+  const report = enabled && accountId ? reportKey("daily-review", { account: accountId, tradingDay: day }) : undefined;
+  const pushed = useFeedReport<DailyReviewResponse>(baseUrl, report);
+  useEffect(() => { if (pushed && "review" in pushed && Array.isArray(pushed.days)) setData({ key, value: pushed }); }, [pushed]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!baseUrl || !enabled || accountId === null) return;
     let cancelled = false; let timer: ReturnType<typeof setTimeout>;
     const query = day ? `?tradingDay=${encodeURIComponent(day)}` : "";
     const read = async () => {
+      if (feedReportServes(baseUrl, report)) { timer = setTimeout(read, REPORT_RECHECK_MS); return; }
       try {
         const value = await requestJson<DailyReviewResponse>(`${baseUrl}/api/account/daily-review${query}`, { headers });
         // An older Runtime answers something else (or nothing): no block, no snapshot field.

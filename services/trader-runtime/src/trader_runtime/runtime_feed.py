@@ -17,6 +17,11 @@ revision, an account / activity / execution frame once per tick and read key (it
 encoding) — and a focus may carry `since` (the last closed bar the client holds, #816): the first chart
 frame then carries only the bars after it, with the window proof the HTTP read gives (`barsAfter`,
 `barsWindow`).
+
+2026-11-03 通用报告推送: every other report the cloud computes and the windows share (调研, 快讯, 复盘…) goes out the same
+way. A window names the reports it shows in its view ("desk?symbol=SHFE.au2612"); each distinct key (and reader, for a
+per-user report) is read once on the report's own cadence while a visible window shows it, sent to each of them only
+when it changed, and a window that starts showing it gets the last read at once (`report_round`).
 """
 from __future__ import annotations
 
@@ -29,6 +34,9 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from time import monotonic
 from typing import Any
+from urllib.parse import parse_qsl
+
+from fastapi.encoders import jsonable_encoder
 
 from . import fast_json
 from .broker import EventBroker
@@ -41,9 +49,6 @@ FEED_EVENTS = {
     "feed.market": 1.0,
     "feed.activity": 1.0,
     "feed.execution": 1.0,
-    # 今日作战表 (2026-11-02): re-checked every 5 s (a new 自选 shows soon; the per-product rows are computed at
-    # most once a minute and shared), sent only when it changed.
-    "feed.sheet": 5.0,
 }
 # With a snapshot source these are re-read only after the provider refreshed its snapshot.
 SNAPSHOT_GATED = {"feed.account", "feed.market", "feed.activity"}
@@ -51,10 +56,8 @@ SNAPSHOT_GATED = {"feed.account", "feed.market", "feed.activity"}
 # on "feed.status" for that channel alone, never by silence on all of them.
 FEED_CHANNELS = {
     "feed.account": "account", "feed.market": "market",
-    "feed.activity": "activity", "feed.execution": "execution", "feed.sheet": "sheet",
+    "feed.activity": "activity", "feed.execution": "execution",
 }
-# Sent only when the content changed: no 5-second refresh resend, its own time stamp (generatedAt) is no change.
-CHANGE_ONLY = {"feed.sheet"}
 DEFAULT_TICK_SECONDS = 0.5
 # An unchanged payload is still re-sent this often so ageSeconds/capturedAt stay current on the client.
 REFRESH_SECONDS = 5.0
@@ -77,6 +80,8 @@ BOARD_TICK_SECONDS = 1.0
 # included): carried in every patch, never a reason for a new board revision.
 BOARD_VOLATILE = {"capturedAt", "ageSeconds", "revision"}
 REASON_CODE = re.compile(r"^[a-z0-9_]+$")
+# 通用报告推送: due reports are looked at once a second; each report's own `every` sets how often it is read.
+REPORT_TICK_SECONDS = 1.0
 
 
 class FeedReadError(Exception):
@@ -129,6 +134,31 @@ class BoardWant:
                 or str(row.get("symbol") or "").upper() in self.symbols)
 
 
+@dataclass(frozen=True)
+class FeedReport:
+    """One kind of cloud report the push serves (2026-11-03). `load(user, account, params)` answers exactly what the
+    report's HTTP read answers; `every(answer)` is the seconds until it is read again (None: the read failed).
+    `params` are the query names a key may carry. `per_user`: the answer depends on the reader (read once per user,
+    not once for everyone). `account`: the session's trading account's report — its key names that account
+    (`account=`), and a key naming another one is not served (the window reads that one itself). `volatile`: top-level
+    fields that move on every read without a business change (no reason to send)."""
+    load: Callable[[str, Any, dict[str, str]], Awaitable[dict[str, Any]]]
+    every: Callable[[dict[str, Any] | None], float]
+    params: frozenset[str] = frozenset()
+    per_user: bool = False
+    account: bool = False
+    volatile: frozenset[str] = frozenset()
+
+
+@dataclass
+class _ReportRead:
+    """The last read of one report key (for one reader when per-user), shared by every session showing it."""
+    due: float
+    digest: str = ""
+    frame: dict[str, Any] = field(default_factory=dict)
+    prepared: Any = None
+
+
 @dataclass
 class _BoardFrame:
     """One board read the push holds: rows by symbol in board order, and what changed since the
@@ -176,6 +206,10 @@ class _SessionState:
     board_published: float = 0.0
     board_error: str | None = None     # the unavailability last reported on the board channel
     view_epoch: int = 0
+    # 通用报告推送 (2026-11-03): the report keys the window shows and the digest of each one its client holds.
+    reports: frozenset[str] = frozenset()
+    report_sent: dict[str, str] = field(default_factory=dict)
+    report_generation: int = -1
 
 
 class RuntimeFeed:
@@ -192,7 +226,7 @@ class RuntimeFeed:
         tick_seconds: float = DEFAULT_TICK_SECONDS,
         snapshot_gated: bool = False,
         shared_market: Callable[[], Any] | None = None,
-        sheet: Callable[[str], Awaitable[dict[str, Any]]] | None = None,
+        report_account: Callable[[str | None, str], Any] | None = None,
     ) -> None:
         self.broker = broker
         self._shared_market = shared_market
@@ -208,7 +242,13 @@ class RuntimeFeed:
         self._market_workbench = market_workbench
         self._activity = activity
         self._execution = execution
-        self._sheet = sheet
+        self._reports: dict[str, FeedReport] = {}
+        # (account, user) -> the account's services, granted to that user (an account report's `load` gets them).
+        self._report_account = report_account
+        self._report_reads: dict[tuple[str, str | None, str | None], _ReportRead] = {}
+        self._report_loading: dict[tuple[str, str | None, str | None], asyncio.Task[None]] = {}
+        self._reports_task: asyncio.Task[None] | None = None
+        self._reports_wake = asyncio.Event()
         self.tick_seconds = tick_seconds
         # Without a snapshot source (fake provider) the time throttle alone applies.
         self._snapshot_gated = snapshot_gated
@@ -246,10 +286,12 @@ class RuntimeFeed:
         state = self._sessions.get(session_id)
         return state.focus if state else None
 
-    def set_view(self, session_id: str, *, visible: bool, board: BoardWant | None) -> _SessionState:
+    def set_view(self, session_id: str, *, visible: bool, board: BoardWant | None,
+                 reports: frozenset[str] = frozenset()) -> _SessionState:
         """What the session's window shows right now (2026-10-12): whether the page is visible and
         which board rows are on screen. Every call starts the board over with one full frame (the
-        client's resync); a page coming back gets one full chart frame too."""
+        client's resync); a page coming back gets one full chart frame too. `reports` (2026-11-03): the
+        report keys on screen; a key newly shown gets the last read at once, the others only what changed."""
         state = self._state(session_id)
         if state is None:
             raise KeyError(session_id)
@@ -260,14 +302,29 @@ class RuntimeFeed:
         state.board_held = None
         state.board_error = None
         state.view_epoch += 1
+        state.reports = reports
+        # A key the window stops showing is forgotten by its client: showing it again starts it over.
+        state.report_sent = {key: digest for key, digest in state.report_sent.items() if key in reports}
         if shown or hidden:
             for name in ("feed.market",):
                 state.last_sent.pop(name, None)
                 state.read_version.pop(name, None)
             self._restart_market(session_id)
         self._board_wake.set()
+        self._reports_wake.set()
         self._wake.set()
         return state
+
+    def add_report(self, name: str, report: FeedReport) -> None:
+        """A report the push serves, registered next to its HTTP read (routes)."""
+        self._reports[name] = report
+
+    def reports_due(self, name: str) -> None:
+        """Something changed a report of this name (a rejudge, an adopted debate): read it again now."""
+        for (key, _user, _account), read in self._report_reads.items():
+            if key.partition("?")[0] == name:
+                read.due = 0.0
+        self._reports_wake.set()
 
     def forget_session(self, session_id: str) -> None:
         self._sessions.pop(session_id, None)
@@ -318,16 +375,23 @@ class RuntimeFeed:
             self._task = asyncio.create_task(self._run())
         if self._board_task is None or self._board_task.done():
             self._board_task = asyncio.create_task(self._run_board())
+        if self._reports_task is None or self._reports_task.done():
+            self._reports_task = asyncio.create_task(self._run_reports())
 
     async def stop(self) -> None:
         self._closing = True
         self._wake.set()
         self._board_wake.set()
-        for task in (self._task, self._board_task):
+        self._reports_wake.set()
+        for task in (self._task, self._board_task, self._reports_task):
             if task is not None:
                 task.cancel()
                 await asyncio.gather(task, return_exceptions=True)
-        self._task = self._board_task = None
+        self._task = self._board_task = self._reports_task = None
+        loading = list(self._report_loading.values())
+        for task in loading:
+            task.cancel()
+        await asyncio.gather(*loading, return_exceptions=True)
         for session_id in list(self._market_tasks):
             self._cancel_market(session_id)
         await asyncio.gather(*self._retiring_market_tasks, return_exceptions=True)
@@ -665,6 +729,138 @@ class RuntimeFeed:
                 state.board_held, state.board_published, state.board_error = frame.id, now, None
         return sent
 
+    # -- 通用报告推送 (2026-11-03) ------------------------------------------
+
+    async def _run_reports(self) -> None:
+        while not self._closing:
+            try:
+                await self.report_round()
+            except Exception:
+                log.exception("runtime_feed_report_round_failed")
+            try:
+                await asyncio.wait_for(self._reports_wake.wait(), timeout=REPORT_TICK_SECONDS)
+            except TimeoutError:
+                pass
+            self._reports_wake.clear()
+
+    def _report_slot(self, key: str, state: _SessionState
+                     ) -> tuple[FeedReport, dict[str, str], tuple[str, str | None, str | None]] | str:
+        """The report a key names, its params and the read it shares (key, reader, account) — or why it is not served."""
+        name, _, query = key.partition("?")
+        spec = self._reports.get(name)
+        try:
+            params = dict(parse_qsl(query, strict_parsing=True)) if query else {}
+        except ValueError:
+            return "report_unknown"
+        if spec is None or not set(params) <= spec.params:
+            return "report_unknown"
+        if spec.account and params.get("account", "") != (state.account_id or ""):
+            return "report_account_other"
+        reader = state.user_id if spec.per_user or spec.account else None
+        return spec, params, (key, reader, state.account_id if spec.account else None)
+
+    async def _load_report(self, spec: FeedReport, slot: tuple[str, str | None, str | None], params: dict[str, str]) -> None:
+        try:
+            self._report_reads[slot] = await self._read_report(spec, slot, params, self._report_reads.get(slot))
+        finally:
+            self._report_loading.pop(slot, None)
+            self._reports_wake.set()  # send it now, not at the next tick
+
+    async def _read_report(self, spec: FeedReport, slot: tuple[str, str | None, str | None], params: dict[str, str],
+                           previous: _ReportRead | None) -> _ReportRead:
+        key, reader, account = slot
+        try:
+            services = None
+            if spec.account:
+                if self._report_account is None:
+                    raise FeedReadError("report_unavailable")
+                services = self._report_account(account, reader or "")
+            # The same JSON the HTTP read answers (FastAPI encodes a route's dict the same way).
+            payload: dict[str, Any] | None = jsonable_encoder(await spec.load(reader or "", services, params))
+            reason = None
+        except FeedReadError as error:
+            payload, reason = None, error.reason
+        except Exception as failure:  # noqa: BLE001 - every failure is reported on the report's own frame
+            payload = None
+            detail = getattr(failure, "detail", None)
+            reason = next((value for value in (detail, str(failure)) if isinstance(value, str) and REASON_CODE.fullmatch(value)),
+                          "report_unavailable")
+            if previous is None or previous.frame.get("reason") != reason:
+                log.warning("runtime_feed_report_failed key=%s error=%r", key, failure)
+        frame: dict[str, Any]
+        if payload is None:
+            frame = {"key": key, "status": "unavailable", "reason": reason}
+            digest = f"unavailable:{reason}"
+        else:
+            frame = {"key": key, "status": "ok", "report": payload}
+            digest = _digest({name: value for name, value in payload.items() if name not in spec.volatile})
+        read = _ReportRead(due=monotonic() + spec.every(payload), digest=digest, frame=frame)
+        if previous is not None and previous.digest == digest:
+            read.frame, read.prepared = previous.frame, previous.prepared  # unchanged: encoded once already
+        return read
+
+    async def report_round(self) -> int:
+        """Read every due report some visible window shows, once per key (and reader), and send each window the
+        ones whose content its client does not hold yet; returns events sent."""
+        audience: dict[tuple[str, str | None, str | None], list[tuple[str, _SessionState, str]]] = {}
+        specs: dict[tuple[str, str | None, str | None], tuple[FeedReport, dict[str, str]]] = {}
+        unserved: list[tuple[str, _SessionState, str, str]] = []
+        for session_id in self.broker.subscribed_session_ids():
+            state = self._sessions.get(session_id)
+            if (state is None or not state.reports or not state.visible
+                    or self._session_user(session_id) != state.user_id):
+                continue
+            generation = self.broker.stream_generation(session_id)
+            if generation != state.report_generation:
+                state.report_sent.clear()  # a new reader starts empty
+                state.report_generation = generation
+            for key in state.reports:
+                served = self._report_slot(key, state)
+                if isinstance(served, str):
+                    unserved.append((session_id, state, key, served))
+                    continue
+                spec, params, slot = served
+                specs[slot] = (spec, params)
+                audience.setdefault(slot, []).append((session_id, state, key))
+        # A read nobody shows is dropped: a window coming back later gets a fresh one, not an old copy.
+        for slot in [slot for slot in self._report_reads if slot not in specs]:
+            del self._report_reads[slot]
+        now = monotonic()
+        for slot, (spec, params) in specs.items():
+            if slot not in self._report_loading and (slot not in self._report_reads or self._report_reads[slot].due <= now):
+                # Each read runs on its own: a slow one (a first collection) holds up no other report.
+                self._report_loading[slot] = asyncio.create_task(self._load_report(spec, slot, params))
+        prepare = getattr(self.broker, "prepare_frame", None)
+        sent = 0
+        for slot, members in audience.items():
+            read = self._report_reads.get(slot)
+            if read is None:
+                continue  # its first read is still running
+            if prepare is not None and read.prepared is None:
+                try:
+                    read.prepared = prepare("feed.report", read.frame)  # validated and encoded once for every window
+                except TypeError:
+                    read.prepared = False  # not encodable: sent unprepared (the stream drops this one frame)
+            for session_id, state, key in members:
+                sent += await self._send_report(session_id, state, key, read.digest, read.frame, read.prepared or None)
+        for session_id, state, key, reason in unserved:
+            # Not served here (an unknown report, another account's): said once; the window reads it itself.
+            sent += await self._send_report(session_id, state, key, f"unavailable:{reason}",
+                                            {"key": key, "status": "unavailable", "reason": reason}, None)
+        return sent
+
+    async def _send_report(self, session_id: str, state: _SessionState, key: str, digest: str,
+                           frame: dict[str, Any], prepared: Any) -> int:
+        if self._sessions.get(session_id) is not state or key not in state.reports or state.report_sent.get(key) == digest:
+            return 0  # the view changed while the reads awaited, or its client holds this one
+        if prepared is not None:
+            await self.broker.publish_transient(session_id, kind="result", name="feed.report", payload=frame,
+                                                prepared_market=prepared)
+        else:
+            await self.broker.publish_transient(session_id, kind="result", name="feed.report", payload=frame)
+        state.report_sent[key] = digest
+        return 1
+
     # -- one tick ------------------------------------------------------------
 
     async def tick(self) -> int:
@@ -707,8 +903,6 @@ class RuntimeFeed:
                 if self._shared_market is None and state.visible:
                     plan.append(("feed.market", ("market", account, symbol, str(duration))))
                 plan.append(("feed.activity", ("activity", account, user, symbol)))
-            if self._sheet is not None and state.visible:
-                plan.append(("feed.sheet", ("sheet", user)))
             for name, key in plan:
                 if not self._due(state, name):
                     continue
@@ -739,8 +933,7 @@ class RuntimeFeed:
                     continue
                 frame = frames.get(key)
                 if frame is None or frame.payload is not payload:
-                    frame = frames[key] = _Frame(payload, _digest(
-                        {k: v for k, v in payload.items() if k != "generatedAt"} if name in CHANGE_ONLY else payload))
+                    frame = frames[key] = _Frame(payload, _digest(payload))
                 sent += await self._publish(session_id, state, name, payload, digest=frame.digest, shared=frame)
         return sent
 
@@ -755,8 +948,7 @@ class RuntimeFeed:
         previous = state.last_sent.get(name)
         account = state.account_id  # the session's account at read time; re-checked after the await
         now = monotonic()
-        if previous is not None and previous.digest == digest and (now - previous.published < REFRESH_SECONDS
-                                                                     or name in CHANGE_ONLY):
+        if previous is not None and previous.digest == digest and now - previous.published < REFRESH_SECONDS:
             previous.checked = now
             return 0
         if (previous is not None and previous.digest == digest and event_name is None
@@ -800,8 +992,6 @@ class RuntimeFeed:
     ) -> dict[str, Any] | None:
         if name == "feed.execution":
             return await self._execution(account, user)
-        if name == "feed.sheet" and self._sheet is not None:
-            return await self._sheet(user)
         if name == "feed.market" and symbol:
             return await self._market_workbench(account, symbol, duration)
         if name in {"feed.account", "feed.activity"}:

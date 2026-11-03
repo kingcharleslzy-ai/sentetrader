@@ -206,7 +206,7 @@ def build_feed(ctx: RuntimeContext) -> RuntimeFeed:
         account_overview=_feed_account_overview, market_workbench=_feed_market, activity=_feed_activity,
         shared_market=(lambda: getattr(ctx.application.state, "shared_market", None)) if ctx.replay_provider is None else None,
         execution=_feed_execution, snapshot_gated=hasattr(accounts.default.provider, "subscribe_snapshot"),
-        sheet=services.battle_sheet.user_sheet,
+        report_account=_granted_account,
     )
     # Order links change between provider snapshots; push the activity right away.
     # The same wiring every on-demand assembler (pool and paper accounts) applies.

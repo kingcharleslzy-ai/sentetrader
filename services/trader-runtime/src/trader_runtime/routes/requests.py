@@ -59,13 +59,19 @@ class FeedBoardWantRequest(BaseModel):
     key: str = Field(default="", max_length=80, pattern=r"^[A-Za-z0-9_:.-]*$")
 
 
+# A report key: the report's name, then its read's query ("desk?symbol=SHFE.au2612", "sheet").
+_ReportKey = Annotated[str, Field(min_length=1, max_length=700, pattern=r"^[a-z][a-z0-9-]{0,31}(\?[A-Za-z0-9_.,:%=&+-]{1,660})?$")]
+
+
 class FeedViewRequest(BaseModel):
     """What the window shows (2026-10-12): page visibility (Page Visibility API) and the board rows
-    on screen (None = no board). A hidden page gets no chart market or board push; account,
-    activity, execution and every event (orders, alerts, reminders, AI results) keep flowing."""
+    on screen (None = no board). A hidden page gets no chart market, board or report push; account,
+    activity, execution and every event (orders, alerts, reminders, AI results) keep flowing.
+    `reports` (通用报告推送, 2026-11-03): the cloud reports on screen, each as its name and its HTTP read's query."""
     model_config = ConfigDict(extra="forbid")
     visible: bool = True
     board: FeedBoardWantRequest | None = None
+    reports: list[_ReportKey] = Field(default_factory=list, max_length=32)
 
 
 class SessionAccountRequest(BaseModel):

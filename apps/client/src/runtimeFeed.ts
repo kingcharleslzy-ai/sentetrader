@@ -2,7 +2,6 @@ import { useSyncExternalStore } from "react";
 import type { UiEvent } from "@ai-trader/ui-events";
 import type { AccountOverviewSnapshot, AiExecutionSnapshot, MarketBoardRow, MarketBoardSnapshot, MarketWorkbenchSnapshot } from "./api";
 import type { ActivitySnapshot } from "./runtimeClient";
-import type { SheetReport } from "./components/BattleSheet";
 import { mergeGuestMarket, type GuestMarketFrame } from "./guestMarket";
 import { feedMarketFrame, keepFeedFocusOf } from "./marketCache";
 import { rumPriceFrame } from "./rum";
@@ -21,9 +20,13 @@ import { rumPriceFrame } from "./rum";
  * second when idle) an ok market channel stays live, and nothing polls it.
  * The Runtime reports a failed market read on feed.status as before.
  */
-export type FeedChannel = "account" | "market" | "activity" | "execution" | "board" | "sheet";
+export type FeedChannel = "account" | "market" | "activity" | "execution" | "board";
 
-export const FEED_CHANNELS: readonly FeedChannel[] = ["account", "market", "activity", "execution", "board", "sheet"];
+export const FEED_CHANNELS: readonly FeedChannel[] = ["account", "market", "activity", "execution", "board"];
+
+/** One pushed report: its last answer (`value`, ok only) — pushed on change only, so it stays current while the stream
+ *  is alive — or the Runtime's word that it cannot serve it (`unavailable`: the reader reads it itself). */
+export interface FeedReportEntry { status: "ok" | "unavailable"; value?: unknown; reason?: string }
 
 export interface FeedChannelState {
   /** When this client received the last event on the channel. */
@@ -50,8 +53,8 @@ export interface RuntimeFeedState {
   board?: FeedBoardSnapshot;
   activity?: ActivitySnapshot;
   execution?: AiExecutionSnapshot;
-  /** 今日作战表 (feed.sheet, 2026-11-02): the user's sheet, pushed while the page is visible and only when it changed. */
-  sheet?: SheetReport;
+  /** 通用报告推送 (feed.report, 2026-11-03): the cloud reports this window shows, by key (see feedView.ts). */
+  reports?: Readonly<Record<string, FeedReportEntry>>;
   channels: Partial<Record<FeedChannel, FeedChannelState>>;
   /** The session these snapshots belong to (for the stream-alive check). */
   sessionId?: string;
@@ -64,7 +67,7 @@ const streamAliveAt = new Map<string, number>();
 const EMPTY: RuntimeFeedState = { channels: {} };
 const CHANNEL_OF: Record<string, FeedChannel | undefined> = {
   "feed.account": "account", "feed.market": "market",
-  "feed.activity": "activity", "feed.execution": "execution", "feed.board": "board", "feed.sheet": "sheet"
+  "feed.activity": "activity", "feed.execution": "execution", "feed.board": "board"
 };
 const states = new Map<string, RuntimeFeedState>();
 let activeSessionId: string | undefined;
@@ -247,6 +250,14 @@ export function applyFeedEvent(sessionId: string, event: UiEvent, now = Date.now
     orderFactListeners.forEach(listener => listener(sessionId, (event.payload ?? {}) as OrderFactEvent));
     return true;
   }
+  if (event.name === "feed.report") {
+    const { key, status, report, reason } = event.payload;
+    const previous = states.get(sessionId) ?? EMPTY;
+    const entry: FeedReportEntry = status === "ok" ? { status, value: report ?? undefined } : { status, reason: reason ?? undefined };
+    states.set(sessionId, { ...previous, sessionId, reports: { ...previous.reports, [key]: entry } });
+    emit();
+    return true;
+  }
   if (event.name === "feed.debate") {
     debateListeners.forEach(listener => listener(event.payload as DebateDeltaEvent));
     return true;
@@ -302,12 +313,36 @@ export function useFeedBoard(): { board?: FeedBoardSnapshot; channel?: FeedChann
   return { board, channel };
 }
 
-/** The active session's pushed 今日作战表 while its push delivers (else undefined): re-renders on sheet events only. */
-export function useFeedSheet(): SheetReport | undefined {
-  const sheet = useSyncExternalStore(subscribe, () => states.get(activeSessionId ?? "")?.sheet);
-  const channel = useSyncExternalStore(subscribe, () => states.get(activeSessionId ?? "")?.channels.sheet);
-  const sessionId = useSyncExternalStore(subscribe, () => states.get(activeSessionId ?? "")?.sessionId);
-  return sheet && channel && feedIsLive({ channels: { sheet: channel }, sessionId }, "sheet") ? sheet : undefined;
+/** The active session's pushed reports (feed.report) by key: re-renders on report events only. */
+export function useFeedReportEntries(): Readonly<Record<string, FeedReportEntry>> | undefined {
+  return useSyncExternalStore(subscribe, () => states.get(activeSessionId ?? "")?.reports);
+}
+
+/** Non-reactive: does the active session's push deliver the report `key` now? A report is pushed on change only, so an
+ *  ok one stays current while the session's stream is alive. */
+export function feedReportLiveNow(key: string, now = Date.now()): boolean {
+  const state = states.get(activeSessionId ?? "");
+  return state?.reports?.[key]?.status === "ok" && feedStreamAlive(now);
+}
+
+/** Non-reactive: the Runtime said it cannot serve the report `key` (the reader reads it itself at once). */
+export function feedReportRefused(key: string): boolean {
+  return states.get(activeSessionId ?? "")?.reports?.[key]?.status === "unavailable";
+}
+
+/** Non-reactive: the active session's stream showed life within STREAM_ALIVE_MS. */
+export function feedStreamAlive(now = Date.now()): boolean {
+  return activeSessionId !== undefined && now - (streamAliveAt.get(activeSessionId) ?? -Infinity) < STREAM_ALIVE_MS;
+}
+
+/** The window stopped showing a report: its pushed copy stops being kept current, so it is dropped. */
+export function forgetFeedReport(key: string) {
+  const state = states.get(activeSessionId ?? "");
+  if (!activeSessionId || !state?.reports?.[key]) return;
+  const { [key]: _gone, ...reports } = state.reports;
+  void _gone;
+  states.set(activeSessionId, { ...state, reports });
+  emit();
 }
 
 /** Non-reactive, for poll timers: does the active session's push deliver the board rows named `key` now? */
@@ -326,8 +361,8 @@ export function feedIsLive(state: RuntimeFeedState, channel: FeedChannel, now = 
   const entry = state.channels[channel];
   if (entry === undefined || entry.status !== "ok") return false;
   if (now - entry.receivedAt < FEED_STALE_MS) return true;
-  // Pushed on change only: an unchanged market or sheet stays live while its stream is alive.
-  return (channel === "market" || channel === "sheet") && state.sessionId !== undefined
+  // Pushed on change only: an unchanged market stays live while its stream is alive.
+  return channel === "market" && state.sessionId !== undefined
     && now - (streamAliveAt.get(state.sessionId) ?? -Infinity) < STREAM_ALIVE_MS;
 }
 

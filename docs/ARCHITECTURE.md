@@ -66,7 +66,7 @@ Python 发布前和 TypeScript 消费前都会深度校验 v1 契约；未知或
 | --- | --- | --- |
 | `feed.account` | `/api/account/summary` + `/api/positions` + `/api/account/activity` + `/api/risk/summary` 的合并结果 | ≥1 秒 |
 | `feed.execution` | `/api/ai-execution` | ≥1 秒 |
-| `feed.sheet` | `/api/research/sheet`（今日作战表，2026-11-02） | 每 5 秒核一次，内容变了才发（不做 5 秒重发）；只发给页面可见的会话 |
+| `feed.report` | 通用报告推送（2026-11-03）：窗口在 `PUT /api/sessions/{id}/feed/view` 的 `reports` 里列出正在显示的云端报告（作战表、调研、相关报道、研究数据、快讯、本周重要数据、AI 简报、本账户的习惯对照与今日复盘），每份 `{key, status, report}`，`report` 即该报告 GET 的回答 | 独立一拍（1 秒）；每个报告键（按人的报告每人一份）按原来面板的轮询间隔读一次、多窗口共用，内容变了才发；只发给页面可见的会话，新显示的键立刻拿上次读到的那份 |
 | `feed.market` | 会话关注合约/周期的公共 `market/workbench`（带共享源版本 `revision`） | 配置共享源后行情一变即独立推送，慢端只保留最新完整状态 |
 | `feed.market-patch` | 相对客户端已持有的 `base` 版本只推变化：变化的字段（报价变了带整份报价）与 `barsPatch {bars, trimBefore}` | 仅发给在 `PUT /api/sessions/{id}/feed` 里声明 `marketPatches: true` 的会话（旧桌面客户端不声明，仍收整份）；约 1 KB 替代每次约 41 KB 的整份图表；与整份行情共用一个“最新行情”槽，客户端发现 `base` 对不上就重发关注拿一份整份，重连也先发整份 |
 | `feed.activity` | 关注合约的 `/api/app/activity` | ≥1 秒 |
