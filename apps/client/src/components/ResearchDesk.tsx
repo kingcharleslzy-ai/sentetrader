@@ -137,7 +137,7 @@ function DeskFoldView({ title, summary, count, open, onToggle, children }: { tit
     <button type="button" className="desk-fold-head" aria-expanded={open} aria-label={`${open ? "收起" : "展开"}${title}`} onClick={onToggle}>
       <b>{title}</b><span>{summary}</span><i>{open ? "收起" : `展开 ${count} 项`}</i>
     </button>
-    {open ? <div className="desk-fold-rows">{children}</div> : null}
+    {open ? <div className="desk-fold-rows ui-reveal">{children}</div> : null}
   </div>;
 }
 

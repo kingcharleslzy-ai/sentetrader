@@ -644,6 +644,8 @@
    out while the new one slides in from the side of the tab it came from; the chat and 我的 push in from the right and slide back out.
    Nothing shows past the phone's edge meanwhile. */
 .fdm-body:has([data-swap-exit]) { overflow: clip; }
+/* 调研换品种 (动效第三批): the desk of the new product and its 快讯 fade in (each is mounted afresh for its product). */
+.fdm-research .research-desk, .fdm-research-flash { animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; --enter-transform: translateY(6px); }
 /* The light-blue pill under the current tab slides to it; the icon gives one small bounce. The
    colour itself still switches at once (see .fdm-tabs > button). */
 /* It spans the whole tab, icon and label, so it grows with the font (2026-11-02: a fixed 30 px block cut the label in half). */

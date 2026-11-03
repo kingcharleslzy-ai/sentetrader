@@ -15,7 +15,7 @@ import { FALLBACK_PRICE_TITLE, chartDayQuote, foreignChartSource, formatNumber }
 import type { ChartIndicatorPatch } from "../chartIndicatorEditor";
 import type { ChartIndicatorConfig } from "../chartIndicators";
 import { RollingText, usePriceFlash } from "./mobileMotion";
-import { Presence, Swap, useStepMotion } from "../motion";
+import { motionMs, Presence, Swap, useStepMotion } from "../motion";
 import { MARKET_VIEWS, shownSubPane, subPaneName } from "./mobileMarketPrefs";
 import type { MobileMarketHandle } from "./useMobileMarket";
 import { MobileQuotes, quoteRows, type QuoteRow } from "./MobileQuotes";
@@ -140,6 +140,15 @@ export function MobileMarket({ market, name, decimals, chartView, onSelectDurati
   const savePreferences = useMemo(() => onIndicatorsChange
     ? (patch: DrawingPreferencePatch) => onIndicatorsChange(patch as ChartIndicatorPatch) : undefined, [onIndicatorsChange]);
   const drawingPeriod = chartView === "timeshare" ? 0 : market?.durationSeconds ?? 0;
+  // 换周期 (动效第三批): the chart of the new period fades in over --dur-2 (opacity only; reduced motion: none).
+  const shownPeriod = `${quote?.symbol ?? ""}@${drawingPeriod}`;
+  const firstPeriod = useRef(shownPeriod);
+  useEffect(() => {
+    if (shownPeriod === firstPeriod.current) return;
+    firstPeriod.current = shownPeriod;
+    const ms = motionMs("--dur-2");
+    if (ms) chartBox.current?.animate?.([{ opacity: 0.35 }, { opacity: 1 }], { duration: ms, easing: "ease-out" });
+  }, [shownPeriod]);
   const desk = useDrawingDesk({ drawings: view === "single" ? drawings : undefined, symbol: quote?.symbol, period: drawingPeriod, tick: quote?.priceTick,
     preferences: chartPreferences, savePreferences, contextMenu: null, mobile: true });
   const [draftCount, setDraftCount] = useState(0);

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type HTMLAttributes } from "react";
 import { Settings2, Star } from "lucide-react";
 import { sameContract, getMarketQuotes, type AccountPosition, type ForeignBoardSnapshot, type InstrumentCatalogItem, type MarketBoardRow,
   type MarketBoardSnapshot } from "../../api";
@@ -7,6 +7,7 @@ import { useDisclosureSurface } from "../../uiSurfaces";
 import { FALLBACK_PRICE_TITLE, dayQuote, formatNumber, watchlistKey, watchlistMainSymbol } from "../futures/support";
 import { SwipeRow, type RowAction } from "./RowActions";
 import { Presence, Swap, useStepMotion } from "../motion";
+import { usePriceFlash } from "./mobileMotion";
 import { QUOTE_BOARDS, QUOTE_COLUMNS, QUOTE_COLUMNS_MAX, type QuoteBoard, type QuoteColumn } from "./mobileMarketPrefs";
 
 /** One 报价 row: a board row (a product's main contract) or a held month the board does not carry. */
@@ -104,6 +105,11 @@ function ForeignRows({ foreign, columns, connected, onOpen }: { foreign?: { snap
       );
     })}
   </>;
+}
+
+/** 最新: its soft market colour flashes behind it when it moves (动效第三批, theme.css `[data-tick]`). */
+function TickValue({ value, symbol, ...props }: { value: number | null | undefined; symbol: string } & HTMLAttributes<HTMLSpanElement>) {
+  return <span {...props} data-tick={usePriceFlash(value, symbol)} />;
 }
 
 const signed = (value: number, text: string) => `${value > 0 ? "+" : ""}${text}`;
@@ -307,8 +313,9 @@ export function MobileQuotes({ baseUrl, board, foreign, boardError, boardId, col
               const value = row.values[column];
               const tone = TONED.has(column) ? direction(row.values.changePercent ?? row.values.change) : column === "openInterestChange" ? direction(value) : undefined;
               const fallback = column === "last" && row.fallback;
-              return <span key={column} className={`fdm-quote-value${fallback ? " fallback" : ""}`} data-direction={tone}
-                title={fallback ? FALLBACK_PRICE_TITLE : undefined}>{column === "changePercent" && row.note ? row.note : cellText(column, value, row.decimals)}</span>;
+              const cell = { className: `fdm-quote-value${fallback ? " fallback" : ""}`, "data-direction": tone, title: fallback ? FALLBACK_PRICE_TITLE : undefined,
+                children: column === "changePercent" && row.note ? row.note : cellText(column, value, row.decimals) };
+              return column === "last" ? <TickValue key={column} value={value} symbol={row.symbol} {...cell} /> : <span key={column} {...cell} />;
             })}
           </button></SwipeRow>
         ))}

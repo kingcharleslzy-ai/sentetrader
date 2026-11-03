@@ -146,7 +146,7 @@ export function MobileResearch({ baseUrl, symbol, productName, judgment, watchli
             onDebate={guest ? undefined : () => debate.start({ origin: "desk" })} />
         )}
         {symbol && !guest ? (
-          <section className="fdm-section" aria-label="相关快讯" ref={flashRef}>
+          <section className="fdm-section fdm-research-flash" aria-label="相关快讯" ref={flashRef} key={product}>
             <h3>快讯 · 与{name}相关</h3>
             {flash.failed && !flash.items.length ? <p className="fdm-note" role="alert">快讯暂不可用，稍后自动重试。</p>
               : flash.unavailable ? <p className="fdm-note">{flashUnavailableText(flash.error)}</p>

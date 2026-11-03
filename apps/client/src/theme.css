@@ -365,6 +365,18 @@ html[data-font-scale="extra-large"] { --font-xs: 13px; --font-sm: 14px; --font-m
 .ui-presence { display: contents; }
 .ui-presence[data-closing] { pointer-events: none; }
 .ui-presence[data-closing] > .toast { animation: ui-panel-out var(--dur-2) var(--ease-out) forwards; }
+/* 展开 (动效第三批): what a fold opens fades in and settles 4 px down; folding shuts at once (an animated height would re-lay the page). */
+:where(details[open] > :not(summary), .ui-reveal) { animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; --enter-transform: translateY(-4px); }
+/* 价格变了 (动效第三批): a list figure's soft market colour shows behind it once and fades — opacity only, the figure itself stays put.
+   The a/b names restart it on consecutive ticks (mobileMotion `usePriceFlash`). */
+@keyframes ui-flash-a { from { opacity: 1; } to { opacity: 0; } }
+@keyframes ui-flash-b { from { opacity: 1; } to { opacity: 0; } }
+:where([data-tick]) { position: relative; isolation: isolate; }
+:where([data-tick])::after { content: ""; position: absolute; inset: -2px -4px; z-index: -1; border-radius: var(--radius-sm); opacity: 0; pointer-events: none; background: var(--tick-bg, transparent); }
+[data-tick^="up"] { --tick-bg: var(--market-up-soft); }
+[data-tick^="down"] { --tick-bg: var(--market-down-soft); }
+[data-tick$="-a"]::after { animation: ui-flash-a var(--dur-3) var(--ease-out); }
+[data-tick$="-b"]::after { animation: ui-flash-b var(--dur-3) var(--ease-out); }
 /* 按住说话 (手机, 2026-11-01): a ripple spreading from the held key. */
 @keyframes ui-ring { from { opacity: .7; transform: scale(1); } to { opacity: 0; transform: scale(1.35); } }
 @media (prefers-reduced-motion: reduce) {

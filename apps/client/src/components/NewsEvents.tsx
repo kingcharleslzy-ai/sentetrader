@@ -114,7 +114,7 @@ function OrigTitle({ report, surface, id }: { report: { title: string; text: str
   return <>
     <button type="button" className="news-ev-orig-open" aria-expanded={open} aria-label={`原文 ${open ? "收起" : "展开"}`}
       onClick={() => setOpen(!open)}>原文</button>
-    {open ? <small className="news-ev-orig">原文：{orig}</small> : null}
+    {open ? <small className="news-ev-orig ui-reveal">原文：{orig}</small> : null}
   </>;
 }
 
@@ -225,7 +225,7 @@ export function MinorFold({ surface, events, layers, timeOf, compact = false, ex
         onClick={() => setOpen(!open)}>{open ? "收起" : "展开"}</button>
     </div>
     {open ? <>
-      {extraCount || minor.length ? <ol className="news-ev-list">
+      {extraCount || minor.length ? <ol className="news-ev-list ui-reveal">
         {[...(extra?.rows ?? []), ...minor].map(event => <EventRow key={event.id} event={event} surface={surface} timeOf={timeOf} compact={compact}
           extras={extrasOf?.(event)} />)}
       </ol> : null}

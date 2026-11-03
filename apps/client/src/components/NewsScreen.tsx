@@ -82,7 +82,7 @@ export function DroppedFold<T>({ name, screen, compact = false, renderItem }: {
       <button type="button" className="news-dropped-toggle" aria-expanded={open} onClick={() => setOpen(!open)}>
         {open ? "收起筛掉的" : compact ? "查看" : "看筛掉了什么"}</button>
     </div>
-    {open ? <div className="news-dropped-list">
+    {open ? <div className="news-dropped-list ui-reveal">
       {dropped.groups.map(group => {
         const items = shown.filter(item => item.dropReason === group.reason);
         return <section key={group.reason} aria-label={`${group.reason} ${group.count} 条`}>
