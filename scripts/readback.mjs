@@ -25,6 +25,8 @@
 //    "expect": {"body.playbookName": "验收打法"}, "save": {"roundId": "body.trades.0.id"}}
 //   {"screenshot": "01-review", "scrollTo": "这笔的打法"}      (scrollTo: a control's accessible name)
 //   {"fill": {"label": "止损价", "value": "3000"}}              (types into a field by its accessible name; never submits)
+//   a UI step's "noReads": "<regex>" fails it when the window itself GETs a matching Runtime path during the step or
+//   in the 4 s after (通用报告推送 2026-11-03: a pushed report is shown without the panel reading it)
 // `{{name}}` anywhere in a step is replaced by a value an earlier step saved (`{{windowId}}` is the run's own web
 // window); expect paths are dotted (array
 // indexes allowed); an expected value of {"exists": true} only asks that the path be there, {"includes": "x"}
@@ -143,6 +145,11 @@ async function run({ plan, expected, out, monitorSeconds }) {
   page.on("pageerror", error => result.pageErrors.push(String(error)));
   page.on("console", message => { if (message.type() === "error") result.consoleErrors.push(message.text()); });
   result.failedRequests = [];
+  const reads = [];
+  page.on("request", request => {
+    const path = new URL(request.url()).pathname;
+    if (request.method() === "GET" && path.includes("/trader-runtime/api/")) reads.push({ at: Date.now(), path });
+  });
   page.on("response", response => {
     if (response.status() >= 500) result.errors5xx.push({ url: response.url(), status: response.status() });
     // A console "Failed to load resource" names no address; this list does.
@@ -198,6 +205,7 @@ async function run({ plan, expected, out, monitorSeconds }) {
     const entry = { step: item };
     log.push(entry);
     if (item.ui) {
+      const since = Date.now();
       const receipt = await command(item.ui);
       entry.receipt = receipt?.status;
       // A refused command keeps the whole receipt (the window's state and revision when it answered).
@@ -206,6 +214,11 @@ async function run({ plan, expected, out, monitorSeconds }) {
       // Paths read the window's state; `observation.text` is what the snapshot sees on screen.
       entry.state = await until(async () => { const current = await detail(); const why = unmet({ ...current?.state, observation: current?.observation }, item.expect); return { ok: !why.length, value: current?.state, why: why.join("；") }; },
         `界面命令 ${JSON.stringify(item.ui)} 之后的快照`, item.timeoutMs ?? 15_000);
+      if (item.noReads) {
+        await sleep(4_000);  // past the client's wait for a report's first push (feedView REPORT_GRACE_MS)
+        const hit = reads.filter(read => read.at >= since && new RegExp(item.noReads).test(read.path)).map(read => read.path);
+        if (hit.length) throw new Error(`界面命令 ${JSON.stringify(item.ui)} 之后窗口自己读了 ${[...new Set(hit)].join("、")}（应来自推送）`);
+      }
     } else if (item.api) {
       const [method, path] = item.api.split(" ");
       const reply = await api(method, path, item.body);

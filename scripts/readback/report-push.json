@@ -1,0 +1,22 @@
+{
+  "about": "通用报告推送（#1285，2026-11-03）：作战表、调研今日判断、快讯与本周重要数据、相关报道、今日复盘、习惯对照打开后内容出来，且窗口自己没去读这些接口（来自推送）。只读，不写数据。",
+  "steps": [
+    {"ui": {"view": "trade"}, "expect": {"view": "trade"}},
+    {"ui": {"panel": "news"}, "expect": {"panel": "news"}},
+    {"ui": {"news": {"tab": "sheet"}}, "expect": {"news.tab": "sheet", "news.sheet.status": "ready"}, "noReads": "/api/research/sheet$"},
+    {"screenshot": "report-push-sheet"},
+    {"ui": {"news": {"tab": "desk"}}, "expect": {"news.tab": "desk", "news.desk.status": "ready"}, "noReads": "/api/research/desk$"},
+    {"screenshot": "report-push-desk"},
+    {"ui": {"news": {"tab": "flash"}}, "expect": {"news.tab": "flash", "news.flash.status": "ok", "news.flash.calendarStatus": {"exists": true}},
+     "noReads": "/api/research/(flash|calendar)$"},
+    {"screenshot": "report-push-flash"},
+    {"ui": {"news": {"tab": "news"}}, "expect": {"news.tab": "news", "news.news.count": {"exists": true}}, "noReads": "/api/research/news$",
+     "timeoutMs": 30000},
+    {"screenshot": "report-push-news"},
+    {"ui": {"view": "review"}, "expect": {"view": "review", "review.habits.status": {"exists": true}, "review.dailyReview": {"exists": true}},
+     "noReads": "/api/account/(habits|daily-review)$", "timeoutMs": 30000},
+    {"screenshot": "report-push-review"},
+    {"ui": {"view": "trade"}, "expect": {"view": "trade"}},
+    {"ui": {"panel": null}, "expect": {"panel": null}}
+  ]
+}
