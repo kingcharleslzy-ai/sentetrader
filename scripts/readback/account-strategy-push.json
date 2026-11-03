@@ -1,0 +1,22 @@
+{
+  "about": "账户盈亏、成交、策略运行状态走推送（#1292，2026-11-03）：复盘页账户盈亏、持仓栏“成交”、策略面板正在运行的卡片打开后内容来自推送、窗口自己不读；复盘页人民币→美元→人民币切回后不再回退自己读（美元子账户本来就自己读，不算）。测试账号没有运行中的策略时第三段只看到空页。只读，不写数据。",
+  "steps": [
+    {"api": "GET /api/strategy-plans", "expect": {"body.items": {"exists": true}}},
+    {"ui": {"view": "review"}, "expect": {"view": "review", "review.tiles": {"exists": true}}, "noReads": "/api/account/pnl$", "timeoutMs": 30000},
+    {"screenshot": "account-push-review"},
+    {"ui": {"reviewCurrency": "USD"}, "expect": {"review.currency": "USD"}, "timeoutMs": 30000},
+    {"ui": {"reviewCurrency": "CNY"}, "expect": {"review.currency": "CNY", "review.tiles": {"exists": true}},
+     "noReads": "/api/account/(pnl|habits|daily-review)$", "timeoutMs": 30000},
+    {"screenshot": "account-push-review-back"},
+    {"ui": {"view": "trade"}, "expect": {"view": "trade"}},
+    {"ui": {"positionsBar": "expanded"}, "expect": {"positionsBar": "expanded"}},
+    {"ui": {"positionsTab": "fills"}, "expect": {"positionsTab": "fills"},
+     "noReads": "/api/trade-review$", "timeoutMs": 30000},
+    {"screenshot": "account-push-fills"},
+    {"ui": {"strategyTab": "running"}, "expect": {"strategyTab": "running"},
+     "noReads": "/api/(strategies/[^/]+/monitor|strategy-plans/[^/]+/conditions)$", "timeoutMs": 30000},
+    {"screenshot": "account-push-strategy-running"},
+    {"ui": {"positionsBar": "collapsed"}, "expect": {"positionsBar": "collapsed"}},
+    {"ui": {"panel": null}, "expect": {"panel": null}}
+  ]
+}

@@ -26,7 +26,8 @@
 //   {"screenshot": "01-review", "scrollTo": "这笔的打法"}      (scrollTo: a control's accessible name)
 //   {"fill": {"label": "止损价", "value": "3000"}}              (types into a field by its accessible name; never submits)
 //   a UI step's "noReads": "<regex>" fails it when the window itself GETs a matching Runtime path during the step or
-//   in the 4 s after (通用报告推送 2026-11-03: a pushed report is shown without the panel reading it)
+//   in the 4 s after (通用报告推送 2026-11-03: a pushed report is shown without the panel reading it); a read naming
+//   another account than the window's (the USD sub-account) does not count — the push serves the session's own account
 // `{{name}}` anywhere in a step is replaced by a value an earlier step saved (`{{windowId}}` is the run's own web
 // window); expect paths are dotted (array
 // indexes allowed); an expected value of {"exists": true} only asks that the path be there, {"includes": "x"}
@@ -148,7 +149,9 @@ async function run({ plan, expected, out, monitorSeconds }) {
   const reads = [];
   page.on("request", request => {
     const path = new URL(request.url()).pathname;
-    if (request.method() === "GET" && path.includes("/trader-runtime/api/")) reads.push({ at: Date.now(), path });
+    if (request.method() === "GET" && path.includes("/trader-runtime/api/")) {
+      reads.push({ at: Date.now(), path, account: request.headers()["x-ai-trader-account"] });
+    }
   });
   page.on("response", response => {
     if (response.status() >= 500) result.errors5xx.push({ url: response.url(), status: response.status() });
@@ -216,7 +219,9 @@ async function run({ plan, expected, out, monitorSeconds }) {
         `界面命令 ${JSON.stringify(item.ui)} 之后的快照`, item.timeoutMs ?? 15_000);
       if (item.noReads) {
         await sleep(4_000);  // past the client's wait for a report's first push (feedView REPORT_GRACE_MS)
-        const hit = reads.filter(read => read.at >= since && new RegExp(item.noReads).test(read.path)).map(read => read.path);
+        // Another account's read (the USD sub-account beside the session's own) is the window's own by design.
+        const hit = reads.filter(read => read.at >= since && new RegExp(item.noReads).test(read.path)
+          && (!read.account || read.account === account)).map(read => read.path);
         if (hit.length) throw new Error(`界面命令 ${JSON.stringify(item.ui)} 之后窗口自己读了 ${[...new Set(hit)].join("、")}（应来自推送）`);
       }
     } else if (item.api) {
