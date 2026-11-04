@@ -355,14 +355,8 @@ export function findRow(group: GroupForm, rowId: string): { list: RowList; index
 export const listKey = (key: GroupKey, list: RowList) => list === "rows" ? key : `${key}-${list === "alignment" ? "align" : "rearm"}`;
 export const LIST_WORDS: Record<RowList, string> = { rows: "", alignment: "方向确认", rearm: "复位" };
 
-/** 常用: one click adds a familiar condition (the short side gets the mirror image). */
-export const QUICK_ADDS = [
-  { id: "ma-cross", label: "均线金叉" }, { id: "breakout", label: "突破前高" },
-  { id: "macd-cross", label: "MACD 金叉" }, { id: "kd-low-cross", label: "KD 低位金叉" },
-] as const;
-/** A 常用 button's words on the short side: 金叉 → 死叉, 突破前高 → 跌破前低, 低位 → 高位. */
-export const quickAddLabel = (label: string, long: boolean) => long ? label : label.replace("金叉", "死叉").replace("突破前高", "跌破前低").replace("低位", "高位");
-export function quickRows(id: (typeof QUICK_ADDS)[number]["id"], long: boolean): RowForm[] {
+/** A familiar condition's rows (the short side gets the mirror image); the editor's 常用 buttons were removed 2026-11-04. */
+export function quickRows(id: "ma-cross" | "breakout" | "macd-cross" | "kd-low-cross", long: boolean): RowForm[] {
   const operand = (indicator: IndicatorName, period: number | null = null, value: number | null = null) => operandFor(indicator, { period, value });
   const row = (left: OperandForm, op: Operator, right: OperandForm): RowForm => ({ ...emptyRow(), left, op, right });
   const cross: Operator = long ? "cross_up" : "cross_down";

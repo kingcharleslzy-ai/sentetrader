@@ -131,7 +131,7 @@ test("第二版命令在手机上同样 applied：选择器打开该条的底部
     ? disclosureStates()[`${disclosure.name}:${disclosure.id}`] === disclosure.open
     : (uiSurface("strategyEditor")!.state as { focus?: string }).focus === strategyEditor?.focus;
   disclosure("strategy-editor-section", "entry", true);
-  fireEvent.click(within(page).getByRole("button", { name: "加一条：均线金叉" }));
+  act(() => editFields(["entryLong"], form => ({ ...form, entryLong: { ...form.entryLong, rows: quickRows("ma-cross", true) } })));
   disclosure("strategy-editor-picker", "entryLong:1:right", true);
   expect(applied({ disclosure: { name: "strategy-editor-picker", id: "entryLong:1:right", open: true } })).toBe(true);
   const sheet = screen.getByTestId("mobile-strategy-editor-sheet");

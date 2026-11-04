@@ -1,8 +1,8 @@
 import { createContext, useContext, useEffect, useRef, useState, type Dispatch, type ReactNode, type RefObject, type SetStateAction } from "react";
 import { ArrowLeft, Plus, Sparkles, X } from "lucide-react";
 import { conditionParts } from "../strategyApi";
-import { DIRECTIONS, DEFAULTS, LIST_WORDS, OPERATORS, normalizeTime, QUICK_ADDS, REPEAT_CHOICES, SIDE_WORDS, SIZING_MODES, TIMEFRAMES, UNTIL_CHOICES, advancedRules, withSizingMode, emptyRow, listKey, maxPositionOf, missingParts, operandText, rowContext,
-  planFromForm, quickAddLabel, quickRows, rowParts, timeframeLabel, usedEntryGroups, withLeft, withOp, LOTS_RULE, MAX_ORDERS_RULE, TAKE_TICKS_RULE, stopRule, type EditorForm, type FieldName, type GroupForm, type GroupKey,
+import { DIRECTIONS, DEFAULTS, LIST_WORDS, OPERATORS, normalizeTime, REPEAT_CHOICES, SIDE_WORDS, SIZING_MODES, TIMEFRAMES, UNTIL_CHOICES, advancedRules, withSizingMode, emptyRow, listKey, maxPositionOf, missingParts, operandText, rowContext,
+  planFromForm, rowParts, timeframeLabel, usedEntryGroups, withLeft, withOp, LOTS_RULE, MAX_ORDERS_RULE, TAKE_TICKS_RULE, stopRule, type EditorForm, type FieldName, type GroupForm, type GroupKey,
   type OperandForm, type PyramidForm, type RowContext, type RowForm, type RowList, type ScaleTier } from "../strategyEditor";
 import { isTrend, operatorProblem, type Operator } from "../strategyIndicators";
 import { focusPlace, type FlowTarget, type FocusTarget } from "../strategyFlow";
@@ -223,9 +223,8 @@ function GroupEditor({ state, gkey, entry, onOpenRow }: { state: EditorState; gk
   const changed = state.changed.includes(gkey);
   const long = gkey === "entryLong" || gkey === "exitLong";
   const aligned = entry && group.alignment.length > 0;
-  // 提醒 (改版第一步 2026-10-31): one group, no 做多 / 做空 words; 常用 lists both the up and the down form.
+  // 提醒 (改版第一步 2026-10-31): one group, no 做多 / 做空 words.
   const single = state.reminder && entry && usedEntryGroups(state.form).length === 1;
-  const quick = state.reminder ? [true, false].flatMap(up => QUICK_ADDS.map(item => ({ item, up }))) : QUICK_ADDS.map(item => ({ item, up: long }));
   const spread = Boolean(state.base?.spread);
   const rowsOf = (list: RowList, hitsOf: (number | null)[] = []) => group[list].map((row, index) => {
     const remove = () => edit(current => ({ ...current, [list]: current[list].filter(item => item.id !== row.id) }));
@@ -251,10 +250,6 @@ function GroupEditor({ state, gkey, entry, onOpenRow }: { state: EditorState; gk
       : rowsOf("rows", hits)}
     {group.locked ? null : <div className="se-add">
       <button type="button" className="se-link" onClick={() => add("rows")}><Plus size={12}/>加一条</button>
-      {entry ? <><span className="se-hint">常用：</span>{quick.map(({ item, up }) => <button type="button" key={`${item.id}-${up}`} className="se-link"
-        aria-label={`加一条：${quickAddLabel(item.label, up)}`}
-        onClick={() => edit(current => ({ ...current, rows: [...current.rows.filter(row => row.left.indicator || row.locked), ...quickRows(item.id, up)] }))}>
-        {quickAddLabel(item.label, up)}</button>)}</> : null}
     </div>}
     {entry && !group.locked ? <div className="se-sublists">{(["alignment", "rearm"] as const).filter(list => !state.reminder || group[list].length).map(list => {
       const addButton = group[list].length < (list === "rearm" ? 4 : 12) ? <button type="button" className="se-link" aria-label={`加一条${side}${LIST_WORDS[list]}`}

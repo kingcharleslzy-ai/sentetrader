@@ -3,7 +3,8 @@ import { vi } from "vitest";
 import { StrategyWorkbench } from "./StrategyWorkbench";
 import { disclosureStates, resetUiSurfaces, uiSurface } from "../uiSurfaces";
 import { resetStrategyBacktests } from "../strategyBacktests";
-import { BACKTEST_DEBOUNCE_MS, editDraft, editorState, resetStrategyEditor } from "../strategyEditorStore";
+import { BACKTEST_DEBOUNCE_MS, editDraft, editFields, editorState, resetStrategyEditor } from "../strategyEditorStore";
+import { quickRows } from "../strategyEditor";
 import type { SavedStrategy, StrategyPlan } from "../strategyApi";
 
 /**
@@ -231,7 +232,7 @@ test("指标选择器（电脑）：命令打开某条条件一侧，分类里�
   act(() => editor().apply!({ new: true }));
   await waitFor(() => expect(snapshot()).toMatchObject({ start: "blank" }));
   const card = screen.getByTestId("strategy-editor");
-  fireEvent.click(within(card).getByRole("button", { name: "加一条：突破前高" }));
+  act(() => editFields(["entryLong"], form => ({ ...form, entryLong: { ...form.entryLong, rows: quickRows("breakout", true) } })));
   const right = { disclosure: { name: "strategy-editor-picker", id: "entryLong:1:right", open: true } };
   act(() => uiSurface("disclosure:strategy-editor-picker:entryLong:1:right")!.apply!(true));
   expect(applied(right)).toBe(true);

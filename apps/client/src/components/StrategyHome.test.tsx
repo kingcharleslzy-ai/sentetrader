@@ -1,9 +1,10 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { vi } from "vitest";
 import { StrategyWorkbench } from "./StrategyWorkbench";
 import { resetUiSurfaces, uiSurface } from "../uiSurfaces";
 import { resetStrategyBacktests } from "../strategyBacktests";
-import { resetStrategyEditor } from "../strategyEditorStore";
+import { editFields, resetStrategyEditor } from "../strategyEditorStore";
+import { quickRows } from "../strategyEditor";
 import { resetCompare } from "../strategyCompare";
 import type { StrategyPlan } from "../strategyApi";
 
@@ -65,7 +66,7 @@ test("结果页 → 编辑 → 改止损 → 存为草稿：同一条策略的�
   expect(uiSurface("strategyEditor")!.state).toMatchObject({ open: true, mode: "edit", strategyId: "s0", fields: { stop: { mode: "ticks", value: 20 } } });
   fireEvent.change(within(card).getByRole("spinbutton", { name: "止损" }), { target: { value: "25" } });
   // The plan has no entry condition (a test fixture), so add one before it can be saved.
-  fireEvent.click(within(card).getByRole("button", { name: "加一条：突破前高" }));
+  act(() => editFields(["entryLong"], form => ({ ...form, entryLong: { ...form.entryLong, rows: quickRows("breakout", true) } })));
   fireEvent.click(within(card).getByRole("button", { name: "存为草稿" }));
   expect(await screen.findByText("过去 6 个月按这个做")).toBeVisible();
   const save = request.mock.calls.find(([url, init]) => String(url).endsWith("/api/strategy-plans") && init?.method === "POST")!;
