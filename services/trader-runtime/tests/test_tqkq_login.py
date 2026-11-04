@@ -132,6 +132,8 @@ async def test_first_login_consumes_invite_binds_and_issues_session(
             wrong = await tqkq_login(client, invite_code="not-the-code")
             assert wrong.status_code == 403 and wrong.json()["detail"] == "invite_code_invalid"
             assert store.get_cloud_user(KQ_USER) is None
+            # 邀请码不对也不去快期验口令，免得被拿来试别人的密码。
+            assert fake_client.verifies == []
 
             logged_in = await tqkq_login(client, invite_code=code)
             # 首次登录如实标出：路由据此把新用户的默认账户放到本站模拟（2026-10-04）。

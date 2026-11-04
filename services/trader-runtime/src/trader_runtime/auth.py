@@ -624,9 +624,13 @@ class OwnerAuth:
             # the credentials, exactly like the password login does.
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="account_disabled")
         first_login = existing is None
-        if first_login and self.tqkq_invite_required and (not invite_code or len(invite_code) > 200):
-            # No (or malformed) invite code: refuse before the pool ever sees
-            # the credentials — the runtime must not become a password oracle.
+        if first_login and self.tqkq_invite_required and (
+            not invite_code or len(invite_code) > 200
+            or (self.user_store.invite_code_row(sha256(invite_code.strip().encode()).hexdigest())
+                or {}).get("status") != "active"
+        ):
+            # No, malformed or unusable invite code: refuse before the pool ever
+            # sees the credentials — the runtime must not become a password oracle.
             self._record_failure(rate_limit_keys)
             raise HTTPException(status_code=403, detail="invite_code_invalid")
         verified = await verify(username, password)
