@@ -137,7 +137,7 @@ export interface WorkspaceSurfaces {
   setQuickSkipConfirm: (value: boolean) => void;
   /** 自由布局 (2026-11-02): the open side panels and dockview's groups (snapshot `dockPanels` / `dockGroups`) and
    *  the `dock` command; absent on a phone. */
-  dock?: { panels: string[]; groups: string[][]; place: (panel: DockPanel, to: DockPlace, of?: DockPanel) => void; close: (panel: DockPanel) => void };
+  dock?: { panels: DockPanel[]; groups: DockPanel[][]; place: (panel: DockPanel, to: DockPlace, of?: DockPanel) => void; close: (panel: DockPanel) => void };
   /** 自由布局: the `workspaceLayout` command; absent where there are no layouts (phone, visitor, replay). */
   workspaceLayout?: (change: WorkspaceLayoutChange) => void;
   /** 电脑版多图 (2026-11-02): the `desktopCharts` command; absent where there is no grid (phone, visitor, replay). */

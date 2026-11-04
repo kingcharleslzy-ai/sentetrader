@@ -244,7 +244,7 @@
 
 /* 列设置 (2026-10-02): the shared editor — one row per column (checkbox · name · move), the
    unchecked ones after them, 恢复默认 and the inline status at the bottom. Rendered inside the
-   board's popover and in 设置 → 界面 → 报价总表. */
+   board's popover and in 设置 → 界面 → 报价总表列. */
 .fdw-board-cols-editor {
   display: flex;
   flex-direction: column;

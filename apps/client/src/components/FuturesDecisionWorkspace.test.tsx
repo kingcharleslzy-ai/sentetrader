@@ -438,7 +438,6 @@ test("AI requests reach the agent; global stop is in settings and requires confi
   expect(screen.queryByRole("button", {name:/急停/})).toBeNull();
   fireEvent.click(screen.getByRole("button", {name:"设置"}));
   fireEvent.click(screen.getByRole("button", {name:"交易"}));
-  fireEvent.click(screen.getByRole("button", { name: "打开高级交易设置" }));
   fireEvent.click(screen.getByRole("button", {name:"全局急停"}));
   expect(activeValues.onStopAiExecution).not.toHaveBeenCalled();
   expect(screen.getByText(/不会自动平仓/)).toBeVisible();
@@ -538,8 +537,10 @@ test("自动会话结束后仍在设置中显示未决保护单并确认急停",
 
   fireEvent.click(screen.getByRole("button", {name:"设置"}));
   fireEvent.click(screen.getByRole("button", {name:"交易"}));
+  // 执行状态 is on the 交易 page itself (2026-11-04); the pending protections stay under 高级交易设置.
   fireEvent.click(screen.getByRole("button", { name: "打开高级交易设置" }));
   expect(screen.getByText("1 个待触发保护单")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "返回交易" }));
   fireEvent.click(screen.getByRole("button", {name:"全局急停"}));
   expect(values.onStopAiExecution).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", {name:"确认全局急停"}));
@@ -551,8 +552,7 @@ test("只停新开仓是直接动作，全局急停仍需确认", () => {
   render(<FuturesDecisionWorkspace {...values as any} />);
   fireEvent.click(screen.getByRole("button", {name:"设置"}));
   fireEvent.click(screen.getByRole("button", {name:"交易"}));
-  fireEvent.click(screen.getByRole("button", { name: "打开高级交易设置" }));
-  const limits = screen.getByRole("region", { name: "执行限制" });
+  const limits = screen.getByRole("region", { name: "交易状态" });
   fireEvent.click(within(limits).getByRole("button", {name:"只停新开仓"}));
   expect(values.onStopAiExecution).toHaveBeenCalledWith(false, "opens");
   expect(screen.queryByRole("dialog", { name: "全局急停 AI 模拟执行" })).not.toBeInTheDocument();
@@ -572,8 +572,7 @@ test("只停新开仓状态下提供恢复入口，且仍可升级为全局急�
   fireEvent.click(screen.getByRole("button", { name: "暂不恢复" }));
   fireEvent.click(screen.getByRole("button", {name:"设置"}));
   fireEvent.click(screen.getByRole("button", {name:"交易"}));
-  fireEvent.click(screen.getByRole("button", { name: "打开高级交易设置" }));
-  const limits = screen.getByRole("region", { name: "执行限制" });
+  const limits = screen.getByRole("region", { name: "交易状态" });
   expect(within(limits).getByText("已只停新开仓")).toBeVisible();
   fireEvent.click(within(limits).getByRole("button", {name:"全局急停"}));
   fireEvent.click(screen.getByRole("button", {name:"确认全局急停"}));

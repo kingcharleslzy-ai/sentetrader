@@ -267,7 +267,7 @@ export const COMMANDABLE: Rule[] = [
     via: "settingsOpen: true + settingsPage: trade|voice|trade-advanced|feedback（我的 → 设置，整屏设置页）" },
   // 停止 (2026-11-01): the 策略 head's menu of the desktop's two stops.
   { match: control => control.group === "mobile-execution-stop" && control.label === "停止", via: "disclosure: mobile-execution-stop" },
-  { match: control => control.group === "mobile-execution-stop" && control.label === "只停新开仓", via: "AI 执行限制“只停新开仓”（与设置 → 高级交易设置同一接口，点了就生效）" },
+  { match: control => control.group === "mobile-execution-stop" && control.label === "只停新开仓", via: "AI 执行限制“只停新开仓”（与电脑 设置 → 交易 的执行状态同一接口，点了就生效）" },
   { match: control => control.group === "mobile-execution-stop" && control.label === "急停…", via: "dialog: emergency-stop（急停确认框，只开关不确认）" },
   // 锁屏提醒 (2026-10-06): the page closes with mobilePage: null; 先放到主屏幕 opens the install guide.
   { match: control => control.surface === "mobile-push" && control.label === "知道了", via: "mobilePage: null（关闭锁屏提醒页；快照 state.pushSupport / state.pushSubscribed）" },
@@ -436,8 +436,8 @@ export const COMMANDABLE: Rule[] = [
   { match: /^关闭(系统设置|交易时间|说明|合约列表|回放设置|账户明细|手续费口径)$/, via: "settingsOpen: false / dialog: {open: false}" },
   { match: /^(账户|AI 与对话|记忆|语音|图表|交易|下单与停止|提醒|界面|快捷键|数据与隐私|关于)$/, via: "settingsPage: account|ai|memory|voice|chart|trade（手机上叫下单与停止）|notify（提醒）|ui|shortcuts|data|about" },
   // 设置拆页 (2026-09-30): 一级页尾的 SettingsLink 进二级页，二级页头的 ‹ 返回键回一级页。
-  { match: /^(打开)?(高级交易设置|判停与确认时限|指标参数与均线|约定、经验与最近变动|问题与建议)$/, via: "settingsPage: trade-advanced|voice-advanced|chart-advanced|memory-advanced|feedback（一级页尾的 SettingsLink，aria-label 带“打开”前缀；问题与建议在关于下）" },
-  { match: /^返回(交易|下单与停止|语音|图表|记忆|关于)$/, via: "settingsPage: trade|voice|chart|memory|about（二级页头的返回键；手机上交易页叫下单与停止）" },
+  { match: /^(打开)?(高级交易设置|判停与确认时限|指标参数与均线|记得的内容|报价总表列|问题与建议)$/, via: "settingsPage: trade-advanced|voice-advanced|chart-advanced|memory-advanced|ui-board|feedback（一级页尾的 SettingsLink，aria-label 带“打开”前缀；问题与建议在关于下）" },
+  { match: /^返回(交易|下单与停止|语音|图表|记忆|界面|关于)$/, via: "settingsPage: trade|voice|chart|memory|ui|about（二级页头的返回键；手机上交易页叫下单与停止）" },
   // 问题与建议 (2026-10-06): the diagnostics preview fold; the form itself is exempt below.
   { match: control => control.surface.startsWith("settings-feedback") && control.role === "summary" && control.label === "预览诊断内容",
     via: "disclosure: feedback-diagnostics（附上基础诊断开着时才有；快照 disclosures.feedback-diagnostics，预览正文同邮件里的白名单诊断）" },
@@ -530,11 +530,11 @@ export const COMMANDABLE: Rule[] = [
   { match: control => control.surface.startsWith("board") && control.role === "button" && /[A-Z]+\.[A-Za-z0-9]+/.test(control.label),
     via: "symbol（总表行：切到该合约的交易台）" },
   // 报价总表列可自定义 (2026-10-02): the 列 popover and the narrow fold hint open the same disclosure;
-  // the editor's buttons save the whole column list (设置 → 界面 → 报价总表 is the same editor).
+  // the editor's buttons save the whole column list (设置 → 界面 → 报价总表列 is the same editor).
   { match: control => control.surface.startsWith("board") && control.role === "button" && (control.label === "列" || /^\+\d+ 列已收起$/.test(control.label)),
     via: "disclosure: board-columns（总表顶部的“列”浮层 / 窄表头的收起提示，快照 disclosures.board-columns）" },
   { match: /^(上移|下移)(最新|涨跌|涨跌幅|成交量|持仓量|增仓|最高|最低|昨结|涨停|跌停|更新时间)$/,
-    via: "preference: marketBoard.columns（列序整体保存，勾选框即同一列表项；设置 → 界面 → 报价总表是同一份编辑）" },
+    via: "preference: marketBoard.columns（列序整体保存，勾选框即同一列表项；设置 → 界面 → 报价总表列（settingsPage: ui-board）是同一份编辑）" },
   { match: control => control.role === "button" && control.label === "恢复默认" && /^(board-columns|settings-ui)/.test(control.surface),
     via: "preference: marketBoard.columns = 默认八列" },
   // 合约抽屉两级 (2026-10-01): the product face selects its main contract, “N 个月份” expands its months.

@@ -10,9 +10,8 @@ import "./MemorySettings.css";
 
 /** 设置 → 记忆 (记忆层 3a, 2026-09-29; 设置拆页 2026-09-30): the private memory in three
  * layers — every item shows where it came from, edits inline, deletes (失效) and the last
- * changes can be undone. Reference only, never an authorization. The main page shows the
- * 画像 layer only; 约定、经验与最近变动 live in the memory-advanced second-level page; both
- * share one data-loading hook so the surface state stays continuous across the two pages. */
+ * changes can be undone. Reference only, never an authorization. The main page holds the switch;
+ * all three layers, adding, 整理 and the recent changes live in the memory-advanced page (记得的内容). */
 interface MemoryItem {
   id: string; layer: "profile" | "rule" | "lesson"; layerLabel: string; text: string;
   source: string; evidence: { via?: string; quote?: string | null; at?: string; n?: number };
@@ -211,30 +210,24 @@ function MemoryLayerRows({ layer, items, editor }: {
   </div>;
 }
 
-/** 设置 → 记忆: the switch and the 画像 layer; everything else is in memory-advanced. */
+/** 设置 → 记忆: the switch; what the AI remembers is on memory-advanced (owner 2026-11-04: the list made this page long). */
 export function MemorySettings({ baseUrl, preferences, setPref }: {
   baseUrl: string | undefined; preferences: PreferencesHandle;
   setPref: (key: string, value: unknown) => void;
 }) {
   const offline = !baseUrl;
   const memoryOn = preferences.preferences.chat.memory ?? true;
-  const { document, readState, error, reload, act, items } = useMemoryDocument(baseUrl, offline, memoryOn);
-  const editor = useMemoryEditor(baseUrl, act);
-  return <>
-    <SettingsSection title="AI 记得的关于你" helpKey="memory-profile" help="只作参考，不构成任何授权；每条都能改和删">
-      <SettingRow label="让 AI 记住我" hint={offline ? "未连接 Runtime，只读" : "关掉后对话与语音都不带记忆，也不接受对话里的“记住”"}>
-        <Switch label="让 AI 记住我" checked={memoryOn} disabled={offline} onChange={value => setPref("chat.memory", value)} />
-      </SettingRow>
-      {offline ? null : <>
-        {document ? <MemoryLayerRows layer="profile" items={items} editor={editor} /> : null}
-        <MemoryReadLine state={readState} reload={reload} />
-        {error ? <div className="app-memory-error" role="alert">{error}</div> : null}
-      </>}
-    </SettingsSection>
-  </>;
+  // Still read here: the `memory` surface (on/off and each layer's count) is what an AI sees on this page.
+  const { readState, reload } = useMemoryDocument(baseUrl, offline, memoryOn);
+  return <SettingsSection title="AI 记得的关于你" helpKey="memory-profile" help="只作参考，不构成任何授权；每条都能改和删">
+    <SettingRow label="让 AI 记住我" hint={offline ? "未连接 Runtime，只读" : "关掉后对话与语音都不带记忆，也不接受对话里的“记住”"}>
+      <Switch label="让 AI 记住我" checked={memoryOn} disabled={offline} onChange={value => setPref("chat.memory", value)} />
+    </SettingRow>
+    {offline ? null : <MemoryReadLine state={readState} reload={reload} />}
+  </SettingsSection>;
 }
 
-/** 设置 → 记忆 → 高级记忆设置 (memory-advanced): 约定、经验、添加一条与最近变动。 */
+/** 设置 → 记忆 → 记得的内容 (memory-advanced): 画像、约定、经验，添加一条、整理与最近变动。 */
 export function MemoryAdvancedSettings({ baseUrl, preferences }: {
   baseUrl: string | undefined; preferences: PreferencesHandle;
 }) {
@@ -280,9 +273,9 @@ export function MemoryAdvancedSettings({ baseUrl, preferences }: {
     }).finally(() => setConsolidating(false));
   };
 
-  return <SettingsSection title="约定、经验与最近变动" helpKey="memory-layers" help="画像在「记忆」页；这里管其余两层和整理">
+  return <SettingsSection title="记得的内容" helpKey="memory-layers" help="画像、约定、经验三层，每条都能改和删；最近变动可撤销">
     {offline ? <SettingRow label="记忆"><strong>未连接 Runtime，只读</strong></SettingRow> : <>
-      {document ? (["rule", "lesson"] as const).map(layer => (
+      {document ? (["profile", "rule", "lesson"] as const).map(layer => (
         <MemoryLayerRows key={layer} layer={layer} items={items} editor={editor} />
       )) : null}
       <MemoryReadLine state={readState} reload={reload} />

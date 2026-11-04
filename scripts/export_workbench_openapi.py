@@ -15,11 +15,20 @@ async def no_identity(_request):
     raise RuntimeError("schema_export_has_no_runtime_identity")
 
 
+class _NoFeed:
+    """Reports registered on the push channel are not routes; an export registers none."""
+
+    def add_report(self, *_args, **_kwargs):
+        pass
+
+
 class _SchemaContext:
-    """`register_workbench_api` reads `ctx.current_user` while registering; the
-    handlers themselves never run during a schema export."""
+    """`register_workbench_api` reads `ctx.current_user` and registers push reports on
+    `ctx.runtime_feed` while registering; the handlers themselves never run during a
+    schema export."""
 
     current_user = staticmethod(no_identity)
+    runtime_feed = _NoFeed()
 
 
 schema_app = FastAPI(title="AI Trader Workbench API", version="1")

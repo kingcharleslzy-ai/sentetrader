@@ -223,10 +223,10 @@ export function WorkspaceSettings({ workspace, page, onPageChange, onClose, mode
       </> },
       { id: "memory", label: "记忆", content: <>
         <MemorySettings baseUrl={connectedRuntimeUrl} preferences={preferences} setPref={setPref} />
-        <SettingsLink label="约定、经验与最近变动" helpKey="memory-advanced" help="其余两层记忆、添加一条与整理" onOpen={() => onPageChange("memory-advanced")} />
+        <SettingsLink label="记得的内容" helpKey="memory-advanced" help="画像、约定、经验三层，添加一条、整理与最近变动" onOpen={() => onPageChange("memory-advanced")} />
         {connectedRuntimeUrl && !workspace.guest && routines ? <RoutineSettings baseUrl={connectedRuntimeUrl} onRun={routines.run} onEdit={routines.edit} /> : null}
       </> },
-      { id: "memory-advanced", label: "约定、经验与最近变动", parent: "memory", content: <MemoryAdvancedSettings baseUrl={connectedRuntimeUrl} preferences={preferences} /> },
+      { id: "memory-advanced", label: "记得的内容", parent: "memory", content: <MemoryAdvancedSettings baseUrl={connectedRuntimeUrl} preferences={preferences} /> },
       { id: "voice", label: "语音", content: mobile ? <VoiceSettings compact baseUrl={connectedRuntimeUrl} available={voiceAvailable} preferences={preferences} /> : <>
         <XiaomiRemoteSettings onPageChange={onPageChange} />
         <VoiceSettings baseUrl={connectedRuntimeUrl} available={voiceAvailable} preferences={preferences} />
@@ -285,6 +285,7 @@ export function WorkspaceSettings({ workspace, page, onPageChange, onClose, mode
           <SettingRow label="模拟网关"><strong>{workspace.simulationGatewayAvailable ? "已连接" : "不可用"}</strong></SettingRow>
           <SettingRow label="当前提交"><strong>{workspace.simulationEnabled ? "可用" : closed ? `${sessionLabel}，暂不可提交` : "暂不可用"}</strong></SettingRow>
           <SettingRow label="实盘交易"><strong>永久关闭</strong></SettingRow>
+          {stopRow}
         </SettingsSection>
         <SettingsSection title="下单默认">
           {defaultVolumeRow}
@@ -319,7 +320,6 @@ export function WorkspaceSettings({ workspace, page, onPageChange, onClose, mode
           <SettingRow label="限额保存">
             <Button disabled={workspace.simulationLimitsStatus === "连接后可设置"} onClick={() => workspace.onSimulationLimitsChange(limits)} status={workspace.simulationLimitsStatus || "待读取"}>保存</Button>
           </SettingRow>
-          {stopRow}
           <SettingRow label="止损保护"><strong>{armedStopCount} 个待触发保护单</strong></SettingRow>
           <SettingRow label="已用委托次数"><strong>{workspace.aiExecution ? workspace.aiExecution.authorization?.usedOrders ?? 0 : "—"}</strong></SettingRow>
         </SettingsSection>
@@ -336,11 +336,6 @@ export function WorkspaceSettings({ workspace, page, onPageChange, onClose, mode
           <SettingRow label="字体大小"><Segmented label="字体大小" value={workspace.fontScale} options={FONT_SCALE_OPTIONS.map(option => ({ value: option.value, label: `${option.label} ${option.percentage}` }))} onChange={value => workspace.onFontScaleChange(value)} /></SettingRow>
           <SettingRow label="界面密度"><Segmented label="界面密度" value={workspace.interfaceDensity} options={INTERFACE_DENSITY_OPTIONS.map(option => ({ value: option.value, label: option.label }))} onChange={value => workspace.onInterfaceDensityChange(value)} /></SettingRow>
         </SettingsSection>
-        <SettingsSection title="报价总表" helpKey="board-columns" help="勾选要显示的列，上移/下移调顺序；报价总表顶部的“列”也是这份设置">
-          {onBoardColumnsChange
-            ? <BoardColumnsEditor columns={boardColumns} onChange={onBoardColumnsChange} status={boardColumnStatus} />
-            : <SettingRow label="列" hint="连接后可修改报价总表显示哪些列"><strong>未连接</strong></SettingRow>}
-        </SettingsSection>
         {!workspace.guest ? <SettingsSection title="AI 形象">
           <div className="ai-avatar-picker" role="radiogroup" aria-label="AI 形象">
             {AI_AVATAR_OPTIONS.map(option => <button key={option.value} type="button" role="radio" aria-checked={(prefs.ui?.aiAvatar ?? "kline") === option.value} disabled={offline} onClick={() => setPref("ui.aiAvatar", option.value)}>
@@ -354,7 +349,13 @@ export function WorkspaceSettings({ workspace, page, onPageChange, onClose, mode
           <SettingRow label="辅助区布局"><Button onClick={resetLayout}>恢复默认布局</Button></SettingRow>
           {layoutMenu ? <SettingRow label="保存的布局" helpKey="workspace-layouts" help="存几套右侧面板和多图的摆法，在这里切换；在哪个布局里改了摆法就自动存进哪个">{layoutMenu}</SettingRow> : null}
         </SettingsSection>
+        {!workspace.guest && !mobile ? <SettingsLink label="报价总表列" helpKey="ui-board" help="报价总表显示哪些列、什么顺序；总表顶部的“列”是同一份" onOpen={() => onPageChange("ui-board")} /> : null}
       </> },
+      { id: "ui-board", label: "报价总表列", parent: "ui", content: <SettingsSection title="报价总表列" helpKey="board-columns" help="勾选要显示的列，上移/下移调顺序；报价总表顶部的“列”也是这份设置">
+        {onBoardColumnsChange
+          ? <BoardColumnsEditor columns={boardColumns} onChange={onBoardColumnsChange} status={boardColumnStatus} />
+          : <SettingRow label="列" hint="连接后可修改报价总表显示哪些列"><strong>未连接</strong></SettingRow>}
+      </SettingsSection> },
       { id: "shortcuts", label: "快捷键", content: <>
         <ShortcutsSettings />
         <SettingsSection title="字体大小">

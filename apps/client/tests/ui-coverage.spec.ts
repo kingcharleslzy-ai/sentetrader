@@ -323,7 +323,7 @@ test("every user-operable control is commandable or reachable, and visible to th
     ["dialog-fee-hint", [{ dialog: { name: "fee-hint", open: true } }], true], ["", [{ dialog: { name: "fee-hint", open: false } }], false],
     ["", [{ view: "trade" }], false],
     ...(["account", "ai", "memory", "memory-advanced", "voice", "voice-advanced", "remote-keys", "remote-diagnostics", "chart", "chart-advanced",
-           "trade", "trade-advanced", "ui", "shortcuts", "data", "about", "feedback"] as const)
+           "trade", "trade-advanced", "ui", "ui-board", "shortcuts", "data", "about", "feedback"] as const)
       .map(p => [`settings-${p}`, [{ settingsPage: p }], true] as [string, Record<string, unknown>[], boolean]),
     // 设置 → 账户 (2026-10-08): the 实盘 switch only accepts staying off (open: true is a 422 with the reason).
     // 档位's plan-quota fold needs a cloud model catalog, which this local Runtime has not (unit-tested instead).

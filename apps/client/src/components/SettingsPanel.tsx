@@ -13,11 +13,11 @@ type SettingsPage = { id: string; label: string; content: ReactNode; blockedReas
 const PAGE_META: Record<string, { icon: LucideIcon; group: string }> = {
   account: { icon: UserRound, group: "账户与交易" }, trade: { icon: ReceiptText, group: "账户与交易" },
   ai: { icon: Bot, group: "AI 助手" }, memory: { icon: Brain, group: "AI 助手" }, voice: { icon: Mic, group: "AI 助手" },
-  chart: { icon: ChartCandlestick, group: "界面与提醒" }, ui: { icon: Palette, group: "界面与提醒" },
-  notify: { icon: Bell, group: "界面与提醒" }, shortcuts: { icon: Keyboard, group: "界面与提醒" },
+  chart: { icon: ChartCandlestick, group: "图表与界面" }, ui: { icon: Palette, group: "图表与界面" },
+  notify: { icon: Bell, group: "图表与界面" }, shortcuts: { icon: Keyboard, group: "图表与界面" },
   data: { icon: ShieldCheck, group: "其他" }, about: { icon: Info, group: "其他" },
 };
-const GROUP_ORDER = ["账户与交易", "AI 助手", "界面与提醒", "其他"];
+const GROUP_ORDER = ["账户与交易", "AI 助手", "图表与界面", "其他"];
 
 /** Settings use one scroll region, a category nav and section cards of aligned rows. */
 export function SettingsPanel({ pages, onClose, selectedPage, onPageChange, onHelp }: { pages: SettingsPage[]; onClose: () => void; selectedPage?: string; onPageChange?: (page: string) => void; onHelp?: () => void }) {
@@ -46,7 +46,7 @@ export function SettingsPanel({ pages, onClose, selectedPage, onPageChange, onHe
       <div className="app-settings-body">
         <nav className="app-settings-nav" aria-label="设置分类">
           {GROUP_ORDER.map(group => {
-            // Within a group the nav follows PAGE_META's order (界面与提醒: 图表 / 界面 / 提醒 / 快捷键), not the pages' order.
+            // Within a group the nav follows PAGE_META's order (图表与界面: 图表 / 界面 / 快捷键), not the pages' order.
             const rank = (id: string) => { const at = Object.keys(PAGE_META).indexOf(id); return at < 0 ? Number.MAX_SAFE_INTEGER : at; };
             const items = pages.filter(item => !item.parent && (PAGE_META[item.id]?.group ?? "其他") === group).sort((a, b) => rank(a.id) - rank(b.id));
             return items.length ? <div key={group} className="app-settings-nav-group" role="group" aria-label={group}>

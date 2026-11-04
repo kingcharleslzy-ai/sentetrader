@@ -50,7 +50,7 @@ function renderSection() {
   render(<MemorySettings baseUrl="https://runtime.test" preferences={handle} setPref={setPref} />);
 }
 
-/** 约定、经验、添加一条与最近变动 moved to the memory-advanced second-level page (设置拆页 2026-09-30). */
+/** Every layer, 添加一条 and 最近变动 are on the memory-advanced page (记得的内容, 2026-11-04); the main page is the switch. */
 function renderAdvanced() {
   render(<MemoryAdvancedSettings baseUrl="https://runtime.test" preferences={handle} />);
 }
@@ -64,13 +64,15 @@ beforeEach(() => {
 
 test("groups the memory by layer with each item's evidence line", async () => {
   renderSection();
+  // The main page lists nothing but still reports the counts an AI reads.
+  await waitFor(() => expect(uiSurface("memory")?.state).toEqual({ enabled: true, counts: { profile: 2, rule: 1, lesson: 1 } }));
+  expect(screen.queryByText("只做螺纹")).toBeNull();
+  renderAdvanced();
   expect(await screen.findByText("只做螺纹")).toBeVisible();
   expect(screen.getByText("不做夜盘")).toBeVisible();
   expect(screen.getByText("你说：「记住我只做螺纹」· 9月29日")).toBeVisible();
   expect(screen.getByText("整理自你说的：「我不做夜盘，尽量白天搞定」· 9月29日")).toBeVisible();
-  expect(screen.queryByText("给建议先说止损位")).toBeNull();
-  renderAdvanced();
-  expect(await screen.findByText("给建议先说止损位")).toBeVisible();
+  expect(screen.getByText("给建议先说止损位")).toBeVisible();
   expect(screen.getByText("追高吃亏")).toBeVisible();
   expect(screen.getByText("设置里填写 · 9月29日")).toBeVisible();
   expect(screen.getByText("交易统计 · 近 90 天 14 笔")).toBeVisible();
@@ -118,7 +120,7 @@ test("adding posts to the memory route and reloads; a refusal shows its detail",
 });
 
 test("editing an item saves with PUT", async () => {
-  renderSection();
+  renderAdvanced();
   await screen.findByText("只做螺纹");
   fireEvent.click(screen.getAllByRole("button", { name: "修改" })[0]);
   fireEvent.change(screen.getByLabelText("修改画像"), { target: { value: "只做螺纹和铁矿" } });
@@ -128,7 +130,7 @@ test("editing an item saves with PUT", async () => {
 });
 
 test("a failed save keeps the editor open with the draft", async () => {
-  renderSection();
+  renderAdvanced();
   await screen.findByText("只做螺纹");
   mocked(Object.assign(new Error("422"), { status: 422, detail: { detail: "一条记忆最多 120 字" } }));
   fireEvent.click(screen.getAllByRole("button", { name: "修改" })[0]);
@@ -158,7 +160,7 @@ test("an older read finishing late does not bring back a deleted item", async ()
   const reads: ((value: unknown) => void)[] = [];
   vi.mocked(requestJson).mockImplementation((url: string, init?: RequestInit) =>
     init?.method ? Promise.resolve({}) : new Promise(resolve => { reads.push(resolve); }));
-  renderSection();
+  renderAdvanced();
   await waitFor(() => expect(reads).toHaveLength(1));
   reads[0]({ ...document });
   await screen.findByText("只做螺纹");
@@ -178,7 +180,7 @@ test("an older read finishing late does not bring back a deleted item", async ()
 });
 
 test("deleting an item calls DELETE on its id", async () => {
-  renderSection();
+  renderAdvanced();
   await screen.findByText("只做螺纹");
   fireEvent.click(screen.getAllByRole("button", { name: "删除" })[0]);
   await waitFor(() => expect(requestJson).toHaveBeenCalledWith("https://runtime.test/api/memory/m1",
@@ -195,7 +197,6 @@ test("a change row's 撤销 posts the undo route", async () => {
 
 test("the toggle writes the chat.memory preference", async () => {
   renderSection();
-  await screen.findByText("只做螺纹");
   fireEvent.click(screen.getByRole("switch", { name: "让 AI 记住我" }));
   expect(setPref).toHaveBeenCalledWith("chat.memory", false);
 });
@@ -210,7 +211,7 @@ test("without a Runtime the section is read-only and reports the memory switch o
 
 test("a failed first read says so instead of 还没有, and 重试 reads again", async () => {
   vi.mocked(requestJson).mockRejectedValueOnce(Object.assign(new Error("502"), { status: 502 }));
-  renderSection();
+  renderAdvanced();
   expect(await screen.findByRole("alert")).toHaveTextContent("记忆没有读到");
   expect(screen.queryByText("还没有")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "重试" }));
@@ -219,7 +220,7 @@ test("a failed first read says so instead of 还没有, and 重试 reads again",
 });
 
 test("a failed refresh after a write keeps the list it had", async () => {
-  renderSection();
+  renderAdvanced();
   await screen.findByText("只做螺纹");
   vi.mocked(requestJson).mockImplementation((url: string, init?: RequestInit) =>
     init?.method ? Promise.resolve({}) : Promise.reject(Object.assign(new Error("502"), { status: 502 })));
@@ -233,7 +234,7 @@ test("a save in flight blocks a second save and keeps a draft changed meanwhile"
   let landPut: (value: unknown) => void = () => undefined;
   vi.mocked(requestJson).mockImplementation((url: string, init?: RequestInit) =>
     init?.method === "PUT" ? new Promise(resolve => { landPut = resolve; }) : Promise.resolve(document));
-  renderSection();
+  renderAdvanced();
   await screen.findByText("只做螺纹");
   fireEvent.click(screen.getAllByRole("button", { name: "修改" })[0]);
   fireEvent.change(screen.getByLabelText("修改画像"), { target: { value: "只做螺纹和铁矿" } });

@@ -4,7 +4,7 @@ import { BOARD_COLUMNS_MAX, BOARD_COLUMN_LABELS, BOARD_COLUMN_TYPES, DEFAULT_BOA
  * 报价总表列设置 (2026-10-02): one row per selectable column — 勾选框 (shown) + 列名 + 上移/下移 —
  * in the current display order, the columns not shown after them in their canonical order. Checking
  * appends at the end; 恢复默认 returns to the eight fixed-era columns. The board's 列 popover and
- * 设置 → 界面 → 报价总表 render this one component, so both save the same complete
+ * 设置 → 界面 → 报价总表列 render this one component, so both save the same complete
  * `marketBoard.columns` list through the account preference path (guests keep it local).
  */
 export function BoardColumnsEditor({ columns, onChange, status }: {
