@@ -144,7 +144,10 @@ async function run({ plan, expected, out, monitorSeconds }) {
   // account can be another one, whose round trip ids the window would refuse (10-25 第 2 批后半回读).
   let windowId, account; const saved = {}; let original;
   page.on("pageerror", error => result.pageErrors.push(String(error)));
-  page.on("console", message => { if (message.type() === "error") result.consoleErrors.push(message.text()); });
+  // The script's own requests that failed (a 409 it re-sends, a status a step expects) are judged by the
+  // script itself; the browser's "Failed to load resource" line for them is not the page's error.
+  const consoleErrors = [], ownFailed = new Set();
+  page.on("console", message => { if (message.type() === "error") consoleErrors.push({ text: message.text(), url: message.location().url }); });
   result.failedRequests = [];
   const reads = [];
   page.on("request", request => {
@@ -156,6 +159,7 @@ async function run({ plan, expected, out, monitorSeconds }) {
   page.on("response", response => {
     if (response.status() >= 500) result.errors5xx.push({ url: response.url(), status: response.status() });
     // A console "Failed to load resource" names no address; this list does.
+    if (response.status() >= 400 && response.request().headers()["x-ai-trader-client"] === "readback") ownFailed.add(response.url());
     if (response.status() >= 400) result.failedRequests.push(`${response.status()} ${response.request().method()} ${new URL(response.url()).pathname}`);
     if (new URL(response.url()).pathname.endsWith("/api/ui/pulse") && response.ok()) {
       const body = response.request().postDataJSON();
@@ -281,6 +285,7 @@ async function run({ plan, expected, out, monitorSeconds }) {
     result.monitor = { seconds: Math.round((Date.now() - started.getTime()) / 1000), samples: samples.length,
       versionProblems: samples.flatMap(sample => sample.problems), ...logWindow(marks, result.started) };
   }
+  result.consoleErrors = consoleErrors.filter(error => !ownFailed.has(error.url)).map(error => error.text);
   const problems = [
     ...(result.failure ? [result.failure] : []), ...(result.cleanupFailure ?? []), ...(result.restoreFailure ? [`恢复窗口：${result.restoreFailure}`] : []),
     ...result.pageErrors.map(e => `页面报错：${e}`), ...result.consoleErrors.map(e => `控制台报错：${e}`),
