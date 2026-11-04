@@ -13,6 +13,7 @@ import { protectionIssueText, protectionStatus } from "../../operationEvents";
 import { notSentReason } from "../cards/CloseBatchProposalCard";
 import { readNumber, STOP_PRICE_RULE, TAKE_PRICE_RULE } from "../../numberField";
 import "./ContractInfoControl.css";
+import { useLiveQuote } from "../../hooks/useLiveMarket";
 
 export type OrderActionHandler = (order: SimulationOrder, action: "continue" | "abandon" | "query" | "cancel") => void;
 
@@ -255,7 +256,7 @@ function PositionProtection({ position, quote, priceTick, stops, busy, onCreate,
  * The three record lists behind 持仓 / 委托 / 成交. The bottom bar and the 持仓面板 render the
  * same rows from the same `positionsTab`; only the row limit differs (the bar keeps three lines).
  */
-export function PositionRows({ positions, instruments, quote, busy, limit, onClosePosition, onAskAi, stops, onCreateStop, onCancelStop, protectionBusy }: {
+export function PositionRows({ positions, instruments, quote: shownQuote, busy, limit, onClosePosition, onAskAi, stops, onCreateStop, onCancelStop, protectionBusy }: {
   positions: AccountPosition[];
   /** Contract catalog: the row leads with the Chinese product name, the code rides as its `small`. */
   instruments?: InstrumentCatalog;
@@ -272,6 +273,8 @@ export function PositionRows({ positions, instruments, quote, busy, limit, onClo
   onCancelStop?: (stopId: string) => Promise<boolean | void>;
   protectionBusy?: boolean;
 }) {
+  // 电脑版流畅度 ②: the current contract's row follows every pushed price, not the window's once-a-second copy.
+  const quote = useLiveQuote(shownQuote);
   // 外盘仓合并显示 (2026-10-21): the USD sub-account's rows follow the account's own under one 外盘 · 美元 head;
   // their money is dollars, and their protection belongs to that account (no inline 保护 form here).
   const shown = positions.slice(0, limit);

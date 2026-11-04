@@ -18,6 +18,7 @@ import { RowUndo } from "./RowActions";
 import { PullIndicator, usePullToRefresh } from "./usePullToRefresh";
 import { UnreadBadge } from "../reminders/ReminderCenter";
 import "./MobileWorkspace.css";
+import { useLiveQuote } from "../../hooks/useLiveMarket";
 
 /** 手机版底部标签; `chat` (AI 对话) is the AI tab's second page and lights the AI tab. 2026-10-06
  *  (新结构): 通知 merged into AI 首页's timeline and its place went to 策略 (the old `mobileTab:
@@ -174,7 +175,7 @@ function receiptLine(command: AiCommand) {
  * its lock starts the window's voice call (`call`, the desktop's); the 回执条 then says 通话中 with one 结束. A full-screen page (下单, 持仓与委托,
  * 复盘, 回测结果) covers the bar until it is closed. Touch targets are at least 44 px; the bottom keeps the safe area.
  */
-export function MobileWorkspace({ tab, onTab, onOpenChat, onBell, quote, symbolName, decimals, feed, chat, ptt, call, command, context, aiBlocked, aiBusy, notices, pages, overlay, overlayTabs = false, onCloseOverlay, onRefreshFeed, unread }: {
+export function MobileWorkspace({ tab, onTab, onOpenChat, onBell, quote: shownQuote, symbolName, decimals, feed, chat, ptt, call, command, context, aiBlocked, aiBusy, notices, pages, overlay, overlayTabs = false, onCloseOverlay, onRefreshFeed, unread }: {
   tab: MobileTab;
   onTab: (tab: MobileTab) => void;
   /** Open the AI 对话 page (access-checked; a refusal explains itself). */
@@ -216,6 +217,8 @@ export function MobileWorkspace({ tab, onTab, onOpenChat, onBell, quote, symbolN
   /** The 提醒中心's unread reminders (the Runtime's count): the 今天 tab and the bell show it. */
   unread: number;
 }) {
+  // 电脑版流畅度 ②: the header price shows every pushed patch; the window itself takes them at most once a second.
+  const quote = useLiveQuote(shownQuote);
   const [slideCancel, setSlideCancel] = useState(false);
   const onSlideCancelChange = useCallback((armed: boolean) => setSlideCancel(armed), []);
   const active = tab === "chat" || tab === "me" ? "ai" : tab;

@@ -147,7 +147,39 @@ export interface OrderFactEvent {
   [field: string]: unknown;
 }
 
-function emit() { listeners.forEach(listener => listener()); }
+function emit() {
+  for (const key of states.keys()) settleMarket(key);
+  listeners.forEach(listener => listener());
+}
+
+/** How often at most a price-only market patch reaches the window as a whole (电脑版流畅度 ②). */
+export const MARKET_VIEW_MS = 1000;
+const settledMarkets = new Map<string, { market?: FeedMarketSnapshot; channel?: FeedChannelState; at: number; timer?: ReturnType<typeof setTimeout> }>();
+/** Another contract or period, a new bar or another data state: what the window lays out, not only a moved price. */
+function marketShapeChanged(before: FeedMarketSnapshot | undefined, after: FeedMarketSnapshot | undefined): boolean {
+  if (!before || !after) return before !== after;
+  return before.quote.symbol !== after.quote.symbol || before.durationSeconds !== after.durationSeconds
+    || before.bars.length !== after.bars.length || before.bars.at(-1)?.datetime !== after.bars.at(-1)?.datetime
+    || before.dataStatus !== after.dataStatus || before.isCached !== after.isCached;
+}
+/**
+ * The market the window renders from (`useRuntimeFeed`): a change of its shape, its channel's status or the first frame reaches it
+ * at once; a patch that only moves the price (several a second) at most every MARKET_VIEW_MS, the latest always delivered by a
+ * timer. Every patch still reaches the chart, the price and the ticket through `useFeedMarket` — they no longer drag the whole
+ * window along with them.
+ */
+function settleMarket(key: string, now = Date.now()) {
+  const state = states.get(key);
+  const market = state?.market, channel = state?.channels.market;
+  const settled = settledMarkets.get(key);
+  if (settled && settled.market === market && settled.channel === channel) return;
+  if (!settled || marketShapeChanged(settled.market, market) || settled.channel?.status !== channel?.status || now - settled.at >= MARKET_VIEW_MS) {
+    if (settled?.timer) clearTimeout(settled.timer);
+    settledMarkets.set(key, { market, channel, at: now });
+    return;
+  }
+  settled.timer ??= setTimeout(() => { settled.timer = undefined; emit(); }, MARKET_VIEW_MS - (now - settled.at));
+}
 
 function text(value: unknown): string | undefined {
   return typeof value === "string" && value ? value : undefined;
@@ -293,6 +325,7 @@ export function applyFeedEvent(sessionId: string, event: UiEvent, now = Date.now
 /** A session (re)attached its stream: drop its stale snapshots and make it the window's active session. */
 export function resetFeed(sessionId?: string) {
   if (sessionId) { states.delete(sessionId); streamAliveAt.delete(sessionId); } else { states.clear(); streamAliveAt.clear(); }
+  for (const [key, settled] of settledMarkets) if (!sessionId || key === sessionId) { if (settled.timer) clearTimeout(settled.timer); settledMarkets.delete(key); }
   activeSessionId = sessionId;
   keepFeedFocusOf(sessionId); // other sessions' offered chart bars are not needed any more (#850)
   emit();
@@ -305,7 +338,10 @@ const snapshotViews = new Map<string, RuntimeFeedState>();
 /** The state without its board and reports (their readers subscribe to them alone), the same object until one of the
  *  other snapshots or their channels changes: the board's patch every second must not re-render the whole window. */
 function snapshotView(key: string): RuntimeFeedState {
-  const state = states.get(key) ?? EMPTY;
+  const raw = states.get(key) ?? EMPTY;
+  // The settled market and its channel stand in for the raw ones (see settleMarket).
+  const settled = settledMarkets.get(key);
+  const state: RuntimeFeedState = settled ? { ...raw, market: settled.market, channels: { ...raw.channels, market: settled.channel } } : raw;
   const last = snapshotViews.get(key);
   if (last && last.sessionId === state.sessionId
       && SNAPSHOT_CHANNELS.every(channel => last[channel] === state[channel] && last.channels[channel] === state.channels[channel])) return last;
@@ -320,6 +356,12 @@ function snapshotView(key: string): RuntimeFeedState {
  *  execution only: the board is `useFeedBoard`'s, the reports `useFeedReportEntries`'. */
 export function useRuntimeFeed(sessionId?: string): RuntimeFeedState {
   return useSyncExternalStore(subscribe, () => snapshotView(sessionId ?? activeSessionId ?? ""));
+}
+
+/** The active session's pushed market with every patch (the window's own copy, `useRuntimeFeed`, settles them): for the chart,
+ *  the price and the ticket — through `useLiveMarket`, which takes it only where the window shows this contract and period. */
+export function useFeedMarket(): FeedMarketSnapshot | undefined {
+  return useSyncExternalStore(subscribe, () => states.get(activeSessionId ?? "")?.market);
 }
 
 /** The active session's pushed board and its channel state only: a board reader re-renders on board

@@ -6,6 +6,7 @@ import type { AskAi } from "../AiMenu";
 import { OrderRows, PositionRows, orderIsActive, useAbandonOrder, type OrderActionHandler, type PositionStopRequest } from "./PositionPanels";
 import { decimalsForTick, formatNumber } from "./support";
 import "./OrderPanelSections.css";
+import { useLiveQuote } from "../../hooks/useLiveMarket";
 
 /** The 五档 fold is remembered on this machine only. */
 export const ORDER_DEPTH_OPEN_KEY = "ai-trader:order-depth-open";
@@ -81,7 +82,9 @@ function LadderRows({ quote, selectedPrice, onPriceSelect }: { quote: MarketQuot
  * 下单面板 · 五档: a click fills the manual limit price only.
  * Folded, the head keeps 卖一 / 最新 / 买一 on one line.
  */
-export function OrderDepth({ quote, selectedPrice, onPriceSelect }: { quote: MarketQuoteSnapshot; selectedPrice?: number; onPriceSelect: LadderPick }) {
+export function OrderDepth({ quote: shownQuote, selectedPrice, onPriceSelect }: { quote: MarketQuoteSnapshot; selectedPrice?: number; onPriceSelect: LadderPick }) {
+  // 电脑版流畅度 ②: 五档 follows every pushed price, not the window's once-a-second copy.
+  const quote = useLiveQuote(shownQuote) ?? shownQuote;
   const [open, setOpen] = useDisclosureSurface("order-depth", { initial: depthOpenStored() });
   useEffect(() => {
     try { localStorage.setItem(ORDER_DEPTH_OPEN_KEY, open ? "1" : "0"); } catch { /* Local preference only. */ }

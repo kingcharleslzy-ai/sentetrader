@@ -295,6 +295,8 @@ export function useMarketWorkbench({ handle, marketStatus, feed, replaySymbol, c
     instrumentCatalog: displayCatalog, instrumentCatalogLoading, instrumentCatalogError,
     retryInstruments: () => setInstrumentCatalogKey((value) => value + 1),
     symbol, duration, market, marketLoading, marketError,
+    /** The push covers the shown market (useLiveMarket shows its every patch). */
+    marketLive: feedCovers.current,
     selectSymbol, changeChartPeriod,
     refreshMarket: () => setMarketKey((value) => value + 1)
   };

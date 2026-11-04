@@ -13,6 +13,7 @@ import { readNumber, STOP_PRICE_RULE as STOP_RULE, TAKE_PRICE_RULE as TAKE_RULE,
 import { HelpTip } from "../Blocks";
 import { usePlaybooks } from "../playbooks/PlaybookPage";
 import "./ContractInfoControl.css";
+import { useLiveMarket } from "../../hooks/useLiveMarket";
 
 type TradeMode = "open" | "close" | "target";
 
@@ -26,7 +27,7 @@ export const MAX_TICKET_VOLUME = 1000;
 const TARGET_RULE: NumberRule = { label: "目标净持仓", min: -999, max: 999, integer: true, unit: "手" };
 
 export function TradeTicket({
-  snapshot,
+  snapshot: shownSnapshot,
   runtimeUrl,
   deliveryNotice,
   volume,
@@ -68,6 +69,8 @@ export function TradeTicket({
    *  naming the order; no quick row. Logic, checks and the submit path are the desktop's. */
   variant?: "desktop" | "mobile";
 }) {
+  // 电脑版流畅度 ②: the ticket's prices follow every pushed patch; the window itself takes them at most once a second.
+  const snapshot = useLiveMarket(shownSnapshot) ?? shownSnapshot;
   const mobile = variant === "mobile";
   const [tradeMode, setTradeMode] = useState<TradeMode>("open");
   useUiSurface("ticketMode", { state: tradeMode, apply: value => setTradeMode(value === "close" || value === "target" ? value : "open") }, [tradeMode]);

@@ -28,6 +28,7 @@ import { chartQuoteBlockedReason } from "./marketSession";
 import { useAppearance } from "./hooks/useAppearance";
 import { GuestAppearanceContext } from "./guestAppearance";
 import { Presence } from "./components/motion";
+import { LiveMarketContext } from "./hooks/useLiveMarket";
 
 export function App() {
   const [mode] = useState<RuntimeMode>(defaultRuntimeMode);
@@ -181,7 +182,7 @@ function TradingApp(replayProps: ReplayWorkspaceProps & { mode: RuntimeMode }) {
 
   return (
     <>
-      <FuturesDecisionWorkspace
+      <LiveMarketContext.Provider value={workbench.marketLive}><FuturesDecisionWorkspace
         workspaceScope={workspaceScope}
         preferencesScope={rootWorkspaceScope}
         preferencesBaseUrl={mode === "cloud" ? rootBaseUrl : undefined}
@@ -253,7 +254,7 @@ function TradingApp(replayProps: ReplayWorkspaceProps & { mode: RuntimeMode }) {
           setCloudLoginOpen(true);
           setReconnectKey((value) => value + 1);
         } : undefined}
-      />
+      /></LiveMarketContext.Provider>
       <Presence>{toast ? <div className="toast" data-kind={toast.kind} role={toast.kind === "error" ? "alert" : "status"}><i aria-hidden="true">{{success: "✓", info: "i", warning: "!", error: "!"}[toast.kind]}</i><span>{toast.text}</span></div> : null}</Presence>
       {desktop ? <DesktopUpdateDialog updater={desktopUpdater} /> : null}
       {ownerLogin}

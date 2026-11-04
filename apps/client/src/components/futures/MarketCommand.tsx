@@ -10,6 +10,7 @@ import { ContractInfoControl } from "./ContractInfoControl";
 import { WatchlistStar } from "./WatchlistStar";
 import { PeriodSwitch } from "./PeriodSwitch";
 import "./MarketCommand.css";
+import { useLiveMarket } from "../../hooks/useLiveMarket";
 
 /** The last tick's direction and a counter that remounts the price so its flash restarts. */
 function usePriceTick(symbol: string | undefined, price: number | undefined) {
@@ -62,8 +63,10 @@ function ContractName({ name }: { name?: string }) {
 }
 
 /** Instrument, quote summary, period switch and chart tools above the chart. */
-export function MarketCommand({ workspace, market, headerCurrentContract, chartView, decimals, onOpenContracts, onSelectDuration, onSelectChartView, alerts, reminderBell, chartLayout, drawings,
+export function MarketCommand({ workspace, market: shownMarket, headerCurrentContract, chartView, decimals, onOpenContracts, onSelectDuration, onSelectChartView, alerts, reminderBell, chartLayout, drawings,
   watchlistStar, onToggleWatchlist, watchlistStatus }: Props) {
+  // 电脑版流畅度 ②: the price shows every pushed patch; the window itself takes them at most once a second.
+  const market = useLiveMarket(shownMarket) ?? shownMarket;
   const quote = market.quote;
   const tick = usePriceTick(quote?.symbol, quote?.lastPrice);
   const changePositive = (quote.changePercent ?? 0) > 0;

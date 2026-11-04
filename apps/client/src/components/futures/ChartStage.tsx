@@ -25,6 +25,7 @@ import { useDrawingDesk, type DrawingPreferencePatch } from "./useDrawingDesk";
 import { usePlaybooks } from "../playbooks/PlaybookPage";
 import { useConditionReminderLines } from "../reminders/MyReminders";
 import "./ChartDrawing.css";
+import { useLiveMarket } from "../../hooks/useLiveMarket";
 import { Presence } from "../motion";
 
 export { snapToTick } from "../../chartDrawingModel";
@@ -72,6 +73,8 @@ interface Props {
 }
 
 export function ChartStage(props: Props) {
+  // 电脑版流畅度 ②: the chart draws every pushed patch; the window itself takes them at most once a second.
+  props = { ...props, market: useLiveMarket(props.market) ?? props.market };
   return props.workspace.guest ? <ChartStageContent {...props} annotations={[]} backtestMarks={[]} alertLines={[]} protectionLines={[]} /> : <MemberChartStage {...props} />;
 }
 

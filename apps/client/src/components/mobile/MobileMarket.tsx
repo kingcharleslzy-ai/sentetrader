@@ -24,6 +24,7 @@ import { MobileMultiChart } from "./MobileMultiChart";
 import { MobileSubPaneSheet } from "./MobileSubPaneSheet";
 import { SwipeRow, type RowAction } from "./RowActions";
 import { useConditionReminderLines } from "../reminders/MyReminders";
+import { useLiveMarket } from "../../hooks/useLiveMarket";
 
 type Duration = MarketWorkbenchSnapshot["durationSeconds"];
 
@@ -64,7 +65,7 @@ export function autoChartSymbols(rows: readonly { symbol: string }[], board: Mar
  * their own components; a row or a cell opens its single chart. 手机画线 (2026-10-09): ✎ beside the periods opens
  * the computer's drawing tools as a sheet; taps place points, the bar under the chart adjusts the selected line.
  */
-export function MobileMarket({ market, name, decimals, chartView, onSelectDuration, onSelectChartView, onOpenContracts, onSelectSymbol,
+export function MobileMarket({ market: shownMarket, name, decimals, chartView, onSelectDuration, onSelectChartView, onOpenContracts, onSelectSymbol,
   chartSettings, setChartSettings, chartPreferences, resolvedTheme, alerts, positions, watchlist, board, instruments,
   onAskBar, onOrder, orderBlocked, marketError, onAlertSignIn, mobileMarket, indicators, onIndicatorsChange, indicatorStatus,
   baseUrl, boardError, guest = false, historyNote, onSignIn, onOpenChart, rowActions, drawings }: {
@@ -111,6 +112,8 @@ export function MobileMarket({ market, name, decimals, chartView, onSelectDurati
   /** 用户画线: the workspace's handle (the computer's records); absent for a visitor or while disconnected — no ✎. */
   drawings?: ChartDrawingsHandle;
 }) {
+  // 电脑版流畅度 ②: the price and the chart show every pushed patch; the window itself takes them at most once a second.
+  const market = useLiveMarket(shownMarket);
   const { market: prefs, update, sheetOpen, setSheetOpen } = mobileMarket;
   const view = prefs.view;
   const viewMotion = useStepMotion(MARKET_VIEWS.findIndex(item => item.id === view));
