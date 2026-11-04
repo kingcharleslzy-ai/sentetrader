@@ -4,8 +4,10 @@
     {"ui": {"panel": "order"}},
     {"screenshot": "01-panel-open"},
     {"ui": {"panel": null}},
+    {"ui": {"settingsPage": "ui"}},
     {"ui": {"disclosure": {"name": "workspace-layouts", "open": true}}},
     {"ui": {"disclosure": {"name": "workspace-layouts", "open": false}}},
+    {"ui": {"settingsOpen": false}},
     {"screenshot": "02-after-closes"}
   ]
 }

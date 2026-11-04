@@ -21,8 +21,6 @@ interface Props {
   guestActions?: ReactNode;
   /** AI 指令栏 (改版第二步): sits after the contract tabs and shrinks before anything else does. */
   aiBar?: ReactNode;
-  /** 自由布局 (2026-11-02): the 布局 dropdown, after 复盘 / 回放. */
-  layoutMenu?: ReactNode;
   workspace: FuturesDecisionWorkspaceProps;
   view: FuturesWorkspaceView;
   onSelectView: (view: FuturesWorkspaceView) => void;
@@ -47,7 +45,7 @@ interface Props {
  * review / replay, connection state and equity; drags the desktop window.
  * Contract tabs are role=tab with aria-selected; review and replay stay buttons.
  */
-export function WorkspaceHeader({ workspace, view, onSelectView, recoveryButton, tradingAccounts, pinnedSymbols, onSelectContract, onPinContract, onUnpinContract, onVisibleCurrentContractChange, replayBlocked, guestActions, aiBar, layoutMenu }: Props) {
+export function WorkspaceHeader({ workspace, view, onSelectView, recoveryButton, tradingAccounts, pinnedSymbols, onSelectContract, onPinContract, onUnpinContract, onVisibleCurrentContractChange, replayBlocked, guestActions, aiBar }: Props) {
   const headerRef = useRef<HTMLElement | null>(null);
   const [menu, setMenu] = useState<"more" | "pick" | null>(null);
   const [blocked, setBlocked] = useState("");
@@ -158,7 +156,6 @@ export function WorkspaceHeader({ workspace, view, onSelectView, recoveryButton,
         {!workspace.guest ? <button type="button" className={`fdw-nav-view ${view === "board" ? "active" : ""}`} aria-label="报价" onClick={() => onSelectView("board")}><Table2 /><span>报价</span></button> : null}
         <button type="button" className={`fdw-nav-view ${view === "review" ? "active" : ""}`} aria-label="复盘" onClick={() => { if (allowed("review-summary")) onSelectView("review"); }}><History /><span>复盘</span></button>
         {workspace.onOpenReplay && <button type="button" className={`fdw-nav-view ${replay && view === "trade" ? "active" : ""}`} aria-label="回放" title={replayBlocked && !replay ? replayBlocked : undefined} onClick={() => { if (replay) onSelectView("trade"); else if (!workspace.access && replayBlocked) setBlocked(replayBlocked); else if (allowed("market-replay")) workspace.onOpenReplay?.(); }}><Play /><span>回放</span></button>}
-        {layoutMenu}
         </span>
       </nav>
       {aiBar}

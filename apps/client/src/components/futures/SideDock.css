@@ -49,22 +49,22 @@
 .fdw-dock-slot { height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .fdw-dock-slot > * { flex: 1 1 auto; min-height: 0; }
 
-/* 布局 dropdown in the top bar's view group. */
-.fdw-layout-menu { position: relative; display: inline-flex; }
-.fdw-header nav .fdw-layout-menu > button svg { width: 14px; height: 14px; }
-.fdw-layout-list { position: absolute; top: calc(100% + 4px); right: 0; z-index: 30; width: 280px; display: grid; gap: var(--space-0); padding: var(--space-1);
+/* 布局 dropdown in 设置 → 界面 → 布局 (the last row there, so the list opens upward). */
+.fdw-layout-menu { position: relative; display: inline-flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.fdw-layout-menu > button svg { width: 14px; height: 14px; }
+.fdw-layout-list { position: absolute; bottom: calc(100% + 4px); left: 0; z-index: 30; width: 280px; display: grid; gap: var(--space-0); padding: var(--space-1);
   border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--panel); box-shadow: var(--shadow-2); }
 .fdw-layout-list > div { display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
-.fdw-header nav .fdw-layout-list button { height: 28px; display: flex; align-items: center; padding: 0 var(--space-3); border: 0; border-radius: var(--radius-control);
+.fdw-layout-list button { height: 28px; display: flex; align-items: center; padding: 0 var(--space-3); border: 0; border-radius: var(--radius-control);
   color: var(--ink); background: transparent; font-size: var(--font-md); white-space: nowrap; cursor: pointer; }
-.fdw-header nav .fdw-layout-list > div > button:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.fdw-header nav .fdw-layout-list button:hover:not(:disabled) { background: var(--soft); }
-.fdw-header nav .fdw-layout-list button[aria-current="true"] { color: var(--accent); font-weight: 600; }
-.fdw-header nav .fdw-layout-list button.fdw-layout-action { flex: none; padding: 0 var(--space-2); color: var(--muted); font-size: var(--font-sm); }
-.fdw-header nav .fdw-layout-list button.fdw-layout-action.danger { color: var(--danger); }
-.fdw-header nav .fdw-layout-list button:disabled { opacity: .4; cursor: default; }
+.fdw-layout-list > div > button:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.fdw-layout-list button:hover:not(:disabled) { background: var(--soft); }
+.fdw-layout-list button[aria-current="true"] { color: var(--accent); font-weight: 600; }
+.fdw-layout-list button.fdw-layout-action { flex: none; padding: 0 var(--space-2); color: var(--muted); font-size: var(--font-sm); }
+.fdw-layout-list button.fdw-layout-action.danger { color: var(--danger); }
+.fdw-layout-list button:disabled { opacity: .4; cursor: default; }
 .fdw-layout-form { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1); }
 .fdw-layout-new { margin-top: var(--space-1); padding-top: var(--space-2); border-top: 1px solid var(--line); }
 .fdw-layout-form input { flex: 1; min-width: 0; height: 28px; padding: 0 var(--space-2); border: 1px solid var(--line-strong); border-radius: var(--radius-control); color: var(--ink); background: var(--soft); font: inherit; font-size: var(--font-md); }
-.fdw-header nav .fdw-layout-list .fdw-layout-form button.primary-button { flex: none; color: var(--on-primary); background: var(--primary-bg); }
-.fdw-header nav .fdw-layout-list .fdw-layout-form button.primary-button:hover:not(:disabled) { background: var(--primary-bg); filter: brightness(1.08); }
+.fdw-layout-list .fdw-layout-form button.primary-button { flex: none; color: var(--on-primary); background: var(--primary-bg); }
+.fdw-layout-list .fdw-layout-form button.primary-button:hover:not(:disabled) { background: var(--primary-bg); filter: brightness(1.08); }

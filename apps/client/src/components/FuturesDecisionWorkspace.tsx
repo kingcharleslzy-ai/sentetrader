@@ -1333,7 +1333,8 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
       recoveryButton={recoveryButton} armedStopCount={armedStopCount} onEmergencyStop={() => setEmergencyOpen(true)}
       onHaltOpens={() => props.onStopAiExecution(false, "opens")}
       quickSkipConfirm={quickSkipConfirm} setQuickSkipConfirm={setQuickSkipConfirm} quickSkipConfirmScoped={Boolean(props.preferencesScope)} initialBalance={initialBalance} setInitialBalance={setInitialBalance} voiceAvailable={voiceAvailable}
-      ownerStatus={ownerPlan.status} preferences={prefs} skills={skills} routines={routineActions} mobile={mobile} /> : null}</Presence>
+      ownerStatus={ownerPlan.status} preferences={prefs} skills={skills} routines={routineActions} mobile={mobile}
+      layoutMenu={gridAvailable ? <LayoutMenu handle={workspaceLayouts} /> : undefined} /> : null}</Presence>
 
     <Presence>{accessNotice && (!settingsOpen || props.guest?.loginOpen) ? <div className="toast" role="status">{accessNotice}</div> : null}</Presence>
     {signalNotice ? <p className="fdw-signal-notice" role="status" data-testid="strategy-signal-notice">{signalNotice}</p> : null}
@@ -1699,7 +1700,6 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
         onVisibleCurrentContractChange={setHeaderCurrentContract}
         pinnedSymbols={pinnedSymbols} onSelectContract={selectContractTab} onPinContract={() => { setContractPinMode(true); setContractOpen(true); }} onUnpinContract={unpinContractTab} replayBlocked={replayBlocked}
         guestActions={props.guest ? <PttButton ptt={ptt} /> : undefined}
-        layoutMenu={gridAvailable ? <LayoutMenu handle={workspaceLayouts} onError={setAccessNotice} /> : undefined}
         aiBar={props.guest || mobile ? undefined : <AiCommandBar busy={Boolean(props.chatBusy || chat.sendingPrompt)} chatOpen={rightDock === "ai"}
           blockedReason={aiBlocked} send={aiCommand.send} ptt={ptt} />} />
 

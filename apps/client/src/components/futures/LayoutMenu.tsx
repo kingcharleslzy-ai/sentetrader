@@ -5,11 +5,13 @@ import { LAYOUTS_MAX, type WorkspaceLayoutChange, type WorkspaceLayoutsHandle } 
 import { Presence } from "../motion";
 
 /**
- * 自由布局 (2026-11-02): the top bar's 布局 dropdown (`disclosure: workspace-layouts`) — switch between 盘前 / 盘中 /
- * 复盘 and saved layouts, start a new blank one, rename or delete. Each action is the `workspaceLayout` command.
+ * 自由布局 (2026-11-02; in 设置 → 界面 → 布局 since 2026-11-04): the saved layouts' dropdown (`disclosure: workspace-layouts`) —
+ * switch between 盘前 / 盘中 / 复盘 and saved layouts, start a new blank one, rename or delete. Each action is the
+ * `workspaceLayout` command; a refusal shows beside the button.
  */
-export function LayoutMenu({ handle, onError }: { handle: WorkspaceLayoutsHandle; onError: (message: string) => void }) {
+export function LayoutMenu({ handle }: { handle: WorkspaceLayoutsHandle }) {
   const [open, setOpen] = useDisclosureSurface("workspace-layouts");
+  const [error, setError] = useState("");
   const [renaming, setRenaming] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const box = useRef<HTMLSpanElement>(null);
@@ -24,13 +26,13 @@ export function LayoutMenu({ handle, onError }: { handle: WorkspaceLayoutsHandle
     return () => { document.removeEventListener("pointerdown", outside); document.removeEventListener("keydown", escape); };
   }, [open, setOpen]);
   const run = (change: WorkspaceLayoutChange) => {
-    try { handle.apply(change); return true; } catch (error) { onError(error instanceof Error ? error.message : "布局暂时不能切换"); return false; }
+    try { handle.apply(change); setError(""); return true; } catch (failure) { setError(failure instanceof Error ? failure.message : "布局暂时不能切换"); return false; }
   };
   return (
     <span className="fdw-layout-menu" ref={box}>
-      <button type="button" className="fdw-nav-view" aria-haspopup="true" aria-expanded={open} aria-label={`布局：${current?.name ?? ""}`}
+      <button type="button" className="app-button" aria-haspopup="true" aria-expanded={open} aria-label={`布局：${current?.name ?? ""}`}
         data-agent-target="workspace-layouts" onClick={() => setOpen(!open)}>
-        <span>布局</span><ChevronDown />
+        <span>{current?.name ?? "布局"}</span><ChevronDown />
       </button>
       <Presence>{open ? <div className="fdw-layout-list" data-agent-target="workspace-layouts-menu">
         {layouts.items.map(item => <div key={item.id}>
@@ -52,6 +54,7 @@ export function LayoutMenu({ handle, onError }: { handle: WorkspaceLayoutsHandle
           <button type="submit" className="primary-button" disabled={Boolean(renaming) || layouts.items.length >= LAYOUTS_MAX}>新建布局</button>
         </form>
       </div> : null}</Presence>
+      {error ? <span className="app-setting-status" role="status">{error}</span> : null}
     </span>
   );
 }

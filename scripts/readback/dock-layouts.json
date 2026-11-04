@@ -1,5 +1,5 @@
 {
-  "about": "电脑版自由布局（#1261；11-04 新建布局从空白开始）：新建“回读布局”后屏幕是空白（没有右侧面板、单图）；在里面把对话、策略开成一组页签、调研拆到策略下面、多图左右 2 格；切到“盘中”再切回来，面板摆放和多图都恢复；顶栏按钮固定写“布局”。只改测试账号自己的布局偏好，最后回到“盘中”、删掉“回读布局”、回到单图。",
+  "about": "电脑版自由布局（#1261；11-04 新建布局从空白开始）：新建“回读布局”后屏幕是空白（没有右侧面板、单图）；在里面把对话、策略开成一组页签、调研拆到策略下面、多图左右 2 格；切到“盘中”再切回来，面板摆放和多图都恢复；“保存的布局”下拉在 设置 → 界面 → 布局。只改测试账号自己的布局偏好，最后回到“盘中”、删掉“回读布局”、回到单图。",
   "steps": [
     {"ui": {"view": "trade"}, "expect": {"view": "trade"}},
     {"ui": {"workspaceLayout": {"select": "live"}}, "expect": {"preferences.ui.workspaceLayouts.current": "live"}},
@@ -17,9 +17,11 @@
     {"ui": {"workspaceLayout": {"select": "{{layoutId}}"}}, "expect": {"preferences.ui.workspaceLayouts.current": "{{layoutId}}", "dockGroups.1": {"exists": true},
      "preferences.ui.desktopCharts.layout": "two"}},
     {"screenshot": "14-restored"},
+    {"ui": {"settingsPage": "ui"}, "expect": {"observation.controls": {"includes": "布局："}}},
     {"ui": {"disclosure": {"name": "workspace-layouts", "open": true}}, "expect": {"observation.controls": {"includes": "新建布局"}}},
     {"screenshot": "15-layout-menu"},
-    {"ui": {"disclosure": {"name": "workspace-layouts", "open": false}}}
+    {"ui": {"disclosure": {"name": "workspace-layouts", "open": false}}},
+    {"ui": {"settingsOpen": false}}
   ],
   "cleanup": [
     {"ui": {"workspaceLayout": {"select": "live"}}, "expect": {"preferences.ui.workspaceLayouts.current": "live"}},

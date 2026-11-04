@@ -115,6 +115,8 @@ interface Props {
   routines?: { run: (routine: RoutineRef) => void; edit: (name: string) => void };
   /** 手机版 (第二轮 2026-11-01): 交易 and 语音 keep only the everyday rows (下单与停止: 默认手数, 默认价格方式, 停止; 语音: see VoiceSettings). */
   mobile?: boolean;
+  /** 自由布局 (owner 2026-11-04: moved here from the top bar): the saved layouts' dropdown; absent on the phone, for a visitor and in replay. */
+  layoutMenu?: ReactNode;
 }
 
 /** 设置 → 账户 → 登录 → 登录密码 (2026-10-21): a site-password account changes it here (this device stays
@@ -138,7 +140,7 @@ const CHART_OPTIONS = [["volume", "成交量"], ["crosshair", "同步十字线"]
 export function WorkspaceSettings({ workspace, page, onPageChange, onClose, model, tradingAccounts, connectedRuntimeUrl, desktopVersion,
   agentModelLabel, apiSetupRequired, apiProviderName, preferenceStatus, chartSettings, setChartSettings, chartIndicators, onChartIndicatorsChange, chartIndicatorStatus, boardColumns, onBoardColumnsChange, boardColumnStatus, dockSide, setDockSide,
   resetLayout, closed, sessionLabel, aiExecutionActive, executionStopped, recoveryButton, armedStopCount, onEmergencyStop,
-  onHaltOpens, quickSkipConfirm, setQuickSkipConfirm, quickSkipConfirmScoped, initialBalance, setInitialBalance, voiceAvailable, ownerStatus, preferences, skills, routines, mobile = false }: Props) {
+  onHaltOpens, quickSkipConfirm, setQuickSkipConfirm, quickSkipConfirmScoped, initialBalance, setInitialBalance, voiceAvailable, ownerStatus, preferences, skills, routines, mobile = false, layoutMenu }: Props) {
   const prefs = preferences.preferences;
   const prefStatus = preferences.status ? <span role="status">{preferences.status}</span> : undefined;
   const offline = !connectedRuntimeUrl && !workspace.guest;
@@ -350,6 +352,7 @@ export function WorkspaceSettings({ workspace, page, onPageChange, onClose, mode
           <SettingRow label="辅助区位置"><Segmented label="辅助区位置" value={dockSide} options={[{ value: "left", label: "左侧" }, { value: "right", label: "右侧" }] as const} onChange={setDockSide} /></SettingRow>
           <SettingRow label="底栏自动隐藏" helpKey="auto-hide-positions-bar" help="没有持仓和挂单时隐藏底部持仓条"><Switch label="底栏自动隐藏" checked={prefs.ui?.autoHidePositionsBar ?? true} disabled={offline} onChange={value => setPref("ui.autoHidePositionsBar", value)} /></SettingRow>
           <SettingRow label="辅助区布局"><Button onClick={resetLayout}>恢复默认布局</Button></SettingRow>
+          {layoutMenu ? <SettingRow label="保存的布局" helpKey="workspace-layouts" help="存几套右侧面板和多图的摆法，在这里切换；在哪个布局里改了摆法就自动存进哪个">{layoutMenu}</SettingRow> : null}
         </SettingsSection>
       </> },
       { id: "shortcuts", label: "快捷键", content: <>

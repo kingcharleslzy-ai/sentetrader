@@ -245,7 +245,7 @@ export const COMMANDABLE: Rule[] = [
   // 自由布局 (2026-11-02): the side dock's tabs and their closes, and the 布局 dropdown.
   { match: control => control.role === "tab" && /^(对话|调研|策略|提醒|下单|持仓)$/.test(control.label), via: "panel: ai | news | strategy | reminders | order | positions（选中这一页签）；拖页签＝dock: {panel, to: tab | left | right | above | below, of}" },
   { match: /^关闭(对话|调研|策略|提醒|下单|持仓)$/, via: "dock: {panel, to: close}（只关这一个面板）" },
-  { match: /^布局：/, via: "disclosure: workspace-layouts（顶栏布局下拉；快照 state.preferences.ui.workspaceLayouts）" },
+  { match: /^布局：/, via: "disclosure: workspace-layouts（设置 → 界面 → 布局 的保存的布局下拉，先 settingsPage: ui；快照 state.preferences.ui.workspaceLayouts）" },
   { match: control => control.group === "workspace-layouts-menu" && /^改名：/.test(control.label), via: "workspaceLayout: {rename: {id, name}}" },
   { match: control => control.group === "workspace-layouts-menu" && /^删除布局：/.test(control.label), via: "workspaceLayout: {remove: id}" },
   { match: control => control.group === "workspace-layouts-menu" && control.label === "新建布局", via: "workspaceLayout: {save: 名字}（新建空白布局）" },
