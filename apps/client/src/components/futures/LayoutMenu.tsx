@@ -6,7 +6,7 @@ import { Presence } from "../motion";
 
 /**
  * 自由布局 (2026-11-02): the top bar's 布局 dropdown (`disclosure: workspace-layouts`) — switch between 盘前 / 盘中 /
- * 复盘 and saved layouts, save the screen as a new one, rename or delete. Each action is the `workspaceLayout` command.
+ * 复盘 and saved layouts, start a new blank one, rename or delete. Each action is the `workspaceLayout` command.
  */
 export function LayoutMenu({ handle, onError }: { handle: WorkspaceLayoutsHandle; onError: (message: string) => void }) {
   const [open, setOpen] = useDisclosureSurface("workspace-layouts");
@@ -30,7 +30,7 @@ export function LayoutMenu({ handle, onError }: { handle: WorkspaceLayoutsHandle
     <span className="fdw-layout-menu" ref={box}>
       <button type="button" className="fdw-nav-view" aria-haspopup="true" aria-expanded={open} aria-label={`布局：${current?.name ?? ""}`}
         data-agent-target="workspace-layouts" onClick={() => setOpen(!open)}>
-        <span>{current?.name ?? "布局"}</span><ChevronDown />
+        <span>布局</span><ChevronDown />
       </button>
       <Presence>{open ? <div className="fdw-layout-list" data-agent-target="workspace-layouts-menu">
         {layouts.items.map(item => <div key={item.id}>
@@ -49,7 +49,7 @@ export function LayoutMenu({ handle, onError }: { handle: WorkspaceLayoutsHandle
         <form className="fdw-layout-form fdw-layout-new" onSubmit={event => { event.preventDefault(); if (run({ save: draft })) { setDraft(""); setOpen(false); } }}>
           <input aria-label="新布局的名字" placeholder="新布局名" value={renaming ? "" : draft} maxLength={12} disabled={Boolean(renaming)}
             onChange={event => setDraft(event.target.value)} />
-          <button type="submit" className="primary-button" disabled={Boolean(renaming) || layouts.items.length >= LAYOUTS_MAX}>另存布局</button>
+          <button type="submit" className="primary-button" disabled={Boolean(renaming) || layouts.items.length >= LAYOUTS_MAX}>新建布局</button>
         </form>
       </div> : null}</Presence>
     </span>

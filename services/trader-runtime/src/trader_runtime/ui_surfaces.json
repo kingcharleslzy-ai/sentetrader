@@ -192,7 +192,7 @@
     "chart-drawing-style": {"card": true, "sparse": true, "idRequired": "要带 id：线的 id（state.chartDrawings.items）"},
     "chart-drawing-settings": {"card": true, "sparse": true, "idRequired": "要带 id：线的 id（state.chartDrawings.items）"},
     "chart-context-menu": {"card": true, "sparse": true, "idRequired": "要带 id：main / drawing:<线 id> / pane:<kd|macd|rsi|oi>，可加 /draw 等子菜单"},
-    "workspace-layouts": {"desc": "自由布局 (2026-11-02): the top bar's 布局 dropdown — 盘前 / 盘中 / 复盘 and the saved layouts, 另存布局, 改名, 删除 (each is also the `workspaceLayout` command)."},
+    "workspace-layouts": {"desc": "自由布局 (2026-11-02): the top bar's 布局 dropdown — 盘前 / 盘中 / 复盘 and the saved layouts, 新建布局 (starts blank), 改名, 删除 (each is also the `workspaceLayout` command)."},
     "chart-periods-more": {"desc": "周期收起 (2026-10-03): the period row's 更多 popover (3分 / 30分 / 1小时 / 周线). While the bar is too narrow for the full row, open = the popover shows; when the full row fits every period is already on it, so open / close are answered as done with nothing to show. Picking one is still the `duration` command."},
     "order-depth": {"desc": "下单面板 · 五档 (2026-10-03): the order panel's five-level fold above the ticket (open by default, remembered on the machine; folded it keeps 买一 / 卖一 on the title line)."},
     "ticket-protection": {"desc": "手机版下单页 (2026-10-04): the ticket's folded 止损 / 止盈 row (open = the two price fields show)."},

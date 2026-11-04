@@ -2,12 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SerializedDockview } from "dockview-react";
 import type { DesktopChartsPreferences, PreferencesDocument } from "../../userPreferences";
 import type { DockPanel } from "./SideDock";
+import { DEFAULT_DESKTOP_CHARTS } from "./desktopCharts";
 
 /**
  * 自由布局 (2026-11-02): 盘前 / 盘中 / 复盘 and the layouts the user saves, in the account preference
  * `ui.workspaceLayouts` (mirrors the Runtime's WorkspaceLayoutsPreferences). A layout holds the open side panels
  * with their arrangement and the 多图 (cells[active] = the chart's own contract and period). Whatever changes on
- * screen is saved into the current layout a moment later; switching restores the other one.
+ * screen is saved into the current layout a moment later; switching restores the other one. A new layout starts
+ * blank (owner 2026-11-04): no side panels, one chart on the contract and period shown now.
  */
 export interface WorkspaceLayout {
   id: string; name: string;
@@ -58,7 +60,10 @@ export function planLayoutChange(change: WorkspaceLayoutChange, layouts: Workspa
     if (items.length >= LAYOUTS_MAX) throw new Error(`最多存 ${LAYOUTS_MAX} 个布局，先删一个`);
     if (items.some(item => item.name === name)) throw new Error(`已经有叫“${name}”的布局`);
     const id = `u${Date.now().toString(36)}`;
-    return { layouts: { current: id, items: [...items, { id, name, ...now }] } };
+    const shown = now.charts?.cells[now.charts.active];
+    const blank = { id, name, dock: EMPTY_DOCK,
+      charts: { ...DEFAULT_DESKTOP_CHARTS, cells: DEFAULT_DESKTOP_CHARTS.cells.map((cell, index) => index === 0 && shown ? shown : cell) } };
+    return { layouts: { current: id, items: [...items, blank] }, restore: blank };
   }
   if (change.rename !== undefined) {
     const name = named(change.rename.name);

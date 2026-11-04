@@ -383,9 +383,9 @@
       "steps": [
         "右侧再开一个面板，它成为同一组里的页签",
         "按住页签拖到边上，松手就并排或上下摆",
-        "顶栏布局按钮：切盘前、盘中、复盘或存的布局",
-        "下拉里“另存布局”起名保存，也能改名、删除",
-        "改了摆法会自动存进现在这个布局"
+        "顶栏“布局”按钮：切盘前、盘中、复盘或你建的布局，当前那个高亮",
+        "下拉里“新建布局”起个名字，从空白开始摆（没有右侧面板、单图）；也能改名、删除",
+        "在哪个布局里改了摆法，就自动存进那个布局"
       ],
       "faq": [
         {
@@ -402,12 +402,12 @@
         },
         {
           "q": "能让 AI 帮我摆吗？",
-          "a": "能。说“把调研和持仓上下放”“切到复盘布局”“存成早盘”，它替你做。"
+          "a": "能。说“把调研和持仓上下放”“切到复盘布局”“新建一个早盘布局”，它替你做。"
         }
       ],
       "detail": [
         "界面命令 dock={panel: ai|order|strategy|positions|news|reminders, to: tab|left|right|above|below|close, of?}：tab 放进 of 那一组当页签，left/right/above/below 放到 of 旁边（缺省 of 是当前面板），close 只关这一个；没开的面板会在那里打开。panel 命令仍是打开并选中一个面板（作为当前组的新页签），panel: null 仍是关掉整个右侧。快照 state.panel 是当前面板，state.dockPanels 是开着的面板，state.dockGroups 是每组里的面板。",
-        "界面命令 workspaceLayout（一次一项）：select <id> 切换；save <名字> 另存并切过去（最多 11 个，名字 1–12 个字、不重名）；rename {id, name}；remove <id>（至少留一个，删当前的切到第一个）。默认 id：pre 盘前、live 盘中、review 复盘。顶栏下拉是 disclosure: workspace-layouts。账号偏好 ui.workspaceLayouts = {current, items: [{id, name, dock: {panels, active, grid}, charts}]}，grid 是面板摆法（dockview 的布局数据），charts 是多图（选中格存的是当时图表的合约与周期，切过去会切回它）；charts 为空的布局切过去不动多图。现在这个布局里的改动停一秒后自动存进去；打开页面时恢复当前布局的右侧面板，多图和合约按这台设备当时的。拖拽用开源组件 dockview（MIT），面板浮出成独立窗口这一版没有做。"
+        "界面命令 workspaceLayout（一次一项）：select <id> 切换；save <名字> 新建一个空白布局并切过去（没有右侧面板、单图、合约与周期不变；最多 11 个，名字 1–12 个字、不重名）；rename {id, name}；remove <id>（至少留一个，删当前的切到第一个）。默认 id：pre 盘前、live 盘中、review 复盘。顶栏下拉是 disclosure: workspace-layouts。账号偏好 ui.workspaceLayouts = {current, items: [{id, name, dock: {panels, active, grid}, charts}]}，grid 是面板摆法（dockview 的布局数据），charts 是多图（选中格存的是当时图表的合约与周期，切过去会切回它）；charts 为空的布局切过去不动多图。现在这个布局里的改动停一秒后自动存进去；打开页面时恢复当前布局的右侧面板，多图和合约按这台设备当时的。拖拽用开源组件 dockview（MIT），面板浮出成独立窗口这一版没有做。"
       ]
     },
     "chart-ai": {

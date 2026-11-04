@@ -248,7 +248,7 @@ export const COMMANDABLE: Rule[] = [
   { match: /^布局：/, via: "disclosure: workspace-layouts（顶栏布局下拉；快照 state.preferences.ui.workspaceLayouts）" },
   { match: control => control.group === "workspace-layouts-menu" && /^改名：/.test(control.label), via: "workspaceLayout: {rename: {id, name}}" },
   { match: control => control.group === "workspace-layouts-menu" && /^删除布局：/.test(control.label), via: "workspaceLayout: {remove: id}" },
-  { match: control => control.group === "workspace-layouts-menu" && control.label === "另存布局", via: "workspaceLayout: {save: 名字}" },
+  { match: control => control.group === "workspace-layouts-menu" && control.label === "新建布局", via: "workspaceLayout: {save: 名字}（新建空白布局）" },
   { match: control => control.group === "workspace-layouts-menu" && control.role === "button", via: "workspaceLayout: {select: id}（布局名）" },
   { match: control => /^chart-cell:\d$/.test(control.group ?? "") && /^选中第 \d 格：/.test(control.label), via: "desktopCharts: {active: 格子序号 0–3}（选中的格就是图表本身，下单、合约标签和 AI 跟它）" },
   { match: control => control.group === "mobile-subpanes" && control.label === "完成", via: "mobileMarket: {subPanes: false}" },
