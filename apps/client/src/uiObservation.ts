@@ -21,7 +21,10 @@ function visible(element: Element): boolean {
   let scrollable = false;
   for (let parent: Element | null = element; parent; parent = parent.parentElement) {
     const style = getComputedStyle(parent);
-    if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") return false;
+    // A panel fading in starts at opacity 0, and a window that is not painting (in the background, headless)
+    // holds it there: it counts as shown, as it will be (2026-11-04 readback missed a whole dock panel).
+    if (style.display === "none" || style.visibility === "hidden"
+      || (style.opacity === "0" && !parent.getAnimations?.().some(animation => animation.playState !== "finished"))) return false;
     if (parent === element) continue;
     const overflow = style.overflow + style.overflowX + style.overflowY;
     if (/auto|scroll/.test(overflow)) scrollable = true;
@@ -65,12 +68,11 @@ function regionName(element: Element): string {
   return match ? match[1] : element.getAttribute("role") === "dialog" ? "dialog" : "region";
 }
 
-/** `onChange` runs on every page change that makes the next snapshot read again. */
-export function createUiObserver(onChange: () => void = () => undefined) {
+export function createUiObserver() {
   let dirty = true;
   let key = "";
   let cached: ReturnType<typeof observeUi> | undefined;
-  const invalidate = () => { dirty = true; onChange(); };
+  const invalidate = () => { dirty = true; };
   const mutations = new MutationObserver(invalidate);
   mutations.observe(document.documentElement, { subtree: true, childList: true, characterData: true, attributes: true });
   const events = ["resize", "scroll", "transitionend", "animationend", "focusin", "focusout"];
