@@ -65,11 +65,12 @@ function regionName(element: Element): string {
   return match ? match[1] : element.getAttribute("role") === "dialog" ? "dialog" : "region";
 }
 
-export function createUiObserver() {
+/** `onChange` runs on every page change that makes the next snapshot read again. */
+export function createUiObserver(onChange: () => void = () => undefined) {
   let dirty = true;
   let key = "";
   let cached: ReturnType<typeof observeUi> | undefined;
-  const invalidate = () => { dirty = true; };
+  const invalidate = () => { dirty = true; onChange(); };
   const mutations = new MutationObserver(invalidate);
   mutations.observe(document.documentElement, { subtree: true, childList: true, characterData: true, attributes: true });
   const events = ["resize", "scroll", "transitionend", "animationend", "focusin", "focusout"];

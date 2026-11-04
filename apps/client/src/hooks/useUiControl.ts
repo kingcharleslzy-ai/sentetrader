@@ -14,6 +14,10 @@ export type UiChanges = components["schemas"]["UiChanges"];
 const IDLE_PULSE_MS = 30_000;
 /** A drag (dock width, chart pane sizes) changes state on every pointer move; one pulse after it settles. */
 const STATE_CHANGE_DEBOUNCE_MS = 250;
+/** What a state change shows can finish drawing after its pulse (a dock panel lays out a frame or more later,
+ *  2026-11-04 readback): for this long after it, a page change sends the snapshot again, at most once per gap. */
+const RENDER_SETTLE_MS = 2_000;
+const RENDER_FOLLOW_GAP_MS = 500;
 type Command = { commandId: string; expectedRevision: number; changes: UiChanges };
 type Receipt = { commandId: string; status: "applied" | "rejected" };
 /** Whether this window's heartbeat is accepted; false after three consecutive 422s (shown in the workspace). */
@@ -35,11 +39,13 @@ export function useUiControl(baseUrl: string | undefined, workspace: string | un
   // idle heartbeat; a drag collapses into one pulse.
   const wakeRef = useRef<() => void>(() => undefined);
   const settleTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const renderingUntil = useRef(0);
   useLayoutEffect(() => {
     const previous = latest.current;
     const changed = JSON.stringify(previous.state) !== JSON.stringify(state);
     latest.current = { state, apply, baseUrl, workspace, context, revision: previous.revision + (changed ? 1 : 0) };
     if (changed) {
+      renderingUntil.current = Date.now() + RENDER_SETTLE_MS;
       clearTimeout(settleTimer.current);
       settleTimer.current = setTimeout(() => wakeRef.current(), STATE_CHANGE_DEBOUNCE_MS);
     }
@@ -47,7 +53,11 @@ export function useUiControl(baseUrl: string | undefined, workspace: string | un
   useEffect(() => {
     if (baseUrl === undefined || !workspace) return;
     const windowId = crypto.randomUUID();
-    const observation = createUiObserver();
+    let follow: ReturnType<typeof setTimeout> | undefined;
+    const observation = createUiObserver(() => {
+      if (follow || Date.now() > renderingUntil.current) return;
+      follow = setTimeout(() => { follow = undefined; wake(); }, RENDER_FOLLOW_GAP_MS);
+    });
     let stopped = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let controller: AbortController | undefined;
@@ -163,6 +173,6 @@ export function useUiControl(baseUrl: string | undefined, workspace: string | un
     const visibility = () => wake();
     document.addEventListener("visibilitychange", visibility);
     return () => { window.removeEventListener("pagehide", pagehide); document.removeEventListener("visibilitychange", visibility);
-      clearTimeout(settleTimer.current); wakeRef.current = () => undefined; stopNudge(); stop(); };
+      clearTimeout(settleTimer.current); clearTimeout(follow); wakeRef.current = () => undefined; stopNudge(); stop(); };
   }, [baseUrl, workspace, fence]);
 }
