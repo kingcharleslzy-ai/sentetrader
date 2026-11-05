@@ -24,6 +24,8 @@ export interface MobileStrategyRun {
   name: string;
   symbol: string;
   status: "monitoring" | "paused";
+  /** A 我的提醒 condition reminder (`plan.reminderOnly`), not a strategy. */
+  reminderOnly: boolean;
   /** The period it runs on (a follow-chart plan: the period it was bound to when it started). */
   timeframeSeconds: number | null;
   signalAction: "alert" | "confirm" | "auto";
@@ -67,7 +69,7 @@ function runOf(item: SavedStrategy, library: SavedStrategy | undefined, monitor:
   const timeframe = plan?.timeframeSeconds || item.definition.chartTimeframeSeconds || null;
   return {
     strategyId: item.strategyId, libraryId: library?.strategyId ?? item.strategyId, name: strategyText(library?.name ?? item.name),
-    symbol: item.symbol, status, timeframeSeconds: timeframe,
+    symbol: item.symbol, status, reminderOnly: Boolean(plan?.reminderOnly), timeframeSeconds: timeframe,
     signalAction: monitor?.effectiveSignalAction ?? monitor?.signalAction ?? item.signalAction ?? "auto",
     todayPnl: monitor?.today && monitor.today.pnl != null && Number.isFinite(pnl) ? pnl : null,
     last: attempt ? { time: monitorTime(attempt.updatedAt).slice(-8, -3),

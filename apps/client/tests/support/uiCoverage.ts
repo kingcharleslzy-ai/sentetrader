@@ -125,7 +125,7 @@ export const COMMANDABLE: Rule[] = [
   // AI 正在盯 (手机版第二轮): the 今天 page's three chips only open where each is managed.
   { match: /^到价 \d+$/, via: "reminders: {tab: mine}（今天页 AI 正在盯 · 到价：提醒页的我的提醒）" },
   { match: /^策略在跑 \d+$/, via: "mobileStrategyTab: running + mobileTab: strategy（今天页 AI 正在盯 · 策略在跑）" },
-  { match: /^今日提醒 \d+$/, via: "reminders: {tab: history}（今天页 AI 正在盯 · 今日提醒：提醒页的提醒记录）" },
+  { match: /^条件提醒 \d+$/, via: "reminders: {tab: mine}（今天页 AI 正在盯 · 条件提醒：提醒页的我的提醒）" },
   { match: control => control.group === "mobile-ai" && / (今日判断|暂无|读取中)$/.test(control.label), via: "symbol + mobileTab: research（今日判断胶囊：切到该品种主力合约并打开调研；判断还没读回时显示“读取中”）" },
   { match: /^看提醒(（\d+ 条未读）)?$/, via: "reminderCenter: {open: true}（今天页右上角铃铛进提醒页；未读数在快照 state.reminderCenter.unread / state.mobileUnread）" },
   { match: control => control.group === "mobile-strategy" && /^(暂停|继续运行|正在暂停…|正在继续…)$/.test(control.label), via: "POST /api/strategies/{id}/monitor/pause | …/monitor/start（策略卡的暂停 / 继续运行，与电脑运行中卡同一接口）" },
@@ -351,7 +351,7 @@ export const COMMANDABLE: Rule[] = [
     via: "DELETE /api/market/alerts/{alert_id} | DELETE /api/market/drawings/{drawing_id} | DELETE /api/strategy-plans/{identifier}（任务步骤 step.action.undo 写明的那个业务接口）" },
   { match: /^(看全文|在对话里看明细|在对话里确认|在对话里看全文|到对话里确认)$/, via: "panel: ai" },
   // AI 正在盯 (改版第二步): the line under the chart only opens where each watched item is managed.
-  { match: control => control.group === "ai-watching" && /今天提醒过 \d+ 次$/.test(control.label), via: "reminders: {tab: history}" },
+  { match: control => control.group === "ai-watching" && /^持仓 · .+检查中$/.test(control.label), via: "reminders: {tab: general}" },
   { match: control => control.group === "ai-watching" && /提醒中$/.test(control.label), via: "reminders: {tab: mine}" },
   { match: control => control.group === "ai-watching" && /运行中$/.test(control.label), via: "strategyTab: running" },
   // 说人话 (2026-09-25): each parameter's “?” note (结果页 · 来自模板的参数).

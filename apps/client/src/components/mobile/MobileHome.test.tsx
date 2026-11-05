@@ -15,15 +15,15 @@ const rows = buildMobileFeed({ turns: [], briefs: buildFlowItems({ briefs: [
   brief("b1", "SHFE.rb", "螺纹钢", "螺纹库存回落", 1), brief("b2", "DCE.i", "铁矿石", "港口到货增加", 2), brief("b3", "SHFE.rb", "螺纹钢", "钢厂限产", 3),
 ] }) }).map(notifyRow);
 
-const watch: WatchInfo = { positions: ["甲醇空单 6 手"], alerts: ["螺纹 3188"], strategies: ["均线金叉 · 出卡确认"], movement: true,
-  next: ["14:55 收盘前持仓检查", "15:15 今日复盘"], closed: false };
+const watch: WatchInfo = { positions: ["甲醇空单 6 手"], alerts: ["螺纹 3188"], conditions: ["跌破年线"], strategies: ["均线金叉 · 出卡确认"],
+  checks: ["保本", "盘中异动"], next: "14:55 收盘前持仓检查", closed: false };
 const now = Date.UTC(2026, 9, 5, 2, 0);
 
 function Home({ filterStart = "all", ...rest }: Partial<Parameters<typeof MobileHome>[0]> & { filterStart?: NotifyFilter }) {
   const [filter, setFilter] = useState<NotifyFilter>(filterStart);
   const [product, setProduct] = useState<string | null>(null);
   return <div className="fdm-content"><MobileHome rows={rows} pending={[]} renderCard={() => null} quickPending={false} now={now}
-    today={{ positions: 1, floating: 860, reminders: 0, unreadReminders: 0 }} onPositions={vi.fn()} watch={watch} onAlerts={vi.fn()} onStrategies={vi.fn()} onTodayReminders={vi.fn()} judgments={[]} onJudgment={vi.fn()}
+    today={{ positions: 1, floating: 860, reminders: 0, unreadReminders: 0 }} onPositions={vi.fn()} watch={watch} onAlerts={vi.fn()} onStrategies={vi.fn()} judgments={[]} onJudgment={vi.fn()}
     filter={filter} onFilter={setFilter} products={notifyProducts(rows)} product={product} onProduct={setProduct}
     onOpen={vi.fn()} onReminders={vi.fn()} focus={0} {...rest} /></div>;
 }
@@ -48,29 +48,29 @@ it("订阅品种在前；订阅了还没有内容的品种说明还没有简报"
   const products = notifyProducts(rows, [{ product: "SHFE.ru", name: "橡胶" }, { product: "SHFE.rb", name: "螺纹钢" }]);
   expect(products.map(item => item.name)).toEqual(["橡胶", "螺纹钢", "铁矿石"]);
   render(<MobileHome rows={rows} pending={[]} renderCard={() => null} quickPending={false} now={now}
-    today={{ positions: 0, floating: null, reminders: 0, unreadReminders: 0 }} onPositions={vi.fn()} watch={watch} onAlerts={vi.fn()} onStrategies={vi.fn()} onTodayReminders={vi.fn()} judgments={[]} onJudgment={vi.fn()}
+    today={{ positions: 0, floating: null, reminders: 0, unreadReminders: 0 }} onPositions={vi.fn()} watch={watch} onAlerts={vi.fn()} onStrategies={vi.fn()} judgments={[]} onJudgment={vi.fn()}
     filter="brief" onFilter={vi.fn()} products={products} product="SHFE.ru" onProduct={vi.fn()} onOpen={vi.fn()} onReminders={vi.fn()} focus={0} />);
   expect(screen.queryByRole("list", { name: "时间线" })).toBeNull();
   expect(screen.getByText("橡胶还没有简报")).toBeVisible();
 });
 
-it("AI 正在盯：一直在今天页，三个胶囊带数、点了进对应页；盯着的东西在“?”里；休市与什么都没有各有一句", () => {
-  const onAlerts = vi.fn(), onStrategies = vi.fn(), onTodayReminders = vi.fn();
-  const view = render(<Home onAlerts={onAlerts} onStrategies={onStrategies} onTodayReminders={onTodayReminders} />);
+it("AI 正在盯：一直在今天页，只数在等触发的（到价、条件提醒、策略），点了进对应页；盯着的东西在“?”里；休市与什么都没有各有一句", () => {
+  const onAlerts = vi.fn(), onStrategies = vi.fn();
+  const view = render(<Home onAlerts={onAlerts} onStrategies={onStrategies} />);
   const block = () => screen.getByTestId("mobile-watch");
   const chips = () => within(screen.getByRole("group", { name: "AI 正在盯" })).getAllByRole("button");
-  expect(chips().map(chip => chip.textContent)).toEqual(["到价 1", "策略在跑 1", "今日提醒 0"]);
-  expect(block()).toHaveTextContent("下一次：14:55 收盘前持仓检查15:15 今日复盘");
+  expect(chips().map(chip => chip.textContent)).toEqual(["到价 1", "条件提醒 1", "策略在跑 1"]);
+  expect(block()).toHaveTextContent("下一次：14:55 收盘前持仓检查");
   fireEvent.click(within(block()).getByRole("button", { name: "AI 正在盯的说明" }));
   const tip = screen.getByTestId("help-tip-mobile-watch");
-  expect(tip).toHaveTextContent("1 笔持仓：甲醇空单 6 手；1 个到价提醒：螺纹 3188；1 个策略运行中：均线金叉 · 出卡确认；盘中异动：持仓合约每分钟查一次。");
+  expect(tip.textContent).toBe("1 个到价提醒：螺纹 3188；1 个条件提醒：跌破年线；1 个策略运行中：均线金叉 · 出卡确认；1 笔持仓：甲醇空单 6 手，查保本、盘中异动。点一个胶囊进管它的地方。");
   fireEvent.click(chips()[0]);
   fireEvent.click(chips()[1]);
   fireEvent.click(chips()[2]);
-  expect([onAlerts, onStrategies, onTodayReminders].map(fn => fn.mock.calls.length)).toEqual([1, 1, 1]);
-  // 待确认 and today's reminders no longer hide it.
+  expect([onAlerts, onStrategies].map(fn => fn.mock.calls.length)).toEqual([2, 1]);
+  // 待确认 and today's reminders no longer hide it; what already fired is not counted here.
   view.rerender(<Home today={{ positions: 1, floating: 860, reminders: 2, unreadReminders: 1 }} quickPending />);
-  expect(chips().map(chip => chip.textContent)).toEqual(["到价 1", "策略在跑 1", "今日提醒 2"]);
+  expect(chips().map(chip => chip.textContent)).toEqual(["到价 1", "条件提醒 1", "策略在跑 1"]);
   expect(within(screen.getByRole("group", { name: "今天概况" })).getByRole("button", { name: /^今天提醒/ })).toHaveTextContent("2 条1 条未读");
   // The three tiles are named for screen readers and the observation snapshot (10-06 实测：名字为空).
   const tiles = within(screen.getByRole("group", { name: "今天概况" })).getAllByRole("button").map(button => button.getAttribute("aria-label"));

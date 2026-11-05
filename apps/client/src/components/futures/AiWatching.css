@@ -8,4 +8,3 @@
   color: var(--ink); font: inherit; white-space: nowrap; text-overflow: ellipsis; cursor: pointer; }
 .ai-watching button:hover, .ai-watching button:focus-visible { border-color: var(--line-strong); background: var(--surface-hover); }
 .ai-watching em { flex: none; color: var(--muted); font-style: normal; }
-.ai-watching .ai-watching-today { margin-left: auto; color: var(--muted); }

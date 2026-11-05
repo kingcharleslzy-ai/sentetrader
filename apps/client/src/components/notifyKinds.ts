@@ -32,7 +32,8 @@ export const REMINDER_KINDS: Record<string, ReminderKindInfo> = {
   delivery: { label: "交割到期", icon: CalendarClock, tone: "warning" },
   market_movement: { label: "盘中异动", icon: Activity, tone: "warning" },
   daily_review: { label: "每日复盘", icon: ClipboardCheck, tone: "accent" },
-  morning_desk: { label: "今日作战表", icon: Sunrise, tone: "info" },
+  // The system pushes it by itself each trading day; nobody sets it up, so the tag says so (owner 2026-11-05).
+  morning_desk: { label: "每日自动 · 作战表", icon: Sunrise, tone: "info" },
   research_debate: { label: "研讨完成", icon: MessagesSquare, tone: "info" },
   brief: { label: "AI 简讯", icon: Newspaper, tone: "info" },
   emergency_stop: { label: "急停", icon: OctagonAlert, tone: "danger" },
@@ -88,7 +89,7 @@ export const TRADE_REMINDERS: NotifyKind[] = [
 
 /** 信息 · 只进提醒记录: no conversation message, only the 提醒记录 and the lock screen. */
 export const INFO_REMINDERS: NotifyKind[] = [
-  simple("morning_desk", "今日作战表", "notify.morningDesk", "开盘前把你的自选品种按优先级排好：关键价位、消息和可能用上的交易笔记。"),
+  simple("morning_desk", "今日作战表", "notify.morningDesk", "系统每个交易日开盘前（08:45 前后）自动推一条，不用设置：把你的自选品种按优先级排好，关键价位、消息和可能用上的交易笔记。"),
   simple("research_debate", "研讨完成", "notify.researchDebate", "多 AI 研讨跑完，给出结论。"),
   simple("brief", "AI 简讯", "notify.desktop.briefs", "订阅品种的重要消息。", false),
 ];

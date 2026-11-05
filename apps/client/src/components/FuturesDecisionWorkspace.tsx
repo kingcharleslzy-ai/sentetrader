@@ -1359,6 +1359,9 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   const pendingMarketState = !market && !blockingMarketState
     ? <div className="fdw-blocking-state" role="status"><strong>{noContract ? props.instrumentsError || "还没有选择合约" : props.marketError || "正在读取行情…"}</strong>
       {noContract ? <button type="button" onClick={() => setContractOpen(true)}>选择合约</button> : null}</div> : null;
+  // AI 正在盯's 持仓 item (both layouts): the checks the Runtime runs on held positions while their 通用提醒 switch is on.
+  const positionChecks = [preferences.notify.breakEven !== false ? "保本" : "", preferences.notify.riskReminder ? "风险度" : "",
+    preferences.notify.marketCloseReminder ? "收盘前" : "", preferences.notify.movement ? "盘中异动" : ""].filter(Boolean);
 
   if (mobile) {
     const currentAccount = tradingAccounts.directory?.accounts.find(entry => entry.id === (tradingAccounts.currentId ?? tradingAccounts.directory?.current));
@@ -1470,12 +1473,10 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     const watch: WatchInfo = {
       positions: positions.map(position => `${shortName(position.symbol)}${position.direction === "long" ? "多单" : "空单"} ${position.volume} 手`),
       alerts: alerts.active.map(alert => `${shortName(alert.symbol, alert.name)} ${alert.price}`),
-      strategies: mobileStrategies.runs.filter(run => run.status === "monitoring").map(run => `${run.name} · ${signalActionLabel(run.signalAction)}`),
-      movement: preferences.notify.movement === true,
-      next: [positions.length && preferences.notify.marketCloseReminder ? closeCheck ? `${closeCheck} 收盘前持仓检查` : "收盘前 5 分钟检查持仓" : "",
-        preferences.notify.dailyReview !== false ? "15:15 今日复盘" : "",
-        // 外盘仓（美元子账户）的复盘在 CME 收盘后出（北京清晨），不是 15:15。
-        preferences.notify.dailyReview !== false && props.account?.foreign?.positions.length ? "CME 收盘后 外盘复盘" : ""].filter(Boolean),
+      conditions: mobileStrategies.runs.filter(run => run.status === "monitoring" && run.reminderOnly).map(run => run.name),
+      strategies: mobileStrategies.runs.filter(run => run.status === "monitoring" && !run.reminderOnly).map(run => `${run.name} · ${signalActionLabel(run.signalAction)}`),
+      checks: positionChecks,
+      next: positions.length && preferences.notify.marketCloseReminder ? closeCheck ? `${closeCheck} 收盘前持仓检查` : "收盘前 5 分钟检查持仓" : null,
       closed: marketClosedNow(market),
     };
     // 读取中 per product until its desk read returns (the shown product's own read when not subscribed).
@@ -1573,7 +1574,6 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
             onQuotes={() => { selectMobileTab("market"); mobileMarket.update({ view: "quotes", board: "watchlist" }); }}
             onPositions={() => tapPage("positions")} watch={watch} judgments={chips} onJudgment={openJudgment}
             onAlerts={showMyReminders} onStrategies={() => { setMobileStrategyTab("running"); selectMobileTab("strategy"); }}
-            onTodayReminders={() => { setRemindersTab("history"); showReminders(); }}
             filter={notifyFilter} onFilter={setNotifyFilter}
             products={notifyProductList} product={shownNotifyProduct} onProduct={setNotifyProduct}
             onOpen={openNotify} onReminders={showReminders}
@@ -1760,9 +1760,10 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
                     ...(playbook ? { ask: `按我的交易笔记「${playbook.name}」设提醒：${playbook.entryRules.trim() || playbook.name}`.slice(0, 500) } : {}) })} /></ChartGrid>}
                 {market && !props.guest && !mobile && !props.replayActive ? <AiWatching
                   alerts={alerts.active.filter(alert => sameContract(alert.symbol, quote?.symbol))} strategies={appWorkbench.activity?.strategies ?? []}
-                  todayReminders={reminders.today.length} onOpen={target => {
+                  checks={currentPositions.length ? positionChecks : []} onOpen={target => {
                     if (target === "strategies") { setStrategyTab("running"); setRightDock("strategy"); }
-                    else { setRemindersTab(target === "history" ? "history" : "mine"); setRightDock("reminders"); }
+                    else if (target === "checks") openReminderSettings();
+                    else showMyReminders();
                   }} /> : null}
                 {aiOrb}
                 </div>)}
