@@ -9,6 +9,7 @@ import { useModelCatalog } from "../hooks/useModelCatalog";
 import { useTradingAccounts, type TradingAccountsView } from "../hooks/useTradingAccounts";
 import { useAccountNavigation } from "../hooks/useAccountNavigation";
 import { AccountPnl } from "./AccountPnl";
+import { useAccountPnl } from "../hooks/useAccountPnl";
 import { TradeReview } from "./TradeReview";
 import { ChevronLeft, CircleAlert, GripVertical, PanelRightClose, ReceiptText } from "lucide-react";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -44,7 +45,7 @@ import { AiCommandBar } from "./futures/AiCommandBar";
 import { AiCommandBubble, useAiCommand } from "./futures/useAiCommand";
 import { NewsPanel, type NewsTab } from "./NewsPanel";
 import { useDebateHost } from "./ResearchDebate";
-import { productOfSymbol } from "./FlashFeed";
+import { FlashFeed, productOfSymbol, type FlashFeedResponse } from "./FlashFeed";
 import { StrategyDock } from "./futures/StrategyDock";
 import { applyUiSurface, uiSurface, uiSurfaceStates, useUiSurface } from "../uiSurfaces";
 import type { AiFocus } from "./AiMenu";
@@ -65,13 +66,13 @@ import { useQuickOrderSkipConfirm, useQuickOrders } from "./futures/useQuickOrde
 import { QuickActions, quickCloseRequests, useTicketQuickActions } from "./futures/QuickActions";
 import { leavesOf, linkOf, mainLink, moduleOf, useBoards, type BoardBlock, type BoardSize, type LinkColor } from "./boards/boards";
 import { BoardsMenu, BoardsView, useBoardsControl } from "./boards/BoardsView";
-import { AlertCompact, ChartSmall, ChartMedium, ChatCompact, OrderCompact, PositionsSmall, PositionsMedium, PositionsLarge, SheetCompact, WatchCompact, watchRows } from "./boards/BoardTiles";
+import { AccountCompact, FlashSmall, OrdersCompact, PnlSmall, StrategiesCompact, AlertCompact, ChartSmall, ChartMedium, ChatCompact, OrderCompact, PositionsSmall, PositionsMedium, PositionsLarge, SheetCompact, WatchCompact, watchRows } from "./boards/BoardTiles";
 import { BattleSheet, useBattleSheet } from "./BattleSheet";
 import { QuickOrderDialog } from "./futures/QuickOrderDialog";
 import { useTradeReview } from "../hooks/useTradeReview";
 import { useForeignBoard } from "../hooks/useForeignBoard";
 import { useMarketBoard } from "../hooks/useMarketBoard";
-import type { BoardWant } from "../feedView";
+import { useFeedReport, type BoardWant } from "../feedView";
 import { useWorkspaceChat } from "./futures/useWorkspaceChat";
 import { useWorkspaceLayout } from "./futures/useWorkspaceLayout";
 import { useWorkspaceUiControl } from "./futures/useWorkspaceUiControl";
@@ -143,6 +144,8 @@ const PREFERENCES_REREAD_MS = 1_500;
 const HOME_WATCH_ROWS = 5;
 const EMPTY_BOARD_ROWS: ReadonlyMap<string, MarketBoardRow> = new Map();
 const NO_OWN_CHART = {};
+// 看板 · 快讯: the board's feed reports no state of its own (the 调研 panel's 快讯 does).
+const NO_FLASH_STATE = () => undefined;
 
 export type { FuturesWorkspaceView, ManualSimulationRequest, SimulationLimitSettings } from "./futures/support";
 
@@ -756,6 +759,12 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     if (color === boardMain || color === "none") selectContract(symbol); else boardsControl.followLink(color as LinkColor, symbol);
   };
   const dashboardWatch = boardModules.includes("watch");
+  // 模块补全 (owner 2026-11-06): what the small 复盘盈亏 and 快讯 read — the 复盘 page's own read and the pushed 快讯 feed,
+  // only while such a block is on screen at its small size (the larger ones are the page's / panel's own components).
+  const boardPnl = useAccountPnl({ baseUrl: connectedRuntimeUrl, accountId: reviewAccountId, enabled: boardModules.includes("pnl") && boardsControl.sizes.pnl === "small" });
+  const boardFlash = useFeedReport<FlashFeedResponse>(connectedRuntimeUrl,
+    boardModules.includes("flash") && boardsControl.sizes.flash === "small" ? "flash?hours=24&limit=50" : undefined);
+
   // 看板 · 作战表 小 / 中: the same rows as the 调研 panel's tab (pushed, assembled here); the large size is the tab itself.
   const boardSheet = useBattleSheet(connectedRuntimeUrl, boardModules.includes("sheet") && boardsControl.sizes.sheet !== "large",
     prefs.document ? watchlist : undefined);
@@ -1668,7 +1677,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
       case "reminders": return props.guest ? null : <RemindersPanel tab={remindersTab} onTab={setRemindersTab} onClose={() => setRightDock(null)}
           center={reminderCenter} settings={reminderSettings} mine={myReminders} />;
       case "strategy": return props.guest ? null : <StrategyDock workspace={workspace} quote={quote}
-          onClose={() => setRightDock(null)} tab={strategyTab} onTabChange={setStrategyTab}
+          onClose={embedded ? undefined : () => setRightDock(null)} tab={embedded ? "running" : strategyTab} onTabChange={setStrategyTab}
           onStrategySelected={focus.setActiveStrategy} autonomy={preferencesLoaded ? preferences.trade.aiAutonomy : undefined}
           onAskAi={askAi} explainBlocked={signalsBlocked} backtestBlocked={backtestBlocked}
           onShowReminders={showMyReminders}
@@ -1724,6 +1733,33 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   // 看板 (2026-11-05): one module at one size. Small and medium are their own layouts; the large ones are the panels.
   const renderBoardTile = (block: BoardBlock, size: BoardSize): ReactNode => {
     const module = moduleOf(block);
+    const roomy = size !== "small";
+    if (module === "account") return <AccountCompact account={props.account?.account} foreign={props.account?.foreign?.account} medium={roomy}
+      onOpen={() => applyUiSurface("dialog:account-detail", { open: true })} />;
+    if (module === "orders") return <OrdersCompact orders={props.simulationOrders.filter(orderIsActive)} fills={props.account?.activity.trades ?? []}
+      instruments={props.instruments} medium={roomy} onCancel={order => handleOrderAction(order, "cancel")}
+      onOpen={() => { setPositionsTab("orders"); setRightDock("positions"); }} />;
+    if (module === "strategies") {
+      if (size === "large") return renderDockPanel("strategy", true);
+      const items = (appWorkbench.activity?.strategies ?? []).map(item => ({ id: item.strategyId, name: item.name, status: item.status,
+        reminderOnly: item.reminderOnly, note: item.decision?.detail ?? undefined }));
+      return <StrategiesCompact items={items} medium={roomy} onOpen={() => { setStrategyTab("running"); setRightDock("strategy"); }} />;
+    }
+    if (module === "flash") {
+      const openFlash = () => { setNewsTab("flash"); setRightDock("news"); };
+      if (!roomy) return <FlashSmall items={boardFlash?.items} onOpen={openFlash} />;
+      return <div className="board-flash">
+        <FlashFeed baseUrl={connectedRuntimeUrl} symbol={quote?.symbol} visible filter={boardsControl.flash.filter} onFilterChange={filter => boardsControl.setFlash({ filter })}
+          sort={boardsControl.flash.sort} onSortChange={sort => boardsControl.setFlash({ sort })} watchProducts={flashWatchProducts} instruments={props.instruments?.items} onSelectSymbol={selectContract} onState={NO_FLASH_STATE} />
+      </div>;
+    }
+    if (module === "pnl") {
+      if (!roomy) return <PnlSmall pnl={boardPnl.pnl} error={boardPnl.error} onOpen={() => selectView("review")} />;
+      return connectedRuntimeUrl ? <AccountPnl baseUrl={connectedRuntimeUrl} rootUrl={props.rootBaseUrl ?? connectedRuntimeUrl} symbol={quote?.symbol ?? props.selectedSymbol ?? ""}
+        chartSymbols={(props.instruments?.items ?? []).map(item => item.symbol)} chartAvailable={Boolean(quote)} accountId={reviewAccountId}
+        foreignAccountId={foreignReviewAccountId} snapshots={ledgerSnapshots} onFocus={setTradeFocus} onSelectSymbol={props.onSelectSymbol}
+        initialBalance={initialBalance} onInitialBalanceChange={setInitialBalance} compact /> : <p className="board-empty" role="status">连接后可看复盘</p>;
+    }
     const compact = size === "small" || size === "medium";
     if (module === "positions") {
       const positions = props.account?.positions ?? [];

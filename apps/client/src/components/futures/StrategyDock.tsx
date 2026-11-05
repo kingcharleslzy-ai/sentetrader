@@ -10,7 +10,8 @@ import type { StrategyTab } from "./support";
 interface Props {
   workspace: FuturesDecisionWorkspaceProps;
   quote: MarketQuoteSnapshot | undefined;
-  onClose: () => void;
+  /** Absent when the panel is a 看板 block (no 收起 of its own). */
+  onClose?: () => void;
   /** 我的策略 / 正在运行 and the 结果页 (`strategyTab` command), owned by the workspace. */
   tab: StrategyTab;
   onTabChange: (tab: StrategyTab) => void;
@@ -49,7 +50,7 @@ export function StrategyDock({ workspace, quote, onClose, tab, onTabChange, onSt
       <header>
         <div>{reminder ? <Bell /> : <ListTree />}<span><strong>{reminder ? "提醒" : "策略"}</strong><small>{(editor.open && editor.form.symbol) || quote?.symbol || "未选择合约"}</small></span></div>
         <div className="fdw-ai-head-actions">
-          <button type="button" aria-label={reminder ? "收起提醒" : "收起策略"} onClick={() => onClose()}><PanelRightClose /></button>
+          {onClose ? <button type="button" aria-label={reminder ? "收起提醒" : "收起策略"} onClick={() => onClose()}><PanelRightClose /></button> : null}
         </div>
       </header>
       <div className="fdw-ai-scroll">

@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type MutableRefObject, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { Check, ChevronDown, GripVertical, LayoutDashboard, MoreHorizontal, Pencil, Plus, Sparkles, Trash2, Undo2, X } from "lucide-react";
 import { DndProvider, useDrag } from "react-dnd";
@@ -6,6 +7,7 @@ import { MosaicDragType, MosaicWindow, MosaicWithoutDragDropContext, type Mosaic
 import "react-mosaic-component/react-mosaic-component.css";
 import { useDisclosureSurface, useUiSurface } from "../../uiSurfaces";
 import { HelpTip } from "../Blocks";
+import { ChartPopover } from "../chartIndicatorEditor";
 import { Presence } from "../motion";
 import { arrangeBoard } from "../../api";
 import { CHART_DURATIONS, LINK_COLORS, MODULES, SIZE_LABELS, blockLabel, insertAt, isLinkBlock, leavesOf, linkOf, mainLink, moduleInfo, moduleOf, nextChartBlock,
@@ -24,6 +26,11 @@ const MODULE_ICONS: Record<BoardModule, string> = {
   sheet: "M5 4h14v16H5zM8 9h8M8 13h8M8 17h5",
   alert: "M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4",
   chat: "M4 5h16v11H9l-5 4z",
+  account: "M3 7h18v12H3zM3 11h18M16 15h2",
+  orders: "M6 4h12v16H6zM9 8h6M9 12h6M9 16h3",
+  strategies: "M5 19V9M12 19V5M19 19v-7M3 19h18",
+  flash: "M13 3L5 14h6l-1 7 8-11h-6z",
+  pnl: "M4 18l5-6 4 3 7-9M15 6h5v5",
 };
 const ModuleIcon = ({ module }: { module: BoardModule }) => <svg viewBox="0 0 24 24" aria-hidden="true"><path d={MODULE_ICONS[module]} /></svg>;
 
@@ -62,7 +69,12 @@ export interface BoardsControl {
   ask: (sentence: string) => Promise<void>;
   /** The canvas's measured size, which the AI arranges for. */
   canvas: MutableRefObject<{ w: number; h: number }>;
+  /** 快讯 on the board: its own filter and sort (the 调研 panel's 快讯 keeps its own). */
+  flash: { filter: BoardFlashFilter; sort: BoardFlashSort };
+  setFlash: (patch: Partial<{ filter: BoardFlashFilter; sort: BoardFlashSort }>) => void;
 }
+export type BoardFlashFilter = "product" | "watch" | "macro" | "all";
+export type BoardFlashSort = "time" | "impact";
 
 /**
  * The `boards` UI command and the snapshot's `state.boards` (editing, the 模块库, each block's size and share); the list
@@ -77,6 +89,8 @@ export function useBoardsControl(handle: BoardsHandle, show: () => void, availab
   const [asking, setAskingState] = useState(false);
   const [arranging, setArranging] = useState(false);
   const canvas = useRef({ w: 0, h: 0 });
+  const [flash, setFlashState] = useState<{ filter: BoardFlashFilter; sort: BoardFlashSort }>({ filter: "watch", sort: "time" });
+  const setFlash = useCallback((patch: Partial<{ filter: BoardFlashFilter; sort: BoardFlashSort }>) => setFlashState(current => ({ ...current, ...patch })), []);
   const [library, setLibraryState] = useState(false);
   const [sizes, setSizes] = useState<Partial<Record<BoardBlock, BoardSize>>>({});
   const { resetUndo } = handle;
@@ -138,10 +152,17 @@ export function useBoardsControl(handle: BoardsHandle, show: () => void, availab
     ...(moduleOf(block) === "chart" ? { symbol: charts[block]?.symbol ?? null, duration: charts[block]?.duration ?? null } : {}) }));
   const groups = Object.fromEntries(LINK_COLORS.flatMap(({ id }) => id !== main && linkSymbol(id) ? [[id, linkSymbol(id)!]] : []));
   const shownPreview = preview ? { note: preview.note, blocks: leavesOf(preview.layout) } : null;
-  useUiSurface("boards", { state: { editing, library: editing && library, tiles, main, groups, preview: shownPreview, arranging }, apply: value => {
+  const hasFlash = leavesOf(layout).includes("flash");
+  useUiSurface("boards", { state: { editing, library: editing && library, tiles, main, groups, preview: shownPreview, arranging, flash: hasFlash ? flash : null }, apply: value => {
     const change = value as BoardsChange & { editing?: boolean; undo?: boolean; linkSymbol?: { color: LinkColor; symbol: string };
-      preview?: { layout: BoardNode; locks?: BoardPreview["locks"]; charts?: BoardPreview["charts"]; note?: string }; adopt?: boolean; discard?: boolean; ask?: string };
+      preview?: { layout: BoardNode; locks?: BoardPreview["locks"]; charts?: BoardPreview["charts"]; note?: string }; adopt?: boolean; discard?: boolean; ask?: string;
+      flash?: Partial<{ filter: BoardFlashFilter; sort: BoardFlashSort }> };
     const { handle: boards, show: open, setEditing: edit } = latest.current;
+    if (change.flash !== undefined) {
+      if (!leavesOf(latest.current.handle.board.layout).includes("flash")) throw new Error("这个看板上没有快讯");
+      setFlash(change.flash);
+      return;
+    }
     if (change.linkSymbol !== undefined) {
       const { color, symbol } = change.linkSymbol;
       if (color === mainLink(boards.board)) throw new Error("这个颜色跟着顶栏的当前合约，用 symbol 切换");
@@ -175,9 +196,9 @@ export function useBoardsControl(handle: BoardsHandle, show: () => void, availab
     }
     boards.apply(change);
     if (change.select !== undefined || change.create !== undefined) open();
-  } }, [editing, library, JSON.stringify(tiles), main, JSON.stringify(groups), JSON.stringify(shownPreview), arranging], available);
+  } }, [editing, library, JSON.stringify(tiles), main, JSON.stringify(groups), JSON.stringify(shownPreview), arranging, hasFlash, flash.filter, flash.sort], available);
   return { handle, editing, setEditing, library, setLibrary, show, notice, notify, sizes, reportTile, linkSymbol, followLink,
-    preview, adopt, discard, asking, setAsking, arranging, ask, canvas };
+    preview, adopt, discard, asking, setAsking, arranging, ask, canvas, flash, setFlash };
 }
 
 /**
@@ -339,24 +360,48 @@ function TileMenu({ block, size, run, layout, locked, link }: { block: BoardBloc
   </span>;
 }
 
-/** A chart block's own contract and period, in its name bar (the 多图 cell's choice: 跟顶栏 = the app's own). */
+/**
+ * A chart block's own contract and period, in its name bar: the chart bar's 更多周期 control (a face with a chevron
+ * opening the chart popover of buttons), one per block. Picking a contract makes the chart 不联动; 跟联动色 / 跟顶栏 put it
+ * back on its colour or the app's contract.
+ */
 function ChartPick({ block, choice, link, contracts, run }: { block: BoardBlock; choice: { symbol?: string; duration?: number }; link?: LinkSetting;
   contracts: readonly { symbol: string; name: string }[]; run: (change: BoardsChange) => boolean }) {
   const label = blockLabel(block);
   const own = link === "none";
-  const listed = contracts.some(item => item.symbol === choice.symbol);
-  return <span className="board-chart-pick" onMouseDown={event => event.stopPropagation()}>
-    {/* Picking a contract makes the chart 不联动; 跟联动色 / 跟顶栏 puts it back on its colour or the app's contract. */}
-    <select aria-label={`${label}的合约`} value={own ? choice.symbol ?? "" : ""}
-      onChange={event => run(event.target.value ? { chart: { block, symbol: event.target.value } } : own && block === "chart" ? { link: { module: block, color: "blue" } } : { chart: { block, symbol: null } })}>
-      <option value="">{own ? "跟顶栏合约" : "跟联动色"}</option>
-      {choice.symbol && !listed ? <option value={choice.symbol}>{choice.symbol}</option> : null}
-      {contracts.map(item => <option key={item.symbol} value={item.symbol}>{item.name}</option>)}
-    </select>
-    <select aria-label={`${label}的周期`} value={choice.duration ?? ""} onChange={event => run({ chart: { block, duration: event.target.value ? Number(event.target.value) : null } })}>
-      <option value="">跟顶栏周期</option>
-      {CHART_DURATIONS.map(duration => <option key={duration} value={duration}>{durationLabel(duration)}</option>)}
-    </select>
+  const face = useRef<HTMLButtonElement>(null);
+  const [rect, setRect] = useState<DOMRect>();
+  // The popover's state is this component's own: the click and the `disclosure` command both go through setOpen.
+  const setOpen = (open: boolean) => setRect(open ? face.current?.getBoundingClientRect() ?? document.body.getBoundingClientRect() : undefined);
+  useDisclosureSurface("board-chart-pick", { id: block, state: rect !== undefined, apply: setOpen });
+  const nameOf = (symbol: string) => contracts.find(item => item.symbol === symbol)?.name ?? symbol;
+  const contractText = own ? choice.symbol ? nameOf(choice.symbol) : "跟顶栏合约" : "跟联动色";
+  const periodText = choice.duration ? durationLabel(choice.duration) : "跟顶栏周期";
+  const pick = (change: BoardsChange) => { if (run(change)) setOpen(false); };
+  const listed = choice.symbol && !contracts.some(item => item.symbol === choice.symbol) ? [{ symbol: choice.symbol, name: choice.symbol }, ...contracts] : contracts;
+  return <span className="fdw-chart-tools board-chart-pick" onMouseDown={event => event.stopPropagation()}>
+    <div role="group" aria-label={`${label}的合约和周期`}>
+      <button type="button" ref={face} className="fdw-period-more" aria-haspopup="dialog" aria-expanded={rect !== undefined}
+        aria-label={`${label}的合约和周期：${contractText} · ${periodText}`} onClick={() => setOpen(rect === undefined)}>
+        <span className="board-ellipsis">{contractText} · {periodText}</span><ChevronDown aria-hidden="true" /></button>
+    </div>
+    <Presence>{rect ? createPortal(<ChartPopover title={`${label}的合约和周期`} anchorRect={rect} onClose={() => setOpen(false)} width={300}>
+      <div data-agent-target={`board-chart-pick:${block}`}>
+        <small className="board-menu-caption">合约</small>
+        <div className="fdw-period-more-list board-chart-pick-list">
+          <button type="button" className={!own || !choice.symbol ? "active" : ""} aria-pressed={!own || !choice.symbol}
+            onClick={() => pick(own && block === "chart" ? { link: { module: block, color: "blue" } } : { chart: { block, symbol: null } })}>{own ? "跟顶栏合约" : "跟联动色"}</button>
+          {listed.map(item => <button type="button" key={item.symbol} className={own && choice.symbol === item.symbol ? "active" : ""}
+            aria-pressed={own && choice.symbol === item.symbol} onClick={() => pick({ chart: { block, symbol: item.symbol } })}>{item.name}</button>)}
+        </div>
+        <small className="board-menu-caption">周期</small>
+        <div className="fdw-period-more-list board-chart-pick-list">
+          <button type="button" className={!choice.duration ? "active" : ""} aria-pressed={!choice.duration} onClick={() => pick({ chart: { block, duration: null } })}>跟顶栏周期</button>
+          {CHART_DURATIONS.map(duration => <button type="button" key={duration} className={choice.duration === duration ? "active" : ""}
+            aria-pressed={choice.duration === duration} onClick={() => pick({ chart: { block, duration } })}>{durationLabel(duration)}</button>)}
+        </div>
+      </div>
+    </ChartPopover>, document.body) : null}</Presence>
   </span>;
 }
 

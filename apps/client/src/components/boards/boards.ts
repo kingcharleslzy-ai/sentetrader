@@ -18,7 +18,7 @@ export const BOARDS_MAX = 11;
 const NAME_MAX = 12;
 export const CHARTS_MAX = 9;
 
-export type BoardModule = "chart" | "positions" | "order" | "watch" | "sheet" | "alert" | "chat";
+export type BoardModule = "chart" | "positions" | "order" | "watch" | "sheet" | "alert" | "chat" | "account" | "orders" | "strategies" | "flash" | "pnl";
 /** A block on a board: its module's name, or `chart-2` … `chart-9` for the further charts. */
 export type BoardBlock = string;
 export type BoardSize = "small" | "medium" | "large" | "xlarge" | "bar";
@@ -53,6 +53,12 @@ export const MODULES: { id: BoardModule; label: string; sizes: BoardSize[]; many
   { id: "alert", label: "提醒", sizes: ["small", "medium"] },
   // 对话: 一条 when the block is a thin strip.
   { id: "chat", label: "对话", sizes: ["bar", "medium", "large"] },
+  // 模块补全 (owner 2026-11-06): every surface can sit on a board.
+  { id: "account", label: "账户权益", sizes: ["small", "medium", "large"] },
+  { id: "orders", label: "委托与成交", sizes: ["small", "medium", "large"] },
+  { id: "strategies", label: "运行中的策略", sizes: ["small", "medium", "large"] },
+  { id: "flash", label: "快讯", sizes: ["small", "medium", "large"] },
+  { id: "pnl", label: "复盘盈亏", sizes: ["small", "medium", "large"] },
 ];
 const MODULE_IDS = new Set(MODULES.map(item => item.id));
 const CHART_BLOCK = /^chart-[2-9]$/;

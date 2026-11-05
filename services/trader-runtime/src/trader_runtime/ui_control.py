@@ -467,6 +467,12 @@ class BoardChartChange(BaseModel):
     duration: BOARD_CHART_DURATIONS | None = None
 
 
+class BoardFlash(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    filter: Literal["product", "watch", "macro", "all"] | None = None
+    sort: Literal["time", "impact"] | None = None
+
+
 class BoardLinkSymbol(BaseModel):
     model_config = ConfigDict(extra="forbid")
     color: BOARD_LINK_COLORS
@@ -508,7 +514,8 @@ class BoardsChange(BaseModel):
     undo 撤销这次编辑里最近一步, link {module: 块, color} 联动色（图表 / 下单 / 自选 / 作战表的块各一个颜色 blue / purple /
     orange，图表还可以 none 不联动；同色的跟同一个合约；下单所在的颜色跟着顶栏的当前合约）, linkSymbol {color, symbol} 让另一个颜色的那几块换到某个合约,
     preview {layout, locks?, note?} 编辑时先把一套摆法摆出来给用户看（不保存）, adopt 用这套（存下，可撤销）, discard 不用,
-    ask <一句话> 让 AI 帮我摆（编辑时；AI 只给摆法，结果是 preview）. Modules chart / positions / order / watch / sheet（作战表）/ alert（提醒）/ chat（对话）,
+    ask <一句话> 让 AI 帮我摆（编辑时；AI 只给摆法，结果是 preview）, flash {filter?: product / watch / macro / all, sort?: time /
+    impact} 看板上快讯那一块自己的筛选和排序（调研面板的快讯另有 news 命令）. Modules chart / positions / order / watch / sheet（作战表）/ alert（提醒）/ chat（对话）,
     each at most once per board except 图表 (up to nine). The list is the account preference ui.boards; state.boards carries
     editing, the 模块库 and each block's size, lock, share, colour and (charts) contract and period."""
     model_config = ConfigDict(extra="forbid")
@@ -523,6 +530,7 @@ class BoardsChange(BaseModel):
     lock: BoardLock | None = None
     link: BoardLink | None = None
     chart: BoardChartChange | None = None
+    flash: BoardFlash | None = None
     linkSymbol: BoardLinkSymbol | None = None
     preview: BoardPreview | None = None
     adopt: Literal[True] | None = None
@@ -535,7 +543,7 @@ class BoardsChange(BaseModel):
     def one_key(self):
         given = [key for key in self.model_fields_set if getattr(self, key) is not None]
         if len(given) != 1 or len(self.model_fields_set) != 1:
-            raise ValueError("boards 一次只做一件：select / create / rename / remove / place / replace / take / ratio / lock / link / chart / "
+            raise ValueError("boards 一次只做一件：select / create / rename / remove / place / replace / take / ratio / lock / link / chart / flash / "
                              "linkSymbol / preview / adopt / discard / ask / editing / undo")
         return self
 
@@ -570,6 +578,8 @@ class BoardsState(BaseModel):
     # 让 AI 帮我摆: the arrangement on screen before 用这套, and whether the AI is still arranging.
     preview: BoardPreviewState | None = None
     arranging: bool = False
+    # 快讯 on the board (null while the board has none): its own filter and sort.
+    flash: BoardFlash | None = None
 
 
 class DialogChange(BaseModel):
@@ -2137,6 +2147,9 @@ def _boards_matches(state, value) -> bool:
         return boards_state is None or (boards_state.get("groups") or {}).get(value["linkSymbol"]["color"]) == value["linkSymbol"]["symbol"]
     if "preview" in value:
         return boards_state is None or boards_state.get("preview") is not None
+    if "flash" in value:
+        shown = (boards_state or {}).get("flash") or {}
+        return boards_state is None or all(shown.get(key) == wanted for key, wanted in value["flash"].items() if wanted is not None)
     if "discard" in value:
         return boards_state is None or boards_state.get("preview") is None
     if "editing" in value:

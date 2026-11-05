@@ -63,7 +63,7 @@ const yuan = (positions: AccountPosition[]) => positions.filter(position => posi
  * 有多大地方放多少 (owner 2026-11-06): the account's secondary figures, shown under 持仓 when the block is tall enough
  * (a container query in BoardsView.css; the block's size stays what its room picked).
  */
-function AccountFigures({ account }: { account?: AccountSnapshot }) {
+function AccountFigures({ account, secondary }: { account?: AccountSnapshot; /** Only the figures besides 权益 and 今日 (already shown big). */ secondary?: boolean }) {
   if (!account) return null;
   const money = (value?: number) => value === undefined ? "—" : formatNumber(value, 0);
   const figures: [string, string, string?][] = [
@@ -71,7 +71,8 @@ function AccountFigures({ account }: { account?: AccountSnapshot }) {
     ["风险度", account.riskRatio === undefined ? "—" : `${formatNumber(account.riskRatio, 1)}%`],
     ["今日", formatSigned(account.todayNetPnl ?? account.todayPnl, 0), signClass(account.todayNetPnl ?? account.todayPnl)],
   ];
-  return <span className="board-figures board-extra" aria-label="账户">{figures.map(([label, value, tone]) =>
+  const shown = secondary ? figures.filter(([label]) => label !== "权益" && label !== "今日") : figures;
+  return <span className="board-figures board-extra" aria-label="账户">{shown.map(([label, value, tone]) =>
     <span key={label}><small>{label}</small><strong className={tone}>{value}</strong></span>)}</span>;
 }
 
@@ -330,4 +331,106 @@ export function ChatCompact({ turns, busy, blockedReason, onSend, onOpen, medium
       <p>{turn.text}</p></li>)}</ol> : <p className="board-reply">还没有对话：在下面问一句</p>}
     {input}
   </div>;
+}
+
+/** 账户权益 · 小 (权益和今日) / 中 · 大 (账户的几个数，美元子账户另一行): opens 账户明细. */
+export function AccountCompact({ account, foreign, onOpen, medium }: { account?: AccountSnapshot; foreign?: AccountSnapshot; onOpen: () => void; medium?: boolean }) {
+  if (!account) return <p className="board-empty" role="status">账户读取中</p>;
+  const today = account.todayNetPnl ?? account.todayPnl;
+  if (!medium) return <button type="button" className="board-tile-open board-account-small" aria-label={`权益 ${formatNumber(account.equity, 0)}，打开账户明细`} onClick={onOpen}>
+    <span className="board-tile-head"><strong>账户权益</strong><small>{account.accountName}</small></span>
+    <strong className="board-figure">{formatNumber(account.equity, 0)}</strong>
+    <span className="board-split"><small>今日</small><span className={signClass(today)}>{formatSigned(today, 0)}</span></span>
+    <AccountFigures account={account} secondary />
+  </button>;
+  const row = (snapshot: AccountSnapshot, label: string) => {
+    const money = (value?: number) => value === undefined ? "—" : formatNumber(value, 0);
+    const day = snapshot.todayNetPnl ?? snapshot.todayPnl;
+    return <span className="board-figures" aria-label={label}>{([["权益", money(snapshot.equity)], ["可用", money(snapshot.available)], ["保证金", money(snapshot.margin)],
+      ["风险度", snapshot.riskRatio === undefined ? "—" : `${formatNumber(snapshot.riskRatio, 1)}%`], ["今日", formatSigned(day, 0), signClass(day)],
+      ["持仓", `${snapshot.positionCount} 个`]] as [string, string, string?][]).map(([name, value, tone]) =>
+      <span key={name}><small>{name}</small><strong className={tone}>{value}</strong></span>)}</span>;
+  };
+  return <div className="board-account-medium">
+    <button type="button" className="board-tile-head board-tile-link" aria-label="账户权益，打开账户明细" onClick={onOpen}><strong>账户权益</strong><small>{account.accountName}</small></button>
+    <div className="board-account-rows">{row(account, "人民币")}{foreign ? <><small className="board-caption">美元子账户</small>{row(foreign, "美元")}</> : null}</div>
+  </div>;
+}
+
+/** 委托与成交 · 小 (挂单几笔、今天成交几笔) / 中 · 大 (挂着的委托带撤单，今日成交): the 持仓 panel's 委托 / 成交 tabs. */
+export function OrdersCompact({ orders, fills, instruments, onOpen, onCancel, medium }: { orders: SimulationOrder[]; fills: RemoteTradeSnapshot[];
+  instruments?: InstrumentCatalog; onOpen: () => void; onCancel: (order: SimulationOrder) => void; medium?: boolean }) {
+  const price = (value?: number | null) => value == null ? "—" : formatNumber(value, 2).replace(/\.?0+$/, "");
+  const side = (direction: string, offset: string) => `${direction === "BUY" ? "买" : "卖"}${offset === "OPEN" ? "开" : "平"}`;
+  const time = (ns: number) => new Date(ns / 1e6).toLocaleTimeString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false, hour: "2-digit", minute: "2-digit" });
+  if (!medium) return <button type="button" className="board-tile-open board-orders-small" aria-label={`挂单 ${orders.length} 笔，今日成交 ${fills.length} 笔，打开委托`} onClick={onOpen}>
+    <span className="board-tile-head"><strong>委托与成交</strong></span>
+    <span className="board-split"><span><strong className="board-figure">{orders.length}</strong> 笔挂单</span><span><strong className="board-figure">{fills.length}</strong> 笔成交</span></span>
+    <span className="board-more-rows" aria-hidden="true">{[...fills].reverse().map(fill => <span key={fill.tradeId}><small>{time(fill.tradeDateTime)}</small>
+      <span className="board-ellipsis">{contractLabel(fill.symbol, instruments)} {side(fill.direction, fill.offset)} {fill.volume}手</span><strong>{price(fill.price)}</strong></span>)}</span>
+  </button>;
+  return <div className="board-orders-medium">
+    <button type="button" className="board-tile-head board-tile-link" aria-label="委托与成交，打开委托" onClick={onOpen}><strong>委托与成交</strong>
+      <small>{orders.length} 笔挂单 · {fills.length} 笔成交</small></button>
+    <div className="board-large-pair">
+      <section><h4>挂着的委托<small>{orders.length}</small></h4>
+        {orders.length ? orders.map(order => <div key={order.id} className="board-large-line">
+          <strong>{contractLabel(order.request.symbol, instruments)}</strong>
+          <span className={order.request.direction === "BUY" ? "positive" : "negative"}>{side(order.request.direction, order.request.offset)} {order.request.volume}手</span>
+          <small>@{price(order.request.limitPrice)}</small><span className="board-grow" />
+          <button type="button" className="app-button" disabled={order.cancelPhase !== "NONE"} onClick={() => onCancel(order)}>撤单</button>
+        </div>) : <small className="board-caption">没有挂单</small>}
+      </section>
+      <section><h4>今日成交<small>{fills.length}</small></h4>
+        {fills.length ? [...fills].reverse().map(fill => <div key={fill.tradeId} className="board-large-line">
+          <small>{time(fill.tradeDateTime)}</small><strong>{contractLabel(fill.symbol, instruments)}</strong>
+          <span className={fill.direction === "BUY" ? "positive" : "negative"}>{side(fill.direction, fill.offset)} {fill.volume}手</span>
+          <span className="board-grow" /><span>{price(fill.price)}</span>
+        </div>) : <small className="board-caption">今天还没有成交</small>}
+      </section>
+    </div>
+  </div>;
+}
+
+export interface RunningStrategy { id: string; name: string; status: string; reminderOnly: boolean; note?: string }
+const strategyStatus = (status: string) => status === "monitoring" ? "运行中" : status === "paused" ? "已暂停" : status === "stopping" ? "停止中" : status;
+/** 运行中的策略 · 小 (几个在跑、几个暂停) / 中 (每个一行): 暂停 / 继续 / 停止并平仓 are the 策略 panel's own (its confirmations). */
+export function StrategiesCompact({ items, onOpen, medium }: { items: RunningStrategy[]; onOpen: () => void; medium?: boolean }) {
+  const running = items.filter(item => item.status === "monitoring").length;
+  if (!medium) return <button type="button" className="board-tile-open board-strategies-small" aria-label={`策略 ${running} 个运行中，打开运行中的策略`} onClick={onOpen}>
+    <span className="board-tile-head"><strong>运行中的策略</strong></span>
+    <span className="board-count"><strong className="board-figure">{running}</strong><small>个在跑{items.length > running ? ` · ${items.length - running} 个暂停或停止中` : ""}</small></span>
+    <span className="board-more-rows" aria-hidden="true">{items.map(item => <span key={item.id}><span className="board-ellipsis">{item.name}</span>
+      <small>{item.reminderOnly ? "只提醒" : strategyStatus(item.status)}</small></span>)}</span>
+  </button>;
+  return <div className="board-strategies-medium">
+    <button type="button" className="board-tile-head board-tile-link" aria-label="运行中的策略，打开策略面板" onClick={onOpen}><strong>运行中的策略</strong><small>{running} 个在跑</small></button>
+    {items.length ? <ul className="board-rows">{items.map(item => <li key={item.id}>
+      <button type="button" aria-label={`${item.name} ${strategyStatus(item.status)}，打开策略面板`} onClick={onOpen}>
+        <strong>{item.name}</strong><span className="board-ellipsis">{item.note ?? ""}</span><small>{item.reminderOnly ? "只提醒" : strategyStatus(item.status)}</small>
+      </button></li>)}</ul> : <p className="board-empty">没有上线的策略：在策略面板里上线一个</p>}
+  </div>;
+}
+
+/** 快讯 · 小: 今天几条、最新的几条标题 (the full feed, pushed); 中 / 大 are the 调研 panel's 快讯 itself. */
+export function FlashSmall({ items, onOpen }: { items?: { id: string; title: string; text: string; publishedAt: string }[]; onOpen: () => void }) {
+  const time = (at: string) => new Date(at).toLocaleTimeString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false, hour: "2-digit", minute: "2-digit" });
+  return <button type="button" className="board-tile-open board-flash-small" aria-label="快讯，打开调研的快讯" onClick={onOpen}>
+    <span className="board-tile-head"><strong>快讯</strong><small>{items ? `近 24 小时 ${items.length} 条` : "正在读取"}</small></span>
+    {items?.length ? <span className="board-more-rows" aria-hidden="true">{items.map(item => <span key={item.id}><small>{time(item.publishedAt)}</small>
+      <span className="board-ellipsis">{item.title || item.text}</span></span>)}</span> : items ? <span className="board-empty">还没有快讯</span> : null}
+  </button>;
+}
+
+/** 复盘盈亏 · 小: 今日、本月平仓、累计和胜率 (the 复盘 overview's own figures); 中 / 大 are the 复盘 page's 账户盈亏 itself. */
+export function PnlSmall({ pnl, error, onOpen }: { pnl?: { today: number | null; thisMonth: number; totalPnl: number | null; winRate: number | null; tradeCount: number };
+  error?: string; onOpen: () => void }) {
+  if (!pnl) return <p className="board-empty" role="status">{error || "复盘读取中"}</p>;
+  const signed = (value: number | null) => value === null ? "—" : formatSigned(value, 0);
+  return <button type="button" className="board-tile-open board-pnl-small" aria-label="复盘盈亏，打开复盘" onClick={onOpen}>
+    <span className="board-tile-head"><strong>复盘盈亏</strong><small>{pnl.tradeCount} 笔</small></span>
+    <span className="board-figures" aria-label="盈亏">{([["今日", pnl.today], ["本月平仓", pnl.thisMonth], ["累计", pnl.totalPnl]] as [string, number | null][]).map(([name, value]) =>
+      <span key={name}><small>{name}</small><strong className={value === null ? undefined : signClass(value)}>{signed(value)}</strong></span>)}
+      <span><small>胜率</small><strong>{pnl.winRate === null ? "—" : `${Math.round(pnl.winRate * 100)}%`}</strong></span></span>
+  </button>;
 }

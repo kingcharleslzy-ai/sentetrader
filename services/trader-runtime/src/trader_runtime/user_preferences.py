@@ -441,7 +441,7 @@ class WorkspaceLayoutsPreferences(BaseModel):
 # as its id's default arrangement; those fields are accepted and never written back.
 BOARDS_MAX = 11
 BOARD_ID = r"^[a-z0-9-]{1,24}$"
-BOARD_MODULES = Literal["chart", "positions", "order", "watch", "sheet", "alert", "chat"]
+BOARD_MODULES = Literal["chart", "positions", "order", "watch", "sheet", "alert", "chat", "account", "orders", "strategies", "flash", "pnl"]
 BOARD_MODULE_COUNT = len(get_args(BOARD_MODULES))
 # 色点联动 (PR 二): the modules that show one contract carry a colour; blocks of one colour follow one contract (下单's
 # colour follows the app's own). Not red or green, the market direction colours.
@@ -450,7 +450,7 @@ BOARD_LINK_COLORS = Literal["blue", "purple", "orange"]
 # 多块图表 (owner 2026-11-06): a block is named after its module; 图表 may be placed up to nine times — `chart`, then
 # `chart-2` … `chart-9`, each with its own contract and period (`charts`) unless its colour says otherwise (a further
 # chart is 不联动, `none`, until given a colour). Every other module stays one block per board.
-BOARD_BLOCK_PATTERN = r"^(chart|positions|order|watch|sheet|alert|chat|chart-[2-9])$"
+BOARD_BLOCK_PATTERN = r"^(chart|positions|order|watch|sheet|alert|chat|account|orders|strategies|flash|pnl|chart-[2-9])$"
 BOARD_BLOCK = Annotated[str, Field(pattern=BOARD_BLOCK_PATTERN)]
 BOARD_BLOCKS_MAX = BOARD_MODULE_COUNT + 8
 BOARD_CHART_DURATIONS = Literal[60, 180, 300, 900, 1800, 3600, 86400, 604800]

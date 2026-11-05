@@ -1186,6 +1186,13 @@ export interface components {
             /** Duration */
             duration?: (60 | 180 | 300 | 900 | 1800 | 3600 | 86400 | 604800) | null;
         };
+        /** BoardFlash */
+        BoardFlash: {
+            /** Filter */
+            filter?: ("product" | "watch" | "macro" | "all") | null;
+            /** Sort */
+            sort?: ("time" | "impact") | null;
+        };
         /** BoardLink */
         BoardLink: {
             /** Module */
@@ -1219,7 +1226,7 @@ export interface components {
              * Module
              * @enum {string}
              */
-            module: "chart" | "positions" | "order" | "watch" | "sheet" | "alert" | "chat";
+            module: "chart" | "positions" | "order" | "watch" | "sheet" | "alert" | "chat" | "account" | "orders" | "strategies" | "flash" | "pnl";
             /** Block */
             block?: string | null;
             /** Target */
@@ -1285,7 +1292,7 @@ export interface components {
              * With
              * @enum {string}
              */
-            with: "chart" | "positions" | "order" | "watch" | "sheet" | "alert" | "chat";
+            with: "chart" | "positions" | "order" | "watch" | "sheet" | "alert" | "chat" | "account" | "orders" | "strategies" | "flash" | "pnl";
         };
         /**
          * BoardSortChange
@@ -1311,7 +1318,7 @@ export interface components {
              * Module
              * @enum {string}
              */
-            module: "chart" | "positions" | "order" | "watch" | "sheet" | "alert" | "chat";
+            module: "chart" | "positions" | "order" | "watch" | "sheet" | "alert" | "chat" | "account" | "orders" | "strategies" | "flash" | "pnl";
             /** Size */
             size?: ("small" | "medium" | "large" | "xlarge" | "bar") | null;
             /** Locked */
@@ -1339,7 +1346,8 @@ export interface components {
          *     undo 撤销这次编辑里最近一步, link {module: 块, color} 联动色（图表 / 下单 / 自选 / 作战表的块各一个颜色 blue / purple /
          *     orange，图表还可以 none 不联动；同色的跟同一个合约；下单所在的颜色跟着顶栏的当前合约）, linkSymbol {color, symbol} 让另一个颜色的那几块换到某个合约,
          *     preview {layout, locks?, note?} 编辑时先把一套摆法摆出来给用户看（不保存）, adopt 用这套（存下，可撤销）, discard 不用,
-         *     ask <一句话> 让 AI 帮我摆（编辑时；AI 只给摆法，结果是 preview）. Modules chart / positions / order / watch / sheet（作战表）/ alert（提醒）/ chat（对话）,
+         *     ask <一句话> 让 AI 帮我摆（编辑时；AI 只给摆法，结果是 preview）, flash {filter?: product / watch / macro / all, sort?: time /
+         *     impact} 看板上快讯那一块自己的筛选和排序（调研面板的快讯另有 news 命令）. Modules chart / positions / order / watch / sheet（作战表）/ alert（提醒）/ chat（对话）,
          *     each at most once per board except 图表 (up to nine). The list is the account preference ui.boards; state.boards carries
          *     editing, the 模块库 and each block's size, lock, share, colour and (charts) contract and period.
          */
@@ -1359,6 +1367,7 @@ export interface components {
             lock?: components["schemas"]["BoardLock"] | null;
             link?: components["schemas"]["BoardLink"] | null;
             chart?: components["schemas"]["BoardChartChange"] | null;
+            flash?: components["schemas"]["BoardFlash"] | null;
             linkSymbol?: components["schemas"]["BoardLinkSymbol"] | null;
             preview?: components["schemas"]["BoardPreview"] | null;
             /** Adopt */
@@ -1399,6 +1408,7 @@ export interface components {
              * @default false
              */
             arranging: boolean;
+            flash?: components["schemas"]["BoardFlash"] | null;
         };
         /**
          * Branch
