@@ -63,7 +63,7 @@ import { buildPromptContext } from "./futures/promptContext";
 import { useChartFocus } from "./futures/useChartFocus";
 import { useQuickOrderSkipConfirm, useQuickOrders } from "./futures/useQuickOrders";
 import { QuickActions, quickCloseRequests, useTicketQuickActions } from "./futures/QuickActions";
-import { leavesOf, useBoards, type BoardModule, type BoardSize } from "./boards/boards";
+import { leavesOf, linkOf, mainLink, useBoards, type BoardModule, type BoardSize, type LinkModule } from "./boards/boards";
 import { BoardsMenu, BoardsView, useBoardsControl } from "./boards/BoardsView";
 import { AlertCompact, ChartSmall, ChartMedium, ChatCompact, OrderCompact, PositionsSmall, PositionsMedium, PositionsLarge, SheetCompact, WatchCompact, watchRows } from "./boards/BoardTiles";
 import { BattleSheet, useBattleSheet } from "./BattleSheet";
@@ -723,8 +723,24 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   // 看板 (owner 2026-11-05): 盘前 / 盘中 / 复盘 and the user's own boards (account preference ui.boards).
   const boardsAvailable = gridAvailable;
   const boards = useBoards({ document: prefs.preferences.ui?.boards, connected: Boolean(connectedRuntimeUrl), update: updatePreferences });
-  const boardsControl = useBoardsControl(boards, () => selectView("dashboard"), boardsAvailable && preferencesLoaded);
+  const boardScale = Number.parseInt(FONT_SCALE_OPTIONS.find(option => option.value === props.fontScale)?.percentage ?? "100", 10) / 100;
+  const boardsControl = useBoardsControl(boards, () => selectView("dashboard"), boardsAvailable && preferencesLoaded, connectedRuntimeUrl, boardScale);
   const boardModules = view === "dashboard" ? leavesOf(boards.board.layout) : [];
+  // 色点联动 (owner 2026-11-05): a module whose colour is not 下单's follows a contract of its own on this board; its chart
+  // reads that contract's bars beside the app's own (the same reads the phone's 多图 uses).
+  const boardMain = mainLink(boards.board);
+  const boardLinkSymbol = (module: LinkModule): string | undefined => {
+    const color = linkOf(boards.board, module);
+    return color === boardMain ? undefined : boardsControl.linkSymbol(color);
+  };
+  const boardChartSymbol = boardModules.includes("chart") ? boardLinkSymbol("chart") : undefined;
+  const boardChartCells = useMemo(() => boardChartSymbol ? [{ index: 0, symbol: boardChartSymbol, duration: props.duration, auto: false }] : [],
+    [boardChartSymbol, props.duration]);
+  const boardChartReads = useMultiChartReads(connectedRuntimeUrl, boardChartCells, view === "dashboard" && Boolean(boardChartSymbol), NO_OWN_CHART);
+  const followBoardLink = (module: LinkModule, symbol: string) => {
+    const color = linkOf(boards.board, module);
+    if (color === boardMain) selectContract(symbol); else boardsControl.followLink(color, symbol);
+  };
   const dashboardWatch = boardModules.includes("watch");
   // 看板 · 作战表 小 / 中: the same rows as the 调研 panel's tab (pushed, assembled here); the large size is the tab itself.
   const boardSheet = useBattleSheet(connectedRuntimeUrl, boardModules.includes("sheet") && boardsControl.sizes.sheet !== "large",
@@ -1704,10 +1720,15 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     }
     if (module === "sheet") {
       const openSheet = () => { setNewsTab("sheet"); setRightDock("news"); };
-      const openRow = (symbol: string) => { selectContract(symbol); setNewsTab("desk"); setRightDock("news"); };
+      const own = boardLinkSymbol("sheet");
+      const openRow = (symbol: string) => {
+        if (linkOf(boards.board, "sheet") !== boardMain) { followBoardLink("sheet", symbol); return; }
+        selectContract(symbol); setNewsTab("desk"); setRightDock("news");
+      };
+      const sheetSymbol = own ?? quote?.symbol;
       if (size === "large") return <BattleSheet baseUrl={connectedRuntimeUrl} visible watchlist={prefs.document ? watchlist : undefined} onOpen={openRow} />;
       const status = boardSheet.error ? `作战表读取失败（${boardSheet.error}）` : boardSheet.report ? watchlist.length ? "" : "还没有自选品种" : "正在排作战表…";
-      return <SheetCompact rows={boardSheet.report?.rows ?? []} status={status} symbol={quote?.symbol} name={quote ? contractLabel(quote.symbol, props.instruments) : "当前合约"}
+      return <SheetCompact rows={boardSheet.report?.rows ?? []} status={status} symbol={sheetSymbol} name={sheetSymbol ? contractLabel(sheetSymbol, props.instruments) : "当前合约"}
         onOpen={openSheet} onOpenRow={openRow} medium={size === "medium"} />;
     }
     if (module === "alert") {
@@ -1729,12 +1750,25 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     }
     if (module === "watch") {
       const openBoard = (exchange: BoardExchange = "watchlist") => { setBoardExchange(exchange); selectView("board"); };
-      if (compact) return <WatchCompact rows={watchRows(board.snapshot?.rows, watchlist)} selectedSymbol={props.selectedSymbol} onSelect={selectContract}
+      const watchSelected = boardLinkSymbol("watch") ?? props.selectedSymbol;
+      const pickWatch = (symbol: string) => followBoardLink("watch", symbol);
+      if (compact) return <WatchCompact rows={watchRows(board.snapshot?.rows, watchlist)} selectedSymbol={watchSelected} onSelect={pickWatch}
         onOpen={() => openBoard()} medium={size === "medium"} emptyText={watchlist.length ? board.error || "正在读取报价…" : "还没有自选：在报价总表里点星标加"} />;
       return <MarketBoard snapshot={board.snapshot} foreign={foreignBoard} error={board.error} query={boardQuery} onQueryChange={setBoardQuery}
         exchange="watchlist" onExchangeChange={openBoard} sort={boardSort} onSortChange={setBoardSort}
-        columns={boardColumns} availableExchanges={boardExchanges} selectedSymbol={props.selectedSymbol} onSelect={selectContract}
+        columns={boardColumns} availableExchanges={boardExchanges} selectedSymbol={watchSelected} onSelect={pickWatch}
         watchlist={watchlist} productNames={boardProductNames} onToggleWatchlist={watchlistChange} watchlistStatus={watchlistStatus || undefined} />;
+    }
+    if (module === "chart" && boardChartSymbol && !sameContract(boardChartSymbol, quote?.symbol)) {
+      // A chart on a colour of its own: its contract's bars, at the small or a passive chart size (the trade view's own chart
+      // stays with the app's contract); opening it makes that contract the app's.
+      const read = boardChartReads.get(`${boardChartSymbol.toUpperCase()}@${props.duration}`);
+      if (!read?.market) return <p className="board-empty" role="status">{read?.error || `正在读${contractLabel(boardChartSymbol, props.instruments)}的行情…`}</p>;
+      const linkedName = contractLabel(read.market.quote.symbol, props.instruments);
+      const openLinked = () => { selectContract(boardChartSymbol); selectView("trade"); };
+      if (size === "small") return <ChartSmall market={read.market} name={linkedName} onOpen={openLinked} />;
+      return <ChartMedium market={read.market} name={linkedName} onOpen={openLinked}
+        chart={{ settings: chartSettings, onSettingsChange: setChartSettings, preferences: chartPreferences, resolvedTheme, timeZone: "Asia/Shanghai" }} />;
     }
     if (!market) return <p className="board-empty" role="status">{props.marketError || "行情连接后显示"}</p>;
     const name = contractLabel(market.quote.symbol, props.instruments);
@@ -1799,8 +1833,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
               {!market || view === "board" || view === "dashboard" ? null : marketCommand()}
 
               <section ref={coreRef} className={`fdw-market-core ${view} ${view === "review" ? "side-open" : "side-closed"}`}>
-                {view === "dashboard" ? <BoardsView control={boardsControl} renderTile={renderBoardTile}
-                  scale={Number.parseInt(FONT_SCALE_OPTIONS.find(option => option.value === props.fontScale)?.percentage ?? "100", 10) / 100} />
+                {view === "dashboard" ? <BoardsView control={boardsControl} renderTile={renderBoardTile} scale={boardScale} />
                 : view === "board" ? <MarketBoard snapshot={board.snapshot} foreign={foreignBoard} error={board.error} query={boardQuery} onQueryChange={setBoardQuery}
                   exchange={boardExchange} onExchangeChange={setBoardExchange} sort={boardSort} onSortChange={setBoardSort}
                   columns={boardColumns} onColumnsChange={boardColumnsChange} columnsStatus={prefs.status}

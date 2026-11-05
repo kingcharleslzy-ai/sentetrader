@@ -222,3 +222,23 @@
    for the arrow menu (they are there too) and only 完成 stays. */
 .fdw-header.fdw-fit-hide-text .board-entry-tool > span { display: none; }
 .fdw-header.fdw-fit-contract-menu .board-entry-tool { display: none; }
+
+/* 色点联动: a dot in the block's corner; blocks of one colour follow one contract. */
+.board-link-dot { position: absolute; z-index: 2; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--link-blue); box-shadow: 0 0 0 2px var(--panel); pointer-events: none; }
+.board-link-dot.inline { position: static; display: inline-block; margin-right: 4px; box-shadow: none; vertical-align: middle; }
+.board-link-dot[data-link="purple"] { background: var(--link-purple); }
+.board-link-dot[data-link="orange"] { background: var(--link-orange); }
+
+/* 让 AI 帮我摆: the sentence card, and the arrangement shown before 用这套. */
+/* Its own line above the canvas, so neither it nor a refusal lies over the other or over a block. */
+.board-arrange { flex: none; align-self: center; margin: var(--space-2) 0 0; width: min(520px, calc(100% - 32px)); display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-card); background: var(--panel); box-shadow: var(--shadow-2); }
+.board-arrange > svg { flex: none; width: 16px; height: 16px; color: var(--accent); }
+.board-arrange input { flex: 1; min-width: 0; height: 32px; padding: 0 var(--space-2); border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--soft); color: var(--ink); font-size: var(--font-md); }
+.board-arrange .board-icon-button { border: 0; background: transparent; color: var(--muted); }
+.board-preview-bar { flex: none; display: flex; align-items: center; gap: var(--space-2); margin: var(--space-2) var(--space-2) 0; padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); border-radius: var(--radius-card); background: var(--accent-soft); color: var(--ink); font-size: var(--font-md); }
+.board-preview-bar > svg { flex: none; width: 16px; height: 16px; color: var(--accent); }
+.board-preview-bar > span:not(.board-grow) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board-view.previewing .board-tile { outline: 1px dashed color-mix(in srgb, var(--accent) 50%, transparent); outline-offset: -1px; }
+.board-entry-tool svg { flex: none; }

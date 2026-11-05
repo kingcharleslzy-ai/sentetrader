@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { Check, ChevronDown, GripVertical, LayoutDashboard, MoreHorizontal, Pencil, Plus, Trash2, Undo2, X } from "lucide-react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type MutableRefObject, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { Check, ChevronDown, GripVertical, LayoutDashboard, MoreHorizontal, Pencil, Plus, Sparkles, Trash2, Undo2, X } from "lucide-react";
 import { DndProvider, useDrag } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { MosaicDragType, MosaicWindow, MosaicWithoutDragDropContext, type MosaicDropData, type MosaicPath } from "react-mosaic-component";
@@ -7,8 +7,9 @@ import "react-mosaic-component/react-mosaic-component.css";
 import { useDisclosureSurface, useUiSurface } from "../../uiSurfaces";
 import { HelpTip } from "../Blocks";
 import { Presence } from "../motion";
-import { MODULES, SIZE_LABELS, insertAt, leavesOf, moduleInfo, pickSize, removeLeaf, shareOf, type BoardLock, type BoardModule, type BoardNode,
-  type BoardSize, type BoardsChange, type BoardsHandle } from "./boards";
+import { arrangeBoard } from "../../api";
+import { LINK_COLORS, LINK_MODULES, MODULES, SIZE_LABELS, insertAt, isLinkModule, leavesOf, linkOf, mainLink, moduleInfo, normalizeBoards, pickSize, removeLeaf, shareOf,
+  type Board, type BoardLock, type BoardModule, type BoardNode, type BoardPreview, type BoardSize, type BoardsChange, type BoardsHandle, type LinkColor } from "./boards";
 import "./BoardsView.css";
 
 /** External drags (the 模块库) must name the Mosaic they drop into. */
@@ -40,14 +41,32 @@ export interface BoardsControl {
   /** The size each block on screen picked (from its room, or its lock). */
   sizes: Partial<Record<BoardModule, BoardSize>>;
   reportTile: (tile: TileReport) => void;
+  /** 色点联动: the contract a colour other than the main one follows on this board (undefined: the app's own). */
+  linkSymbol: (color: LinkColor) => string | undefined;
+  followLink: (color: LinkColor, symbol: string) => void;
+  /** 让 AI 帮我摆: the arrangement on screen before 用这套, the request card and whether the AI is still arranging. */
+  preview: BoardPreview | null;
+  adopt: () => void;
+  discard: () => void;
+  asking: boolean;
+  setAsking: (open: boolean) => void;
+  arranging: boolean;
+  ask: (sentence: string) => Promise<void>;
+  /** The canvas's measured size, which the AI arranges for. */
+  canvas: MutableRefObject<{ w: number; h: number }>;
 }
 
 /**
  * The `boards` UI command and the snapshot's `state.boards` (editing, the 模块库, each block's size and share); the list
  * itself is the account preference ui.boards. Lives with the workspace so a command lands while another view is on screen.
  */
-export function useBoardsControl(handle: BoardsHandle, show: () => void, available: boolean): BoardsControl {
+export function useBoardsControl(handle: BoardsHandle, show: () => void, available: boolean, baseUrl: string | undefined, fontScale: number): BoardsControl {
   const [editing, setEditingState] = useState(false);
+  const [links, setLinks] = useState<Record<string, string>>({});
+  const [preview, setPreview] = useState<BoardPreview | null>(null);
+  const [asking, setAskingState] = useState(false);
+  const [arranging, setArranging] = useState(false);
+  const canvas = useRef({ w: 0, h: 0 });
   const [library, setLibraryState] = useState(false);
   const [sizes, setSizes] = useState<Partial<Record<BoardModule, BoardSize>>>({});
   const { resetUndo } = handle;
@@ -64,14 +83,75 @@ export function useBoardsControl(handle: BoardsHandle, show: () => void, availab
     if ("gone" in tile) { if (!current[tile.module]) return current; const next = { ...current }; delete next[tile.module]; return next; }
     return current[tile.module] === tile.size ? current : { ...current, [tile.module]: tile.size };
   }), []);
-  const latest = useRef({ handle, show, setEditing });
-  latest.current = { handle, show, setEditing };
+  const boardId = handle.board.id;
+  const linkSymbol = useCallback((color: LinkColor) => links[`${boardId}:${color}`], [links, boardId]);
+  const followLink = useCallback((color: LinkColor, symbol: string) => setLinks(current => ({ ...current, [`${boardId}:${color}`]: symbol })), [boardId]);
+  // A preview belongs to the board it was made for; switching boards or leaving editing drops it.
+  useEffect(() => { setPreview(null); setAskingState(false); }, [boardId, editing]);
+  const { apply } = handle;
+  const adopt = useCallback(() => {
+    if (!preview) throw new Error("没有 AI 摆好的方案");
+    apply({ arrange: { layout: preview.layout, locks: preview.locks } });
+    setPreview(null);
+  }, [apply, preview]);
+  const discard = useCallback(() => setPreview(null), []);
+  const setAsking = useCallback((open: boolean) => setAskingState(open), []);
+  const ask = useCallback(async (sentence: string) => {
+    const text = sentence.trim();
+    if (!text) throw new Error("先说一句想怎么摆，比如“摆一套盘中，主看螺纹”");
+    if (!baseUrl) throw new Error("连接后可让 AI 帮你摆");
+    setArranging(true);
+    try {
+      const result = await arrangeBoard(baseUrl, { ask: text.slice(0, 200), current: handle.board.layout,
+        width: Math.round(canvas.current.w), height: Math.round(canvas.current.h), fontScale });
+      const layout = normalizeBoards({ current: "x", items: [{ id: "x", name: "x", layout: result.layout as BoardNode, locks: {}, links: {} }] }).items[0].layout;
+      if (!layout) throw new Error("AI 这次没摆出能用的方案，换个说法再试");
+      const locks: BoardPreview["locks"] = {};
+      leavesOf(layout).forEach(module => { const lock = result.locks?.[module]; if (lock === "small" || lock === "medium") locks[module] = lock; });
+      setPreview({ layout, locks, note: String(result.note ?? "").slice(0, 60) });
+      setAskingState(false);
+    } catch (error) {
+      const detail = (error as { detail?: { detail?: unknown } }).detail?.detail;
+      throw new Error(typeof detail === "string" ? detail : error instanceof Error && !/^\d{3} /.test(error.message) ? error.message : "AI 这次没摆好，稍后再试");
+    } finally {
+      setArranging(false);
+    }
+  }, [baseUrl, fontScale, handle.board.layout]);
+  const latest = useRef({ handle, show, setEditing, adopt, discard, ask, followLink });
+  latest.current = { handle, show, setEditing, adopt, discard, ask, followLink };
   const { layout, locks } = handle.board;
+  const main = mainLink(handle.board);
   const tiles = leavesOf(layout).map(module => ({ module, size: sizes[module] ?? null, locked: locks[module] ?? null,
-    share: shareOf(layout, module) === null ? 100 : Math.round(shareOf(layout, module)!.share) }));
-  useUiSurface("boards", { state: { editing, library: editing && library, tiles }, apply: value => {
-    const change = value as BoardsChange & { editing?: boolean; undo?: boolean };
+    share: shareOf(layout, module) === null ? 100 : Math.round(shareOf(layout, module)!.share),
+    link: isLinkModule(module) ? linkOf(handle.board, module) : null }));
+  const groups = Object.fromEntries(LINK_COLORS.flatMap(({ id }) => id !== main && linkSymbol(id) ? [[id, linkSymbol(id)!]] : []));
+  const shownPreview = preview ? { note: preview.note, modules: leavesOf(preview.layout) } : null;
+  useUiSurface("boards", { state: { editing, library: editing && library, tiles, main, groups, preview: shownPreview, arranging }, apply: value => {
+    const change = value as BoardsChange & { editing?: boolean; undo?: boolean; linkSymbol?: { color: LinkColor; symbol: string };
+      preview?: { layout: BoardNode; locks?: BoardPreview["locks"]; note?: string }; adopt?: boolean; discard?: boolean; ask?: string };
     const { handle: boards, show: open, setEditing: edit } = latest.current;
+    if (change.linkSymbol !== undefined) {
+      const { color, symbol } = change.linkSymbol;
+      if (color === mainLink(boards.board)) throw new Error("这个颜色跟着顶栏的当前合约，用 symbol 切换");
+      latest.current.followLink(color, symbol);
+      return;
+    }
+    if (change.preview !== undefined) {
+      if (!editing) throw new Error("先进入编辑（boards: {editing: true}）再给出方案");
+      const shown = normalizeBoards({ current: "x", items: [{ id: "x", name: "x", layout: change.preview.layout, locks: {}, links: {} }] }).items[0].layout;
+      if (!shown) throw new Error("这个方案里没有能放的模块");
+      const previewLocks: BoardPreview["locks"] = {};
+      leavesOf(shown).forEach(module => { const lock = change.preview!.locks?.[module]; if (lock === "small" || lock === "medium") previewLocks[module] = lock; });
+      setPreview({ layout: shown, locks: previewLocks, note: (change.preview.note ?? "").slice(0, 60) });
+      return;
+    }
+    if (change.adopt) { latest.current.adopt(); return; }
+    if (change.discard) { latest.current.discard(); return; }
+    if (change.ask !== undefined) {
+      if (!editing) throw new Error("先进入编辑（boards: {editing: true}）");
+      void latest.current.ask(change.ask).catch(error => setNotice(error instanceof Error ? error.message : "AI 这次没摆好"));
+      return;
+    }
     if (change.undo !== undefined) {
       if (!boards.undo) throw new Error("没有可撤销的改动（只撤销这次编辑里的放、换、拿掉、调比例、锁档）");
       boards.undo();
@@ -85,8 +165,9 @@ export function useBoardsControl(handle: BoardsHandle, show: () => void, availab
     }
     boards.apply(change);
     if (change.select !== undefined || change.create !== undefined) open();
-  } }, [editing, library, JSON.stringify(tiles)], available);
-  return { handle, editing, setEditing, library, setLibrary, show, notice, notify, sizes, reportTile };
+  } }, [editing, library, JSON.stringify(tiles), main, JSON.stringify(groups), JSON.stringify(shownPreview), arranging], available);
+  return { handle, editing, setEditing, library, setLibrary, show, notice, notify, sizes, reportTile, linkSymbol, followLink,
+    preview, adopt, discard, asking, setAsking, arranging, ask, canvas };
 }
 
 /**
@@ -128,6 +209,8 @@ export function BoardsMenu({ control, active, onError }: { control: BoardsContro
     </button>
     <button type="button" className="board-entry-arrow" aria-label="选择看板" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}><ChevronDown /></button>
     {editing ? <span className="board-entry-tools">
+      <button type="button" className="board-entry-tool" aria-pressed={control.asking} disabled={control.arranging} onClick={() => control.setAsking(!control.asking)}>
+        <Sparkles /><span>{control.arranging ? "AI 在摆…" : "让 AI 帮我摆"}</span></button>
       <button type="button" className="board-entry-tool" aria-pressed={control.library} onClick={() => control.setLibrary(!control.library)}><Plus /><span>模块</span></button>
       <button type="button" className="board-entry-tool" aria-label="撤销" disabled={!control.handle.undo} onClick={() => control.handle.undo?.()}><Undo2 /></button>
       <button type="button" className="app-button primary board-entry-done" onClick={() => control.setEditing(false)}><Check /><span>完成</span></button>
@@ -146,6 +229,7 @@ export function BoardsMenu({ control, active, onError }: { control: BoardsContro
         {editing ? <>
           <div role="none"><button type="button" role="menuitem" disabled={!control.handle.undo} onClick={() => { control.handle.undo?.(); setOpen(false); }}><Undo2 />撤销</button></div>
           <div role="none"><button type="button" role="menuitem" onClick={() => { control.setLibrary(true); setOpen(false); }}><Plus />模块库</button></div>
+          <div role="none"><button type="button" role="menuitem" onClick={() => { control.setAsking(true); setOpen(false); }}><Sparkles />让 AI 帮我摆</button></div>
         </> : null}
         <form className="board-menu-rename" onSubmit={event => { event.preventDefault(); run({ rename: { id: board.id, name } }, true); }}>
           <label>名字<input value={name} maxLength={12} onChange={event => setName(event.target.value)} /></label>
@@ -162,7 +246,9 @@ export function BoardsMenu({ control, active, onError }: { control: BoardsContro
 }
 
 /** One block: measures the room it has and picks its size from it (or its lock). */
-function TileBody({ module, lock, scale, editing, reportTile, renderTile }: { module: BoardModule; lock?: BoardLock; scale: number; editing: boolean;
+function TileBody({ module, lock, link, scale, editing, reportTile, renderTile }: { module: BoardModule; lock?: BoardLock; scale: number; editing: boolean;
+  /** 色点联动: shown when the board uses more than one colour (while editing the dot is in the name bar). */
+  link?: LinkColor;
   reportTile: (tile: TileReport) => void; renderTile: (module: BoardModule, size: BoardSize) => ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
@@ -181,12 +267,13 @@ function TileBody({ module, lock, scale, editing, reportTile, renderTile }: { mo
   return <div ref={ref} className={`board-tile size-${size ?? "pending"}`} data-agent-target={`board-tile:${module}`} data-state={size ?? undefined}
     role="group" aria-label={`${moduleInfo(module).label}${size ? ` · ${SIZE_LABELS[size]}` : ""}`}>
     <div className="board-tile-content" inert={editing || undefined}>{size ? renderTile(module, size) : null}</div>
+    {link ? <span className="board-link-dot" data-link={link} role="img" aria-label={`联动：${LINK_COLORS.find(item => item.id === link)?.label}`} /> : null}
   </div>;
 }
 
 /** The block's ⋯ menu: 换成别的模块 / 档位 / 再分一块 / 拿掉 (one at a time, a disclosure per block). */
-function TileMenu({ module, size, run, layout, locked }: { module: BoardModule; size: BoardSize | undefined; layout: BoardNode | null; locked?: BoardLock;
-  run: (change: BoardsChange) => boolean }) {
+function TileMenu({ module, size, run, layout, locked, link }: { module: BoardModule; size: BoardSize | undefined; layout: BoardNode | null; locked?: BoardLock;
+  link?: LinkColor; run: (change: BoardsChange) => boolean }) {
   const [open, setOpen] = useDisclosureSurface("board-tile-menu", { id: module });
   const [split, setSplit] = useState<"right" | "bottom" | null>(null);
   const ref = useRef<HTMLSpanElement>(null);
@@ -219,6 +306,13 @@ function TileMenu({ module, size, run, layout, locked }: { module: BoardModule; 
           <button type="button" role="radio" aria-checked={locked === "small"} onClick={() => act({ lock: { module, size: "small" } })}>{module === "chat" ? "锁一条" : "锁小"}</button>
           <button type="button" role="radio" aria-checked={locked === "medium"} onClick={() => act({ lock: { module, size: "medium" } })}>锁中</button>
         </div>
+        {link && isLinkModule(module) ? <>
+          <small className="board-menu-caption">联动色（同色的跟同一个合约）</small>
+          <div className="board-segment" role="radiogroup" aria-label={`${label}的联动色`}>
+            {LINK_COLORS.map(item => <button key={item.id} type="button" role="radio" aria-checked={link === item.id} aria-label={`联动${item.label}色`}
+              onClick={() => act({ link: { module, color: item.id } })}><span className="board-link-dot inline" data-link={item.id} aria-hidden="true" />{item.label}</button>)}
+          </div>
+        </> : null}
         {free.length ? <div className="board-menu-row">
           <button type="button" className="app-button" onClick={() => setSplit("right")}>左右分</button>
           <button type="button" className="app-button" onClick={() => setSplit("bottom")}>上下分</button>
@@ -231,14 +325,15 @@ function TileMenu({ module, size, run, layout, locked }: { module: BoardModule; 
 }
 
 /** Editing: the block's name bar (react-mosaic makes its native host the drag handle) — its size, share and ⋯ menu. */
-function TileBar({ module, size, layout, locked, run }: { module: BoardModule; size: BoardSize | undefined; locked?: BoardLock;
-  layout: BoardNode | null; run: (change: BoardsChange) => boolean }) {
+function TileBar({ module, size, layout, locked, link, run }: { module: BoardModule; size: BoardSize | undefined; locked?: BoardLock;
+  link?: LinkColor; layout: BoardNode | null; run: (change: BoardsChange) => boolean }) {
   const share = shareOf(layout, module);
   return <div className="board-tile-bar" title={`拖动${moduleInfo(module).label}，放到别的模块边上`}>
-    <GripVertical aria-hidden="true" /><strong>{moduleInfo(module).label}</strong>
+    <GripVertical aria-hidden="true" />{link ? <span className="board-link-dot inline" data-link={link} role="img"
+      aria-label={`联动：${LINK_COLORS.find(item => item.id === link)?.label}`} /> : null}<strong>{moduleInfo(module).label}</strong>
     <small>{size ? `${SIZE_LABELS[size]}${locked ? " · 锁定" : ""}` : ""}{share ? ` · ${Math.round(share.share)}%` : ""}</small>
     <span className="board-grow" />
-    <TileMenu module={module} size={size} layout={layout} locked={locked} run={run} />
+    <TileMenu module={module} size={size} layout={layout} locked={locked} link={link} run={run} />
   </div>;
 }
 
@@ -305,25 +400,65 @@ export function BoardsView({ control, renderTile, scale }: {
   scale: number;
   renderTile: (module: BoardModule, size: BoardSize) => ReactNode;
 }) {
-  const { handle, editing, notify, sizes, reportTile } = control;
+  const { handle, editing, notify, sizes, reportTile, preview } = control;
   const { board } = handle;
   const run = useCallback((change: BoardsChange) => {
     try { handle.apply(change); return true; } catch (error) { notify(error instanceof Error ? error.message : "看板暂时不能修改"); return false; }
   }, [handle, notify]);
-  const tile = (module: BoardModule, path: MosaicPath) => <MosaicWindow<BoardModule> path={path} title={moduleInfo(module).label} draggable={editing}
-    renderToolbar={() => <div className="board-tile-bar-host">{editing ? <TileBar module={module} size={sizes[module]} locked={board.locks[module]} layout={board.layout} run={run} /> : null}</div>}>
-    <TileBody module={module} lock={board.locks[module]} scale={scale} editing={editing} reportTile={reportTile} renderTile={renderTile} />
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const { canvas } = control;
+  useLayoutEffect(() => {
+    const node = canvasRef.current;
+    if (!node) return;
+    const read = () => { canvas.current = { w: node.clientWidth, h: node.clientHeight }; };
+    read();
+    const observer = new ResizeObserver(read);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [canvas]);
+  // An AI arrangement is shown as it would be (its locks too), not editable, until 用这套 or 不用.
+  const shown: Pick<Board, "layout" | "locks"> = preview ?? board;
+  const shaping = editing && !preview;
+  const dotted = LINK_MODULES.filter(module => leavesOf(shown.layout).includes(module));
+  const showDots = editing || new Set(dotted.map(module => linkOf(board, module))).size > 1;
+  const tile = (module: BoardModule, path: MosaicPath) => <MosaicWindow<BoardModule> path={path} title={moduleInfo(module).label} draggable={shaping}
+    renderToolbar={() => <div className="board-tile-bar-host">{shaping ? <TileBar module={module} size={sizes[module]} locked={board.locks[module]}
+      link={isLinkModule(module) ? linkOf(board, module) : undefined} layout={board.layout} run={run} /> : null}</div>}>
+    <TileBody module={module} lock={shown.locks[module]} link={showDots && !shaping && isLinkModule(module) ? linkOf(board, module) : undefined}
+      scale={scale} editing={editing} reportTile={reportTile} renderTile={renderTile} />
   </MosaicWindow>;
-  return <section className={`board-view${editing ? " editing" : ""}`} aria-label={`看板 ${board.name}`} data-agent-target="board-view" data-state={editing ? "editing" : "viewing"}>
+  return <section className={`board-view${shaping ? " editing" : ""}${preview ? " previewing" : ""}`} aria-label={`看板 ${board.name}`} data-agent-target="board-view"
+    data-state={preview ? "preview" : editing ? "editing" : "viewing"}>
     {control.notice ? <p className="board-notice" role="status">{control.notice}</p> : null}
+    {preview ? <div className="board-preview-bar" role="status" data-agent-target="board-preview">
+      <Sparkles aria-hidden="true" /><span><strong>AI 摆的这套</strong>{preview.note ? `：${preview.note}` : ""}</span>
+      <span className="board-grow" />
+      <button type="button" className="app-button" onClick={control.discard}>不用</button>
+      <button type="button" className="app-button primary" onClick={() => { try { control.adopt(); } catch (error) { notify(error instanceof Error ? error.message : "没用上"); } }}>用这套</button>
+    </div> : null}
+    <ArrangeCard control={control} />
     <DndProvider backend={HTML5Backend}>
-      <div className="board-canvas" data-agent-target="board-canvas">
-        <MosaicWithoutDragDropContext<BoardModule> mosaicId={MOSAIC_ID} className="board-mosaic" value={board.layout}
-          onChange={next => handle.preview(next)} onRelease={next => { run({ layout: next }); }}
-          resize={editing ? { minimumPaneSizePercentage: 8 } : "DISABLED"} renderTile={tile}
-          zeroStateView={<p className="board-empty-prompt">{editing ? "这一套还空着：点顶栏“＋ 模块”，把模块拖进来" : "这一套还空着：点顶栏“看板”旁的箭头，选“编辑”放模块进来"}</p>} />
+      <div className="board-canvas" data-agent-target="board-canvas" ref={canvasRef}>
+        <MosaicWithoutDragDropContext<BoardModule> mosaicId={MOSAIC_ID} className="board-mosaic" value={shown.layout}
+          onChange={next => { if (!preview) handle.preview(next); }} onRelease={next => { if (!preview) run({ layout: next }); }}
+          resize={shaping ? { minimumPaneSizePercentage: 8 } : "DISABLED"} renderTile={tile}
+          zeroStateView={<p className="board-empty-prompt">{editing ? "这一套还空着：点顶栏“＋ 模块”，把模块拖进来，或“让 AI 帮我摆”" : "这一套还空着：点顶栏“看板”旁的箭头，选“编辑”放模块进来"}</p>} />
       </div>
-      <Library control={control} layout={board.layout} run={run} />
+      {preview ? null : <Library control={control} layout={board.layout} run={run} />}
     </DndProvider>
   </section>;
+}
+
+/** 让 AI 帮我摆: one sentence, the AI lays the board out and shows it before anything changes (needs editing). */
+function ArrangeCard({ control }: { control: BoardsControl }) {
+  useDisclosureSurface("board-arrange", { state: control.asking, apply: control.setAsking, available: control.editing });
+  const [text, setText] = useState("");
+  if (!control.editing || !control.asking) return null;
+  const send = () => { void control.ask(text).catch(error => control.notify(error instanceof Error ? error.message : "AI 这次没摆好")); };
+  return <form className="board-arrange" aria-label="让 AI 帮我摆" data-agent-target="board-arrange" onSubmit={event => { event.preventDefault(); send(); }}>
+    <Sparkles aria-hidden="true" />
+    <input value={text} maxLength={200} autoFocus aria-label="想怎么摆" placeholder="比如：摆一套盘中，主看螺纹" onChange={event => setText(event.target.value)} />
+    <button type="submit" className="app-button primary" disabled={control.arranging || !text.trim()}>{control.arranging ? "在摆…" : "摆"}</button>
+    <button type="button" className="board-icon-button" aria-label="收起" onClick={() => control.setAsking(false)}><X /></button>
+  </form>;
 }

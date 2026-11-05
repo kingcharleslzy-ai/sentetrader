@@ -263,13 +263,16 @@ test("every user-operable control is commandable or reachable, and visible to th
     ["workspace-layouts", [{ settingsPage: "ui" }, { disclosure: { name: "workspace-layouts", open: true } }], true],
     ["", [{ disclosure: { name: "workspace-layouts", open: false } }, { settingsOpen: false }], false],
     // 看板 · 铺满版 (2026-11-05): the 盘中 board as it starts, the header's board list (on the board: 编辑 / 改名 / 删除),
-    // then editing 复盘 (大档持仓) with the 模块库 and a block's ⋯ open, back to trade.
+    // then editing 复盘 (大档持仓) with the 模块库, a block's ⋯, the 让 AI 帮我摆 card and an arrangement's preview, back to trade.
     ["dashboard", [{ view: "dashboard" }, { boards: { select: "live" } }], true],
     ["boards-menu", [{ disclosure: { name: "boards-menu", open: true } }], true],
     ["", [{ disclosure: { name: "boards-menu", open: false } }], false],
     ["board-editing", [{ boards: { select: "review" } }, { boards: { editing: true } }, { disclosure: { name: "board-library", open: true } }], true],
     ["board-tile-menu", [{ disclosure: { name: "board-library", open: false } }, { disclosure: { name: "board-tile-menu", id: "chart", open: true } }], true],
-    ["", [{ disclosure: { name: "board-tile-menu", id: "chart", open: false } }, { boards: { editing: false } }, { view: "trade" }], false],
+    ["board-arrange", [{ disclosure: { name: "board-tile-menu", id: "chart", open: false } }, { disclosure: { name: "board-arrange", open: true } }], true],
+    ["board-preview", [{ disclosure: { name: "board-arrange", open: false } },
+      { boards: { preview: { layout: { type: "split", direction: "row", children: ["chart", "order"], splitPercentages: [70, 30] }, note: "审计用" } } }], true],
+    ["", [{ boards: { discard: true } }, { boards: { editing: false } }, { view: "trade" }], false],
     ["quick-volume", [{ panel: "order" }, { quickVolume: 5 }], true],
     ["", [{ quickVolume: 1 }], false],
     // 图表指标就地编辑 (2026-10-02): the chart labels' popovers, opened as disclosures.

@@ -9,6 +9,7 @@ from fastapi import FastAPI, Header, HTTPException, Query, Request, status
 from fastapi.responses import StreamingResponse
 
 from ..auth import CloudAuth
+from ..board_arrangement import ArrangeRequest, ArrangeResult, arrange
 from ..chat_suggestions import ChatSuggestions, SuggestionsRequest, SuggestionsResult
 from ..guest import guest_request
 from ..message_context import PENDING_CARD_REPLY, encode_instruction
@@ -289,6 +290,16 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
             return SuggestionsResult(items=[])
         user_id = await current_user(request)
         return SuggestionsResult(items=await suggestions.read(application, ctx, request, user_id, body))
+
+    @application.post("/api/agent/board-arrangement", response_model=ArrangeResult)
+    async def board_arrangement(request: Request, body: ArrangeRequest) -> ArrangeResult:
+        """看板 · 让 AI 帮我摆（owner 2026-11-05）：一句话 → 一套看板摆法（分割树、锁档和一句说明），只供看板编辑时预览；
+        模型没有任何工具，不会下单或改设置，什么都不保存，用户点“用这套”才经 boards 存下。没有模型 503、额度用完 429、
+        模型没给出能用的摆法 502；游客 403。不进能力目录（界面辅助：agent 直接用 boards 界面命令摆）。"""
+        if guest_request(request):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="登录后可让 AI 帮你摆看板")
+        user_id = await current_user(request)
+        return await arrange(application, ctx, user_id, body)
 
     @application.get("/api/events")
     async def events(request: Request, session_id: str = Query(alias="sessionId"),

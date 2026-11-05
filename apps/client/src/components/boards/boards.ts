@@ -8,7 +8,7 @@ import type { PreferencesDocument } from "../../userPreferences";
  * proportions, never pixels — any window shows the whole board. Each block picks its size from the room it measures
  * (小 / 中 / 大, the chart also 加大); a block can be locked to 小 or 中. The boards live in the account preference
  * `ui.boards` (mirrors the Runtime's BoardsPreferences): 盘前 / 盘中 / 复盘 first, then the user's own; `current` is the one
- * shown. Every module follows the current contract (颜色联动 comes with PR 二).
+ * shown. 色点联动 (PR 二): 图表 / 下单 / 自选 / 作战表 carry a colour dot; blocks of one colour follow one contract.
  */
 export const BOARDS_MAX = 11;
 const NAME_MAX = 12;
@@ -17,7 +17,24 @@ export type BoardModule = "chart" | "positions" | "order" | "watch" | "sheet" | 
 export type BoardSize = "small" | "medium" | "large" | "xlarge" | "bar";
 export type BoardLock = "small" | "medium";
 export type BoardNode = MosaicNode<BoardModule>;
-export interface Board { id: string; name: string; layout: BoardNode | null; locks: Partial<Record<BoardModule, BoardLock>> }
+/** The modules that show a contract and so carry a 联动 dot; 持仓 / 提醒 / 对话 cover every contract. */
+export type LinkModule = "chart" | "order" | "watch" | "sheet";
+// Not red or green: those are the market direction colours.
+export type LinkColor = "blue" | "purple" | "orange";
+export const LINK_MODULES: readonly LinkModule[] = ["chart", "order", "watch", "sheet"];
+export const LINK_COLORS: { id: LinkColor; label: string }[] = [{ id: "blue", label: "蓝" }, { id: "purple", label: "紫" }, { id: "orange", label: "橙" }];
+export const isLinkModule = (module: BoardModule): module is LinkModule => (LINK_MODULES as readonly string[]).includes(module);
+export interface Board { id: string; name: string; layout: BoardNode | null; locks: Partial<Record<BoardModule, BoardLock>>;
+  /** 联动色 per module; a module not named here is blue. */
+  links: Partial<Record<LinkModule, LinkColor>> }
+export const linkOf = (board: Board, module: LinkModule): LinkColor => board.links[module] ?? "blue";
+/**
+ * The colour that follows the app's own contract (the one 下单 trades, the chart tabs and the AI follow): 下单's, else
+ * blue. Every other colour follows a contract of its own on this board.
+ */
+export const mainLink = (board: Board): LinkColor => leavesOf(board.layout).includes("order") ? linkOf(board, "order") : "blue";
+/** An AI arrangement on screen before 用这套 (never saved until then). */
+export interface BoardPreview { layout: BoardNode; locks: Partial<Record<BoardModule, BoardLock>>; note: string }
 export interface Boards { current: string; items: Board[] }
 export type BoardSide = "left" | "right" | "top" | "bottom";
 
@@ -65,9 +82,9 @@ export const DEFAULT_LAYOUTS: Record<"pre" | "live" | "review", BoardNode> = {
 };
 const defaultLayout = (id: string): BoardNode | null => (DEFAULT_LAYOUTS as Record<string, BoardNode>)[id] ?? null;
 export const DEFAULT_BOARDS: Boards = { current: "live", items: [
-  { id: "pre", name: "盘前", layout: DEFAULT_LAYOUTS.pre, locks: {} },
-  { id: "live", name: "盘中", layout: DEFAULT_LAYOUTS.live, locks: {} },
-  { id: "review", name: "复盘", layout: DEFAULT_LAYOUTS.review, locks: {} },
+  { id: "pre", name: "盘前", layout: DEFAULT_LAYOUTS.pre, locks: {}, links: {} },
+  { id: "live", name: "盘中", layout: DEFAULT_LAYOUTS.live, locks: {}, links: {} },
+  { id: "review", name: "复盘", layout: DEFAULT_LAYOUTS.review, locks: {}, links: {} },
 ] };
 
 /** A stored node as the screen can draw it: known modules once each, splits of two or more, percentages summing to 100. */
@@ -108,7 +125,11 @@ export function normalizeBoards(raw: Partial<Boards> | undefined | null): Boards
     Object.entries(item.locks ?? {}).forEach(([module, lock]) => {
       if (MODULE_IDS.has(module as BoardModule) && (lock === "small" || lock === "medium")) locks[module as BoardModule] = lock;
     });
-    return [{ id: item.id, name: item.name, layout, locks }];
+    const links: Board["links"] = {};
+    Object.entries(item.links ?? {}).forEach(([module, color]) => {
+      if (isLinkModule(module as BoardModule) && LINK_COLORS.some(option => option.id === color)) links[module as LinkModule] = color as LinkColor;
+    });
+    return [{ id: item.id, name: item.name, layout, locks, links }];
   }).slice(0, BOARDS_MAX);
   if (!items.length) return DEFAULT_BOARDS;
   return { current: items.some(item => item.id === raw?.current) ? raw!.current! : items[0].id, items };
@@ -169,14 +190,18 @@ export interface BoardsChange {
   lock?: { module: BoardModule; size: "auto" | BoardLock };
   /** A whole new layout (a finished drag, resize or drop): what react-mosaic handed back. */
   layout?: BoardNode | null;
+  /** 联动色: the module follows the contract of that colour. */
+  link?: { module: LinkModule; color: LinkColor };
+  /** 用这套: an AI arrangement's layout and locks in one step. */
+  arrange?: { layout: BoardNode; locks: Partial<Record<BoardModule, BoardLock>> };
 }
 
-const KEYS = ["select", "create", "rename", "remove", "place", "replace", "take", "ratio", "lock", "layout"] as const;
+const KEYS = ["select", "create", "rename", "remove", "place", "replace", "take", "ratio", "lock", "layout", "link", "arrange"] as const;
 
 /** What one change does to the list (pure; throws a readable refusal). */
 export function planBoardsChange(change: BoardsChange, boards: Boards): Boards {
   const keys = KEYS.filter(key => change[key] !== undefined);
-  if (keys.length !== 1) throw new Error("boards 一次只做一件：select / create / rename / remove / place / replace / take / ratio / lock");
+  if (keys.length !== 1) throw new Error("boards 一次只做一件：select / create / rename / remove / place / replace / take / ratio / lock / link");
   const named = (name: string) => {
     const clean = name.trim();
     if (!clean || clean.length > NAME_MAX) throw new Error(`看板名 1–${NAME_MAX} 个字`);
@@ -196,7 +221,7 @@ export function planBoardsChange(change: BoardsChange, boards: Boards): Boards {
     if (boards.items.length >= BOARDS_MAX) throw new Error(`最多存 ${BOARDS_MAX} 个看板，先删一个`);
     if (boards.items.some(item => item.name === name)) throw new Error(`已经有叫“${name}”的看板`);
     const id = `b${Date.now().toString(36)}`;
-    return { current: id, items: [...boards.items, { id, name, layout: null, locks: {} }] };
+    return { current: id, items: [...boards.items, { id, name, layout: null, locks: {}, links: {} }] };
   }
   if (change.rename !== undefined) {
     const { id } = change.rename;
@@ -212,6 +237,20 @@ export function planBoardsChange(change: BoardsChange, boards: Boards): Boards {
     return { current: boards.current === change.remove ? rest[0].id : boards.current, items: rest };
   }
   if (change.layout !== undefined) return withCurrent({ layout: change.layout === null ? null : cleanNode(change.layout, new Set()) });
+  if (change.arrange !== undefined) {
+    const layout = cleanNode(change.arrange.layout, new Set());
+    const locks: Board["locks"] = {};
+    leavesOf(layout).forEach(module => { const lock = change.arrange!.locks[module]; if (lock === "small" || lock === "medium") locks[module] = lock; });
+    return withCurrent({ layout, locks });
+  }
+  if (change.link !== undefined) {
+    const { module, color } = change.link;
+    if (!isLinkModule(module)) throw new Error(`${label(module)}不跟单个合约，没有联动色`);
+    if (!LINK_COLORS.some(option => option.id === color)) throw new Error("联动色是 blue / purple / orange");
+    const links = { ...current.links };
+    if (color === "blue") delete links[module]; else links[module] = color;
+    return withCurrent({ links });
+  }
   if (change.take !== undefined) {
     onBoard(change.take);
     const locks = { ...current.locks };

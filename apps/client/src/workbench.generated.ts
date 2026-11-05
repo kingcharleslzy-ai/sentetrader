@@ -1170,6 +1170,29 @@ export interface components {
              */
             fallbackReason?: ("unsupported" | "device" | "warming" | "init_failed" | "init_timeout" | "memory" | "crashed" | "engine_error" | "hidden" | "slow" | "inputs_failed" | "inputs_expired" | "rerun") | null;
         };
+        /** BoardLink */
+        BoardLink: {
+            /**
+             * Module
+             * @enum {string}
+             */
+            module: "chart" | "order" | "watch" | "sheet";
+            /**
+             * Color
+             * @enum {string}
+             */
+            color: "blue" | "purple" | "orange";
+        };
+        /** BoardLinkSymbol */
+        BoardLinkSymbol: {
+            /**
+             * Color
+             * @enum {string}
+             */
+            color: "blue" | "purple" | "orange";
+            /** Symbol */
+            symbol: string;
+        };
         /** BoardLock */
         BoardLock: {
             /**
@@ -1196,6 +1219,32 @@ export interface components {
             side?: ("left" | "right" | "top" | "bottom") | null;
             /** Ratio */
             ratio?: number | null;
+        };
+        /** BoardPreview */
+        BoardPreview: {
+            /** Layout */
+            layout: {
+                [key: string]: unknown;
+            } | ("chart" | "positions" | "order" | "watch" | "sheet" | "alert" | "chat");
+            /** Locks */
+            locks?: {
+                [key: string]: "small" | "medium";
+            };
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+        };
+        /** BoardPreviewState */
+        BoardPreviewState: {
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /** Modules */
+            modules?: ("chart" | "positions" | "order" | "watch" | "sheet" | "alert" | "chat")[];
         };
         /** BoardRatio */
         BoardRatio: {
@@ -1256,6 +1305,8 @@ export interface components {
             locked?: ("small" | "medium") | null;
             /** Share */
             share: number;
+            /** Link */
+            link?: ("blue" | "purple" | "orange") | null;
         };
         /**
          * BoardsChange
@@ -1265,7 +1316,10 @@ export interface components {
          *     target 就放在整块看板的 side 边、占三分之一；已在看板上的模块挪过去, replace {module, with} 那一块换成另一个模块,
          *     take 拿掉一个模块（旁边的补满）, ratio {module, value} 拖分隔线：那一块占它所在那一层的 value（0.05–0.95）,
          *     lock {module, size: auto / small / medium} 档位跟着地方大小自动选或锁小 / 锁中, editing 进入（并打开看板）/ 退出编辑,
-         *     undo 撤销这次编辑里最近一步. Modules chart / positions / order / watch / sheet（作战表）/ alert（提醒）/ chat（对话）,
+         *     undo 撤销这次编辑里最近一步, link {module, color} 联动色（chart / order / watch / sheet 各一个颜色 blue / purple / orange，
+         *     同色的跟同一个合约；下单所在的颜色跟着顶栏的当前合约）, linkSymbol {color, symbol} 让另一个颜色的那几块换到某个合约,
+         *     preview {layout, locks?, note?} 编辑时先把一套摆法摆出来给用户看（不保存）, adopt 用这套（存下，可撤销）, discard 不用,
+         *     ask <一句话> 让 AI 帮我摆（编辑时；AI 只给摆法，结果是 preview）. Modules chart / positions / order / watch / sheet（作战表）/ alert（提醒）/ chat（对话）,
          *     each at most once per board. The list is the account preference ui.boards; state.boards carries editing, the 模块库
          *     and each block's size, lock and share.
          */
@@ -1283,6 +1337,15 @@ export interface components {
             take?: ("chart" | "positions" | "order" | "watch" | "sheet" | "alert" | "chat") | null;
             ratio?: components["schemas"]["BoardRatio"] | null;
             lock?: components["schemas"]["BoardLock"] | null;
+            link?: components["schemas"]["BoardLink"] | null;
+            linkSymbol?: components["schemas"]["BoardLinkSymbol"] | null;
+            preview?: components["schemas"]["BoardPreview"] | null;
+            /** Adopt */
+            adopt?: true | null;
+            /** Discard */
+            discard?: true | null;
+            /** Ask */
+            ask?: string | null;
             /** Editing */
             editing?: boolean | null;
             /** Undo */
@@ -1299,6 +1362,22 @@ export interface components {
             library: boolean;
             /** Tiles */
             tiles?: components["schemas"]["BoardTileState"][];
+            /**
+             * Main
+             * @default blue
+             * @enum {string}
+             */
+            main: "blue" | "purple" | "orange";
+            /** Groups */
+            groups?: {
+                [key: string]: string;
+            };
+            preview?: components["schemas"]["BoardPreviewState"] | null;
+            /**
+             * Arranging
+             * @default false
+             */
+            arranging: boolean;
         };
         /**
          * Branch
@@ -1879,7 +1958,7 @@ export interface components {
              * Name
              * @enum {string}
              */
-            name: "feedback-diagnostics" | "activity-more" | "activity-history" | "timeline-history" | "timeline-expanded" | "attempt-history" | "designer-expanded" | "replay-fees" | "replay-design" | "protection-status" | "strategy-idea" | "fee-overrides" | "progress-steps" | "advice-sources" | "tool-card" | "diff-card" | "card-details" | "voice-call" | "voice-mute" | "voice-menu" | "voice-playback" | "voice-review" | "unlinked-notes" | "review-how" | "habits-how" | "chat-history" | "ai-command-result" | "activity-clear" | "strategy-guide" | "strategy-new" | "strategy-run-log" | "strategy-ask-ai" | "strategy-editor-trades" | "strategy-editor-more" | "strategy-editor-advanced" | "strategy-editor-backtest" | "strategy-editor-section" | "strategy-editor-condition" | "strategy-editor-picker" | "strategy-editor-sizing-more" | "help-tip" | "strategy-signal-action" | "strategy-stop-confirm" | "ai-menu" | "strategy-actions" | "strategy-delete-confirm" | "strategy-backtest-trades" | "strategy-param-help" | "strategy-template-details" | "strategy-advanced" | "strategy-full-rules" | "chart-ma-editor" | "chart-pane-editor" | "chart-pane-add" | "board-columns" | "price-alerts" | "reminder-alert-new" | "playbook-editor" | "price-alerts-others" | "position-protection" | "contract-info" | "flash-calendar" | "flash-dropped" | "news-dropped" | "flash-minor" | "news-minor" | "flash-event" | "news-event" | "flash-orig" | "news-orig" | "desk-fundamental" | "desk-macro" | "desk-reports" | "desk-sources" | "chart-drawing-tools" | "chart-drawing-toolbar" | "chart-drawing-group" | "chart-drawing-tool" | "chart-drawing-magnet" | "chart-drawing-lock-all" | "chart-drawings-hidden" | "chart-drawing-clear" | "chart-drawing-style" | "chart-drawing-settings" | "chart-context-menu" | "workspace-layouts" | "boards-menu" | "board-more" | "board-library" | "board-tile-menu" | "chart-periods-more" | "order-depth" | "ticket-protection" | "brief-subscriptions" | "brief-add" | "push-devices" | "routine-delete" | "plan-quota" | "live-trading" | "mobile-subpanes" | "mobile-subpanes-overlays" | "mobile-quote-columns" | "mobile-execution-stop" | "mobile-chart-cell" | "row-actions" | "mobile-drawing-style-row" | "debate-sheets" | "debate-sources" | "debate-stats" | "debate-log" | "debate-judge" | "debate-analyst-technical" | "debate-analyst-supply" | "debate-analyst-flow" | "debate-analyst-news";
+            name: "feedback-diagnostics" | "activity-more" | "activity-history" | "timeline-history" | "timeline-expanded" | "attempt-history" | "designer-expanded" | "replay-fees" | "replay-design" | "protection-status" | "strategy-idea" | "fee-overrides" | "progress-steps" | "advice-sources" | "tool-card" | "diff-card" | "card-details" | "voice-call" | "voice-mute" | "voice-menu" | "voice-playback" | "voice-review" | "unlinked-notes" | "review-how" | "habits-how" | "chat-history" | "ai-command-result" | "activity-clear" | "strategy-guide" | "strategy-new" | "strategy-run-log" | "strategy-ask-ai" | "strategy-editor-trades" | "strategy-editor-more" | "strategy-editor-advanced" | "strategy-editor-backtest" | "strategy-editor-section" | "strategy-editor-condition" | "strategy-editor-picker" | "strategy-editor-sizing-more" | "help-tip" | "strategy-signal-action" | "strategy-stop-confirm" | "ai-menu" | "strategy-actions" | "strategy-delete-confirm" | "strategy-backtest-trades" | "strategy-param-help" | "strategy-template-details" | "strategy-advanced" | "strategy-full-rules" | "chart-ma-editor" | "chart-pane-editor" | "chart-pane-add" | "board-columns" | "price-alerts" | "reminder-alert-new" | "playbook-editor" | "price-alerts-others" | "position-protection" | "contract-info" | "flash-calendar" | "flash-dropped" | "news-dropped" | "flash-minor" | "news-minor" | "flash-event" | "news-event" | "flash-orig" | "news-orig" | "desk-fundamental" | "desk-macro" | "desk-reports" | "desk-sources" | "chart-drawing-tools" | "chart-drawing-toolbar" | "chart-drawing-group" | "chart-drawing-tool" | "chart-drawing-magnet" | "chart-drawing-lock-all" | "chart-drawings-hidden" | "chart-drawing-clear" | "chart-drawing-style" | "chart-drawing-settings" | "chart-context-menu" | "workspace-layouts" | "boards-menu" | "board-more" | "board-library" | "board-arrange" | "board-tile-menu" | "chart-periods-more" | "order-depth" | "ticket-protection" | "brief-subscriptions" | "brief-add" | "push-devices" | "routine-delete" | "plan-quota" | "live-trading" | "mobile-subpanes" | "mobile-subpanes-overlays" | "mobile-quote-columns" | "mobile-execution-stop" | "mobile-chart-cell" | "row-actions" | "mobile-drawing-style-row" | "debate-sheets" | "debate-sources" | "debate-stats" | "debate-log" | "debate-judge" | "debate-analyst-technical" | "debate-analyst-supply" | "debate-analyst-flow" | "debate-analyst-news";
             /** Open */
             open: boolean;
             /** Id */

@@ -20,6 +20,8 @@ from .ui_captures import ONLINE_SECONDS, CaptureReceipt, CaptureRequest, registe
 from .ui_surfaces import surface_aliases, surface_ids, surface_labels, surfaces_with
 from .user_preferences import (
     BOARD_ID,
+    BOARD_LINK_COLORS,
+    BOARD_LINK_MODULES,
     BOARD_MODULES,
     CATEGORIES,
     DESKTOP_CHART_CELLS,
@@ -33,6 +35,7 @@ from .user_preferences import (
     QUICK_SKILLS_MAX,
     SUBPANE_TYPES,
     WORKSPACE_LAYOUT_ID,
+    Board,
     UserPreferences,
     merge_preferences,
     preference_change_to_patch,
@@ -444,6 +447,32 @@ class BoardLock(BaseModel):
     size: Literal["auto", "small", "medium"]
 
 
+class BoardLink(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    module: BOARD_LINK_MODULES
+    color: BOARD_LINK_COLORS
+
+
+class BoardLinkSymbol(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    color: BOARD_LINK_COLORS
+    symbol: str = Field(pattern=SYMBOL_PATTERN)
+
+
+class BoardPreview(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    # The split tree as the account preference stores it (checked against that model below; kept loose here so the
+    # UI command schema stays one schema for reading and writing).
+    layout: dict[str, Any] | BOARD_MODULES
+    locks: dict[BOARD_MODULES, Literal["small", "medium"]] = Field(default_factory=dict)
+    note: str = Field(default="", max_length=60)
+
+    @model_validator(mode="after")
+    def board_tree(self):
+        Board.model_validate({"id": "preview", "name": "预览", "layout": self.layout})
+        return self
+
+
 class BoardRename(BaseModel):
     model_config = ConfigDict(extra="forbid")
     id: str = Field(pattern=BOARD_ID)
@@ -457,7 +486,10 @@ class BoardsChange(BaseModel):
     target 就放在整块看板的 side 边、占三分之一；已在看板上的模块挪过去, replace {module, with} 那一块换成另一个模块,
     take 拿掉一个模块（旁边的补满）, ratio {module, value} 拖分隔线：那一块占它所在那一层的 value（0.05–0.95）,
     lock {module, size: auto / small / medium} 档位跟着地方大小自动选或锁小 / 锁中, editing 进入（并打开看板）/ 退出编辑,
-    undo 撤销这次编辑里最近一步. Modules chart / positions / order / watch / sheet（作战表）/ alert（提醒）/ chat（对话）,
+    undo 撤销这次编辑里最近一步, link {module, color} 联动色（chart / order / watch / sheet 各一个颜色 blue / purple / orange，
+    同色的跟同一个合约；下单所在的颜色跟着顶栏的当前合约）, linkSymbol {color, symbol} 让另一个颜色的那几块换到某个合约,
+    preview {layout, locks?, note?} 编辑时先把一套摆法摆出来给用户看（不保存）, adopt 用这套（存下，可撤销）, discard 不用,
+    ask <一句话> 让 AI 帮我摆（编辑时；AI 只给摆法，结果是 preview）. Modules chart / positions / order / watch / sheet（作战表）/ alert（提醒）/ chat（对话）,
     each at most once per board. The list is the account preference ui.boards; state.boards carries editing, the 模块库
     and each block's size, lock and share."""
     model_config = ConfigDict(extra="forbid")
@@ -470,6 +502,12 @@ class BoardsChange(BaseModel):
     take: BOARD_MODULES | None = None
     ratio: BoardRatio | None = None
     lock: BoardLock | None = None
+    link: BoardLink | None = None
+    linkSymbol: BoardLinkSymbol | None = None
+    preview: BoardPreview | None = None
+    adopt: Literal[True] | None = None
+    discard: Literal[True] | None = None
+    ask: str | None = Field(default=None, min_length=1, max_length=200)
     editing: bool | None = None
     undo: Literal[True] | None = None
 
@@ -477,7 +515,8 @@ class BoardsChange(BaseModel):
     def one_key(self):
         given = [key for key in self.model_fields_set if getattr(self, key) is not None]
         if len(given) != 1 or len(self.model_fields_set) != 1:
-            raise ValueError("boards 一次只做一件：select / create / rename / remove / place / replace / take / ratio / lock / editing / undo")
+            raise ValueError("boards 一次只做一件：select / create / rename / remove / place / replace / take / ratio / lock / link / "
+                             "linkSymbol / preview / adopt / discard / ask / editing / undo")
         return self
 
 
@@ -487,6 +526,13 @@ class BoardTileState(BaseModel):
     size: Literal["small", "medium", "large", "xlarge", "bar"] | None = None
     locked: Literal["small", "medium"] | None = None
     share: int = Field(ge=0, le=100)
+    link: BOARD_LINK_COLORS | None = None
+
+
+class BoardPreviewState(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    note: str = ""
+    modules: list[BOARD_MODULES] = Field(default_factory=list)
 
 
 class BoardsState(BaseModel):
@@ -494,6 +540,12 @@ class BoardsState(BaseModel):
     editing: bool
     library: bool = False
     tiles: list[BoardTileState] = Field(default_factory=list)
+    # 色点联动: the colour that follows the app's contract, and the contract each other colour follows (once picked).
+    main: BOARD_LINK_COLORS = "blue"
+    groups: dict[BOARD_LINK_COLORS, str] = Field(default_factory=dict)
+    # 让 AI 帮我摆: the arrangement on screen before 用这套, and whether the AI is still arranging.
+    preview: BoardPreviewState | None = None
+    arranging: bool = False
 
 
 class DialogChange(BaseModel):
@@ -2054,8 +2106,15 @@ def _board_parent(node, module):
 def _boards_matches(state, value) -> bool:
     """看板: the account document the window reports holds the change (a window without it is judged by its receipt);
     editing is the window's own state.boards; undo is judged by the window's receipt."""
-    if "undo" in value:
+    if "undo" in value or "ask" in value:
         return True
+    boards_state = state.get("boards") if isinstance(state.get("boards"), dict) else None
+    if "linkSymbol" in value:
+        return boards_state is None or (boards_state.get("groups") or {}).get(value["linkSymbol"]["color"]) == value["linkSymbol"]["symbol"]
+    if "preview" in value:
+        return boards_state is None or boards_state.get("preview") is not None
+    if "discard" in value:
+        return boards_state is None or boards_state.get("preview") is None
     if "editing" in value:
         boards_state = state.get("boards")
         return isinstance(boards_state, dict) and boards_state.get("editing") is value["editing"] and (
@@ -2080,6 +2139,12 @@ def _boards_matches(state, value) -> bool:
         return value["take"] not in leaves
     if "replace" in value:
         return value["replace"]["with"] in leaves and value["replace"]["module"] not in leaves
+    if "link" in value:
+        links = current.get("links") if isinstance(current.get("links"), dict) else {}
+        color = value["link"]["color"]
+        return links.get(value["link"]["module"], "blue") == color
+    if "adopt" in value:
+        return boards_state is None or boards_state.get("preview") is None
     if "lock" in value:
         locks = current.get("locks") if isinstance(current.get("locks"), dict) else {}
         size = value["lock"]["size"]

@@ -49,6 +49,10 @@
   --draw-red: #d92d20;
   --draw-green: #15803d;
   --draw-blue: #2563eb;
+  /* 看板 · 色点联动: categorical, never red / green (market direction). */
+  --link-blue: #2f5bff;
+  --link-purple: #7c3aed;
+  --link-orange: #c2410c;
   /* 今日复盘 (2026-10-06): the three tags 计划内 / 提醒后 / 临时 (ink on a pale fill). 提醒后 is rose —
      the violet the mock-up used is the 到价提醒 colour, teal sits too close to 计划内 green, blue is the AI. */
   --tag-plan: #0a7a49;
@@ -229,6 +233,9 @@ html[data-app-theme="dark"] {
   --draw-red: #ff6b5e;
   --draw-green: #34d399;
   --draw-blue: #8ea8ff;
+  --link-blue: #8ea8ff;
+  --link-purple: #b794f6;
+  --link-orange: #fb923c;
   --tag-plan: #22c47a;
   --tag-plan-soft: #0e241a;
   --tag-remind: #f47fb0;

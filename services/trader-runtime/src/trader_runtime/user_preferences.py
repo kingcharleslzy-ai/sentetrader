@@ -443,6 +443,10 @@ BOARDS_MAX = 11
 BOARD_ID = r"^[a-z0-9-]{1,24}$"
 BOARD_MODULES = Literal["chart", "positions", "order", "watch", "sheet", "alert", "chat"]
 BOARD_MODULE_COUNT = len(get_args(BOARD_MODULES))
+# 色点联动 (PR 二): the modules that show one contract carry a colour; blocks of one colour follow one contract (下单's
+# colour follows the app's own). Not red or green, the market direction colours.
+BOARD_LINK_MODULES = Literal["chart", "order", "watch", "sheet"]
+BOARD_LINK_COLORS = Literal["blue", "purple", "orange"]
 
 
 class BoardSplit(BaseModel):
@@ -492,6 +496,7 @@ class Board(BaseModel):
     name: str = Field(min_length=1, max_length=12)
     layout: BoardNode | None = None
     locks: dict[BOARD_MODULES, Literal["small", "medium"]] = Field(default_factory=dict)
+    links: dict[BOARD_LINK_MODULES, BOARD_LINK_COLORS] = Field(default_factory=dict)
     # The grid version's fields: read (so a stored board still validates) and dropped from every write.
     cols: Any = Field(default=None, exclude=True)
     rows: Any = Field(default=None, exclude=True)
