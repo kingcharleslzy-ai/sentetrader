@@ -1,0 +1,20 @@
+{
+ "about": "11-05 手机今天页（#1322 #1324）：今日判断胶囊换成今日作战表入口；AI 正在盯没有“今日提醒”胶囊（看截图）。只读。",
+ "device": "phone",
+ "steps": [
+  {
+   "ui": {
+    "mobileTab": "ai"
+   },
+   "expect": {
+    "mobileTab": "ai",
+    "observation.text": {
+     "includes": "今日作战表"
+    }
+   }
+  },
+  {
+   "screenshot": "01-phone-today"
+  }
+ ]
+}

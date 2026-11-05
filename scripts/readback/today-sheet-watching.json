@@ -1,0 +1,12 @@
+{
+  "about": "11-05 三件（#1322 #1323 #1324）：①作战表每行带今日判断一句（没有的写“暂无”）；②图表下“AI 正在盯”在、不再写“今天提醒过 N 次”（看截图 02）；第二栏一行收起看截图 02（另跑 periods-more）。用测试账号现有的自选（默认五个品种），只读，不改自选。",
+  "steps": [
+    {"api": "GET /api/research/sheet", "expect": {"body.rows.0.product": {"exists": true}, "body.rows.0.judgment": {"exists": true}}},
+    {"ui": {"panel": "news"}, "expect": {"panel": "news"}},
+    {"ui": {"news": {"tab": "sheet"}}, "expect": {"news.tab": "sheet", "news.sheet.status": "ready",
+     "observation.text": {"includes": "今日判断"}}},
+    {"screenshot": "01-sheet-judgment"},
+    {"ui": {"panel": null}, "expect": {"panel": null, "observation.text": {"includes": "AI 正在盯"}}},
+    {"screenshot": "02-chart-bars"}
+  ]
+}
