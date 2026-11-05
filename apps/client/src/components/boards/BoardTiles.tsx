@@ -1,9 +1,11 @@
 import { useState, type ComponentProps } from "react";
-import { foreignQuoteOnly, sameContract, type AccountPosition, type InstrumentCatalog, type MarketBoardRow, type MarketWorkbenchSnapshot } from "../../api";
+import { foreignQuoteOnly, sameContract, type AccountPosition, type InstrumentCatalog, type MarketBoardRow, type MarketWorkbenchSnapshot, type RemoteTradeSnapshot,
+  type SimulationOrder } from "../../api";
 import { TradingCharts } from "../TradingCharts";
 import { durationLabel } from "../mobile/mobileMarketPrefs";
 import { chartDayQuote, contractLabel, dayQuote, decimalsForTick, formatBoardPrice, formatNumber, formatSigned, signClass, FALLBACK_PRICE_TITLE, type ManualSimulationRequest } from "../futures/support";
 import type { useQuickOrders } from "../futures/useQuickOrders";
+import type { SheetRow } from "../BattleSheet";
 
 /**
  * 看板 (2026-11-05): the small and medium layouts of the 第二批 modules, each its own arrangement — a small one keeps
@@ -94,6 +96,53 @@ export function PositionsMedium({ positions, instruments, onOpen }: { positions:
   </div>;
 }
 
+/** 持仓 · 大 (owner 2026-11-05): the tile's own head (no panel title bar), the positions table with 平仓, then the working
+ *  orders (撤单) and today's fills side by side. Every row scrolls inside the tile. */
+export function PositionsLarge({ positions, instruments, orders, fills, onOpen, onClose, onCancel }: { positions: AccountPosition[];
+  instruments?: InstrumentCatalog; orders: SimulationOrder[]; fills: RemoteTradeSnapshot[]; onOpen: () => void;
+  onClose: (position: AccountPosition) => void; onCancel: (order: SimulationOrder) => void }) {
+  const total = yuan(positions).reduce((sum, position) => sum + position.unrealizedPnl, 0);
+  const price = (value?: number | null) => value == null ? "—" : formatNumber(value, 2).replace(/\.?0+$/, "");
+  const time = (ns: number) => new Date(ns / 1e6).toLocaleTimeString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false, hour: "2-digit", minute: "2-digit" });
+  const side = (direction: string, offset: string) => `${direction === "BUY" ? "买" : "卖"}${offset === "OPEN" ? "开" : "平"}`;
+  return <div className="board-positions-large">
+    <div className="board-tile-head board-large-head">
+      <strong>持仓</strong><small>{positions.length}</small>
+      {positions.length ? <><small>浮动盈亏</small><strong className={signClass(total)}>{formatSigned(total, 0)}</strong></> : null}
+      <span className="board-grow" /><button type="button" className="board-text-button" onClick={onOpen}>打开持仓面板</button>
+    </div>
+    <div className="board-large-scroll">
+      {positions.length ? <table className="board-table">
+        <thead><tr><th>合约</th><th>方向手数</th><th>均价</th><th>现价</th><th className="num">浮动盈亏</th><th /></tr></thead>
+        <tbody>{positions.map(position => <tr key={`${position.accountId ?? ""}:${position.symbol}:${position.direction}`}>
+          <td><strong>{positionName(position, instruments)}</strong></td>
+          <td><i className={`board-side ${position.direction}`}>{position.direction === "long" ? "多" : "空"}</i>{position.volume}手</td>
+          <td>{price(position.openPrice)}</td><td>{price(position.lastPrice)}</td>
+          <td className={`num ${signClass(position.unrealizedPnl)}`}><strong>{formatSigned(position.unrealizedPnl, 0)}{position.currency === "USD" ? " 美元" : ""}</strong></td>
+          <td className="num"><button type="button" className="app-button" onClick={() => onClose(position)}>平仓</button></td>
+        </tr>)}</tbody>
+      </table> : <p className="board-empty">没有持仓</p>}
+      <div className="board-large-pair">
+        <section><h4>挂着的委托<small>{orders.length}</small></h4>
+          {orders.length ? orders.map(order => <div key={order.id} className="board-large-line">
+            <strong>{contractLabel(order.request.symbol, instruments)}</strong>
+            <span className={order.request.direction === "BUY" ? "positive" : "negative"}>{side(order.request.direction, order.request.offset)} {order.request.volume}手</span>
+            <small>@{price(order.request.limitPrice)}</small><span className="board-grow" />
+            <button type="button" className="app-button" disabled={order.cancelPhase !== "NONE"} onClick={() => onCancel(order)}>撤单</button>
+          </div>) : <small className="board-caption">没有挂单</small>}
+        </section>
+        <section><h4>今日成交<small>{fills.length}</small></h4>
+          {fills.length ? fills.slice(-6).reverse().map(fill => <div key={fill.tradeId} className="board-large-line">
+            <small>{time(fill.tradeDateTime)}</small><strong>{contractLabel(fill.symbol, instruments)}</strong>
+            <span className={fill.direction === "BUY" ? "positive" : "negative"}>{side(fill.direction, fill.offset)} {fill.volume}手</span>
+            <span className="board-grow" /><span>{price(fill.price)}</span>
+          </div>) : <small className="board-caption">今天还没有成交</small>}
+        </section>
+      </div>
+    </div>
+  </div>;
+}
+
 type Quick = ReturnType<typeof useQuickOrders>;
 const PRICE_INTENTS: { value: ManualSimulationRequest["priceIntent"]; label: string }[] = [
   { value: "aggressive", label: "对手价" }, { value: "passive", label: "排队价" }, { value: "last", label: "最新价" }];
@@ -169,5 +218,74 @@ export function WatchCompact({ rows, selectedSymbol, onSelect, onOpen, medium, e
   return <div className="board-watch-medium">
     <button type="button" className="board-tile-head board-tile-link" aria-label="自选，打开报价总表" onClick={onOpen}><strong>自选</strong><small>{rows.length}</small></button>
     {shown.length ? <ul className="board-rows two">{list}</ul> : <p className="board-empty">{emptyText}</p>}
+  </div>;
+}
+
+/** The 作战表 row of the shown contract: its own main contract, else the product it belongs to. */
+function sheetRowFor(rows: SheetRow[], symbol: string | undefined): SheetRow | undefined {
+  if (!symbol) return undefined;
+  const lower = symbol.toLowerCase();
+  return rows.find(row => row.symbol && sameContract(row.symbol, symbol))
+    ?? rows.find(row => lower.startsWith(row.product.toLowerCase()) && /\d/.test(lower.charAt(row.product.length)));
+}
+const nearestText = (row: SheetRow) => row.nearest ? `离${row.nearest.label} ${row.nearest.distancePercent}%` : "";
+
+/** 作战表 · 小 (当前品种今日判断一句) / 中 (每个品种一行). Both open the 调研 panel's 作战表 (a row: that 品种's 调研). */
+export function SheetCompact({ rows, status, symbol, name, onOpen, onOpenRow, medium }: {
+  rows: SheetRow[]; status: string; symbol?: string; name: string; onOpen: () => void; onOpenRow: (symbol: string) => void; medium?: boolean;
+}) {
+  if (!medium) {
+    const row = sheetRowFor(rows, symbol);
+    return <button type="button" className="board-tile-open board-sheet-small" aria-label={`${name} 今日判断，打开作战表`} onClick={onOpen}>
+      <span className="board-tile-head"><strong>{row?.name ?? name}</strong><small>今日判断</small><span className="board-grow" />
+        {row ? <i className="board-priority" data-priority={row.priority}>{row.priority}</i> : null}</span>
+      <span className="board-sentence">{row ? row.judgment?.headline ?? "今天还没有判断" : status || "这个品种不在作战表里（作战表排自选品种）"}</span>
+      {row && nearestText(row) ? <small className="board-caption">{nearestText(row)}</small> : null}
+    </button>;
+  }
+  return <div className="board-sheet-medium">
+    <button type="button" className="board-tile-head board-tile-link" aria-label="今日作战表，打开作战表" onClick={onOpen}><strong>今日作战表</strong><small>{rows.length || ""}</small></button>
+    {rows.length ? <ul className="board-rows">{rows.map(row => <li key={row.product}>
+      <button type="button" aria-label={`${row.name}：${row.judgment?.headline ?? "暂无判断"}，看调研`} onClick={() => row.symbol ? onOpenRow(row.symbol) : onOpen()}>
+        <strong>{row.name}</strong><i className="board-priority" data-priority={row.priority}>{row.priority}</i>
+        <span className="board-ellipsis">{row.judgment?.headline ?? "暂无判断"}</span><small>{nearestText(row)}</small>
+      </button></li>)}</ul> : <p className="board-empty">{status}</p>}
+  </div>;
+}
+
+export interface WaitingAlert { key: string; name: string; text: string }
+/** 提醒 · 小 (在等几个 + 最近响的一个) / 中 (列表). Both open the 提醒 panel. */
+export function AlertCompact({ waiting, latest, onOpen, medium }: {
+  waiting: WaitingAlert[]; latest?: { title: string; at: string }; onOpen: () => void; medium?: boolean;
+}) {
+  if (!medium) return <button type="button" className="board-tile-open board-alert-small" aria-label={`提醒在等 ${waiting.length} 个，打开提醒面板`} onClick={onOpen}>
+    <span className="board-tile-head"><strong>提醒</strong></span>
+    <span className="board-count"><strong className="board-figure">{waiting.length}</strong><small>个在等</small></span>
+    {latest ? <span className="board-latest"><small>{latest.at} 响过</small><strong>{latest.title}</strong></span> : <small className="board-caption">今天还没响过</small>}
+  </button>;
+  return <div className="board-alert-medium">
+    <button type="button" className="board-tile-head board-tile-link" aria-label="提醒，打开提醒面板" onClick={onOpen}>
+      <strong>提醒</strong><small>{waiting.length} 个在等{latest ? ` · ${latest.at} 响过` : ""}</small></button>
+    {waiting.length ? <ul className="board-rows">{waiting.map(item => <li key={item.key}>
+      <button type="button" aria-label={`${item.name} ${item.text}，打开提醒面板`} onClick={onOpen}><strong>{item.name}</strong><span className="board-ellipsis">{item.text}</span><small>在等</small></button>
+    </li>)}</ul> : <p className="board-empty">没有在等的提醒：在图表上设到价提醒，或在提醒面板里新建</p>}
+  </div>;
+}
+
+/** 对话 · 一条 (输入框和发送) / 中 (最近一条回复 + 输入框): what is typed goes to the same conversation as the 对话 panel. */
+export function ChatCompact({ reply, busy, blockedReason, onSend, onOpen, medium }: {
+  reply?: { text: string; at: string }; busy: boolean; blockedReason?: string; onSend: (text: string) => void; onOpen: () => void; medium?: boolean;
+}) {
+  const [text, setText] = useState("");
+  const send = () => { const value = text.trim(); if (!value || busy || blockedReason) return; onSend(value); setText(""); };
+  const input = <form className="board-chat-input" onSubmit={event => { event.preventDefault(); send(); }}>
+    <input value={text} onChange={event => setText(event.target.value)} placeholder={blockedReason || "问 AI，或说一句要做的事"} aria-label="给 AI 发消息" disabled={Boolean(blockedReason)} />
+    <button type="submit" className="app-button primary" disabled={!text.trim() || busy || Boolean(blockedReason)}>{busy ? "回答中" : "发送"}</button>
+  </form>;
+  if (!medium) return <div className="board-chat-bar">{input}</div>;
+  return <div className="board-chat-medium">
+    <button type="button" className="board-tile-head board-tile-link" aria-label="对话，打开对话面板" onClick={onOpen}><strong>对话</strong>{reply ? <small>AI · {reply.at}</small> : null}</button>
+    <p className="board-reply">{reply?.text || "还没有对话：在下面问一句"}</p>
+    {input}
   </div>;
 }

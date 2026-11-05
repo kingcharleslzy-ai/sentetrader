@@ -20,8 +20,10 @@
     "lucide-react": "^0.544.0",
     "openapi-fetch": "0.17.0",
     "react": "^19.1.1",
+    "react-dnd": "16.0.1",
+    "react-dnd-html5-backend": "16.0.1",
     "react-dom": "^19.1.1",
-    "react-grid-layout": "2.3.0",
+    "react-mosaic-component": "7.2.1",
     "web-vitals": "6.2.2"
   },
   "devDependencies": {

@@ -1,5 +1,4 @@
-/* 看板 (owner 2026-11-05): the 12 × 8 board, its bar, the 模块库 and the tiles' small / medium layouts. */
-
+/* 看板 · 铺满版 (owner 2026-11-05): the board fills the room (react-mosaic), the 模块库 and the tiles' small / medium layouts. */
 /* 顶栏入口: the 看板 button and its arrow, one control in the view group. */
 .board-entry { position: relative; display: inline-flex; align-items: center; border-radius: var(--radius-control); }
 .board-entry.active { outline: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); outline-offset: -1px; background: var(--accent-soft); }
@@ -11,71 +10,94 @@
 .board-entry-menu [role="menuitem"] { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
 .board-entry-menu [role="menuitem"] small { color: var(--muted); font-size: var(--font-xs); }
 
-.board-view { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; background: var(--bg); color: var(--ink); }
-.board-bar { flex: none; display: flex; align-items: center; gap: var(--space-2); min-height: 44px; padding: var(--space-1) var(--space-4); border-bottom: 1px solid var(--line); background: var(--panel); }
+.board-entry-main span { max-width: 8em; overflow: hidden; text-overflow: ellipsis; }
+.board-entry-menu [role="menuitem"] svg { width: 14px; height: 14px; flex: none; }
+.board-entry-menu .board-danger { color: var(--danger); }
+.board-entry-tools { display: inline-flex; align-items: center; gap: var(--space-1); margin-left: var(--space-1); }
+.board-entry-tool { height: 26px; display: inline-flex; align-items: center; gap: 2px; padding: 0 var(--space-2); border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--panel); color: var(--ink); font-size: var(--font-sm); white-space: nowrap; }
+.board-entry-tool[aria-pressed="true"] { border-color: color-mix(in srgb, var(--accent) 45%, transparent); background: var(--accent-soft); color: var(--accent); }
+.board-entry-tool:hover:not(:disabled) { background: var(--surface-hover); }
+.board-entry-tool:disabled { color: var(--muted); }
+.board-entry-tool svg, .board-entry-done svg { width: 13px; height: 13px; }
+.board-entry-done { height: 26px; min-height: 26px; padding: 0 var(--space-2); display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--font-sm); }
+.board-menu-divider { display: block; height: 1px; margin: var(--space-1) 0; background: var(--line); }
+.board-menu-caption { display: block; padding: var(--space-1) var(--space-2) 0; color: var(--muted); font-size: var(--font-xs); }
+.board-menu-row { display: flex; gap: var(--space-2); padding: var(--space-1) var(--space-2); }
+.board-menu-row .app-button { flex: 1; }
+.board-menu-rename { display: flex; align-items: flex-end; gap: var(--space-2); padding: var(--space-1) var(--space-2); }
+.board-menu-rename label { flex: 1; display: flex; flex-direction: column; gap: 2px; color: var(--muted); font-size: var(--font-xs); }
+.board-menu-rename input { height: 28px; min-width: 0; padding: 0 var(--space-2); border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--panel); color: var(--ink); font-size: var(--font-md); }
 .board-grow { flex: 1; }
-.board-back { display: inline-flex; align-items: center; gap: var(--space-1); height: 32px; padding: 0 var(--space-2); border: 0; border-radius: var(--radius-control); background: transparent; color: var(--ink); font-size: var(--font-md); white-space: nowrap; }
-.board-back:hover { background: var(--surface-hover); }
-.board-back svg { width: 16px; height: 16px; }
-.board-tabs { display: flex; gap: 2px; padding: 2px; border-radius: var(--radius-control); background: var(--soft); min-width: 0; overflow: hidden; }
-.board-tabs [role="tab"] { height: 28px; padding: 0 var(--space-3); border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--muted); font-size: var(--font-md); white-space: nowrap; }
-.board-tabs [role="tab"][aria-selected="true"] { background: var(--panel); color: var(--ink); font-weight: 600; box-shadow: var(--shadow-1); }
 .board-icon-button { width: 32px; height: 32px; flex: none; display: inline-grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--panel); color: var(--ink); }
 .board-icon-button:hover:not(:disabled) { background: var(--surface-hover); }
 .board-icon-button svg { width: 16px; height: 16px; }
-.board-icon-button.board-danger, .board-danger { color: var(--danger); background: var(--danger-soft); border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
-.board-editing-tag { padding: 2px var(--space-2); border-radius: var(--radius-pill); background: var(--accent-soft); color: var(--accent); font-size: var(--font-sm); white-space: nowrap; }
-.board-more { position: relative; }
-.board-more-menu { left: 0; right: auto; min-width: 240px; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2); }
-.board-more-menu form { display: flex; align-items: flex-end; gap: var(--space-2); }
-.board-more-menu label { flex: 1; display: flex; flex-direction: column; gap: var(--space-1); color: var(--muted); font-size: var(--font-sm); }
-.board-more-menu input { height: 32px; padding: 0 var(--space-2); border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--panel); color: var(--ink); font-size: var(--font-md); }
-.board-more-menu .board-danger { display: flex; align-items: center; gap: var(--space-2); height: 32px; padding: 0 var(--space-2); border-radius: var(--radius-control); border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent); font-weight: 600; }
-.board-more-menu .board-danger svg { width: 14px; height: 14px; }
-
-.board-body { position: relative; flex: 1; min-height: 0; display: flex; gap: var(--space-3); padding: var(--space-3) var(--space-4); }
-/* Cells keep one size; a board laid out on more cells than this canvas holds scrolls (down, or sideways for a module
-   wider than the canvas). */
-.board-canvas { position: relative; flex: 1; min-width: 0; min-height: 0; overflow: auto; }
-.board-cells { position: absolute; left: 0; top: 0; color: color-mix(in srgb, var(--line-strong) 40%, transparent); pointer-events: none; }
-.board-empty-prompt { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); margin: 0; padding: var(--space-2) var(--space-4); border-radius: var(--radius-control); background: var(--bg); color: var(--muted); font-size: var(--font-md); white-space: nowrap; pointer-events: none; }
-
-/* react-grid-layout's own placeholder, in the theme. */
-.board-view .react-grid-item.react-grid-placeholder { background: var(--accent); opacity: .18; border-radius: var(--radius-card); }
-.board-tile { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--panel); color: var(--ink); font-variant-numeric: tabular-nums; }
-.board-tile.selected { outline: 2px solid var(--accent); outline-offset: 1px; }
-.board-tile-content { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.board-tile-content > * { flex: 1; min-height: 0; }
-/* Editing: the tile's name and grip get their own bar at the top and the content moves below it (never under it). */
-.board-view.editing .board-tile { padding-top: 32px; }
-.board-view.editing .board-tile-content { opacity: .6; }
-.board-tile-grip { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: stretch; padding: 0; border: 0; background: transparent; color: var(--ink); cursor: grab; text-align: left; }
-.board-tile-grip > span { flex: none; display: flex; align-items: center; gap: var(--space-1); height: 32px; box-sizing: border-box; padding: 0 var(--space-2); border-bottom: 1px solid var(--line); background: var(--soft); font-size: var(--font-sm); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.board-tile-grip > span > svg { flex: none; width: 16px; height: 16px; color: var(--muted); }
-.react-draggable-dragging .board-tile-grip { cursor: grabbing; }
-.board-tile-tools { position: absolute; left: var(--space-2); right: var(--space-2); bottom: var(--space-2); display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1); border: 1px solid var(--line-strong); border-radius: var(--radius-card); background: var(--panel); box-shadow: var(--shadow-2); }
-.board-tile-tools .board-segment { flex: 1; min-width: 0; overflow: hidden; }
-
-.board-segment { display: inline-flex; gap: 2px; padding: 2px; border-radius: var(--radius-control); background: var(--soft); }
+.board-danger { color: var(--danger); }
+.board-segment { display: inline-flex; gap: 2px; margin: var(--space-1) var(--space-2); padding: 2px; border-radius: var(--radius-control); background: var(--soft); }
 .board-segment [role="radio"] { height: 26px; padding: 0 var(--space-2); border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--muted); font-size: var(--font-sm); white-space: nowrap; }
 .board-segment [role="radio"][aria-checked="true"] { background: var(--panel); color: var(--ink); font-weight: 600; box-shadow: var(--shadow-1); }
 
-/* 模块库 */
-/* The 模块库 floats over the canvas so opening it never changes how many cells the canvas holds. */
-.board-library { position: absolute; z-index: 5; top: var(--space-3); right: var(--space-4); bottom: var(--space-3); width: 300px; display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--panel); box-shadow: var(--shadow-2); }
-.board-library > header { display: flex; align-items: center; gap: var(--space-2); min-height: 44px; padding: 0 var(--space-2) 0 var(--space-4); border-bottom: 1px solid var(--line); }
-.board-library > header strong { font-size: var(--font-lg); }
+.board-view { position: relative; flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; background: var(--bg); color: var(--ink); }
+/* A refusal takes its own line above the canvas, so it never lies over a block's controls. */
+.board-notice { flex: none; align-self: center; max-width: min(640px, calc(100% - 32px)); margin: var(--space-2) 0 0; padding: var(--space-1) var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--warning) 45%, transparent); border-radius: var(--radius-pill); background: var(--warning-soft); color: var(--warning);
+  font-size: var(--font-sm); line-height: 1.45; }
+.board-canvas { position: relative; flex: 1; min-width: 0; min-height: 0; padding: 5px; }
+.board-empty-prompt { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); margin: 0; padding: var(--space-2) var(--space-4); color: var(--muted); font-size: var(--font-md); white-space: nowrap; }
+
+/* react-mosaic in the theme: 8px between blocks, blocks are cards, the divider shows on hover and while dragged. */
+.board-mosaic .mosaic-root { inset: 0; }
+.board-mosaic .mosaic-tile { margin: 4px; }
+.board-mosaic .mosaic-window { overflow: visible; box-shadow: none; border-radius: var(--radius-card); background: transparent; }
+.board-mosaic .mosaic-window .mosaic-window-body { background: transparent; overflow: visible; }
+.board-mosaic .mosaic-tile:has([role="menu"]) { z-index: 20; }
+.board-mosaic .mosaic-split { background: transparent; }
+.board-mosaic .mosaic-split.-row { margin-left: -4px; width: 8px; }
+.board-mosaic .mosaic-split.-column { margin-top: -4px; height: 8px; }
+.board-mosaic .mosaic-split .mosaic-split-line { border-radius: 2px; }
+.board-view.editing .board-mosaic .mosaic-split:hover .mosaic-split-line, .board-mosaic .mosaic-split.-preview .mosaic-split-line { background: var(--accent); }
+.board-view.editing .board-mosaic .mosaic-split.-row .mosaic-split-line { left: 3px; right: 3px; }
+.board-view.editing .board-mosaic .mosaic-split.-column .mosaic-split-line { top: 3px; bottom: 3px; }
+.board-view:not(.editing) .board-mosaic .mosaic-window-toolbar { display: none; }
+.board-mosaic .mosaic-window .mosaic-window-toolbar { height: 32px; background: var(--soft); box-shadow: none; border: 1px solid var(--line); border-bottom: 0; border-radius: var(--radius-card) var(--radius-card) 0 0; }
+.board-view.editing .board-mosaic .board-tile { border-top-left-radius: 0; border-top-right-radius: 0; }
+.board-view.editing .board-tile-content { opacity: .6; }
+/* Where a dragged module lands: the half of the block it would take. */
+.board-mosaic .drop-target-container .drop-target { border: 2px solid var(--accent); border-radius: var(--radius-card); background: color-mix(in srgb, var(--accent) 18%, transparent); }
+
+.board-tile-bar-host { flex: 1; min-width: 0; height: 100%; display: flex; }
+.board-tile-bar { flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; gap: var(--space-1); padding: 0 var(--space-1) 0 var(--space-2); font-size: var(--font-sm); white-space: nowrap; }
+.board-tile-bar > svg { flex: none; width: 14px; height: 14px; color: var(--muted); }
+.board-tile-bar > small { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--muted); font-size: var(--font-xs); }
+.board-tile-menu { position: relative; flex: none; }
+.board-tile-menu-button { width: 26px; height: 26px; display: inline-grid; place-items: center; padding: 0; border: 0; border-radius: var(--radius-control); background: transparent; color: var(--ink); cursor: pointer; }
+.board-tile-menu-button:hover, .board-tile-menu-button[aria-expanded="true"] { background: var(--surface-hover); }
+.board-tile-menu-button svg { width: 16px; height: 16px; }
+.board-tile-menu-list { right: 0; left: auto; top: calc(100% + 2px); min-width: 210px; max-height: 60vh; overflow: auto; cursor: default; }
+.board-tile-menu-list.up { top: auto; bottom: calc(100% + 2px); }
+.board-tile-menu-list [role="menuitem"] { display: flex; align-items: center; gap: var(--space-2); }
+.board-tile-menu-list [role="menuitem"] svg { width: 14px; height: 14px; }
+
+.board-tile { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--panel); color: var(--ink); font-variant-numeric: tabular-nums; }
+.board-tile-content { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.board-tile-content > * { flex: 1; min-height: 0; }
+
+/* 模块库: a small card over the board, moved by its title; it fades out while one of its modules is dragged. */
+.board-library { position: absolute; z-index: 30; top: var(--space-3); right: var(--space-4); width: 280px; max-height: calc(100% - 24px); display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--line-strong); border-radius: var(--radius-card); background: var(--panel); box-shadow: var(--shadow-2); transition: opacity .12s; }
+.board-library.dragging { opacity: 0; pointer-events: none; }
+.board-library > header { display: flex; align-items: center; gap: var(--space-2); min-height: 40px; padding: 0 var(--space-1) 0 var(--space-2); border-bottom: 1px solid var(--line); cursor: move; touch-action: none; }
+.board-library > header > svg { width: 14px; height: 14px; color: var(--muted); }
+.board-library > header strong { font-size: var(--font-md); }
 .board-library > header .board-icon-button { border: 0; background: transparent; color: var(--muted); }
 .board-library ul { list-style: none; margin: 0; padding: var(--space-2); display: flex; flex-direction: column; gap: var(--space-1); overflow: auto; }
-.board-library-item { width: 100%; display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--panel); color: var(--ink); text-align: left; cursor: grab; }
-.board-library-item:hover { background: var(--surface-hover); }
+.board-library-item { width: 100%; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2); border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--panel); color: var(--ink); text-align: left; cursor: grab; }
+.board-library-item:hover:not(:disabled) { background: var(--surface-hover); }
+.board-library-item:disabled { cursor: default; color: var(--muted); }
 .board-library-item > svg { width: 16px; height: 16px; color: var(--muted); }
-.board-library-icon { width: 36px; height: 36px; flex: none; display: grid; place-items: center; border-radius: var(--radius-control); background: var(--soft); color: var(--accent); }
-.board-library-icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; }
-.board-library-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); }
-.board-library-text > span { display: flex; flex-wrap: wrap; gap: var(--space-1); }
-.board-library-text small { padding: 0 var(--space-1); border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--muted); font-size: var(--font-xs); }
-.board-library-placed { color: var(--muted); font-size: var(--font-xs); }
+.board-library-icon { width: 32px; height: 32px; flex: none; display: grid; place-items: center; border-radius: var(--radius-control); background: var(--soft); color: var(--accent); }
+.board-library-item:disabled .board-library-icon { color: var(--muted); }
+.board-library-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; }
+.board-library-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.board-library-text small { color: var(--muted); font-size: var(--font-xs); }
 
 /* Tiles: the small and medium layouts. */
 .board-tile-open { display: flex; flex-direction: column; align-items: stretch; gap: var(--space-1); width: 100%; height: 100%; padding: var(--space-3); border: 0; background: transparent; color: inherit; text-align: left; font: inherit; }
@@ -101,7 +123,7 @@
 .board-figure { font-size: var(--font-2xl); font-weight: 700; line-height: 1.15; }
 .board-split { display: flex; gap: var(--space-3); font-size: var(--font-sm); }
 .board-empty { margin: auto 0; color: var(--muted); font-size: var(--font-md); }
-.board-positions-medium .board-empty, .board-watch-medium .board-empty { margin: var(--space-3); }
+.board-positions-medium .board-empty, .board-watch-medium .board-empty, .board-alert-medium .board-empty, .board-sheet-medium .board-empty { margin: var(--space-3); }
 .board-view .positive { color: var(--market-up); }
 .board-view .negative { color: var(--market-down); }
 .board-rows { list-style: none; margin: 0; padding: 0; overflow: hidden; }
@@ -153,10 +175,50 @@
 .board-chart-large { display: flex; flex-direction: column; min-height: 0; }
 .board-chart-large > .fdw-chart-area { flex: 1; min-height: 0; }
 
-/* 一套自适应 for the board bar (levels in BoardsView's BAR_FIT). */
-.board-more-boards { display: none; }
-.board-bar.board-fit-tight { gap: var(--space-1); padding: var(--space-1) var(--space-2); }
-.board-bar.board-fit-hide-tag .board-editing-tag { display: none; }
-.board-bar.board-fit-icon-back .board-back span { display: none; }
-.board-bar.board-fit-current-tab .board-tabs [role="tab"][aria-selected="false"] { display: none; }
-.board-bar.board-fit-current-tab .board-more-boards { display: inline-grid; }
+/* 第三批: the chart follows the tile (its own 420 px floor is for the trade view) and a hosted panel scrolls inside the
+   tile instead of being cut off. */
+.board-tile .fdw-trading-charts { min-height: 0; }
+.board-tile-content > .fdw-ai, .board-tile-content > .fdw-order-panel, .board-tile-content > .battle-sheet,
+.board-tile-content > .fdw-board { height: 100%; min-height: 0; max-height: none; border: 0; border-radius: 0; box-shadow: none; overflow: auto; }
+.board-tile-content > .battle-sheet { margin: 0; }
+
+.board-sentence { font-size: var(--font-lg); font-weight: 600; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.board-ellipsis { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board-priority { flex: none; padding: 0 var(--space-1); border-radius: var(--radius-sm); font-style: normal; font-size: var(--font-xs); font-weight: 700; background: var(--soft); color: var(--muted); }
+.board-priority[data-priority="高"] { background: var(--danger-soft); color: var(--danger); }
+.board-priority[data-priority="中"] { background: var(--warning-soft); color: var(--warning); }
+.board-sheet-medium, .board-alert-medium, .board-chat-medium { display: flex; flex-direction: column; min-height: 0; }
+.board-sheet-medium .board-rows li > button > :first-child, .board-alert-medium .board-rows li > button > :first-child { flex: 0 0 auto; max-width: 30%; }
+.board-sheet-medium .board-rows, .board-alert-medium .board-rows { overflow: auto; }
+.board-count { display: flex; align-items: baseline; gap: var(--space-1); }
+.board-count small { color: var(--muted); }
+.board-latest { margin-top: auto; display: flex; flex-direction: column; gap: 2px; padding: var(--space-1) var(--space-2); border-radius: var(--radius-control); background: var(--price-alert-soft); }
+.board-latest small { color: var(--price-alert); font-size: var(--font-xs); }
+.board-latest strong { font-size: var(--font-md); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board-chat-bar { display: flex; align-items: center; height: 100%; padding: 0 var(--space-3); }
+.board-chat-input { flex: none; display: flex; align-items: center; gap: var(--space-2); width: 100%; }
+.board-chat-medium .board-chat-input { padding: var(--space-2) var(--space-3); border-top: 1px solid var(--line); }
+.board-chat-input input { flex: 1; min-width: 0; height: 36px; padding: 0 var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-control); background: var(--soft); color: var(--ink); font-size: var(--font-md); }
+.board-reply { flex: 1; min-height: 0; margin: 0; padding: var(--space-2) var(--space-3); overflow: hidden; color: var(--ai-bubble-ink); background: var(--ai-bubble); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; }
+.board-sheet-medium .board-empty, .board-alert-medium .board-empty, .board-watch-medium .board-empty, .board-positions-medium .board-empty { white-space: normal; text-align: left; line-height: 1.5; }
+.board-positions-large { display: flex; flex-direction: column; min-height: 0; }
+.board-large-head { flex: none; height: 40px; padding: 0 var(--space-3); border-bottom: 1px solid var(--line); }
+.board-large-head > small { margin-right: var(--space-2); }
+.board-text-button { height: 28px; padding: 0 var(--space-2); border: 0; border-radius: var(--radius-control); background: transparent; color: var(--accent); font-size: var(--font-sm); }
+.board-text-button:hover { background: var(--surface-hover); }
+.board-large-scroll { flex: 1; min-height: 0; overflow: auto; }
+.board-table { width: 100%; border-collapse: collapse; font-size: var(--font-md); }
+.board-table th { height: 28px; padding: 0 var(--space-3); color: var(--muted); font-size: var(--font-sm); font-weight: 400; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.board-table td { height: 36px; padding: 0 var(--space-3); border-bottom: 1px solid var(--line); white-space: nowrap; }
+.board-table .num { text-align: right; }
+.board-table .app-button, .board-large-line .app-button { min-height: 26px; height: 26px; padding: 0 var(--space-2); font-size: var(--font-sm); }
+.board-large-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--space-3); padding: var(--space-3); }
+.board-large-pair section { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-control); background: var(--soft); }
+.board-large-pair h4 { display: flex; align-items: baseline; gap: var(--space-1); margin: 0; font-size: var(--font-md); }
+.board-large-pair h4 small { color: var(--muted); font-weight: 400; font-size: var(--font-sm); }
+.board-large-line { display: flex; align-items: center; gap: var(--space-2); min-height: 28px; font-size: var(--font-sm); white-space: nowrap; }
+.board-large-line > small { color: var(--muted); }
+/* The header gives the editing tools up with its own levels: labels go with the other labels, then ＋ 模块 / 撤销 leave
+   for the arrow menu (they are there too) and only 完成 stays. */
+.fdw-header.fdw-fit-hide-text .board-entry-tool > span { display: none; }
+.fdw-header.fdw-fit-contract-menu .board-entry-tool { display: none; }

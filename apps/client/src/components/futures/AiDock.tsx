@@ -28,7 +28,8 @@ interface Props {
   appWorkbench: ReturnType<typeof useAppWorkbench>;
   call: VoiceCallControls;
   voiceUnavailableReason: string;
-  onClose: () => void;
+  /** Absent: drawn inside a 看板 module, no 收起 of its own. */
+  onClose?: () => void;
   /** 暂停 on the running-strategy banner: the same monitor pause the strategy card runs. */
   onPauseStrategy: (strategyId: string) => Promise<void>;
   briefs: Brief[];
@@ -179,7 +180,7 @@ export function AiDock({ workspace, chat, focus, appWorkbench, call, voiceUnavai
             <button type="button" aria-label="新对话" title="新对话" disabled={chatBlocked || workspace.connection !== "connected"} onClick={() => void selectChat()}><Plus /></button>
             <button type="button" aria-label="历史对话" title="历史对话" aria-expanded={Boolean(chatHistory)} disabled={chatBlocked} onClick={() => void toggleHistory()}><History /></button>
           </> : null}
-          <button type="button" aria-label="收起AI" onClick={() => onClose()}><PanelRightClose /></button>
+          {onClose ? <button type="button" aria-label="收起AI" onClick={() => onClose()}><PanelRightClose /></button> : null}
         </div>
       </header>}
       <CallBar call={call} unavailableReason={voiceUnavailableReason} slot="bar" />

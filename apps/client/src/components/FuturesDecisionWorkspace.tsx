@@ -63,9 +63,10 @@ import { buildPromptContext } from "./futures/promptContext";
 import { useChartFocus } from "./futures/useChartFocus";
 import { useQuickOrderSkipConfirm, useQuickOrders } from "./futures/useQuickOrders";
 import { QuickActions, quickCloseRequests, useTicketQuickActions } from "./futures/QuickActions";
-import { useBoards, type BoardModule, type BoardSize } from "./boards/boards";
+import { leavesOf, useBoards, type BoardModule, type BoardSize } from "./boards/boards";
 import { BoardsMenu, BoardsView, useBoardsControl } from "./boards/BoardsView";
-import { ChartSmall, ChartMedium, OrderCompact, PositionsSmall, PositionsMedium, WatchCompact, watchRows } from "./boards/BoardTiles";
+import { AlertCompact, ChartSmall, ChartMedium, ChatCompact, OrderCompact, PositionsSmall, PositionsMedium, PositionsLarge, SheetCompact, WatchCompact, watchRows } from "./boards/BoardTiles";
+import { BattleSheet, useBattleSheet } from "./BattleSheet";
 import { QuickOrderDialog } from "./futures/QuickOrderDialog";
 import { useTradeReview } from "../hooks/useTradeReview";
 import { useForeignBoard } from "../hooks/useForeignBoard";
@@ -723,7 +724,11 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   const boardsAvailable = gridAvailable;
   const boards = useBoards({ document: prefs.preferences.ui?.boards, connected: Boolean(connectedRuntimeUrl), update: updatePreferences });
   const boardsControl = useBoardsControl(boards, () => selectView("dashboard"), boardsAvailable && preferencesLoaded);
-  const dashboardWatch = view === "dashboard" && boards.board.tiles.some(tile => tile.module === "watch");
+  const boardModules = view === "dashboard" ? leavesOf(boards.board.layout) : [];
+  const dashboardWatch = boardModules.includes("watch");
+  // 看板 · 作战表 小 / 中: the same rows as the 调研 panel's tab (pushed, assembled here); the large size is the tab itself.
+  const boardSheet = useBattleSheet(connectedRuntimeUrl, boardModules.includes("sheet") && boardsControl.sizes.sheet !== "large",
+    prefs.document ? watchlist : undefined);
   useEnterMotion(coreRef, view, useStepMotion(["trade", "board", "dashboard", "review"].indexOf(view)));
   useEnterMotion(chartAreaRef, `${chartView}@${props.duration}#${desktopCharts.charts.layout}`, "fade");
   useEnterMotion(shellRef, workspaceLayouts.layouts.current, "fade");
@@ -1331,9 +1336,9 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     {signalNotice ? <p className="fdw-signal-notice" role="status" data-testid="strategy-signal-notice">{signalNotice}</p> : null}
     {!props.guest && !uiControlHealth.registered ? <div className="fdw-global-error" role="status" data-agent-target="ui-control-health">界面命令不可用：登记失败（{uiControlHealth.detail.slice(0, 160) || "/api/ui/pulse 422"}）</div> : null}
   </>;
-  const aiDock = (mobileChat?: Parameters<typeof AiDock>[0]["mobile"]) => <AiDock workspace={workspace} chat={chat} focus={focus} appWorkbench={appWorkbench}
+  const aiDock = (mobileChat?: Parameters<typeof AiDock>[0]["mobile"], embedded = false) => <AiDock workspace={workspace} chat={chat} focus={focus} appWorkbench={appWorkbench}
       call={call} voiceUnavailableReason={voiceUnavailableReason}
-      onClose={() => setRightDock(null)} onPauseStrategy={pauseStrategy}
+      onClose={embedded ? undefined : () => setRightDock(null)} onPauseStrategy={pauseStrategy}
       briefs={flowBriefs.items}
       quote={quote} decimals={decimals} selectedPrice={selectedPrice}
       currentPositions={currentPositions} decisionTurns={decisionTurns}
@@ -1623,9 +1628,10 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   }
 
   // The open side panel's content.
-  const renderDockPanel = (panel: Exclude<RightDock, null>): ReactNode => {
+  // `embedded`: drawn as a 看板 module (no 收起 of its own — the board's tile is its frame).
+  const renderDockPanel = (panel: Exclude<RightDock, null>, embedded = false): ReactNode => {
     switch (panel) {
-      case "ai": return props.guest ? null : aiDock();
+      case "ai": return props.guest ? null : aiDock(undefined, embedded);
       case "news": return <NewsPanel baseUrl={props.guest?.baseUrl ?? connectedRuntimeUrl} guest={Boolean(props.guest)} replay={Boolean(props.replayActive)} onGuestExpired={props.guest?.reportExpired} symbol={quote?.symbol} onClose={() => setRightDock(null)}
           watchProducts={flashWatchProducts} watchlist={prefs.document ? watchlist : undefined} instruments={props.instruments?.items} onSelectSymbol={selectContract}
           debate={props.guest ? undefined : debate} tab={newsTab} onTab={setNewsTab} />;
@@ -1645,12 +1651,12 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
           tab={positionsTab} onTabChange={setPositionsTab} history={ordersHistory} onHistoryChange={setOrdersHistory}
           fillsSource={fillsSource} onFillsSourceChange={setFillsSource}
           onOrderAction={handleOrderAction} onClosePosition={closePosition} onRefresh={props.onRefreshAccount}
-          onClose={() => setRightDock(null)} activeProtections={activeProtections} protectionWarning={protectionWarning} onAskAi={askAi}
+          onClose={embedded ? undefined : () => setRightDock(null)} activeProtections={activeProtections} protectionWarning={protectionWarning} onAskAi={askAi}
           stops={props.aiExecution?.stops} protectionBusy={props.aiExecutionBusy}
           onCreateStop={createPositionStop} onCancelStop={cancelPositionStop} />;
       case "order": return props.guest || (view !== "trade" && view !== "dashboard") || !market ? null : (
           <section className="fdw-order-panel" aria-label="固定下单面板" data-agent-target="panel:order">
-            <header><div><ReceiptText /><span><strong>模拟交易</strong><small className={closed || !dataLive ? "blocked" : "live"}>{quote?.name ?? quote?.symbol} · {closed ? sessionLabel : dataLive ? "行情正常" : "不可下单"}</small></span></div><button type="button" aria-label="收起模拟下单" onClick={() => setRightDock(null)}><PanelRightClose /></button></header>
+            <header><div><ReceiptText /><span><strong>模拟交易</strong><small className={closed || !dataLive ? "blocked" : "live"}>{quote?.name ?? quote?.symbol} · {closed ? sessionLabel : dataLive ? "行情正常" : "不可下单"}</small></span></div>{embedded ? null : <button type="button" aria-label="收起模拟下单" onClick={() => setRightDock(null)}><PanelRightClose /></button>}</header>
             {/* 五档 → 下单票 → 本合约持仓 in one scroll region (2026-10-03). */}
             <div className="fdw-order-scroll">
               <OrderDepth quote={market.quote} selectedPrice={selectedPrice} onPriceSelect={pickLadderPrice} />
@@ -1692,7 +1698,34 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
       const positions = props.account?.positions ?? [];
       if (size === "small") return <PositionsSmall positions={positions} onOpen={() => setRightDock("positions")} />;
       if (size === "medium") return <PositionsMedium positions={positions} instruments={props.instruments} onOpen={() => setRightDock("positions")} />;
-      return renderDockPanel("positions");
+      return <PositionsLarge positions={positions} instruments={props.instruments} orders={props.simulationOrders.filter(orderIsActive)}
+        fills={props.account?.activity.trades ?? []} onOpen={() => setRightDock("positions")} onClose={closePosition}
+        onCancel={order => handleOrderAction(order, "cancel")} />;
+    }
+    if (module === "sheet") {
+      const openSheet = () => { setNewsTab("sheet"); setRightDock("news"); };
+      const openRow = (symbol: string) => { selectContract(symbol); setNewsTab("desk"); setRightDock("news"); };
+      if (size === "large") return <BattleSheet baseUrl={connectedRuntimeUrl} visible watchlist={prefs.document ? watchlist : undefined} onOpen={openRow} />;
+      const status = boardSheet.error ? `作战表读取失败（${boardSheet.error}）` : boardSheet.report ? watchlist.length ? "" : "还没有自选品种" : "正在排作战表…";
+      return <SheetCompact rows={boardSheet.report?.rows ?? []} status={status} symbol={quote?.symbol} name={quote ? contractLabel(quote.symbol, props.instruments) : "当前合约"}
+        onOpen={openSheet} onOpenRow={openRow} medium={size === "medium"} />;
+    }
+    if (module === "alert") {
+      const waiting = [...alerts.active.map(alert => ({ key: `alert:${alert.id}`, name: alert.name || contractLabel(alert.symbol, props.instruments),
+          text: alert.drawingId ? "碰到画的线" : `${alert.direction === "above" ? "涨到" : "跌到"} ${alert.price}` })),
+        ...(appWorkbench.activity?.strategies ?? []).filter(item => item.status === "monitoring" && item.reminderOnly)
+          .map(item => ({ key: `reminder:${item.strategyId}`, name: item.name, text: "条件提醒" }))];
+      const fired = reminders.today.find(item => item.kind === "price_alert" || item.kind === "strategy");
+      const at = fired ? new Date(fired.createdAt).toLocaleTimeString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false, hour: "2-digit", minute: "2-digit" }) : "";
+      return <AlertCompact waiting={waiting} latest={fired ? { title: fired.name ? `${fired.name} ${fired.title}` : fired.title, at } : undefined}
+        onOpen={() => setRightDock("reminders")} medium={size === "medium"} />;
+    }
+    if (module === "chat") {
+      if (size === "large") return renderDockPanel("ai", true);
+      const last = [...props.state.turns].reverse().find(turn => turn.role === "assistant" && turn.text.trim());
+      return <ChatCompact medium={size === "medium"} busy={Boolean(props.chatBusy || chat.sendingPrompt)} blockedReason={aiBlocked || undefined}
+        reply={last ? { text: last.text, at: new Date(last.timestamp).toLocaleTimeString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false, hour: "2-digit", minute: "2-digit" }) } : undefined}
+        onSend={text => void chat.sendQuickPrompt(text)} onOpen={() => setRightDock("ai")} />;
     }
     if (module === "watch") {
       const openBoard = (exchange: BoardExchange = "watchlist") => { setBoardExchange(exchange); selectView("board"); };
@@ -1714,7 +1747,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     if (compact) return <OrderCompact market={market} name={name} positions={currentPositions} quick={quick} medium={size === "medium"}
       enabled={props.simulationEnabled && !props.tradeBusy} blockedReason={props.simulationEnabled ? undefined : props.simulationBlockedReason}
       closeRequests={quickCloseRequests(currentPositions, market.quote.symbol, "all")} />;
-    return renderDockPanel("order");
+    return renderDockPanel("order", true);
   };
   return (
     <AccountAccessContext.Provider value={accessContext}><UiNavigationContext.Provider value={navigation}><div ref={shellRef}
@@ -1731,6 +1764,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     >
       <WorkspaceHeader workspace={workspace} view={view} onSelectView={selectView} recoveryButton={executionStopped ? recoveryButton : null} tradingAccounts={tradingAccounts}
         onVisibleCurrentContractChange={setHeaderCurrentContract}
+        boardsKey={view === "dashboard" ? `${boards.board.name}:${boardsControl.editing}` : ""}
         boardsEntry={boardsAvailable && preferencesLoaded ? <BoardsMenu control={boardsControl} active={view === "dashboard"} onError={setAccessNotice} /> : undefined}
         pinnedSymbols={pinnedSymbols} onSelectContract={selectContractTab} onPinContract={() => { setContractPinMode(true); setContractOpen(true); }} onUnpinContract={unpinContractTab} replayBlocked={replayBlocked}
         guestActions={props.guest ? <PttButton ptt={ptt} /> : undefined}
@@ -1765,7 +1799,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
               {!market || view === "board" || view === "dashboard" ? null : marketCommand()}
 
               <section ref={coreRef} className={`fdw-market-core ${view} ${view === "review" ? "side-open" : "side-closed"}`}>
-                {view === "dashboard" ? <BoardsView control={boardsControl} renderTile={renderBoardTile} onExit={() => selectView("trade")} onError={setAccessNotice}
+                {view === "dashboard" ? <BoardsView control={boardsControl} renderTile={renderBoardTile}
                   scale={Number.parseInt(FONT_SCALE_OPTIONS.find(option => option.value === props.fontScale)?.percentage ?? "100", 10) / 100} />
                 : view === "board" ? <MarketBoard snapshot={board.snapshot} foreign={foreignBoard} error={board.error} query={boardQuery} onQueryChange={setBoardQuery}
                   exchange={boardExchange} onExchangeChange={setBoardExchange} sort={boardSort} onSortChange={setBoardSort}

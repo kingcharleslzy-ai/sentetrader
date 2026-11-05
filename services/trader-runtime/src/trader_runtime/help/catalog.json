@@ -409,7 +409,7 @@
       ]
     },
     "boards": {
-      "title": "看板：点一下进入空白一屏，模块自由拼",
+      "title": "看板：一屏铺满，模块按地方大小自己选档",
       "group": "market",
       "skill": "chart-analysis",
       "words": [
@@ -418,25 +418,26 @@
         "小组件",
         "模块"
       ],
-      "summary": "顶栏“看板”打开一整屏格子，把图表、持仓、下单、自选按大小拼在一起，盘前、盘中、复盘各一套。",
+      "summary": "顶栏“看板”打开铺满一屏的拼图：图表、持仓、下单、自选、作战表、提醒、对话各占一块，盘前、盘中、复盘各一套。",
       "steps": [
         "点顶栏“看板”，进上次用的那套",
-        "点“编辑”，从模块库把模块拖进格子",
-        "点选模块换档或删除，按住左上角拖动换位置",
-        "点“完成”收起格子，“回到交易”回平时界面"
+        "点箭头里的“编辑”，顶栏点“＋模块”开模块库",
+        "把模块拖到某一块的边上，亮出落点就松手",
+        "拖两块之间的分隔线改比例，“⋯”换模块或锁档",
+        "点顶栏“完成”，改动已经存好"
       ],
       "faq": [
         {
-          "q": "每一档有什么不同？",
-          "a": "小档只留最要紧的一两样，中档多一层，大档就是完整的面板；图表还有加大和整版，自选还有通栏。"
+          "q": "每一块是哪一档？",
+          "a": "每块按自己分到的地方自动选：地方小只留最要紧的一两样，大了就是完整面板。“⋯”里可以锁在小档或中档，换屏幕也不变。"
         },
         {
           "q": "小档能直接下单吗？",
           "a": "只有下单的小档和中档能买卖，点了一定先弹确认框；其他小档只看，点一下打开完整面板。"
         },
         {
-          "q": "大屏幕能多摆几个吗？",
-          "a": "能。每格大小固定，跟着字号放大，屏幕大格子就多；换到小屏幕，放不下的模块往下挪，页面上下滚，不压扁。"
+          "q": "换个屏幕会乱吗？",
+          "a": "不会。看板存的是各块的比例，屏幕大小变了一起缩放、总是铺满；字号调大，各块换档的门槛跟着变高。"
         },
         {
           "q": "换电脑还在吗？",
@@ -444,10 +445,10 @@
         }
       ],
       "detail": [
-        "界面命令 view: dashboard 打开看板；boards（一次一项）：select <id> 切到一个看板并打开；create <名字> 新建空白看板并切过去（最多 11 个，名字 1–12 个字、不重名）；rename {id, name}；remove <id>（至少留一个，删当前的切到第一个）；place {module, size?, x?, y?} 把模块放到当前看板，已在上面的就挪位置或换档（不给 x、y 时原位换档，放不下找第一个空位，还放不下就 rejected，回执的 reason 说清楚这块画布有几列几行、哪里放不下）；take <module> 拿掉；editing true / false 进入或退出编辑（进入也会打开看板）；undo true 撤销这次编辑里最近一次放、挪、换档或拿掉（没有可撤销的就 rejected）。默认 id：pre 盘前、live 盘中、review 复盘。",
-        "模块 module：chart 图表（small / medium / large / xlarge / full）、positions 持仓（small / medium / large）、order 下单（small / medium / large）、watch 自选报价（small / medium / large / wide）。每档占的格数不变：small 3×2、medium 6×2、large 6×4、xlarge 9×6、wide 12×4、full 12×8；x、y 是模块左上角所在的格（从 0 数），模块不能出界、不能叠在一起。",
-        "格子数不固定（所有者 11-05）：每格大小固定（标准字号 88×74 像素；字号每大一档，格子只放大一半：大字 +5%、特大 +10%，所以 1440×900 的笔记本三种字号下都约 12×8），画布的列数和行数按量到的实际大小算，笔记本大约 12×8，大屏和带鱼屏多出列和行，不按屏幕宽度分段。每个看板记着自己是在多少格上摆的（ui.boards 每项的 cols、rows）：在更大的画布上打开，多出来的是空格子；在更小的画布上打开，还放得下的模块原地不动，放不下的先找上面和旁边的空位，实在没有才往下挪、页面竖着滚，比画布还宽的模块让画布横着滚，模块本身不压缩。在这块画布上放、挪、换档或拿掉模块，看板就按这块画布当时的样子重新记下格数和位置。编辑时的模块库浮在画布上，不占格子。",
-        "账号偏好 ui.boards = {current, items: [{id, name, cols, rows, tiles: [{module, size, x, y}]}]}，快照 state.preferences 回报；state.boards = {editing, selected} 是这个窗口是否在编辑、选中了哪个模块。顶栏下拉是 disclosure: boards-menu，编辑时的模块库是 disclosure: board-library，看板页签旁的 ⋯（改名、删除）是 disclosure: board-more。只有登录用户的电脑布局有看板（手机、游客、回放 rejected）。格子拖拽用开源组件 react-grid-layout（MIT）。"
+        "界面命令 view: dashboard 打开看板；boards（一次一项）：select <id> 切到一个看板并打开；create <名字> 新建空白看板并切过去（最多 11 个，名字 1–12 个字、不重名）；rename {id, name}；remove <id>（至少留一个，删当前的切到第一个）；place {module, target?, side?, ratio?} 把模块放到 target 那一块的 side 边（left / right / top / bottom，默认 right），占那一块的 ratio（0.1–0.9，默认 0.5），不给 target 就放在整块看板的那一边、占三分之一，已在看板上的模块挪过去；replace {module, with} 那一块换成另一个模块；take <module> 拿掉，旁边的补满；ratio {module, value} 那一块占它所在那一层的 value（0.05–0.95），同层其余几块按原比例分剩下的；lock {module, size: auto / small / medium} 自动选档或锁小 / 锁中；editing true / false 进入或退出编辑（进入也会打开看板）；undo true 撤销这次编辑里最近一步（没有可撤销的就 rejected，回执的 reason 说原因）。默认 id：pre 盘前、live 盘中、review 复盘。",
+        "模块 module：chart 图表（小 最新价和走势小线 / 中 小图 / 大 完整图表 / 加大 大屏上的完整图表）、positions 持仓（小 浮动盈亏 / 中 每个持仓一行 / 大 持仓表带平仓、挂着的委托带撤单和今日成交）、order 下单（小 买多卖空和手数 / 中 多价格方式和平仓 / 大 完整下单面板）、watch 自选报价（小 / 中 / 大 自选的报价总表）、sheet 作战表（小 当前品种的今日判断 / 中 每个品种一行 / 大 完整作战表）、alert 提醒（小 / 中，新建和修改点它打开提醒面板）、chat 对话（一条 输入框 / 中 最近一条回复和输入框 / 大 完整对话）。小档只看不操作，点一下打开完整面板；对话框发出的话和对话面板是同一段对话；作战表读调研面板作战表同一份推送，不另外拉取。",
+        "选档（所有者 11-05）：每块量自己实际有多大来选档，不按屏幕宽度分段。宽不到 420 像素或高不到 230 像素是小档，宽 620、高 380 以上是大档，图表宽 1000、高 560 以上是加大，其余是中档；对话高不到 150 是一条，宽 560、高 380 以上是大档；提醒只有小和中。字号每大一档，这些门槛只放大一半（大字 +5%、特大 +10%）。锁小 / 锁中的块不管多大都用那一档。",
+        "账号偏好 ui.boards = {current, items: [{id, name, layout, locks}]}：layout 是一棵分割树，叶子是模块名，分割是 {type: split, direction: row 左右 / column 上下, children, splitPercentages 各块占比、加起来 100}；locks 是锁了档的模块。快照 state.preferences 回报；state.boards = {editing, library, tiles: [{module, size, locked, share}]} 是这个窗口是否在编辑、模块库开没开，以及每块现在的档位、锁定和占它那一层的百分比。顶栏下拉是 disclosure: boards-menu（看板列表、新建，在看板上还有编辑、撤销、模块库、改名、删除），编辑时顶栏还有“＋模块 / 撤销 / 完成”；模块库是 disclosure: board-library（可以按住标题挪开，拖模块时自动隐去）；每块右上角的 ⋯ 是 disclosure: board-tile-menu（id 是模块）。旧版格子看板（cols、rows、tiles）读到时换成同名的默认摆法。只有登录用户的电脑布局有看板（手机、游客、回放 rejected）。拼图用开源组件 react-mosaic-component（Apache-2.0）。"
       ]
     },
     "chart-ai": {
@@ -2706,7 +2707,7 @@
         "旧值 settingsPage=fees 与 strategy={tab:fees} 打开的是设置 → 交易 → 高级交易设置（settingsPage=trade-advanced），不是交易页；strategy={tab:fees} 时策略面板本身停在我的策略，按设置抽屉是否已打开高级交易设置判定 applied。",
         "电脑版多图：desktopCharts={layout?: single|two|four, preset?: periods, cells?: [{index, symbol?, duration?}], active?: 0–3, syncDuration?, syncSymbol?, syncCrosshair?}，几项可组合，按 preset → layout → cells → active → 开关生效；只对电脑布局（手机、游客、回放 rejected）；值是账号偏好 ui.desktopCharts，快照 state.preferences 回报，选中格的合约与周期是 state.symbol / duration。用法与规则见主题“多图”。",
         "自由布局：workspaceLayout={select|save|rename|remove} 管保存的布局（账号偏好 ui.workspaceLayouts，下拉在 设置 → 界面 → 布局，disclosure: workspace-layouts）；右侧一次只开一个面板，用 panel 命令。用法见主题“自由布局”。",
-        "看板：view: dashboard 打开；boards={select|create|rename|remove|place|take|editing|undo}（账号偏好 ui.boards，快照 state.boards = {editing, selected}，顶栏下拉 disclosure: boards-menu，模块库 disclosure: board-library，⋯ disclosure: board-more）。用法、模块和档位见主题“看板”。"
+        "看板：view: dashboard 打开；boards={select|create|rename|remove|place|replace|take|ratio|lock|editing|undo}（账号偏好 ui.boards，快照 state.boards = {editing, library, tiles}，顶栏下拉 disclosure: boards-menu，模块库 disclosure: board-library，每块的 ⋯ disclosure: board-tile-menu）。用法、模块和档位见主题“看板”。"
       ]
     },
     "skills": {

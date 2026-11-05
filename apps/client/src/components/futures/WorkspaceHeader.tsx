@@ -30,6 +30,8 @@ interface Props {
   tradingAccounts: TradingAccountsView;
   /** 看板 (2026-11-05): the 看板 button and its board list, beside 报价; absent for a visitor, a phone or a replay. */
   boardsEntry?: ReactNode;
+  /** What the 看板 entry shows (the board's name, ＋ 模块 / 撤销 / 完成 while editing): the header refits when it changes. */
+  boardsKey?: string;
   /** Pinned contracts: every one is a trade-view tab. */
   pinnedSymbols: string[];
   onSelectContract: (symbol: string) => void;
@@ -47,7 +49,7 @@ interface Props {
  * review / replay, connection state and equity; drags the desktop window.
  * Contract tabs are role=tab with aria-selected; review and replay stay buttons.
  */
-export function WorkspaceHeader({ workspace, view, onSelectView, recoveryButton, tradingAccounts, pinnedSymbols, onSelectContract, onPinContract, onUnpinContract, onVisibleCurrentContractChange, replayBlocked, guestActions, aiBar, boardsEntry }: Props) {
+export function WorkspaceHeader({ workspace, view, onSelectView, recoveryButton, tradingAccounts, pinnedSymbols, onSelectContract, onPinContract, onUnpinContract, onVisibleCurrentContractChange, replayBlocked, guestActions, aiBar, boardsEntry, boardsKey }: Props) {
   const headerRef = useRef<HTMLElement | null>(null);
   const [menu, setMenu] = useState<"more" | "pick" | null>(null);
   const [blocked, setBlocked] = useState("");
@@ -81,6 +83,7 @@ export function WorkspaceHeader({ workspace, view, onSelectView, recoveryButton,
     workspace.fontScale ?? "",
     workspace.interfaceDensity ?? "",
     isTauriRuntime() ? "" : "web",
+    boardsKey ?? "",
   ].join("|");
   const fit = useHeaderFit(headerRef, fitKey);
   const contractMenu = fit >= 5;

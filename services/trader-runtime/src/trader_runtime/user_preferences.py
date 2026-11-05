@@ -433,80 +433,88 @@ class WorkspaceLayoutsPreferences(BaseModel):
         return self
 
 
-# 看板 (owner 2026-11-05, 第二批): blank screens of cells the user fills with modules, each at one of its sizes (each size
-# its own layout). A cell keeps one size, so the canvas has as many cells as its measured space holds (about 12 × 8 on a
-# laptop); each board keeps the grid it was laid out on (`cols` × `rows`) and the client moves what does not fit on a
-# smaller canvas down. 盘前 / 盘中 / 复盘 come first; `current` is the one shown. One tile per module; tiles stay on the
-# board's grid and never overlap. The client mirrors this in components/boards/boards.ts.
-BOARD_DEFAULT_COLS = 12
-BOARD_DEFAULT_ROWS = 8
-BOARD_MAX_COLS = 40
-BOARD_MAX_ROWS = 30
+# 看板 · 铺满版 (owner 2026-11-05): each board fills the screen with its modules, laid out as a tree of splits — a split
+# is side by side (row) or stacked (column) with each part's share in percent, a leaf is a module (react-mosaic's
+# n-ary tree, stored as it is). One block per module; a module may be locked to 小 / 中, otherwise each block picks its
+# size from the room it has. 盘前 / 盘中 / 复盘 come first; `current` is the one shown. The client mirrors this in
+# components/boards/boards.ts. A board stored by the grid version (`tiles` / `cols` / `rows`, test accounts only) reads
+# as its id's default arrangement; those fields are accepted and never written back.
 BOARDS_MAX = 11
 BOARD_ID = r"^[a-z0-9-]{1,24}$"
-BOARD_MODULES = Literal["chart", "positions", "order", "watch"]
-BOARD_SIZES = Literal["small", "medium", "large", "xlarge", "wide", "full"]
-BOARD_SIZE_CELLS = {"small": (3, 2), "medium": (6, 2), "large": (6, 4), "xlarge": (9, 6), "wide": (12, 4), "full": (12, 8)}
-BOARD_MODULE_SIZES = {
-    "chart": ("small", "medium", "large", "xlarge", "full"),
-    "positions": ("small", "medium", "large"),
-    "order": ("small", "medium", "large"),
-    "watch": ("small", "medium", "large", "wide"),
-}
+BOARD_MODULES = Literal["chart", "positions", "order", "watch", "sheet", "alert", "chat"]
+BOARD_MODULE_COUNT = len(get_args(BOARD_MODULES))
 
 
-class BoardTile(BaseModel):
+class BoardSplit(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    module: BOARD_MODULES
-    size: BOARD_SIZES
-    x: int = Field(ge=0, lt=BOARD_MAX_COLS, strict=True)
-    y: int = Field(ge=0, lt=BOARD_MAX_ROWS, strict=True)
+    type: Literal["split"]
+    direction: Literal["row", "column"]
+    children: list[BoardNode] = Field(min_length=2, max_length=BOARD_MODULE_COUNT)
+    splitPercentages: list[float] | None = None
 
     @model_validator(mode="after")
-    def known_size(self):
-        if self.size not in BOARD_MODULE_SIZES[self.module]:
-            raise ValueError(f"{self.module} 没有 {self.size} 这一档")
+    def shares(self):
+        if self.splitPercentages is not None:
+            if len(self.splitPercentages) != len(self.children) or any(share <= 0 for share in self.splitPercentages):
+                raise ValueError("每一块的占比要大于 0，且和块数一样多")
+            if abs(sum(self.splitPercentages) - 100) > 1:
+                raise ValueError("同一层的占比加起来是 100")
         return self
 
-    def cells(self) -> set[tuple[int, int]]:
-        w, h = BOARD_SIZE_CELLS[self.size]
-        return {(self.x + dx, self.y + dy) for dx in range(w) for dy in range(h)}
+
+BoardNode = BOARD_MODULES | BoardSplit
+BoardSplit.model_rebuild()
+
+
+def _board_leaves(node: BoardNode | None) -> list[str]:
+    if node is None:
+        return []
+    if isinstance(node, BoardSplit):
+        return [leaf for child in node.children for leaf in _board_leaves(child)]
+    return [node]
+
+
+def _split(direction: str, children: list[Any], shares: list[float]) -> dict[str, Any]:
+    return {"type": "split", "direction": direction, "children": children, "splitPercentages": shares}
+
+
+BOARD_DEFAULT_LAYOUTS: dict[str, dict[str, Any]] = {
+    "live": _split("row", [_split("column", ["chart", _split("row", ["positions", "chat"], [50, 50])], [74, 26]),
+                           _split("column", ["order", "alert", "watch"], [26, 24, 50])], [72, 28]),
+    "pre": _split("row", [_split("column", ["sheet", "chart"], [56, 44]), _split("column", ["watch", "alert", "chat"], [50, 25, 25])], [52, 48]),
+    "review": _split("row", [_split("column", ["positions", "chart"], [56, 44]), _split("column", ["chat", "sheet", "alert"], [50, 30, 20])], [55, 45]),
+}
 
 
 class Board(BaseModel):
     model_config = ConfigDict(extra="forbid")
     id: str = Field(pattern=BOARD_ID)
     name: str = Field(min_length=1, max_length=12)
-    cols: int = Field(default=BOARD_DEFAULT_COLS, ge=3, le=BOARD_MAX_COLS, strict=True)
-    rows: int = Field(default=BOARD_DEFAULT_ROWS, ge=2, le=BOARD_MAX_ROWS, strict=True)
-    tiles: list[BoardTile] = Field(default_factory=list, max_length=len(BOARD_MODULE_SIZES))
+    layout: BoardNode | None = None
+    locks: dict[BOARD_MODULES, Literal["small", "medium"]] = Field(default_factory=dict)
+    # The grid version's fields: read (so a stored board still validates) and dropped from every write.
+    cols: Any = Field(default=None, exclude=True)
+    rows: Any = Field(default=None, exclude=True)
+    tiles: Any = Field(default=None, exclude=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def from_grid(cls, data: Any) -> Any:
+        if isinstance(data, dict) and ("tiles" in data or "layout" not in data):
+            return {**data, "layout": BOARD_DEFAULT_LAYOUTS.get(str(data.get("id")))}
+        return data
 
     @model_validator(mode="after")
-    def apart(self):
-        for tile in self.tiles:
-            w, h = BOARD_SIZE_CELLS[tile.size]
-            if tile.x + w > self.cols or tile.y + h > self.rows:
-                raise ValueError("模块超出这个看板的格子")
-        if len({tile.module for tile in self.tiles}) != len(self.tiles):
+    def once(self):
+        leaves = _board_leaves(self.layout)
+        if len(set(leaves)) != len(leaves):
             raise ValueError("一个模块在一个看板上只放一次")
-        taken: set[tuple[int, int]] = set()
-        for tile in self.tiles:
-            cells = tile.cells()
-            if cells & taken:
-                raise ValueError("模块不能叠在一起")
-            taken |= cells
         return self
 
 
 def _default_boards() -> list[Board]:
-    def tile(module: BOARD_MODULES, size: BOARD_SIZES, x: int, y: int) -> BoardTile:
-        return BoardTile(module=module, size=size, x=x, y=y)
-    return [
-        Board(id="pre", name="盘前", tiles=[tile("chart", "large", 0, 0), tile("watch", "large", 6, 0), tile("positions", "medium", 0, 4)]),
-        Board(id="live", name="盘中", tiles=[tile("chart", "xlarge", 0, 0), tile("order", "small", 9, 0), tile("watch", "small", 9, 2),
-                                           tile("positions", "medium", 0, 6)]),
-        Board(id="review", name="复盘", tiles=[tile("positions", "large", 0, 0), tile("chart", "large", 6, 0)]),
-    ]
+    return [Board.model_validate({"id": id, "name": name, "layout": BOARD_DEFAULT_LAYOUTS[id]})
+            for id, name in (("pre", "盘前"), ("live", "盘中"), ("review", "复盘"))]
 
 
 class BoardsPreferences(BaseModel):

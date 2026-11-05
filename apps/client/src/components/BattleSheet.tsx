@@ -47,10 +47,11 @@ function levelText(levels: SheetLevel[]) {
  * (`watchlist`, once read) and 交易笔记 (battleSheet.ts). The whole-sheet read below runs only while that cannot be done
  * (stream down, older Runtime, 自选 or 笔记 not read).
  */
-export function BattleSheet({ baseUrl, visible, watchlist, compact = false, onOpen, onState }: { baseUrl: string | undefined; visible: boolean;
-  /** The account's 自选 once read (undefined until then). */
-  watchlist?: readonly string[];
-  compact?: boolean; onOpen?: (symbol: string) => void; onState?: (state: SheetState) => void }) {
+/**
+ * The 今日作战表's rows for `watchlist` (once read), assembled on this device from the pushed shared rows; the whole-sheet
+ * read runs only while the push cannot serve them. Used by the 调研 panel's tab and the 看板's 作战表 module alike.
+ */
+export function useBattleSheet(baseUrl: string | undefined, visible: boolean, watchlist?: readonly string[]): { report?: SheetReport; error: string } {
   const [report, setReport] = useState<SheetReport>();
   const [error, setError] = useState("");
   const playbooks = usePlaybooks(visible && watchlist ? baseUrl : undefined);
@@ -91,6 +92,14 @@ export function BattleSheet({ baseUrl, visible, watchlist, compact = false, onOp
     void load();
     return () => { cancelled = true; clearTimeout(timer); };
   }, [visible, baseUrl]);
+  return { report, error };
+}
+
+export function BattleSheet({ baseUrl, visible, watchlist, compact = false, onOpen, onState }: { baseUrl: string | undefined; visible: boolean;
+  /** The account's 自选 once read (undefined until then). */
+  watchlist?: readonly string[];
+  compact?: boolean; onOpen?: (symbol: string) => void; onState?: (state: SheetState) => void }) {
+  const { report, error } = useBattleSheet(baseUrl, visible, watchlist);
   const rows = report?.rows ?? [];
   useEffect(() => {
     const count = (value: Priority) => rows.filter(row => row.priority === value).length;

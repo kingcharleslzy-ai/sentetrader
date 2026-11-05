@@ -34,7 +34,8 @@ interface Props {
   onRefresh: () => void;
   /** 手机 持仓页 (2026-11-02): the list also refreshes on a pull down. */
   pullToRefresh?: boolean;
-  onClose: () => void;
+  /** Absent: drawn inside a 看板 module, no 收起 of its own. */
+  onClose?: () => void;
   activeProtections: NonNullable<ReturnType<typeof useAppWorkbench>["activity"]>["protections"] | undefined;
   protectionWarning: boolean | undefined;
   /** 下单顺带保护 (2026-10-02): the account's stop rows (armed line + 撤销) and the per-row form. */
@@ -93,7 +94,7 @@ export function PositionsDock({ account, instruments, quote, simulationOrders, r
         <div className="fdw-ai-head-actions">
           {onReview ? <button type="button" aria-label="复盘" title="复盘" onClick={onReview}><ChartLine /></button> : null}
           <button type="button" aria-label="刷新账户" title="刷新账户" onClick={onRefresh}><RefreshCw /></button>
-          <button type="button" aria-label="收起持仓" onClick={() => onClose()}><PanelRightClose /></button>
+          {onClose ? <button type="button" aria-label="收起持仓" onClick={() => onClose()}><PanelRightClose /></button> : null}
         </div>
       </header>
       {usd ? <p className="fdw-positions-ledger">人民币 · 国内</p> : null}
