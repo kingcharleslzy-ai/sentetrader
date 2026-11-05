@@ -1,5 +1,5 @@
 /* Market bar above the chart: contract · last price (flashes on each tick) · OHLC · periods · session · tools.
-   It grows a second line when the tools no longer fit beside the head (several side panels open) — never clips them. */
+   Always one line: as its measured width runs out, the fit levels at the bottom give parts up (MarketCommand). */
 .fdw-market-command {
   min-height: var(--fdw-command);
   flex: 0 0 auto;
@@ -10,10 +10,9 @@
   overflow: hidden;
   border-bottom: 1px solid var(--fdw-line);
   background: var(--fdw-surface);
-  container: market-command / inline-size;
 }
 /* The contract column keeps room for a short product part plus the month (and the badge and ⓘ
-   beside it) at every width; the chart tools give way instead (see the container rules). */
+   beside it) at every width; the chart tools give way instead (see the fit levels). */
 .fdw-market-head { width: 100%; height: var(--fdw-command); min-width: 0; display: grid; grid-template-columns: minmax(13em, max-content) max-content minmax(0, 1fr); align-items: center; gap: var(--space-3); padding: 0 var(--space-3); overflow: hidden; }
 
 /* 合约信息卡 (2026-10-02): the first column is the contract button plus its ⓘ / delivery badge
@@ -65,27 +64,26 @@
 .fdw-market-head > div > span.fdw-replay-omitted, .fdw-market-head dd.fdw-replay-omitted { padding: 0; color: var(--fdw-muted); font-family: inherit; font-size: var(--font-md); font-weight: 400; }
 
 /* Right side: periods (segmented), session, tools. */
-.fdw-chart-tools { min-height: var(--fdw-command); min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); padding: var(--space-1) var(--space-3) var(--space-1) var(--space-1); overflow: hidden; }
+.fdw-chart-tools { min-height: var(--fdw-command); min-width: 0; display: flex; align-items: center; gap: var(--space-1) var(--space-2); padding: var(--space-1) var(--space-3) var(--space-1) var(--space-1); overflow: hidden; }
 .fdw-chart-tools > div { display: flex; align-items: center; gap: var(--space-0); }
-/* The period group is the part that yields when the bar is short: it may shrink below its
-   content (PeriodSwitch then folds periods into 更多; scrolling is the last resort below that),
-   so it never overlaps the price or pushes the refresh button out. */
+/* The period group may shrink below its content (the fit pass counts that as overflow and folds
+   periods into 更多; scrolling is the last resort below that), so it never overlaps the price. */
 .fdw-chart-tools > [role="group"] { min-width: 0; overflow-x: auto; scrollbar-width: none; padding: var(--space-0); border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--fdw-surface-raised); }
 .fdw-chart-tools button { position: relative; min-width: 28px; height: 26px; display: flex; align-items: center; justify-content: center; gap: var(--space-1); padding: 0 var(--space-2); border: 0; border-radius: var(--radius-control); color: var(--fdw-muted); background: transparent; font-size: var(--font-md); white-space: nowrap; cursor: pointer; }
 .fdw-chart-tools button:hover:not(:disabled) { color: var(--fdw-text); background: var(--fdw-surface-hover); }
 .fdw-chart-tools button:disabled { opacity: .45; }
 .fdw-chart-tools > [role="group"] button.active { color: var(--accent); background: var(--accent-soft); font-weight: 600; outline: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); outline-offset: -1px; }
 /* A period keeps its label width: shrinking a button below its text ate the padding and ran the
-   labels together ("15分30分1小时"). When the whole row does not fit, PeriodSwitch folds the
-   uncommon periods into 更多 (fdw-periods-collapsed) instead; 更多 shows the folded choice. */
+   labels together ("15分30分1小时"). When the whole row does not fit, the bar folds the
+   uncommon periods into 更多 (fdw-fit-fold-periods) instead; 更多 shows the folded choice. */
 .fdw-chart-tools > [role="group"] button { flex: none; }
 .fdw-chart-tools > [role="group"] > .fdw-period-more { display: none; gap: var(--space-0); }
-.fdw-chart-tools > .fdw-periods-collapsed > .fdw-period-extra { display: none; }
-.fdw-chart-tools > .fdw-periods-collapsed > .fdw-period-more { display: flex; }
 .fdw-chart-tools .fdw-period-more svg { width: 12px; height: 12px; }
 .fdw-period-more-list { display: flex; gap: var(--space-1); }
 .fdw-period-more-list button { flex: 1; height: 28px; border: 1px solid var(--line-strong); border-radius: var(--radius-control); color: var(--ink); background: var(--soft); font-size: var(--font-md); cursor: pointer; }
 .fdw-period-more-list button:hover { border-color: var(--accent); }
+/* 多图 / 铃铛 folded into the same 更多 (fdw-fit-fold-tools): the bar's own controls, under the periods. */
+.fdw-chart-tools.fdw-period-more-tools { min-height: 0; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); padding: var(--space-2) 0 0; border-top: 1px solid var(--line); overflow: visible; }
 .fdw-period-more-list button.active { border-color: color-mix(in srgb, var(--accent) 45%, transparent); color: var(--accent); background: var(--accent-soft); font-weight: 600; }
 .fdw-chart-tools button svg { width: 15px; height: 15px; }
 .fdw-chart-health { flex: none; margin: 0; white-space: nowrap; }
@@ -96,31 +94,25 @@
 .fdw-chart-health .closed, .fdw-chart-health .backup { color: var(--warning); }
 .fdw-chart-health .stale { color: var(--danger); }
 
-/* The bar follows its own width (a wide side panel narrows it as much as a small window):
-   the periods tighten first, then the session pill, then OHLC, the percent
-   chip and the contract code. The contract name itself never goes (its column minimum above). */
-@container market-command (max-width: 1040px) {
-  .fdw-chart-tools { column-gap: var(--space-1); }
-  .fdw-chart-tools > [role="group"] button { min-width: 24px; padding: 0 var(--space-1); }
-}
-@container market-command (max-width: 940px) { .fdw-chart-tools > .fdw-chart-health { display: none; } }
-@container market-command (max-width: 860px) {
-  .fdw-market-head { grid-template-columns: minmax(13em, max-content) max-content; }
-  .fdw-market-head dl { display: none; }
-  .fdw-market-head > div:not(.fdw-pre-open) > span { display: none; }
-  .fdw-instrument-button small { display: none; }
-}
-@container market-command (max-width: 540px) {
-  .fdw-market-head > div:not(.fdw-pre-open) > span { display: none; }
-  /* Hide a duplicate name only when the settled header actually shows this contract.
-     A non-pinned contract or one folded into “…” still needs the chart's name. */
-  .fdw-market-head { grid-template-columns: max-content max-content; }
-  .fdw-current-contract-in-header .fdw-contract-head > .fdw-instrument-button { min-width: 36px; width: 36px; justify-content: center; padding: 0; }
-  .fdw-current-contract-in-header .fdw-instrument-button > span { display: none; }
-  .fdw-market-command:not(.fdw-current-contract-in-header) .fdw-market-head { grid-template-columns: minmax(13em, max-content) max-content; }
-  .fdw-delivery-badge { display: none; }
-  .fdw-contract-head .fdw-watch-star { display: none; }
-}
+/* Fit levels (useFitLevel in MarketCommand): cumulative classes from the bar's measured width — a wide side
+   panel narrows it as much as a small window — never a viewport breakpoint or a second line. Spacing first,
+   then the session pill, OHLC, the uncommon periods, 多图 / 铃铛 (into 更多), the contract code and percent
+   chip, last the contract button's name when the header shows it. The contract name and price never go. */
+.fdw-fit-tight .fdw-chart-tools { column-gap: var(--space-1); }
+.fdw-fit-tight .fdw-chart-tools > [role="group"] button { min-width: 24px; padding: 0 var(--space-1); }
+.fdw-fit-hide-session .fdw-chart-tools > .fdw-chart-health { display: none; }
+.fdw-fit-hide-stats .fdw-market-head { grid-template-columns: minmax(13em, max-content) max-content; }
+.fdw-fit-hide-stats .fdw-market-head dl { display: none; }
+.fdw-fit-fold-periods .fdw-chart-tools > [role="group"] > .fdw-period-extra { display: none; }
+.fdw-fit-fold-periods .fdw-chart-tools > [role="group"] > .fdw-period-more { display: flex; }
+.fdw-fit-fold-tools .fdw-chart-tools > .fdw-chart-layout, .fdw-fit-fold-tools .fdw-chart-tools > .rc-bell-wrap { display: none; }
+.fdw-fit-hide-code .fdw-market-head > div:not(.fdw-pre-open) > span, .fdw-fit-hide-code .fdw-instrument-button small { display: none; }
+/* Hide a duplicate name only when the settled header actually shows this contract.
+   A non-pinned contract or one folded into “…” still needs the chart's name. */
+.fdw-fit-compact-contract.fdw-current-contract-in-header .fdw-market-head { grid-template-columns: max-content max-content; }
+.fdw-fit-compact-contract.fdw-current-contract-in-header .fdw-contract-head > .fdw-instrument-button { min-width: 36px; width: 36px; justify-content: center; padding: 0; }
+.fdw-fit-compact-contract.fdw-current-contract-in-header .fdw-instrument-button > span { display: none; }
+.fdw-fit-compact-contract .fdw-delivery-badge, .fdw-fit-compact-contract .fdw-contract-head .fdw-watch-star { display: none; }
 @media (max-width: 760px) {
   .fdw-market-command { height: auto; min-height: 0; flex-basis: auto; grid-template-columns: minmax(0, 1fr); }
   .fdw-market-head { height: 44px; gap: var(--space-2); padding: 0 var(--space-2); }

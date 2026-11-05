@@ -14,7 +14,7 @@ const LAYOUT_ICONS = { single: Square, two: Columns2, four: Grid2x2 };
 const cellKey = (symbol: string, duration: number) => `${symbol.toUpperCase()}@${duration}`;
 
 /** 电脑版多图: the layout buttons and 同合约 4 周期, beside the period row. */
-export function ChartLayoutControls({ handle, onError }: { handle: DesktopChartsHandle; onError: (message: string) => void }) {
+export function ChartLayoutControls({ handle, onError, help = true }: { handle: DesktopChartsHandle; onError: (message: string) => void; help?: boolean }) {
   const { charts } = handle;
   const run = (change: DesktopChartsChange) => { try { handle.apply(change); } catch (error) { onError(error instanceof Error ? error.message : "多图暂时不能切换"); } };
   return (
@@ -24,7 +24,7 @@ export function ChartLayoutControls({ handle, onError }: { handle: DesktopCharts
           aria-label={item.label} title={item.label} onClick={() => run({ layout: item.id })}><Icon aria-hidden="true" /></button>; })}
         <button type="button" title="同合约 4 周期：四格同一合约，5 分 / 15 分 / 1 小时 / 日线" onClick={() => run({ preset: "periods" })}>4 周期</button>
       </div>
-      <HelpTip helpKey="chart-layout" label="多图">点哪一格，哪一格就是当前合约：下单、合约标签和 AI 都跟它。其余格每 5 秒刷新一次，不能画线。</HelpTip>
+      {help ? <HelpTip helpKey="chart-layout" label="多图">点哪一格，哪一格就是当前合约：下单、合约标签和 AI 都跟它。其余格每 5 秒刷新一次，不能画线。</HelpTip> : null}
     </div>
   );
 }

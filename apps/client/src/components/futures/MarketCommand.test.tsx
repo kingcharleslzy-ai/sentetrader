@@ -18,7 +18,8 @@ function renderRow(chartView: "kline" | "timeshare", duration: number) {
 
 test("周期行：行首分时，1 分到周线，顺序与完整周期集固定（2026-10-02 加 30 分与周线）", () => {
   const { group } = renderRow("kline", 300);
-  expect(within(group).getAllByRole("button").map(button => button.textContent))
+  // jsdom has no layout, so the bar's fit level may show 更多 too; the set itself is the point here.
+  expect(within(group).getAllByRole("button").filter(button => !button.classList.contains("fdw-period-more")).map(button => button.textContent))
     .toEqual(["分时", "1分", "3分", "5分", "15分", "30分", "1小时", "日线", "周线"]);
 });
 

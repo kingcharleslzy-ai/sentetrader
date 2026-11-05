@@ -1733,6 +1733,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
                 alerts={alerts.available ? alerts : undefined}
                 reminderBell={reminderAvailable ? <ReminderBell open={reminderShown} onOpenChange={showReminderCenter} unread={reminders.unread} /> : undefined}
                 chartLayout={gridAvailable ? <ChartLayoutControls handle={desktopCharts} onError={setAccessNotice} /> : undefined}
+                foldedChartLayout={gridAvailable ? <ChartLayoutControls handle={desktopCharts} onError={setAccessNotice} help={false} /> : undefined}
                 drawings={drawings.available ? drawings : undefined}
                 watchlistStar={watchlistHead} onToggleWatchlist={watchlistChange} watchlistStatus={watchlistStatus || undefined}
  />}

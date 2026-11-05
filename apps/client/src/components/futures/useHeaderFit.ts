@@ -1,6 +1,10 @@
 import { useCallback, useLayoutEffect, useRef, useState, type RefObject } from "react";
 
 /**
+ * 一套自适应 (owner 2026-11-05): every desktop toolbar row — the header here, the market bar above the chart
+ * (MarketCommand) — fits itself with useFitLevel below: measured space, cumulative level classes, never a
+ * viewport breakpoint or a wrapped second line.
+ *
  * The header gives content up in measured-space levels instead of viewport breakpoints:
  * 0 shows everything, 1 shrinks the AI 指令栏 to a ✦ ⌘K button and 2 drops the 美元 half of the equity
  * chip (both give way first, owner 2026-11-01: the chip's hover and 账户明细 still show it), 3 hides the
@@ -12,15 +16,20 @@ export const HEADER_FIT_MAX_LEVEL = 6;
 
 const FIT_CLASSES = ["fdw-fit-compact-ai", "fdw-fit-hide-usd", "fdw-fit-hide-text", "fdw-fit-hide-brand", "fdw-fit-contract-menu", "fdw-fit-hide-equity"];
 
-/** Cumulative level classes: a level-5 header also carries the level-1 to level-4 rules. */
+/** Cumulative level classes: level n carries the first n classes of the row's list. */
+export function fitClasses(classes: readonly string[], level: number): string {
+  return classes.slice(0, Math.max(0, Math.min(level, classes.length))).join(" ");
+}
+
+/** The header's: a level-5 header also carries the level-1 to level-4 rules. */
 export function headerFitClasses(level: number): string {
-  return FIT_CLASSES.slice(0, Math.max(0, Math.min(level, HEADER_FIT_MAX_LEVEL))).join(" ");
+  return fitClasses(FIT_CLASSES, level);
 }
 
 /** Writes one level straight onto the DOM node: the level classes plus data-fit. */
-function applyFitLevel(node: HTMLElement, level: number) {
-  node.classList.remove(...FIT_CLASSES);
-  node.classList.add(...headerFitClasses(level).split(" ").filter(Boolean));
+function applyFitLevel(node: HTMLElement, classes: readonly string[], level: number) {
+  node.classList.remove(...classes);
+  node.classList.add(...fitClasses(classes, level).split(" ").filter(Boolean));
   node.dataset.fit = String(level);
 }
 
@@ -48,10 +57,6 @@ const WHOLE_CELLS = [".fdw-brand", "nav", ".fdw-contract-tabs", ".fdw-contract-p
  *  which empties while the input floats), and its own width is the grid's to give — level 1 shrinks it. */
 const FLOATING_CELL = ".ai-bar";
 
-/** A header child the fit pass looks at. */
-function probed(element: Element): boolean {
-  return !element.matches(FLOATING_CELL);
-}
 
 /** Cells hidden by the fit levels themselves (or in layout-less jsdom) never count. */
 function isDisplayed(element: Element): boolean {
@@ -65,8 +70,8 @@ function hasDisplayedContent(element: HTMLElement): boolean {
 }
 
 /** A flex row that ran out of room: a child with content squeezed flat, or one drawn over its neighbour. */
-function childrenSqueeze(parent: HTMLElement): boolean {
-  const children = (Array.from(parent.children) as HTMLElement[]).filter(child => isDisplayed(child) && probed(child));
+function childrenSqueeze(parent: HTMLElement, floating: string): boolean {
+  const children = (Array.from(parent.children) as HTMLElement[]).filter(child => isDisplayed(child) && !child.matches(floating));
   let rightEdge = Number.NEGATIVE_INFINITY;
   for (const child of children) {
     const rect = child.getBoundingClientRect();
@@ -84,13 +89,18 @@ function childrenSqueeze(parent: HTMLElement): boolean {
  * drawn over 复盘/回放 — the boxes fit while their content bleeds out).
  */
 export function headerContentOverflows(header: HTMLElement): boolean {
-  if (cellOverflows(header)) return true;
+  return rowContentOverflows(header, WHOLE_CELLS, FLOATING_CELL);
+}
+
+/** The same test for any fit row: the row, its direct children (bar `floating`) and its `wholeCells`. */
+export function rowContentOverflows(row: HTMLElement, wholeCells: readonly string[], floating = ":not(*)"): boolean {
+  if (cellOverflows(row)) return true;
   const cells = [
-    header,
-    ...(Array.from(header.children) as HTMLElement[]).filter(probed),
-    ...WHOLE_CELLS.flatMap(selector => Array.from(header.querySelectorAll<HTMLElement>(selector))),
+    row,
+    ...(Array.from(row.children) as HTMLElement[]).filter(child => !child.matches(floating)),
+    ...wholeCells.flatMap(selector => Array.from(row.querySelectorAll<HTMLElement>(selector))),
   ];
-  return cells.some(cell => isDisplayed(cell) && (cellOverflows(cell) || childrenSqueeze(cell)));
+  return cells.some(cell => isDisplayed(cell) && (cellOverflows(cell) || childrenSqueeze(cell, floating)));
 }
 
 /** jsdom has no requestAnimationFrame; the coalescing then degrades to running inline. */
@@ -112,26 +122,32 @@ function scheduleFrame(callback: () => void): number {
  * cannot re-trigger itself.
  */
 export function useHeaderFit(header: RefObject<HTMLElement | null>, contentKey: string): number {
+  return useFitLevel(header, contentKey, FIT_CLASSES, headerContentOverflows);
+}
+
+/** The shared walk: `classes` are the row's levels in give-up order, `overflows` its measurement. */
+export function useFitLevel(row: RefObject<HTMLElement | null>, contentKey: string, classes: readonly string[],
+  overflows: (row: HTMLElement) => boolean): number {
   const [level, setLevel] = useState(0);
   const frame = useRef(0);
 
   const measure = useCallback(() => {
-    const node = header.current;
+    const node = row.current;
     if (!node) return;
     const settled = resolveHeaderFitLevel(candidate => {
-      applyFitLevel(node, candidate);
-      return !headerContentOverflows(node);
-    });
-    applyFitLevel(node, settled);
+      applyFitLevel(node, classes, candidate);
+      return !overflows(node);
+    }, classes.length);
+    applyFitLevel(node, classes, settled);
     setLevel(settled);
-  }, [header]);
+  }, [row, classes, overflows]);
 
   useLayoutEffect(() => {
     measure();
   }, [contentKey, measure]);
 
   useLayoutEffect(() => {
-    const node = header.current;
+    const node = row.current;
     if (!node || typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(() => {
       if (frame.current) return;
@@ -146,7 +162,7 @@ export function useHeaderFit(header: RefObject<HTMLElement | null>, contentKey: 
       if (frame.current && typeof cancelAnimationFrame === "function") cancelAnimationFrame(frame.current);
       frame.current = 0;
     };
-  }, [header, measure]);
+  }, [row, measure]);
 
   return level;
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown } from "lucide-react";
 import type { MarketWorkbenchSnapshot } from "../../api";
@@ -20,54 +20,20 @@ export function moreButtonFace(chartView: "kline" | "timeshare", duration: numbe
   return folded ? { label: folded.label, active: true } : { label: "更多", active: false };
 }
 
-const COLLAPSED = "fdw-periods-collapsed";
-
-/** One pass decides from the full row: the fold class comes off (every period shown, 更多 hidden),
- *  the group is measured, and the class goes back on only if the row overflows — so the result
- *  never depends on the previous state and cannot oscillate. */
-export function measurePeriodFold(group: HTMLElement): boolean {
-  group.classList.remove(COLLAPSED);
-  const collapsed = group.scrollWidth - group.clientWidth > 1;
-  group.classList.toggle(COLLAPSED, collapsed);
-  return collapsed;
-}
-
-/** Re-measures when the bar or the group resizes (a side panel, the window, font preferences)
- *  and when the active period changes (its label is bold). */
-function usePeriodFold(group: RefObject<HTMLElement | null>, contentKey: string): boolean {
-  const [collapsed, setCollapsed] = useState(false);
-  const measure = useCallback(() => {
-    if (group.current) setCollapsed(measurePeriodFold(group.current));
-  }, [group]);
-  useLayoutEffect(() => { measure(); }, [contentKey, measure]);
-  useLayoutEffect(() => {
-    const node = group.current;
-    if (!node || typeof ResizeObserver === "undefined") return;
-    let frame = 0;
-    const observer = new ResizeObserver(() => {
-      if (frame) return;
-      frame = requestAnimationFrame(() => { frame = 0; measure(); });
-    });
-    observer.observe(node);
-    const bar = node.closest(".fdw-market-command");
-    if (bar) observer.observe(bar);
-    return () => { observer.disconnect(); if (frame) cancelAnimationFrame(frame); };
-  }, [group, measure]);
-  return collapsed;
-}
-
 interface Props {
   chartView: "kline" | "timeshare";
   duration: number;
   onSelectDuration: (duration: Duration) => void;
   onSelectChartView: (view: "kline" | "timeshare") => void;
+  /** The bar's fit level folded the uncommon periods (MarketCommand's useFitLevel; the class on the bar hides them). */
+  folded: boolean;
+  /** 多图 / 铃铛 the bar folded too: shown in the same popover under the periods. */
+  tools?: ReactNode;
 }
 
 /** The K 线周期 row: 分时 at the head, then the periods; folded ones open from “更多”. */
-export function PeriodSwitch({ chartView, duration, onSelectDuration, onSelectChartView }: Props) {
-  const groupRef = useRef<HTMLDivElement>(null);
+export function PeriodSwitch({ chartView, duration, onSelectDuration, onSelectChartView, folded: collapsed, tools }: Props) {
   const moreRef = useRef<HTMLButtonElement>(null);
-  const collapsed = usePeriodFold(groupRef, `${chartView}:${duration}`);
   const [popover, setPopover] = useState<{ rect: DOMRect }>();
   const openMore = () => setPopover({ rect: moreRef.current?.getBoundingClientRect() ?? document.body.getBoundingClientRect() });
   // Folded, the disclosure is the popover; when the full row fits every period is already on it, so
@@ -82,25 +48,27 @@ export function PeriodSwitch({ chartView, duration, onSelectDuration, onSelectCh
   const choose = (value: Duration) => { setPopover(undefined); onSelectDuration(value); };
   const isActive = (value: number) => chartView === "kline" && duration === value;
   return (
-    <div role="group" aria-label="K线周期" data-agent-target="market:periods" ref={groupRef} className={collapsed ? COLLAPSED : undefined}>
+    <div role="group" aria-label="K线周期" data-agent-target="market:periods">
       <button type="button" className={chartView === "timeshare" ? "active" : ""} onClick={() => onSelectChartView("timeshare")}>分时</button>
       {periods.map(period => (
         <button type="button" key={period.value} onClick={() => onSelectDuration(period.value)}
           className={[isActive(period.value) ? "active" : "", PINNED_DURATIONS.has(period.value) ? "" : "fdw-period-extra"].filter(Boolean).join(" ")}>{period.label}</button>
       ))}
-      {collapsed ? (
-        <button type="button" ref={moreRef} className={`fdw-period-more${face.active ? " active" : ""}`} aria-haspopup="dialog" aria-expanded={popover !== undefined}
-          aria-label={face.active ? `更多周期（当前 ${face.label}）` : "更多周期"} onClick={openMore}>{face.label}<ChevronDown aria-hidden="true" /></button>
-      ) : null}
+      {/* Always mounted so the bar's fit pass measures it; the fold class shows it, aria-hidden mirrors the settled level. */}
+      <button type="button" ref={moreRef} className={`fdw-period-more${face.active ? " active" : ""}`} aria-haspopup="dialog" aria-expanded={popover !== undefined}
+        aria-hidden={!collapsed} tabIndex={collapsed ? undefined : -1}
+        aria-label={face.active ? `更多周期（当前 ${face.label}）` : "更多周期"} onClick={openMore}>{face.label}<ChevronDown aria-hidden="true" /></button>
       {/* Portaled out of `.fdw-chart-tools` (overflow: hidden), like the alerts popover. */}
       <Presence>{popover && collapsed ? createPortal(
-        <ChartPopover title="更多周期" anchorRect={popover.rect} onClose={() => setPopover(undefined)} width={220}>
+        <ChartPopover title={tools ? "更多" : "更多周期"} anchorRect={popover.rect} onClose={() => setPopover(undefined)} width={220}>
           <div className="fdw-period-more-list">
             {morePeriods.map(period => (
               <button type="button" key={period.value} className={isActive(period.value) ? "active" : ""} aria-pressed={isActive(period.value)}
                 onClick={() => choose(period.value)}>{period.label}</button>
             ))}
           </div>
+          {/* A tool that was used (a layout picked, the 提醒 panel opened) closes the menu, like a period does. */}
+          {tools ? <div className="fdw-chart-tools fdw-period-more-tools" onClick={event => { if ((event.target as Element).closest("button")) setPopover(undefined); }}>{tools}</div> : null}
         </ChartPopover>, document.body) : null}</Presence>
     </div>
   );
