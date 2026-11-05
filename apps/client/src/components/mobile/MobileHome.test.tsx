@@ -23,7 +23,7 @@ function Home({ filterStart = "all", ...rest }: Partial<Parameters<typeof Mobile
   const [filter, setFilter] = useState<NotifyFilter>(filterStart);
   const [product, setProduct] = useState<string | null>(null);
   return <div className="fdm-content"><MobileHome rows={rows} pending={[]} renderCard={() => null} quickPending={false} now={now}
-    today={{ positions: 1, floating: 860, reminders: 0, unreadReminders: 0 }} onPositions={vi.fn()} watch={watch} onAlerts={vi.fn()} onStrategies={vi.fn()} judgments={[]} onJudgment={vi.fn()}
+    today={{ positions: 1, floating: 860, reminders: 0, unreadReminders: 0 }} onPositions={vi.fn()} watch={watch} onAlerts={vi.fn()} onStrategies={vi.fn()} onSheet={vi.fn()}
     filter={filter} onFilter={setFilter} products={notifyProducts(rows)} product={product} onProduct={setProduct}
     onOpen={vi.fn()} onReminders={vi.fn()} focus={0} {...rest} /></div>;
 }
@@ -48,7 +48,7 @@ it("订阅品种在前；订阅了还没有内容的品种说明还没有简报"
   const products = notifyProducts(rows, [{ product: "SHFE.ru", name: "橡胶" }, { product: "SHFE.rb", name: "螺纹钢" }]);
   expect(products.map(item => item.name)).toEqual(["橡胶", "螺纹钢", "铁矿石"]);
   render(<MobileHome rows={rows} pending={[]} renderCard={() => null} quickPending={false} now={now}
-    today={{ positions: 0, floating: null, reminders: 0, unreadReminders: 0 }} onPositions={vi.fn()} watch={watch} onAlerts={vi.fn()} onStrategies={vi.fn()} judgments={[]} onJudgment={vi.fn()}
+    today={{ positions: 0, floating: null, reminders: 0, unreadReminders: 0 }} onPositions={vi.fn()} watch={watch} onAlerts={vi.fn()} onStrategies={vi.fn()} onSheet={vi.fn()}
     filter="brief" onFilter={vi.fn()} products={products} product="SHFE.ru" onProduct={vi.fn()} onOpen={vi.fn()} onReminders={vi.fn()} focus={0} />);
   expect(screen.queryByRole("list", { name: "时间线" })).toBeNull();
   expect(screen.getByText("橡胶还没有简报")).toBeVisible();
@@ -80,27 +80,17 @@ it("AI 正在盯：一直在今天页，只数在等触发的（到价、条件�
   expect(block()).not.toHaveTextContent("收盘前持仓检查");
 });
 
-it("今日判断只是一行品种胶囊：点一个交给调研；今天提醒打开提醒页，最新提醒在时间线上面", () => {
-  const onJudgment = vi.fn();
+it("今天只有一个作战表入口（不再有今日判断胶囊）；今天提醒打开提醒页，最新提醒在时间线上面", () => {
+  const onSheet = vi.fn();
   const onReminders = vi.fn();
-  render(<Home judgments={[{ product: "SHFE.rb", name: "螺纹钢", stance: "震荡", symbol: "SHFE.rb2601" }, { product: "DCE.i", name: "铁矿石", stance: "暂无" }]}
-    onJudgment={onJudgment} onReminders={onReminders} latest={<section aria-label="最新提醒" />} />);
-  const chips = screen.getByRole("group", { name: "今日判断" });
-  expect(within(chips).getAllByRole("button").map(button => button.getAttribute("aria-label"))).toEqual(["螺纹钢 今日判断", "铁矿石 暂无"]);
-  fireEvent.click(within(chips).getByRole("button", { name: "铁矿石 暂无" }));
-  expect(onJudgment).toHaveBeenCalledWith({ product: "DCE.i", name: "铁矿石", stance: "暂无" });
+  render(<Home onSheet={onSheet} onReminders={onReminders} latest={<section aria-label="最新提醒" />} />);
+  expect(screen.queryByRole("group", { name: "今日判断" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "今日作战表" }));
+  expect(onSheet).toHaveBeenCalledTimes(1);
   fireEvent.click(within(screen.getByRole("group", { name: "今天概况" })).getByRole("button", { name: /^今天提醒/ }));
   expect(onReminders).toHaveBeenCalledTimes(1);
   expect(screen.getByRole("region", { name: "最新提醒" }).compareDocumentPosition(screen.getByRole("group", { name: "时间线筛选" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(within(screen.getByRole("group", { name: "时间线筛选" })).getAllByRole("button").map(button => button.textContent)).toEqual(["全部", "成交", "AI 简报"]);
-});
-
-it("读取中的胶囊和暂无分开显示（读取中更淡），读到后只剩品种名（第 5 批不写立场）", () => {
-  const { rerender } = render(<Home judgments={[{ product: "SHFE.ru", name: "橡胶", stance: "读取中" }]} />);
-  const reading = within(screen.getByRole("group", { name: "今日判断" })).getByRole("button", { name: "橡胶 读取中" });
-  expect(reading.querySelector("em")?.dataset.stance).toBe("loading");
-  rerender(<Home judgments={[{ product: "SHFE.ru", name: "橡胶", stance: "偏多", symbol: "SHFE.ru2701" }]} />);
-  expect(within(screen.getByRole("group", { name: "今日判断" })).getByRole("button", { name: "橡胶 今日判断" }).querySelector("em")).toBeNull();
 });
 
 it("收盘前持仓检查按合约的交易时段：日盘收盘前 5 分钟，夜盘到次日的也算，最后一段过了是下一个交易日的日盘", () => {

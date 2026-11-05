@@ -3,10 +3,11 @@ route that ranks the signed-in user's 自选 with their own 打法 (no direction
 from __future__ import annotations
 
 from datetime import datetime
+from types import SimpleNamespace
 
 from httpx import ASGITransport, AsyncClient
 
-from trader_runtime.battle_sheet import key_levels, news_of, playbooks_for, priority_of, with_distances
+from trader_runtime.battle_sheet import BattleSheet, key_levels, news_of, playbooks_for, priority_of, with_distances
 
 NS = 1_000_000_000
 
@@ -55,6 +56,14 @@ def test_priority_adds_news_strength_and_closeness_and_playbooks_match_by_words(
     assert playbooks_for(playbooks, [], "无") == []
 
 
+def test_a_row_carries_only_todays_judgment_sentence() -> None:
+    stored = {"SHFE.rb": {"value": {"headline": "库存去化快于预期", "stance": "偏多"}, "researchDay": "2026-11-05", "generatedAt": "t"},
+              "SHFE.au": {"value": {"headline": "昨天的话"}, "researchDay": "2026-11-04"}}
+    sheet = BattleSheet(SimpleNamespace(_current=stored.get, research_day=lambda _now: "2026-11-05"))
+    assert sheet._judgment("SHFE.rb") == {"headline": "库存去化快于预期", "generatedAt": "t"}
+    assert sheet._judgment("SHFE.au") is None and sheet._judgment("DCE.m") is None
+
+
 async def test_the_route_ranks_the_users_watchlist_with_their_playbooks(tmp_path, monkeypatch) -> None:
     from trader_runtime.main import create_app
 
@@ -77,7 +86,7 @@ async def test_the_route_ranks_the_users_watchlist_with_their_playbooks(tmp_path
             rb = next(row for row in sheet["rows"] if row["product"] == "SHFE.rb")
             assert rb["symbol"] == "SHFE.rb2610" and not rb.get("error"), rb
             assert {"prev_high", "prev_low"} <= {level["key"] for level in rb["levels"]}
-            assert rb["priority"] in {"高", "中", "低"} and "stance" not in rb
+            assert rb["priority"] in {"高", "中", "低"} and "stance" not in rb and rb["judgment"] is None
             catalog = (await client.get("/api/agent/capabilities")).json()
             operation = next(item for item in catalog["operations"] if item["operation"] == "GET /api/research/sheet")
             assert operation["readOnly"] is True

@@ -3,8 +3,9 @@
 Each row is computed by the program, never by a model: the key levels from the product's main contract
 bars (昨高 / 昨低, the 开盘区间 = the trading day's first 15 minutes, the day's 均价), the news strength and
 the newest 快讯 events from the 调研 page's screened events, and a priority from how strong the news is
-and how close the price sits to a key level. No direction is shown (owner decision: the sheet names levels
-and setups, not 偏多 / 偏空). The product part is shared and reads no account; the user's part — which
+and how close the price sits to a key level. No direction is computed here (owner decision: the sheet names levels
+and setups, not 偏多 / 偏空); the row also carries the product's 今日判断 sentence as the desk already wrote it
+(owner 2026-11-05: 今日判断 is a column of the sheet) — read from the shared judgment table, never a new model call. The product part is shared and reads no account; the user's part — which
 products (their 自选) and which of their 打法 may show up near those levels — is put together per request here,
 and on the user's device from the pushed rows (apps/client/src/battleSheet.ts mirrors `sheet` and `playbooks_for`).
 """
@@ -174,7 +175,16 @@ class BattleSheet:
         nearest = min(measured, key=lambda level: level["distancePercent"]) if measured else None
         row["nearest"] = {"label": nearest["label"], "distancePercent": nearest["distancePercent"]} if nearest else None
         row["priority"], row["score"] = priority_of(row["news"]["strength"], nearest["distancePercent"] if nearest else None)
+        row["judgment"] = self._judgment(f"{exchange}.{product.lower()}")
         return row
+
+    def _judgment(self, desk_key: str) -> dict[str, Any] | None:
+        """今日判断's sentence when the desk has one of the current research day (None: 暂无)."""
+        entry = self.desk._current(desk_key) or {}
+        headline = (entry.get("value") or {}).get("headline")
+        if not headline or entry.get("researchDay") != self.desk.research_day(self.now()):
+            return None
+        return {"headline": headline, "generatedAt": entry.get("generatedAt")}
 
     async def user_sheet(self, user_id: str) -> dict[str, Any]:
         """One user's sheet from their 自选 and 打法 — what GET /api/research/sheet answers (the push sends the rows)."""

@@ -116,13 +116,12 @@ import { voiceCallStore } from "../voiceRealtime";
 import { MobileOrder } from "./mobile/MobileOrder";
 import { MobileSignIn } from "./mobile/MobileSignIn";
 import { buildMobileFeed, isPending } from "./mobile/feedItems";
-import { judgmentChips, notifyProducts, notifyRow, productKey, type NotifyFilter, type NotifyRow } from "./mobile/notifyItems";
+import { notifyProducts, notifyRow, productKey, type NotifyFilter, type NotifyRow } from "./mobile/notifyItems";
 import { useReminders, type ReminderFilter, type ReminderItem } from "../reminders";
 import { LatestReminders, MobileReminders, ReminderBell, type ReminderCenterProps } from "./reminders/ReminderCenter";
 import { RemindersPanel, RemindersTabBody, RemindersTabs, type RemindersTab } from "./reminders/RemindersPanel";
 import type { MyRemindersProps } from "./reminders/MyReminders";
 import { ReminderSettings } from "./reminders/ReminderSettings";
-import { mainContract } from "./mobile/MobileResearch";
 import { MobileBriefs } from "./mobile/MobileBriefs";
 import { InstallGuide, useInstallAutoOpen, useInstallDetection } from "./mobile/InstallGuide";
 import { MobilePush } from "./mobile/MobilePush";
@@ -1461,7 +1460,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     const showReminders = () => tapPage("reminders");
     const briefsBlocked = skillBlockedLine("market-briefs", skills, planFeatures, "行情简讯") ?? undefined;
     const toggleBriefs = (value: boolean) => { if (access.require("market-briefs")) void appWorkbench.updateConfig({ showMarketBriefs: value }).catch(() => setAccessNotice("简讯设置未保存，请重试")); };
-    // AI 首页's 今天概况, 今日判断 and AI 正在盯 — all from what the window already reads.
+    // AI 首页's 今天概况 and AI 正在盯 — all from what the window already reads.
     const positions = props.account?.positions ?? [];
     // The product's name (螺纹钢2610 → 螺纹钢); a contract the catalog does not list keeps its code (ag2612).
     const shortName = (symbol: string, name?: string) => {
@@ -1478,19 +1477,6 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
       checks: positionChecks,
       next: positions.length && preferences.notify.marketCloseReminder ? closeCheck ? `${closeCheck} 收盘前持仓检查` : "收盘前 5 分钟检查持仓" : null,
       closed: marketClosedNow(market),
-    };
-    // 读取中 per product until its desk read returns (the shown product's own read when not subscribed).
-    // Until the subscriptions are read the chips are the products the timeline carries, whose desk
-    // reads have not even started: every one is 读取中, not 暂无 (a failed read falls back as before).
-    const subscriptionsReading = mobile && !isGuest && Boolean(connectedRuntimeUrl) && !briefSubscriptions.data && !briefSubscriptions.failed;
-    const readingProducts = new Set(subscriptionsReading ? notifyProductList.map(item => item.product.toLowerCase())
-      : subscribedProducts.filter((_, index) => subscribedDesks[index]?.loading).map(item => item.product.toLowerCase()));
-    if (quoteSubscribed < 0 && quoteProduct && quoteDesk.loading) readingProducts.add(quoteProduct);
-    const chips = judgmentChips(notifyProductList, notifyItems, { loading: readingProducts, now });
-    const openJudgment = (chip: (typeof chips)[number]) => {
-      const symbol = chip.symbol ?? mainContract(chip.product, props.instruments?.items ?? [])?.symbol;
-      if (symbol && productKey(symbol).toLowerCase() !== quoteProduct) selectContract(symbol);
-      selectMobileTab("research");
     };
     const pinnedActions = { ...proposalActions, askAi: askMobile, applyUi: mobileCardHandlers.applyUi };
     // A visitor reads 看盘 and 调研; AI, 策略 and 我的 are one 登录后使用 page each, whose 登录 opens the
@@ -1572,7 +1558,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
             holdingActions={isGuest ? undefined : holdingRowActions} watchActions={contractRowActions}
             onOpenSymbol={symbol => { if (!sameContract(symbol, quote?.symbol)) selectContract(symbol); showMobileChart(); }}
             onQuotes={() => { selectMobileTab("market"); mobileMarket.update({ view: "quotes", board: "watchlist" }); }}
-            onPositions={() => tapPage("positions")} watch={watch} judgments={chips} onJudgment={openJudgment}
+            onPositions={() => tapPage("positions")} watch={watch} onSheet={() => selectMobileTab("research")}
             onAlerts={showMyReminders} onStrategies={() => { setMobileStrategyTab("running"); selectMobileTab("strategy"); }}
             filter={notifyFilter} onFilter={setNotifyFilter}
             products={notifyProductList} product={shownNotifyProduct} onProduct={setNotifyProduct}

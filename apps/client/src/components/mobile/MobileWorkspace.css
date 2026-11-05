@@ -435,22 +435,9 @@
 /* A section line: its title, then a quiet hint or count on the right. */
 .fdm-sec { display: flex; align-items: baseline; gap: var(--space-2); color: var(--muted); font-size: var(--font-md); }
 .fdm-sec > strong { margin-right: auto; color: var(--ink); font-size: var(--font-md); }
-/* 今日判断: one row of product chips with their stance (market colours, as the 判断卡). */
-.fdm-judges { display: flex; gap: var(--space-1); overflow-x: auto; scrollbar-width: none; padding-bottom: var(--space-0); }
-.fdm-judges::-webkit-scrollbar { display: none; }
-.fdm-judges > button { flex: none; min-height: 36px; display: inline-flex; align-items: center; gap: var(--space-1); padding: 0 var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-pill); color: var(--ink); background: var(--panel); font-size: var(--font-md); }
-.fdm-judges em { padding: var(--space-0) var(--space-2); border-radius: var(--radius-pill); color: var(--muted); background: var(--soft); font-size: var(--font-md); font-style: normal; }
-.fdm-judges em[data-stance="long"] { color: var(--market-up); background: var(--market-up-soft); }
-.fdm-judges em[data-stance="short"] { color: var(--market-down); background: var(--market-down-soft); }
-.fdm-judges em[data-stance="range"] { color: var(--warning); background: var(--warning-soft); }
-/* 读取中: lighter than 暂无's filled pill (the read has not returned yet) — an outlined pill with a soft
-   sweep that stops under reduced motion; the text keeps 暂无's contrast. */
-.fdm-judges em[data-stance="loading"] {
-  color: var(--muted); outline: 1px solid var(--line); outline-offset: -1px;
-  background: linear-gradient(90deg, var(--panel) 0%, var(--soft) 40%, var(--panel) 80%); background-size: 300% 100%;
-  animation: none;
-}
-@media (prefers-reduced-motion: reduce) { .fdm-judges em[data-stance="loading"] { animation: none; background: var(--panel); } }
+/* 今日作战表 (owner 2026-11-05): 今天's one entry to the sheet, which carries each product's 今日判断. */
+.fdm-sheet-entry { min-height: 44px; display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-control); color: var(--ink); background: var(--panel); font-size: var(--font-md); text-align: left; }
+.fdm-sheet-entry > span { margin-left: auto; color: var(--muted); }
 /* The timeline (原通知): filters, then rows (unread lives in the 提醒中心 since 2026-10-15). */
 .fdm-timeline { display: grid; gap: var(--space-2); scroll-margin-top: var(--space-2); }
 .fdm-filters { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
@@ -745,8 +732,8 @@
 /* 按压反馈: buttons press in; list rows darken instead of shrinking. */
 /* The hold button grows while recording and the new-items pill keeps its centring: both own their transform. */
 .fdm-shell button:not(.fdm-hold, .fdm-new-pill):active:not(:disabled) { transform: scale(.97) !important; }
-.fdm-shell :is(.fdm-me-row, .fdm-rows button, .fdm-watch button, .fdm-today > button, .fdm-judges > button):active:not(:disabled) { transform: none !important; background: var(--surface-hover); }
-:where(.fdm-me-row, .fdm-rows button, .fdm-watch button, .fdm-today > button, .fdm-judges > button) { transition: background-color var(--dur-1) var(--ease-standard); }
+.fdm-shell :is(.fdm-me-row, .fdm-rows button, .fdm-watch button, .fdm-today > button, .fdm-sheet-entry):active:not(:disabled) { transform: none !important; background: var(--surface-hover); }
+:where(.fdm-me-row, .fdm-rows button, .fdm-watch button, .fdm-today > button, .fdm-sheet-entry) { transition: background-color var(--dur-1) var(--ease-standard); }
 
 /* ── 安装到桌面引导 (2026-10-06, mobilePage: install) ── */
 .fdm-install { padding: 0 var(--space-4) var(--space-4); }

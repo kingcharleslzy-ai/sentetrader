@@ -15,7 +15,9 @@ export type SheetRow = { product: string; name: string; symbol: string | null; p
   news: { strength: "强" | "中" | "无"; items: Array<{ id: string; title: string; at: string | null; reports: number }>;
     /** 次要 events (weak, no direction): not news strength, but the row says they are there. */
     minor?: number };
-  playbooks: Array<{ id: string; name: string; why: string }>; error?: string };
+  playbooks: Array<{ id: string; name: string; why: string }>; error?: string;
+  /** 今日判断's sentence of the current research day as the desk wrote it (null / absent: 暂无). */
+  judgment?: { headline: string; generatedAt: string | null } | null };
 export type SheetReport = { generatedAt: string; rows: SheetRow[]; foreign: string[]; over: number; playbookCount: number };
 /** What the news panel's observation snapshot reports about the 今日作战表 tab. */
 export type SheetState = { status: "loading" | "ready" | "error"; rows: number; high: number; mid: number; low: number;
@@ -37,7 +39,8 @@ function levelText(levels: SheetLevel[]) {
 /**
  * 今日作战表 (侧栏重排第 5 批, owner 2026-10-25): the 调研 panel's first page — one row per 自选品种, ranked
  * 高 / 中 / 低 by the Runtime (news strength + distance to the nearest key level), each with its key levels,
- * the 调研 · 快讯 events it cites and the user's 打法 that may show up there. No 偏多 / 偏空 anywhere.
+ * the 调研 · 快讯 events it cites, the user's 打法 that may show up there and the product's 今日判断 sentence (owner
+ * 2026-11-05: 今日判断 is this column; its full text stays on 品种调研). The program adds no 偏多 / 偏空 of its own.
  * `onOpen` switches the chart to the row's contract and opens 品种调研.
  * Put together here (按人的拼装在本地, owner 2026-11-03): while the tab shows, the Runtime pushes each 自选品种's shared row
  * when it changes (feed.report "sheet-row?product="); this device ranks them and names the user's 打法 from its own 自选
@@ -97,7 +100,7 @@ export function BattleSheet({ baseUrl, visible, watchlist, compact = false, onOp
   const notes = [report?.over ? `只排前 12 个自选，另有 ${report.over} 个没排` : "", report?.foreign.length ? `外盘 ${report.foreign.length} 个不排` : ""].filter(Boolean);
   return <SectionCard title="今日作战表" className="battle-sheet" testId="battle-sheet"
     note={report ? `${clock(report.generatedAt)} 更新${notes.length ? ` · ${notes.join("，")}` : ""}` : undefined}
-    hint={<>每个自选品种一行（最多 12 个，外盘不排），按优先级排好。关键价位由程序从主力合约行情算：昨高、昨低取上一交易日日线；开盘区间是本交易日开盘后 15 分钟（夜盘品种从夜盘开盘算）；均价是本交易日分时均价；百分比是现价离它多远。消息取调研 · 快讯近 24 小时的事件：有重要事件为强，只有其他事件为中。优先级：消息强 2 分、中 1 分；离最近的关键价位 0.3% 以内 2 分、1% 以内 1 分；3 分以上为高、2 分为中、其余为低。交易笔记：你交易笔记里名字或进场规则提到某个价位（昨高低、开盘区间、均价，或突破、回踩）且现价离它 1% 以内，或提到消息且今天有消息。这张表不给多空方向。</>}>
+    hint={<>每个自选品种一行（最多 12 个，外盘不排），按优先级排好。关键价位由程序从主力合约行情算：昨高、昨低取上一交易日日线；开盘区间是本交易日开盘后 15 分钟（夜盘品种从夜盘开盘算）；均价是本交易日分时均价；百分比是现价离它多远。消息取调研 · 快讯近 24 小时的事件：有重要事件为强，只有其他事件为中。优先级：消息强 2 分、中 1 分；离最近的关键价位 0.3% 以内 2 分、1% 以内 1 分；3 分以上为高、2 分为中、其余为低。交易笔记：你交易笔记里名字或进场规则提到某个价位（昨高低、开盘区间、均价，或突破、回踩）且现价离它 1% 以内，或提到消息且今天有消息。今日判断：品种页里 AI 今天写的那一句，原样搬来，不为这张表另外调用 AI；今天还没写的品种写“暂无”，点“看调研”看完整判断。程序算的部分不给多空方向。</>}>
     <div className="section-card-body">
       {error ? <p role="alert" className="sheet-note">作战表读取失败（{error}）{report ? "，下面是上次的内容" : ""}</p> : null}
       {!report && !error ? <p role="status" className="sheet-note">正在排作战表…</p> : null}
@@ -110,6 +113,9 @@ export function BattleSheet({ baseUrl, visible, watchlist, compact = false, onOp
           {row.symbol && onOpen ? <button type="button" className="sheet-open" onClick={() => onOpen(row.symbol as string)}>看调研</button> : null}
         </div>
         <dl className="sheet-fields">
+          <dt>今日判断</dt>
+          <dd>{row.judgment ? <span>{row.judgment.headline}<small>{clock(row.judgment.generatedAt)}</small></span>
+            : <span className="sheet-none">暂无</span>}</dd>
           <dt>关键价位</dt>
           <dd>{row.levels.length ? levelText(row.levels).map(item => <span key={item.key}>{item.text}<small>{item.far}</small></span>)
             : <span className="sheet-none">{row.error ?? "还没有可算的价位"}</span>}</dd>

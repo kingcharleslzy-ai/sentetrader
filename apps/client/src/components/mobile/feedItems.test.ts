@@ -1,7 +1,6 @@
 import type { ConversationTurn } from "../../state/conversation";
 import type { DeskReport } from "../ResearchDesk";
 import { approvalMinutesLeft, buildMobileFeed, deskJudgmentCard, isPending } from "./feedItems";
-import { judgmentChips } from "./notifyItems";
 
 const report = (judgment: DeskReport["judgment"]): DeskReport => ({
   symbol: "SHFE.rb2701", productName: "螺纹钢", mainSymbol: "SHFE.rb2701", generatedAt: "2026-10-04T01:30:00Z",
@@ -57,25 +56,21 @@ test("同品种同研究日的判断在时间线只留一条：对话里两张�
   expect(buildMobileFeed({ turns, briefs: [], desks: [yesterday] }).map(item => item.id)).toEqual(["asked", "desk:SHFE.rb2601@2026-10-05@2026-10-05T00:30:00Z"]);
 });
 
-test("同日较新的调研台判断替换较旧的对话卡（#516）：胶囊与时间线显示新立场；较旧的调研台读数不覆盖较新的对话卡", () => {
+test("同日较新的调研台判断替换较旧的对话卡（#516）：时间线显示新立场；较旧的调研台读数不覆盖较新的对话卡", () => {
   const chat = { turnId: "t1", cardId: "chat-1", symbol: "SHFE.rb2701", productName: "螺纹钢", status: "ready" as const, stance: "偏多" as const,
     researchDay: "2026-10-06", generatedAt: "2026-10-06T01:00:00Z" };
   const turns = [{ id: "t1", role: "assistant", text: "", timestamp: "2026-10-06T01:00:00Z", cards: [{ id: "chat-1", type: "research-judgment", payload: chat }] }] as unknown as ConversationTurn[];
   const desk = (generatedAt: string, stance: "偏多" | "偏空") => deskJudgmentCard(report({ status: "ready", today: true, stance, confidence: "中",
     headline: "", generatedAt, researchDay: "2026-10-06", points: [], risks: [], basis: {} }));
-  const products = [{ product: "SHFE.rb", name: "螺纹钢" }];
-  const now = Date.parse("2026-10-06T03:00:00Z");
   // The desk refreshed at 10:10 (02:10Z) to 偏空 after the chat's 09:00 偏多 card: the newer one shows.
   const newer = desk("2026-10-06T02:10:00Z", "偏空");
   for (const feed of [buildMobileFeed({ turns, briefs: [], desks: [newer] }), buildMobileFeed({ turns, briefs: [], desks: [newer, newer] })]) {
     expect(feed.filter(item => item.kind === "judgment").map(item => [item.id, item.kind === "judgment" && item.card.stance]))
       .toEqual([["desk:SHFE.rb2701@2026-10-06@2026-10-06T02:10:00Z", "偏空"]]);
-    expect(judgmentChips(products, feed, { now })[0]).toMatchObject({ stance: "偏空", symbol: "SHFE.rb2701" });
   }
   // An older desk read never covers the newer conversation card.
   const older = buildMobileFeed({ turns, briefs: [], desks: [desk("2026-10-06T00:30:00Z", "偏空")] });
   expect(older.map(item => item.id)).toEqual(["chat-1"]);
-  expect(judgmentChips(products, older, { now })[0].stance).toBe("偏多");
 });
 
 test("确认卡：确认有效期内（10 分钟）是待确认，过期、确认或放弃后回到时间线原来的时间位置", () => {

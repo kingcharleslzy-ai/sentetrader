@@ -3375,7 +3375,7 @@ test("手机版提醒（统一提醒 #932）：AI 标签与铃铛带服务端的
   }
 });
 
-test("手机版 AI 首页按订阅品种：今日判断胶囊与简报品种胶囊列推送范围内的订阅品种（再接时间线里出现的），每个一条今日判断（与当前合约去重），点胶囊到调研并切合约；无内容的订阅品种显示空态；订阅读不到退回旧行为", async () => {
+test("手机版 AI 首页按订阅品种：简报品种胶囊列推送范围内的订阅品种（再接时间线里出现的），每个一条今日判断（与当前合约去重）；今天只有作战表入口，点了到调研；无内容的订阅品种显示空态；订阅读不到退回旧行为", async () => {
   stubPhone(true);
   const control = vi.spyOn(uiControl, "useUiControl").mockImplementation(() => {});
   const subscribed = (product: string, name: string, symbol: string) => ({ product, name, symbol });
@@ -3398,17 +3398,13 @@ test("手机版 AI 首页按订阅品种：今日判断胶囊与简报品种胶�
     // One read per pushed product (铁矿石 is past the cap); 沪金 is read before the subscriptions arrive.
     const read = () => [...new Set(desk.mock.calls.map(([url]) => url.searchParams.get("symbol")))].sort();
     await waitFor(() => expect(read()).toEqual(["CZCE.AP601", "SHFE.AU2612", "SHFE.au2612", "SHFE.rb2601", "SHFE.ru2601"]));
-    // 今日判断: one chip per pushed product in the subscription order, 暂无 until a ready judgment
-    // (橡胶's read failed); 调研 shows the subscribed read of the chart's product.
-    const judges = () => within(screen.getByRole("group", { name: "今日判断" })).getAllByRole("button").map(button => button.getAttribute("aria-label"));
-    await waitFor(() => expect(judges()).toEqual(["螺纹钢 今日判断", "苹果 今日判断", "橡胶 暂无", "沪金 今日判断"]));
+    // 今天 has no 今日判断 chips (owner 2026-11-05): its one entry opens 调研, whose top is the 作战表;
+    // 调研 shows the subscribed read of the chart's product.
+    expect(within(screen.getByTestId("mobile-feed")).queryByRole("group", { name: "今日判断" })).toBeNull();
     expect(within(screen.getByTestId("mobile-feed")).queryByTestId("research-judgment-card")).toBeNull();
-    fireEvent.click(tabButton("调研"));
-    expect(await within(screen.getByTestId("mobile-research")).findByText(/金价偏强/)).toBeVisible();
-    fireEvent.click(tabButton("今天"));
-    fireEvent.click(screen.getByRole("button", { name: "螺纹钢 今日判断" }));
-    expect(values.onSelectSymbol).toHaveBeenLastCalledWith("SHFE.rb2601");
+    fireEvent.click(screen.getByRole("button", { name: "今日作战表" }));
     expect(screen.getByTestId("mobile-research")).toBeVisible();
+    expect(await within(screen.getByTestId("mobile-research")).findByText(/金价偏强/)).toBeVisible();
     fireEvent.click(tabButton("今天"));
     const page = screen.getByTestId("mobile-feed");
     fireEvent.click(within(page).getByRole("button", { name: "AI 简报" }));
@@ -3443,37 +3439,6 @@ test("手机版 AI 首页按订阅品种：今日判断胶囊与简报品种胶�
   fireEvent.click(within(screen.getByTestId("mobile-feed")).getByRole("button", { name: "AI 简报" }));
   await waitFor(() => expect(within(screen.getByRole("list", { name: "时间线" })).getAllByRole("listitem")).toHaveLength(1));
   expect(within(screen.getByRole("group", { name: "简报品种" })).getAllByRole("button").map(button => button.textContent)).toEqual(["全部品种", "沪金"]);
-});
-
-test("保护：订阅清单还没读回时，今日判断胶囊说“读取中”、用品种中文名，不显示“暂无”或代码（10-07 线上刚打开闪过“CZCE.AP 暂无”）", async () => {
-  stubPhone(true);
-  const control = vi.spyOn(uiControl, "useUiControl").mockImplementation(() => {});
-  const apple = { ...instruments.items[0], symbol: "CZCE.AP701", exchangeId: "CZCE", instrumentId: "AP701", instrumentName: "苹果701", productId: "AP" };
-  // A brief that carries only the product code (no name), as the merged briefs may.
-  const brief = { id: "b1", kind: "news", text: "苹果简讯：产区走货加快", source: "fixture", product: "CZCE.AP",
-    publishedAt: new Date(Date.now() - 60_000).toISOString(), expiresAt: new Date(Date.now() + 3_600_000).toISOString() };
-  let release!: () => void;
-  const held = new Promise<void>(done => { release = done; });
-  phoneFetch({
-    "/config": { revision: 0, config: { showAiActivity: true, showTradeMarkers: false, showMarketBriefs: true, extensions: [] } },
-    "/api/app/briefs": { items: [brief] },
-    "/api/research/desk": (url: URL) => url.searchParams.get("symbol") === "CZCE.AP701"
-      ? { ...deskReport, symbol: "CZCE.AP701", mainSymbol: "CZCE.AP701", productName: "苹果", judgment: { ...deskReport.judgment, stance: "偏空" } } : deskReport,
-    "/api/app/brief-subscriptions": async () => { await held; return { limit: 4, source: "user", overLimit: false, products: [{ product: "CZCE.AP", name: "苹果", symbol: "CZCE.AP701" }] }; },
-  });
-  const view = render(<FuturesDecisionWorkspace {...props({ runtimeBaseUrl: "https://subs-held.example.test",
-    instruments: { ...instruments, items: [...instruments.items, apple] } }) as any} />);
-  const judges = () => within(screen.getByRole("group", { name: "今日判断" })).getAllByRole("button").map(button => button.getAttribute("aria-label"));
-  try {
-    // The brief and the chart's desk read are back; the subscriptions are not: nothing says 暂无 or a code.
-    await waitFor(() => expect(within(screen.getByTestId("mobile-feed")).getByText(/产区走货加快/)).toBeInTheDocument());
-    await waitFor(() => expect(judges()).toContain("苹果 读取中"));
-    expect(judges().join("|")).not.toMatch(/暂无|CZCE/);
-    await act(async () => { release(); });
-    await waitFor(() => expect(judges()).toEqual(["苹果 今日判断", "沪金 今日判断"]));
-  } finally {
-    view.unmount(); control.mockRestore();
-  }
 });
 
 test("手机版我的：各子页进入与返回，mobilePage 命令与快照、持仓分页命令落到持仓与委托；电脑布局拒绝", () => {

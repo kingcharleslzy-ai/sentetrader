@@ -8,11 +8,7 @@ import { CardSkeleton } from "./MobileFeed";
 import { RollingText } from "./mobileMotion";
 import { SwipeRow, type RowAction } from "./RowActions";
 import { approvalMinutesLeft, type MobileFeedItem } from "./feedItems";
-import { NOTIFY_FILTERS, notifyTime, rowTime, type JudgmentStance, type NotifyFilter, type NotifyRow } from "./notifyItems";
-
-/** One 今日判断 chip: the product, its stance (读取中 while the desk read runs, 暂无 without a ready
- *  judgment) and the contract it opens. */
-export interface JudgmentChip { product: string; name: string; stance: JudgmentStance; symbol?: string }
+import { NOTIFY_FILTERS, notifyTime, rowTime, type NotifyFilter, type NotifyRow } from "./notifyItems";
 
 /** AI 正在盯: what still waits to fire, each list already in words (what already fired is the 提醒记录's). */
 export interface WatchInfo {
@@ -44,20 +40,19 @@ export interface HomeQuote {
   curve?: number[];
 }
 
-const STANCE_DATA: Record<JudgmentChip["stance"], string> = { 偏多: "long", 偏空: "short", 震荡: "range", 暂无: "none", 读取中: "loading" };
 const NEW_PILL_SCROLL = 40;
 
 /**
  * AI 首页 (手机版新结构, 2026-10-06; 账户驾驶舱 2026-11-02, owner-chosen direction A): 权益 large with 今天概况
  * (浮动盈亏 / 待确认 / 今天提醒, each goes somewhere) under it, AI 正在盯, the cards waiting for 确认 pinned in their own card component until handled or expired, AI 正在盯 (第二轮
  * 2026-11-01: always there, one row of 到价 / 条件提醒 / 策略在跑 chips (2026-11-05: only what still waits to fire) that open where each is managed, the watched
- * items themselves behind its "?"), 持仓 and 自选 as quote rows (自选 with a 15 分钟 sparkline), one row of 今日判断 chips (a tap opens 调研 on
- * that product), 最新提醒 (the 提醒中心's two newest, 2026-10-15), then the timeline that used to be
+ * items themselves behind its "?"), 持仓 and 自选 as quote rows (自选 with a 15 分钟 sparkline), one 今日作战表 line (owner 2026-11-05: the sheet is 今天's
+ * one entry — each row carries its 今日判断 sentence; a tap opens 调研, whose top is the sheet), 最新提醒 (the 提醒中心's two newest, 2026-10-15), then the timeline that used to be
  * 通知 — its filters and the AI 简报 product chips, each row time · title · one line. A new row opens
  * in at the top; scrolled down, it waits behind “↑ N 条新动态”. What is unread is the 提醒中心's (the
  * Runtime's read marks), not this timeline's.
  */
-export function MobileHome({ rows, pending, renderCard, quickPending, now, account, today, holdings = [], watchRows = [], holdingActions, watchActions, onOpenSymbol = () => undefined, onQuotes = () => undefined, onPositions, watch, onAlerts, onStrategies, judgments, onJudgment,
+export function MobileHome({ rows, pending, renderCard, quickPending, now, account, today, holdings = [], watchRows = [], holdingActions, watchActions, onOpenSymbol = () => undefined, onQuotes = () => undefined, onPositions, watch, onAlerts, onStrategies, onSheet,
   filter, onFilter, products, product, onProduct, onOpen, onReminders, latest, notice, refreshError, loading = false, focus }: {
   rows: NotifyRow[];
   /** The cards waiting for 确认, newest first. */
@@ -86,8 +81,8 @@ export function MobileHome({ rows, pending, renderCard, quickPending, now, accou
   /** AI 正在盯's chips: 到价 and 条件提醒 → 我的提醒, 策略在跑 → 策略. */
   onAlerts: () => void;
   onStrategies: () => void;
-  judgments: JudgmentChip[];
-  onJudgment: (chip: JudgmentChip) => void;
+  /** 今日作战表: opens 调研 (the sheet on top). */
+  onSheet: () => void;
   filter: NotifyFilter;
   onFilter: (filter: NotifyFilter) => void;
   products: { product: string; name: string }[];
@@ -203,15 +198,7 @@ export function MobileHome({ rows, pending, renderCard, quickPending, now, accou
           <b className={signClass(row.changePercent)}>{row.note ?? (row.changePercent == null ? "—" : `${formatSigned(row.changePercent, 2)}%`)}</b>
         </button></SwipeRow>) : <p className="fdm-note">还没有自选。到看盘 · 报价或合约列表里点星标加。</p>}
       </section>
-      {judgments.length ? <>
-        <div className="fdm-sec"><strong>今日判断</strong><span>点一个看完整调研</span></div>
-        <div className="fdm-judges" role="group" aria-label="今日判断">
-          {/* 第 5 批 (owner 2026-10-25): no 偏多 / 偏空 on the chip; only whether the judgment is there yet. */}
-          {judgments.map(chip => { const waiting = chip.stance === "读取中" || chip.stance === "暂无";
-            return <button type="button" key={chip.product} onClick={() => onJudgment(chip)} aria-label={`${chip.name} ${waiting ? chip.stance : "今日判断"}`}>
-              <b>{chip.name}</b>{waiting ? <em data-stance={STANCE_DATA[chip.stance]}>{chip.stance}</em> : null}</button>; })}
-        </div>
-      </> : null}
+      <button type="button" className="fdm-sheet-entry" onClick={onSheet} aria-label="今日作战表"><strong>今日作战表</strong><span>价位 · 消息 · 今日判断 ›</span></button>
       {latest}
       <div className="fdm-timeline" ref={timeline} data-agent-target="mobile-notify">
         <div className="fdm-filters">

@@ -127,8 +127,9 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
 
     @application.get("/api/research/sheet")
     async def research_sheet(request: Request) -> dict[str, object]:
-        """今日作战表：自选品种每个一行，按优先级排好（关键价位、消息强弱、可能用上的交易笔记）。
-        纯读取：程序从行情和已采集的快讯算，不调模型、不读账户。窗口开着时同一份经推送流 feed.sheet 变了才下发。"""
+        """今日作战表：自选品种每个一行，按优先级排好（关键价位、消息强弱、可能用上的交易笔记、今日判断那一句）。
+        纯读取：程序从行情和已采集的快讯算，不调模型、不读账户；rows[].judgment 是该品种今天已有的今日判断
+        {headline, generatedAt}，今天还没有时为 null。窗口开着时同一份经推送流 feed.sheet 变了才下发。"""
         return await ctx.services.battle_sheet.user_sheet(await current_user(request))
 
     @application.post("/api/research/desk/refresh")

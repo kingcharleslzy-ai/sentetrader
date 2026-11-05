@@ -114,7 +114,7 @@ export const COMMANDABLE: Rule[] = [
   { match: control => control.group === "reminders:mine" && /^(添加|设置中…)$/.test(control.label), via: "POST /api/market/alerts（到某个价的表单；direction 由 Runtime 按最新价判定）" },
   { match: control => control.group === "reminders:mine" && / [A-Z]+\.[A-Za-z0-9]+$/.test(control.label), via: "symbol（我的提醒里到价 / 画线那行的合约名：切到该合约）" },
   { match: control => control.group === "mobile-latest-reminders" && control.label === "全部提醒", via: "reminderCenter: {open: true}（AI 首页 · 最新提醒的“全部 ›”）" },
-  // 手机版新结构 (2026-10-06): AI 首页's 今天概况 / 今日判断 / bell, the 策略 tab and the 回测结果页
+  // 手机版新结构 (2026-10-06): AI 首页's 今天概况 / 今日作战表 / bell, the 策略 tab and the 回测结果页
   // (before the desktop rules: 看图表 and 上线运行 mean other things there).
   { match: control => control.group === "mobile-ai" && /^持仓/.test(control.label), via: "mobilePage: positions（AI 首页 · 今天概况的持仓格）" },
   // 账户驾驶舱 (2026-11-02): 今天's 持仓 / 自选 rows open that contract's single chart; 全部 opens their full lists.
@@ -126,7 +126,7 @@ export const COMMANDABLE: Rule[] = [
   { match: /^到价 \d+$/, via: "reminders: {tab: mine}（今天页 AI 正在盯 · 到价：提醒页的我的提醒）" },
   { match: /^策略在跑 \d+$/, via: "mobileStrategyTab: running + mobileTab: strategy（今天页 AI 正在盯 · 策略在跑）" },
   { match: /^条件提醒 \d+$/, via: "reminders: {tab: mine}（今天页 AI 正在盯 · 条件提醒：提醒页的我的提醒）" },
-  { match: control => control.group === "mobile-ai" && / (今日判断|暂无|读取中)$/.test(control.label), via: "symbol + mobileTab: research（今日判断胶囊：切到该品种主力合约并打开调研；判断还没读回时显示“读取中”）" },
+  { match: control => control.group === "mobile-ai" && control.label === "今日作战表", via: "mobileTab: research（今天页的作战表入口：打开调研，最上面是今日作战表，每行带今日判断那一句；2026-11-05 起取代今日判断胶囊）" },
   { match: /^看提醒(（\d+ 条未读）)?$/, via: "reminderCenter: {open: true}（今天页右上角铃铛进提醒页；未读数在快照 state.reminderCenter.unread / state.mobileUnread）" },
   { match: control => control.group === "mobile-strategy" && /^(暂停|继续运行|正在暂停…|正在继续…)$/.test(control.label), via: "POST /api/strategies/{id}/monitor/pause | …/monitor/start（策略卡的暂停 / 继续运行，与电脑运行中卡同一接口）" },
   { match: control => control.group === "mobile-strategy" && control.label === "看图表", via: "symbol + duration + mobileTab: market（策略卡：切到它的合约与周期看盘）" },

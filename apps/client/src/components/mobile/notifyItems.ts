@@ -100,30 +100,3 @@ export function rowTime(time: number, now = Date.now()): string {
   const full = notifyTime(time, now);
   return full.startsWith("昨天") ? "昨天" : full.length > 5 ? full.slice(0, 5) : full;
 }
-
-export type JudgmentStance = "偏多" | "偏空" | "震荡" | "暂无" | "读取中";
-
-const sameLocalDay = (a: number, b: number) => new Date(a).toDateString() === new Date(b).toDateString();
-const readyStance = (card: { status: string; stance?: string | null }): "偏多" | "偏空" | "震荡" | null =>
-  card.status === "ready" && (card.stance === "偏多" || card.stance === "偏空" || card.stance === "震荡") ? card.stance : null;
-
-/** 今日判断 chips: one per product (the AI 简报 product order — subscribed first), each with the
- *  stance of the newest ready judgment of the product's latest research day, whichever source in
- *  this window carries it (a conversation card, the desk read) and the contract it was read on.
- *  While the desk read of a product has not returned (`loading`) the chip says 读取中 — unless a
- *  card made today already gives the stance; 暂无 only once nothing ready was found. */
-export function judgmentChips(products: readonly { product: string; name: string }[], items: readonly MobileFeedItem[],
-  { loading = new Set<string>(), now = Date.now() }: { loading?: ReadonlySet<string>; now?: number } = {}):
-  { product: string; name: string; stance: JudgmentStance; symbol?: string }[] {
-  return products.map(({ product, name }) => {
-    const key = product.toLowerCase();
-    const mine = items.filter((item): item is Extract<MobileFeedItem, { kind: "judgment" }> =>
-      item.kind === "judgment" && Boolean(item.card.symbol) && productKey(item.card.symbol).toLowerCase() === key);
-    const day = mine[0]?.card.researchDay ?? null;
-    const reading = loading.has(key);
-    const judged = mine.find(item => readyStance(item.card) && (item.card.researchDay ?? null) === day
-      && (!reading || sameLocalDay(item.time, now)));
-    const stance: JudgmentStance = (judged && readyStance(judged.card)) || (reading ? "读取中" : "暂无");
-    return { product, name, stance, symbol: (judged ?? mine[0])?.card.symbol };
-  });
-}
