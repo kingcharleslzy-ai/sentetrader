@@ -253,3 +253,36 @@
 .board-order:not(.medium) .board-order-buttons { flex: 0 0 auto; grid-auto-rows: minmax(56px, 72px); }
 /* react-mosaic's drag preview sits under each block with a black border; in the theme it is the block's own card. */
 .board-mosaic .mosaic-window > .mosaic-preview { border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--panel); }
+
+/* 有多大地方放多少 (owner 2026-11-06): the size picks the layout; whatever height is left takes more of the same — rows
+   cut at the edge, never stretched — and, in a tall block, the secondary figures. */
+.board-tile-content { container-type: size; }
+.board-extra { display: none; }
+@container (min-height: 300px) { .board-extra { display: grid; } }
+.board-figures { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: var(--space-1) var(--space-3); margin: var(--space-1) 0; }
+.board-positions-medium .board-figures { margin: var(--space-2) var(--space-3); }
+.board-figures > span { display: flex; flex-direction: column; min-width: 0; }
+.board-figures small { color: var(--muted); font-size: var(--font-xs); }
+.board-figures strong { font-size: var(--font-md); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.board-watch-small .board-rows, .board-watch-medium .board-rows, .board-positions-medium .board-rows { flex: 1 1 0; min-height: 0; overflow: hidden; }
+.board-watch-medium .board-rows.two { align-content: start; }
+.board-sheet-small .board-caption { margin-top: var(--space-1); }
+.board-sheet-small .board-more-rows > span > strong { margin-left: 0; }
+/* Newest at the bottom; an older turn that does not fit whole wraps out of the block instead of showing a sliver. */
+.board-turns { flex: 1 1 0; min-height: 0; margin: 0; padding: var(--space-2) var(--space-3); list-style: none; display: flex; flex-direction: column-reverse;
+  flex-wrap: wrap; align-content: flex-start; gap: var(--space-2); overflow: hidden; }
+.board-turns li { flex: none; width: 100%; display: flex; }
+.board-turns li[data-role="user"] { justify-content: flex-end; }
+.board-turns li p { max-width: 85%; margin: 0; padding: var(--space-1) var(--space-2); border-radius: var(--radius-card); line-height: 1.5;
+  display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
+.board-turns li[data-role="assistant"] p { background: var(--ai-bubble); color: var(--ai-bubble-ink); }
+.board-turns li[data-role="user"] p { background: var(--me-bubble); color: var(--ink); }
+/* 下单 · 中: the buttons keep a button's height in a big block. */
+.board-order.medium .board-order-buttons { grid-template-rows: minmax(56px, 96px) 36px; align-content: start; }
+.board-order-extra > span { gap: var(--space-2); }
+.board-order-extra > span > small { flex: none; width: 3em; color: var(--muted); }
+/* A row that does not fit whole is not shown at all: the list wraps into a second column that falls outside the block. */
+/* (作战表 / 提醒 中档 keep scrolling: their lists can be long.) */
+.board-more-rows, .board-watch-small .board-rows, .board-positions-medium .board-rows {
+  display: flex; flex-direction: column; flex-wrap: wrap; align-content: flex-start; overflow: hidden; }
+.board-more-rows > span, .board-watch-small .board-rows > li, .board-positions-medium .board-rows > li { width: 100%; }

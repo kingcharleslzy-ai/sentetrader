@@ -1,5 +1,5 @@
 import { useState, type ComponentProps } from "react";
-import { foreignQuoteOnly, sameContract, type AccountPosition, type InstrumentCatalog, type MarketBoardRow, type MarketWorkbenchSnapshot, type RemoteTradeSnapshot,
+import { foreignQuoteOnly, sameContract, type AccountPosition, type AccountSnapshot, type InstrumentCatalog, type MarketBoardRow, type MarketWorkbenchSnapshot, type RemoteTradeSnapshot,
   type SimulationOrder } from "../../api";
 import { TradingCharts } from "../TradingCharts";
 import { durationLabel } from "../mobile/mobileMarketPrefs";
@@ -59,7 +59,24 @@ const positionName = (position: AccountPosition, instruments?: InstrumentCatalog
 const yuan = (positions: AccountPosition[]) => positions.filter(position => position.currency !== "USD");
 
 /** 持仓 · 小: 总浮盈和持仓个数. */
-export function PositionsSmall({ positions, instruments, onOpen }: { positions: AccountPosition[]; instruments?: InstrumentCatalog; onOpen: () => void }) {
+/**
+ * 有多大地方放多少 (owner 2026-11-06): the account's secondary figures, shown under 持仓 when the block is tall enough
+ * (a container query in BoardsView.css; the block's size stays what its room picked).
+ */
+function AccountFigures({ account }: { account?: AccountSnapshot }) {
+  if (!account) return null;
+  const money = (value?: number) => value === undefined ? "—" : formatNumber(value, 0);
+  const figures: [string, string, string?][] = [
+    ["权益", money(account.equity)], ["可用", money(account.available)], ["保证金", money(account.margin)],
+    ["风险度", account.riskRatio === undefined ? "—" : `${formatNumber(account.riskRatio, 1)}%`],
+    ["今日", formatSigned(account.todayNetPnl ?? account.todayPnl, 0), signClass(account.todayNetPnl ?? account.todayPnl)],
+  ];
+  return <span className="board-figures board-extra" aria-label="账户">{figures.map(([label, value, tone]) =>
+    <span key={label}><small>{label}</small><strong className={tone}>{value}</strong></span>)}</span>;
+}
+
+export function PositionsSmall({ positions, instruments, account, onOpen }: { positions: AccountPosition[]; instruments?: InstrumentCatalog; account?: AccountSnapshot;
+  onOpen: () => void }) {
   const own = yuan(positions);
   const total = own.reduce((sum, position) => sum + position.unrealizedPnl, 0);
   const winning = own.filter(position => position.unrealizedPnl > 0).length;
@@ -70,6 +87,7 @@ export function PositionsSmall({ positions, instruments, onOpen }: { positions: 
       <small className="board-caption">浮动盈亏</small>
       <strong className={`board-figure ${signClass(total)}`}>{formatSigned(total, 0)}</strong>
       <span className="board-split"><span className="positive">{winning} 个赚</span><span className="negative">{losing} 个亏</span></span>
+      <AccountFigures account={account} />
       {/* A tall block lists the positions below, as many as the height holds (the rest is cut, never squeezed). */}
       <span className="board-more-rows" aria-hidden="true">{positions.map(position => <span key={`${position.accountId ?? ""}:${position.symbol}:${position.direction}`}>
         <span className="board-ellipsis">{positionName(position, instruments)} <i className={`board-side ${position.direction}`}>{position.direction === "long" ? "多" : "空"}</i>{position.volume}手</span>
@@ -80,13 +98,15 @@ export function PositionsSmall({ positions, instruments, onOpen }: { positions: 
 }
 
 /** 持仓 · 中: 每个持仓一行，不放按钮（点一行打开持仓面板再平）. */
-export function PositionsMedium({ positions, instruments, onOpen }: { positions: AccountPosition[]; instruments?: InstrumentCatalog; onOpen: () => void }) {
+export function PositionsMedium({ positions, instruments, account, onOpen }: { positions: AccountPosition[]; instruments?: InstrumentCatalog; account?: AccountSnapshot;
+  onOpen: () => void }) {
   const total = yuan(positions).reduce((sum, position) => sum + position.unrealizedPnl, 0);
   return <div className="board-positions-medium">
     <button type="button" className="board-tile-head board-tile-link" aria-label="打开持仓面板" onClick={onOpen}>
       <strong>持仓</strong><small>{positions.length}</small><span className="board-grow" />
       {positions.length ? <><small>浮动盈亏</small><strong className={signClass(total)}>{formatSigned(total, 0)}</strong></> : null}
     </button>
+    <AccountFigures account={account} />
     {positions.length ? <ul className="board-rows">
       {positions.map(position => <li key={`${position.accountId ?? ""}:${position.symbol}:${position.direction}`}>
         <button type="button" onClick={onOpen} aria-label={`${positionName(position, instruments)} ${position.direction === "long" ? "多" : "空"} ${position.volume} 手，打开持仓面板`}>
@@ -181,6 +201,13 @@ export function OrderCompact({ market, name, positions, quick, enabled, blockedR
         <span><strong>{volume}</strong> 手</span>
         <button type="button" aria-label="多一手" disabled={volume >= 99} onClick={() => setVolume(value => Math.min(99, value + 1))}>+</button>
       </div>
+      {medium ? <span className="board-more-rows board-order-extra" aria-hidden="true">
+        <span><small>最新</small><strong>{formatNumber(quote.lastPrice, decimals)}</strong></span>
+        {held.length ? held.map(position => <span key={`${position.symbol}:${position.direction}`}>
+          <small>持仓</small><span className="board-ellipsis"><i className={`board-side ${position.direction}`}>{position.direction === "long" ? "多" : "空"}</i>{position.volume}手</span>
+          <strong className={signClass(position.unrealizedPnl)}>{formatSigned(position.unrealizedPnl, 0)}</strong></span>)
+          : <span><small>持仓</small><span className="board-ellipsis">这个合约没有持仓</span></span>}
+      </span> : null}
     </div>
     <div className="board-order-buttons">
       <button type="button" className="board-buy" disabled={locked || tooMany} onClick={() => open("buy_open")}><strong>买多</strong><small>{price("buy")}</small></button>
@@ -207,11 +234,12 @@ export function watchRows(rows: MarketBoardRow[] | undefined, watchlist: string[
 }
 const pct = (row: WatchRow) => row.note ?? (row.changePercent === null ? "—" : `${row.changePercent > 0 ? "+" : ""}${row.changePercent.toFixed(2)}%`);
 
-/** 自选 · 小 (三个品种) / 中 (两栏八个); medium rows switch the contract every module follows. */
+/** 自选 · 小 (一栏) / 中 (两栏), as many rows as fit; medium rows switch the contract their colour follows. */
 export function WatchCompact({ rows, selectedSymbol, onSelect, onOpen, medium, emptyText }: {
   rows: WatchRow[]; selectedSymbol?: string; onSelect: (symbol: string) => void; onOpen: () => void; medium?: boolean; emptyText: string;
 }) {
-  const shown = rows.slice(0, medium ? 8 : 3);
+  // As many rows as the block's height holds (the list is cut at the edge, never squeezed).
+  const shown = rows;
   const list = shown.map(row => <li key={row.symbol}>{medium
     ? <button type="button" aria-current={sameContract(row.symbol, selectedSymbol ?? "") || undefined} onClick={() => onSelect(row.symbol)}>
       <strong>{row.name}</strong><span className={signClass(row.changePercent)}>{row.price}</span><small className={signClass(row.changePercent)}>{pct(row)}</small></button>
@@ -246,6 +274,9 @@ export function SheetCompact({ rows, status, symbol, name, onOpen, onOpenRow, me
         {row ? <i className="board-priority" data-priority={row.priority}>{row.priority}</i> : null}</span>
       <span className="board-sentence">{row ? row.judgment?.headline ?? "今天还没有判断" : status || "这个品种不在作战表里（作战表排自选品种）"}</span>
       {row && nearestText(row) ? <small className="board-caption">{nearestText(row)}</small> : null}
+      {rows.length > 1 ? <span className="board-more-rows" aria-hidden="true">{rows.filter(other => other !== row).map(other => <span key={other.product}>
+        <strong>{other.name}</strong><i className="board-priority" data-priority={other.priority}>{other.priority}</i>
+        <span className="board-ellipsis">{other.judgment?.headline ?? "暂无判断"}</span></span>)}</span> : null}
     </button>;
   }
   return <div className="board-sheet-medium">
@@ -280,9 +311,12 @@ export function AlertCompact({ waiting, latest, onOpen, medium }: {
 }
 
 /** 对话 · 一条 (输入框和发送) / 中 (最近一条回复 + 输入框): what is typed goes to the same conversation as the 对话 panel. */
-export function ChatCompact({ reply, busy, blockedReason, onSend, onOpen, medium }: {
-  reply?: { text: string; at: string }; busy: boolean; blockedReason?: string; onSend: (text: string) => void; onOpen: () => void; medium?: boolean;
+export function ChatCompact({ turns, busy, blockedReason, onSend, onOpen, medium }: {
+  /** The conversation's recent turns, oldest first; the block shows as many of the latest as fit. */
+  turns: { key: string; role: "user" | "assistant"; text: string; at: string }[]; busy: boolean; blockedReason?: string;
+  onSend: (text: string) => void; onOpen: () => void; medium?: boolean;
 }) {
+  const reply = [...turns].reverse().find(turn => turn.role === "assistant");
   const [text, setText] = useState("");
   const send = () => { const value = text.trim(); if (!value || busy || blockedReason) return; onSend(value); setText(""); };
   const input = <form className="board-chat-input" onSubmit={event => { event.preventDefault(); send(); }}>
@@ -292,7 +326,8 @@ export function ChatCompact({ reply, busy, blockedReason, onSend, onOpen, medium
   if (!medium) return <div className="board-chat-bar">{input}</div>;
   return <div className="board-chat-medium">
     <button type="button" className="board-tile-head board-tile-link" aria-label="对话，打开对话面板" onClick={onOpen}><strong>对话</strong>{reply ? <small>AI · {reply.at}</small> : null}</button>
-    <p className="board-reply">{reply?.text || "还没有对话：在下面问一句"}</p>
+    {turns.length ? <ol className="board-turns" aria-label="最近的对话">{[...turns].reverse().map(turn => <li key={turn.key} data-role={turn.role}>
+      <p>{turn.text}</p></li>)}</ol> : <p className="board-reply">还没有对话：在下面问一句</p>}
     {input}
   </div>;
 }

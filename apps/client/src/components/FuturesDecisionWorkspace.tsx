@@ -1727,8 +1727,8 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     const compact = size === "small" || size === "medium";
     if (module === "positions") {
       const positions = props.account?.positions ?? [];
-      if (size === "small") return <PositionsSmall positions={positions} instruments={props.instruments} onOpen={() => setRightDock("positions")} />;
-      if (size === "medium") return <PositionsMedium positions={positions} instruments={props.instruments} onOpen={() => setRightDock("positions")} />;
+      if (size === "small") return <PositionsSmall positions={positions} instruments={props.instruments} account={props.account?.account} onOpen={() => setRightDock("positions")} />;
+      if (size === "medium") return <PositionsMedium positions={positions} instruments={props.instruments} account={props.account?.account} onOpen={() => setRightDock("positions")} />;
       return <PositionsLarge positions={positions} instruments={props.instruments} orders={props.simulationOrders.filter(orderIsActive)}
         fills={props.account?.activity.trades ?? []} onOpen={() => setRightDock("positions")} onClose={closePosition}
         onCancel={order => handleOrderAction(order, "cancel")} />;
@@ -1758,9 +1758,10 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     }
     if (module === "chat") {
       if (size === "large") return renderDockPanel("ai", true);
-      const last = [...props.state.turns].reverse().find(turn => turn.role === "assistant" && turn.text.trim());
-      return <ChatCompact medium={size === "medium"} busy={Boolean(props.chatBusy || chat.sendingPrompt)} blockedReason={aiBlocked || undefined}
-        reply={last ? { text: last.text, at: new Date(last.timestamp).toLocaleTimeString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false, hour: "2-digit", minute: "2-digit" }) } : undefined}
+      const turns = props.state.turns.filter(turn => (turn.role === "user" || turn.role === "assistant") && turn.text.trim()).slice(-20)
+        .map((turn, index) => ({ key: `${turn.timestamp}:${index}`, role: turn.role as "user" | "assistant", text: turn.text,
+          at: new Date(turn.timestamp).toLocaleTimeString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false, hour: "2-digit", minute: "2-digit" }) }));
+      return <ChatCompact medium={size === "medium"} busy={Boolean(props.chatBusy || chat.sendingPrompt)} blockedReason={aiBlocked || undefined} turns={turns}
         onSend={text => void chat.sendQuickPrompt(text)} onOpen={() => setRightDock("ai")} />;
     }
     if (module === "watch") {
