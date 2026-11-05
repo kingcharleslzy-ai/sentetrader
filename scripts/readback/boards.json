@@ -1,5 +1,5 @@
 {
-  "about": "看板 · 铺满版（11-05）：顶栏看板进“盘中”（默认摆法铺满，每块按自己的大小选档）；下拉里有“新建空白看板”和这套看板的编辑、改名、删除；新建“回读看板”后进入编辑、开模块库，按“放在哪块的哪一边 / 比例”一块块放满七个模块，调比例、锁档、拿掉再撤销，图表换成紫色联动，让 AI 帮我摆一套复盘（真走模型，看到预览），用这套再撤销，打开一块的 ⋯，完成后小档下单露出买多 / 卖空（点了先弹确认，回读不点）。回读窗口固定 1440×900（工具只有这一种电脑尺寸），1280×800 和 2560×1440 在浏览器里另看。只改测试账号自己的看板偏好，最后回到“盘中”、删掉“回读看板”、回交易台。",
+  "about": "看板 · 铺满版（11-05）：顶栏看板进“盘中”（默认摆法铺满，每块按自己的大小选档）；下拉里有“新建空白看板”和这套看板的编辑、改名、删除；新建“回读看板”后进入编辑、开模块库，按“放在哪块的哪一边 / 比例”一块块放满七个模块，调比例、锁档、拿掉再撤销，再放一块图表（1 小时、再改成日线）后拿掉，图表换成紫色联动，让 AI 帮我摆一套复盘（真走模型，看到预览），用这套再撤销，打开一块的 ⋯，完成后小档下单露出买多 / 卖空（点了先弹确认，回读不点）。回读窗口固定 1440×900（工具只有这一种电脑尺寸），1280×800 和 2560×1440 在浏览器里另看。只改测试账号自己的看板偏好，最后回到“盘中”、删掉“回读看板”、回交易台。",
   "steps": [
     {"ui": {"view": "trade"}, "expect": {"view": "trade"}},
     {"ui": {"view": "dashboard"}, "expect": {"view": "dashboard", "preferences.ui.boards.current": {"exists": true}}},
@@ -25,8 +25,12 @@
     {"ui": {"boards": {"take": "alert"}}},
     {"ui": {"boards": {"undo": true}}, "expect": {"boards.tiles": {"includes": "\"alert\""}}},
     {"ui": {"disclosure": {"name": "board-library", "open": false}}},
+    {"ui": {"boards": {"place": {"module": "chart", "target": "chart", "side": "right", "duration": 3600}}}, "expect": {"boards.tiles": {"includes": "\"chart-2\""}}},
+    {"ui": {"boards": {"chart": {"block": "chart-2", "duration": 86400}}}, "expect": {"boards.tiles": {"includes": "\"duration\":86400"}}},
+    {"screenshot": "23a-two-charts"},
+    {"ui": {"boards": {"take": "chart-2"}}},
     {"ui": {"boards": {"link": {"module": "chart", "color": "purple"}}}, "expect": {"boards.tiles": {"includes": "\"link\":\"purple\""}}},
-    {"ui": {"boards": {"ask": "摆一套复盘，持仓和对话为主"}}, "expect": {"boards.preview": {"includes": "modules"}}, "timeoutMs": 60000},
+    {"ui": {"boards": {"ask": "摆一套复盘，持仓和对话为主"}}, "expect": {"boards.preview": {"includes": "blocks"}}, "timeoutMs": 60000},
     {"screenshot": "24a-ai-preview"},
     {"ui": {"boards": {"adopt": true}}, "expect": {"boards.preview": null}},
     {"ui": {"boards": {"undo": true}}, "expect": {"boards.tiles": {"includes": "\"alert\""}}},

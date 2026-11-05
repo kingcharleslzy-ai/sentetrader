@@ -400,8 +400,9 @@ export function fetchChatSuggestions(baseUrl: string, request: ChatSuggestionReq
 
 /** 看板 · 让 AI 帮我摆 (owner 2026-11-05): one arrangement for the board from a sentence; the model only lays modules
  *  out (no tools, no orders, no settings) and nothing changes until the user picks 用这套. */
-export function arrangeBoard(baseUrl: string, request: { ask: string; current: unknown; width: number; height: number; fontScale: number }) {
-  return requestJson<{ layout: unknown; locks: Record<string, "small" | "medium">; note: string }>(`${baseUrl}/api/agent/board-arrangement`, {
+export function arrangeBoard(baseUrl: string, request: { ask: string; current: unknown; width: number; height: number; fontScale: number;
+  contracts: readonly { symbol: string; name: string }[] }) {
+  return requestJson<{ layout: unknown; locks: Record<string, "small" | "medium">; charts: Record<string, { symbol?: string }>; note: string }>(`${baseUrl}/api/agent/board-arrangement`, {
     method: "POST", body: JSON.stringify(request), timeoutMs: 60_000
   });
 }

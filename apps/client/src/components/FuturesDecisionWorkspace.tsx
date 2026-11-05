@@ -63,7 +63,7 @@ import { buildPromptContext } from "./futures/promptContext";
 import { useChartFocus } from "./futures/useChartFocus";
 import { useQuickOrderSkipConfirm, useQuickOrders } from "./futures/useQuickOrders";
 import { QuickActions, quickCloseRequests, useTicketQuickActions } from "./futures/QuickActions";
-import { leavesOf, linkOf, mainLink, useBoards, type BoardModule, type BoardSize, type LinkModule } from "./boards/boards";
+import { leavesOf, linkOf, mainLink, moduleOf, useBoards, type BoardBlock, type BoardSize, type LinkColor } from "./boards/boards";
 import { BoardsMenu, BoardsView, useBoardsControl } from "./boards/BoardsView";
 import { AlertCompact, ChartSmall, ChartMedium, ChatCompact, OrderCompact, PositionsSmall, PositionsMedium, PositionsLarge, SheetCompact, WatchCompact, watchRows } from "./boards/BoardTiles";
 import { BattleSheet, useBattleSheet } from "./BattleSheet";
@@ -98,6 +98,7 @@ import { useDeskJudgment, useDeskJudgments } from "./mobile/MobileFeed";
 import { MobileHome, type HomeQuote, type WatchInfo } from "./mobile/MobileHome";
 import { quoteRows } from "./mobile/MobileQuotes";
 import { useMultiChartReads } from "./mobile/MobileMultiChart";
+import type { ResolvedCell } from "./mobile/mobileMarketPrefs";
 import { MobileStrategy, useMobileStrategies } from "./mobile/MobileStrategy";
 import { MobileStrategyEditor, useMobileStrategyEditor } from "./mobile/MobileStrategyEditor";
 import { StrategyStarts } from "./StrategyStarts";
@@ -724,22 +725,35 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   const boardsAvailable = gridAvailable;
   const boards = useBoards({ document: prefs.preferences.ui?.boards, connected: Boolean(connectedRuntimeUrl), update: updatePreferences });
   const boardScale = Number.parseInt(FONT_SCALE_OPTIONS.find(option => option.value === props.fontScale)?.percentage ?? "100", 10) / 100;
-  const boardsControl = useBoardsControl(boards, () => selectView("dashboard"), boardsAvailable && preferencesLoaded, connectedRuntimeUrl, boardScale);
-  const boardModules = view === "dashboard" ? leavesOf(boards.board.layout) : [];
-  // 色点联动 (owner 2026-11-05): a module whose colour is not 下单's follows a contract of its own on this board; its chart
-  // reads that contract's bars beside the app's own (the same reads the phone's 多图 uses).
+  // The contracts a chart block can pick and the AI may name: the pinned tabs, then the main contracts.
+  const boardContracts = useMemo(() => gridAuto.filter((symbol, index, list) => list.findIndex(other => sameContract(other, symbol)) === index)
+    .map(symbol => ({ symbol, name: contractLabel(symbol, props.instruments) })), [gridAuto, props.instruments]);
+  const boardsControl = useBoardsControl(boards, () => selectView("dashboard"), boardsAvailable && preferencesLoaded, connectedRuntimeUrl, boardScale, boardContracts);
+  const boardBlocks = view === "dashboard" ? leavesOf(boards.board.layout) : [];
+  const boardModules = boardBlocks.map(moduleOf);
+  // 色点联动 (owner 2026-11-05): a block whose colour is not 下单's follows a contract of its own on this board. 多块图表
+  // (owner 2026-11-06): a chart that is 不联动 shows the contract and period it picked; every chart not showing the app's own
+  // contract at its period reads its bars beside it (the same reads the phone's 多图 uses).
   const boardMain = mainLink(boards.board);
-  const boardLinkSymbol = (module: LinkModule): string | undefined => {
-    const color = linkOf(boards.board, module);
-    return color === boardMain ? undefined : boardsControl.linkSymbol(color);
+  const boardLinkSymbol = (block: BoardBlock): string | undefined => {
+    const color = linkOf(boards.board, block);
+    return color === boardMain || color === "none" ? undefined : boardsControl.linkSymbol(color);
   };
-  const boardChartSymbol = boardModules.includes("chart") ? boardLinkSymbol("chart") : undefined;
-  const boardChartCells = useMemo(() => boardChartSymbol ? [{ index: 0, symbol: boardChartSymbol, duration: props.duration, auto: false }] : [],
-    [boardChartSymbol, props.duration]);
-  const boardChartReads = useMultiChartReads(connectedRuntimeUrl, boardChartCells, view === "dashboard" && Boolean(boardChartSymbol), NO_OWN_CHART);
-  const followBoardLink = (module: LinkModule, symbol: string) => {
-    const color = linkOf(boards.board, module);
-    if (color === boardMain) selectContract(symbol); else boardsControl.followLink(color, symbol);
+  const boardChartOf = (block: BoardBlock) => {
+    const choice = boards.board.charts[block] ?? {};
+    const own = linkOf(boards.board, block) === "none";
+    return { symbol: (own ? choice.symbol : boardLinkSymbol(block)) ?? quote?.symbol, duration: (choice.duration ?? props.duration) as typeof props.duration };
+  };
+  const boardChartPlans = boardBlocks.filter(block => moduleOf(block) === "chart").map(block => ({ block, ...boardChartOf(block) }));
+  // The first chart on the app's own contract and period is the trade view's chart itself (with its 画线 and market bar).
+  const boardStageChart = boardChartPlans.find(plan => plan.symbol !== undefined && sameContract(plan.symbol, quote?.symbol) && plan.duration === props.duration)?.block;
+  const boardChartKey = JSON.stringify(boardChartPlans.filter(plan => plan.symbol && !(sameContract(plan.symbol, quote?.symbol) && plan.duration === props.duration))
+    .map((plan, index) => ({ index, symbol: plan.symbol!, duration: plan.duration, auto: false })));
+  const boardChartCells = useMemo(() => JSON.parse(boardChartKey) as ResolvedCell[], [boardChartKey]);
+  const boardChartReads = useMultiChartReads(connectedRuntimeUrl, boardChartCells, view === "dashboard" && boardChartCells.length > 0, NO_OWN_CHART);
+  const followBoardLink = (block: BoardBlock, symbol: string) => {
+    const color = linkOf(boards.board, block);
+    if (color === boardMain || color === "none") selectContract(symbol); else boardsControl.followLink(color as LinkColor, symbol);
   };
   const dashboardWatch = boardModules.includes("watch");
   // 看板 · 作战表 小 / 中: the same rows as the 调研 panel's tab (pushed, assembled here); the large size is the tab itself.
@@ -1708,7 +1722,8 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     onReminder={mobile || props.guest ? undefined : playbook => openReminderEditor({ new: true, reminder: true,
       ...(playbook ? { ask: `按我的交易笔记「${playbook.name}」设提醒：${playbook.entryRules.trim() || playbook.name}`.slice(0, 500) } : {}) })} /> : null;
   // 看板 (2026-11-05): one module at one size. Small and medium are their own layouts; the large ones are the panels.
-  const renderBoardTile = (module: BoardModule, size: BoardSize): ReactNode => {
+  const renderBoardTile = (block: BoardBlock, size: BoardSize): ReactNode => {
+    const module = moduleOf(block);
     const compact = size === "small" || size === "medium";
     if (module === "positions") {
       const positions = props.account?.positions ?? [];
@@ -1720,9 +1735,9 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     }
     if (module === "sheet") {
       const openSheet = () => { setNewsTab("sheet"); setRightDock("news"); };
-      const own = boardLinkSymbol("sheet");
+      const own = boardLinkSymbol(block);
       const openRow = (symbol: string) => {
-        if (linkOf(boards.board, "sheet") !== boardMain) { followBoardLink("sheet", symbol); return; }
+        if (linkOf(boards.board, block) !== boardMain) { followBoardLink(block, symbol); return; }
         selectContract(symbol); setNewsTab("desk"); setRightDock("news");
       };
       const sheetSymbol = own ?? quote?.symbol;
@@ -1750,8 +1765,8 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     }
     if (module === "watch") {
       const openBoard = (exchange: BoardExchange = "watchlist") => { setBoardExchange(exchange); selectView("board"); };
-      const watchSelected = boardLinkSymbol("watch") ?? props.selectedSymbol;
-      const pickWatch = (symbol: string) => followBoardLink("watch", symbol);
+      const watchSelected = boardLinkSymbol(block) ?? props.selectedSymbol;
+      const pickWatch = (symbol: string) => followBoardLink(block, symbol);
       if (compact) return <WatchCompact rows={watchRows(board.snapshot?.rows, watchlist)} selectedSymbol={watchSelected} onSelect={pickWatch}
         onOpen={() => openBoard()} medium={size === "medium"} emptyText={watchlist.length ? board.error || "正在读取报价…" : "还没有自选：在报价总表里点星标加"} />;
       return <MarketBoard snapshot={board.snapshot} foreign={foreignBoard} error={board.error} query={boardQuery} onQueryChange={setBoardQuery}
@@ -1759,13 +1774,17 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
         columns={boardColumns} availableExchanges={boardExchanges} selectedSymbol={watchSelected} onSelect={pickWatch}
         watchlist={watchlist} productNames={boardProductNames} onToggleWatchlist={watchlistChange} watchlistStatus={watchlistStatus || undefined} />;
     }
-    if (module === "chart" && boardChartSymbol && !sameContract(boardChartSymbol, quote?.symbol)) {
-      // A chart on a colour of its own: its contract's bars, at the small or a passive chart size (the trade view's own chart
-      // stays with the app's contract); opening it makes that contract the app's.
-      const read = boardChartReads.get(`${boardChartSymbol.toUpperCase()}@${props.duration}`);
-      if (!read?.market) return <p className="board-empty" role="status">{read?.error || `正在读${contractLabel(boardChartSymbol, props.instruments)}的行情…`}</p>;
+    const chartPlan = module === "chart" ? boardChartOf(block) : undefined;
+    // Only one block can be the trade view's own chart; every other chart is a passive one.
+    if (chartPlan?.symbol && block !== boardStageChart) {
+      // A chart on a contract or period of its own: its bars, at the small or a passive chart size (the trade view's own chart
+      // stays with the app's contract); opening it makes that contract and period the app's.
+      const { symbol: chartSymbol, duration: chartDuration } = chartPlan;
+      const read = sameContract(chartSymbol, quote?.symbol) && chartDuration === props.duration ? { market }
+        : boardChartReads.get(`${chartSymbol.toUpperCase()}@${chartDuration}`);
+      if (!read?.market) return <p className="board-empty" role="status">{read && "error" in read && read.error ? read.error : `正在读${contractLabel(chartSymbol, props.instruments)}的行情…`}</p>;
       const linkedName = contractLabel(read.market.quote.symbol, props.instruments);
-      const openLinked = () => { selectContract(boardChartSymbol); selectView("trade"); };
+      const openLinked = () => { selectContract(chartSymbol); selectDuration(chartDuration); selectView("trade"); };
       if (size === "small") return <ChartSmall market={read.market} name={linkedName} onOpen={openLinked} />;
       return <ChartMedium market={read.market} name={linkedName} onOpen={openLinked}
         chart={{ settings: chartSettings, onSettingsChange: setChartSettings, preferences: chartPreferences, resolvedTheme, timeZone: "Asia/Shanghai" }} />;
@@ -1833,7 +1852,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
               {!market || view === "board" || view === "dashboard" ? null : marketCommand()}
 
               <section ref={coreRef} className={`fdw-market-core ${view} ${view === "review" ? "side-open" : "side-closed"}`}>
-                {view === "dashboard" ? <BoardsView control={boardsControl} renderTile={renderBoardTile} scale={boardScale} />
+                {view === "dashboard" ? <BoardsView control={boardsControl} renderTile={renderBoardTile} scale={boardScale} contracts={boardContracts} />
                 : view === "board" ? <MarketBoard snapshot={board.snapshot} foreign={foreignBoard} error={board.error} query={boardQuery} onQueryChange={setBoardQuery}
                   exchange={boardExchange} onExchangeChange={setBoardExchange} sort={boardSort} onSortChange={setBoardSort}
                   columns={boardColumns} onColumnsChange={boardColumnsChange} columnsStatus={prefs.status}

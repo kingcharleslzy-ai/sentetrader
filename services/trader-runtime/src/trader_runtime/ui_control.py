@@ -19,9 +19,10 @@ from .instruments import PRODUCT_KEY_PATTERN, SYMBOL_PATTERN, foreign_display_na
 from .ui_captures import ONLINE_SECONDS, CaptureReceipt, CaptureRequest, register_ui_captures
 from .ui_surfaces import surface_aliases, surface_ids, surface_labels, surfaces_with
 from .user_preferences import (
+    BOARD_BLOCK,
+    BOARD_CHART_DURATIONS,
     BOARD_ID,
     BOARD_LINK_COLORS,
-    BOARD_LINK_MODULES,
     BOARD_MODULES,
     CATEGORIES,
     DESKTOP_CHART_CELLS,
@@ -36,7 +37,9 @@ from .user_preferences import (
     SUBPANE_TYPES,
     WORKSPACE_LAYOUT_ID,
     Board,
+    BoardChart,
     UserPreferences,
+    board_module,
     merge_preferences,
     preference_change_to_patch,
     preference_value,
@@ -424,33 +427,44 @@ BOARD_SIDES = Literal["left", "right", "top", "bottom"]
 class BoardPlace(BaseModel):
     model_config = ConfigDict(extra="forbid")
     module: BOARD_MODULES
-    target: BOARD_MODULES | None = None
+    block: BOARD_BLOCK | None = None
+    target: BOARD_BLOCK | None = None
     side: BOARD_SIDES | None = None
     ratio: float | None = Field(default=None, ge=0.1, le=0.9)
+    symbol: str | None = Field(default=None, pattern=SYMBOL_PATTERN)
+    duration: BOARD_CHART_DURATIONS | None = None
 
 
 class BoardReplace(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
-    module: BOARD_MODULES
+    module: BOARD_BLOCK
     with_: BOARD_MODULES = Field(alias="with")
 
 
 class BoardRatio(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    module: BOARD_MODULES
+    module: BOARD_BLOCK
     value: float = Field(ge=0.05, le=0.95)
 
 
 class BoardLock(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    module: BOARD_MODULES
+    module: BOARD_BLOCK
     size: Literal["auto", "small", "medium"]
 
 
 class BoardLink(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    module: BOARD_LINK_MODULES
-    color: BOARD_LINK_COLORS
+    module: BOARD_BLOCK
+    color: BOARD_LINK_COLORS | Literal["none"]
+
+
+class BoardChartChange(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    block: BOARD_BLOCK
+    # null: back to the app's own contract / period.
+    symbol: str | None = Field(default=None, pattern=SYMBOL_PATTERN)
+    duration: BOARD_CHART_DURATIONS | None = None
 
 
 class BoardLinkSymbol(BaseModel):
@@ -463,13 +477,15 @@ class BoardPreview(BaseModel):
     model_config = ConfigDict(extra="forbid")
     # The split tree as the account preference stores it (checked against that model below; kept loose here so the
     # UI command schema stays one schema for reading and writing).
-    layout: dict[str, Any] | BOARD_MODULES
-    locks: dict[BOARD_MODULES, Literal["small", "medium"]] = Field(default_factory=dict)
+    layout: dict[str, Any] | str
+    locks: dict[BOARD_BLOCK, Literal["small", "medium"]] = Field(default_factory=dict)
+    charts: dict[BOARD_BLOCK, BoardChart] = Field(default_factory=dict)
     note: str = Field(default="", max_length=60)
 
     @model_validator(mode="after")
     def board_tree(self):
-        Board.model_validate({"id": "preview", "name": "预览", "layout": self.layout})
+        Board.model_validate({"id": "preview", "name": "预览", "layout": self.layout,
+                              "charts": {block: chart.model_dump(exclude_none=True) for block, chart in self.charts.items()}})
         return self
 
 
@@ -481,17 +497,20 @@ class BoardRename(BaseModel):
 
 class BoardsChange(BaseModel):
     """看板 · 铺满版 (2026-11-05), one key per command: select 切到一个看板（并打开看板）, create 新建一个空白看板并切过去,
-    rename {id, name}, remove 删除一个看板（删当前的切到第一个）, place {module, target?, side?, ratio?} 把模块放到
-    target 那一块的 side 边（left / right / top / bottom，默认 right），占那一块的 ratio（0.1–0.9，默认 0.5）；不给
-    target 就放在整块看板的 side 边、占三分之一；已在看板上的模块挪过去, replace {module, with} 那一块换成另一个模块,
-    take 拿掉一个模块（旁边的补满）, ratio {module, value} 拖分隔线：那一块占它所在那一层的 value（0.05–0.95）,
+    rename {id, name}, remove 删除一个看板（删当前的切到第一个）, place {module, block?, target?, side?, ratio?, symbol?,
+    duration?} 把模块放到 target 那一块的 side 边（left / right / top / bottom，默认 right），占那一块的 ratio（0.1–0.9，
+    默认 0.5）；不给 target 就放在整块看板的 side 边、占三分之一；已在看板上的那一块挪过去。块的名字就是模块名，图表可以放
+    多块（chart、chart-2 … chart-9）：module chart 不给 block 且已有图表时再放一块，给 block 就是挪那一块；图表可同时给
+    symbol、duration（它自己的合约和周期，再放的图表默认不联动、用自己的合约）, chart {block, symbol?, duration?} 给某一块
+    图表设自己的合约 / 周期（null 回到顶栏的）, replace {module: 块, with: 模块} 那一块换成另一个模块,
+    take <块> 拿掉一块（旁边的补满）, ratio {module: 块, value} 拖分隔线：那一块占它所在那一层的 value（0.05–0.95）,
     lock {module, size: auto / small / medium} 档位跟着地方大小自动选或锁小 / 锁中, editing 进入（并打开看板）/ 退出编辑,
-    undo 撤销这次编辑里最近一步, link {module, color} 联动色（chart / order / watch / sheet 各一个颜色 blue / purple / orange，
-    同色的跟同一个合约；下单所在的颜色跟着顶栏的当前合约）, linkSymbol {color, symbol} 让另一个颜色的那几块换到某个合约,
+    undo 撤销这次编辑里最近一步, link {module: 块, color} 联动色（图表 / 下单 / 自选 / 作战表的块各一个颜色 blue / purple /
+    orange，图表还可以 none 不联动；同色的跟同一个合约；下单所在的颜色跟着顶栏的当前合约）, linkSymbol {color, symbol} 让另一个颜色的那几块换到某个合约,
     preview {layout, locks?, note?} 编辑时先把一套摆法摆出来给用户看（不保存）, adopt 用这套（存下，可撤销）, discard 不用,
     ask <一句话> 让 AI 帮我摆（编辑时；AI 只给摆法，结果是 preview）. Modules chart / positions / order / watch / sheet（作战表）/ alert（提醒）/ chat（对话）,
-    each at most once per board. The list is the account preference ui.boards; state.boards carries editing, the 模块库
-    and each block's size, lock and share."""
+    each at most once per board except 图表 (up to nine). The list is the account preference ui.boards; state.boards carries
+    editing, the 模块库 and each block's size, lock, share, colour and (charts) contract and period."""
     model_config = ConfigDict(extra="forbid")
     select: str | None = Field(default=None, pattern=BOARD_ID)
     create: str | None = Field(default=None, min_length=1, max_length=12)
@@ -499,10 +518,11 @@ class BoardsChange(BaseModel):
     remove: str | None = Field(default=None, pattern=BOARD_ID)
     place: BoardPlace | None = None
     replace: BoardReplace | None = None
-    take: BOARD_MODULES | None = None
+    take: BOARD_BLOCK | None = None
     ratio: BoardRatio | None = None
     lock: BoardLock | None = None
     link: BoardLink | None = None
+    chart: BoardChartChange | None = None
     linkSymbol: BoardLinkSymbol | None = None
     preview: BoardPreview | None = None
     adopt: Literal[True] | None = None
@@ -515,24 +535,28 @@ class BoardsChange(BaseModel):
     def one_key(self):
         given = [key for key in self.model_fields_set if getattr(self, key) is not None]
         if len(given) != 1 or len(self.model_fields_set) != 1:
-            raise ValueError("boards 一次只做一件：select / create / rename / remove / place / replace / take / ratio / lock / link / "
+            raise ValueError("boards 一次只做一件：select / create / rename / remove / place / replace / take / ratio / lock / link / chart / "
                              "linkSymbol / preview / adopt / discard / ask / editing / undo")
         return self
 
 
 class BoardTileState(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    block: BOARD_BLOCK
     module: BOARD_MODULES
     size: Literal["small", "medium", "large", "xlarge", "bar"] | None = None
     locked: Literal["small", "medium"] | None = None
     share: int = Field(ge=0, le=100)
-    link: BOARD_LINK_COLORS | None = None
+    link: BOARD_LINK_COLORS | Literal["none"] | None = None
+    # A chart's own contract and period (null: the app's own).
+    symbol: str | None = None
+    duration: int | None = None
 
 
 class BoardPreviewState(BaseModel):
     model_config = ConfigDict(extra="forbid")
     note: str = ""
-    modules: list[BOARD_MODULES] = Field(default_factory=list)
+    blocks: list[BOARD_BLOCK] = Field(default_factory=list)
 
 
 class BoardsState(BaseModel):
@@ -2138,11 +2162,12 @@ def _boards_matches(state, value) -> bool:
     if "take" in value:
         return value["take"] not in leaves
     if "replace" in value:
-        return value["replace"]["with"] in leaves and value["replace"]["module"] not in leaves
+        return value["replace"]["with"] in {board_module(leaf) for leaf in leaves} and value["replace"]["module"] not in leaves
     if "link" in value:
         links = current.get("links") if isinstance(current.get("links"), dict) else {}
         color = value["link"]["color"]
-        return links.get(value["link"]["module"], "blue") == color
+        block = value["link"]["module"]
+        return links.get(block, "none" if block.startswith("chart-") else "blue") == color
     if "adopt" in value:
         return boards_state is None or boards_state.get("preview") is None
     if "lock" in value:
@@ -2153,14 +2178,24 @@ def _boards_matches(state, value) -> bool:
         parent, index = _board_parent(layout, value["ratio"]["module"])
         shares = parent.get("splitPercentages") if parent else None
         return isinstance(shares, list) and index < len(shares) and abs(shares[index] - value["ratio"]["value"] * 100) <= 1
+    charts = current.get("charts") if isinstance(current.get("charts"), dict) else {}
+
+    def chart_holds(block, wanted) -> bool:
+        chart = charts.get(block) if isinstance(charts.get(block), dict) else {}
+        return all(chart.get(key) == wanted[key] for key in ("symbol", "duration") if key in wanted)
+
+    if "chart" in value:
+        return value["chart"]["block"] in leaves and chart_holds(value["chart"]["block"], value["chart"])
     place = value["place"]
-    if place["module"] not in leaves:
+    # 图表 without a block may have become a further chart: any block of the module that holds the given contract.
+    blocks = [place["block"]] if place.get("block") else [leaf for leaf in leaves if board_module(leaf) == place["module"]]
+    blocks = [block for block in blocks if block in leaves and chart_holds(block, place)]
+    if not blocks:
         return False
     target = place.get("target")
     if not target:
         return True
-    parent, _ = _board_parent(layout, place["module"])
-    return parent is not None and target in _board_leaves(parent)
+    return any((parent := _board_parent(layout, block)[0]) is not None and target in _board_leaves(parent) for block in blocks)
 
 
 def _desktop_charts_matches(state, value) -> bool:

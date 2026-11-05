@@ -4,43 +4,47 @@ import type { PreferencesDocument } from "../../userPreferences";
 
 /**
  * 看板 · 铺满版 (owner 2026-11-05, “按新稿做”): the canvas is always filled. A board is a split tree (react-mosaic's
- * n-ary tree: a leaf is a module, a split shares its room among its children by percentages), so what is stored are
+ * n-ary tree: a leaf is a block, a split shares its room among its children by percentages), so what is stored are
  * proportions, never pixels — any window shows the whole board. Each block picks its size from the room it measures
  * (小 / 中 / 大, the chart also 加大); a block can be locked to 小 or 中. The boards live in the account preference
  * `ui.boards` (mirrors the Runtime's BoardsPreferences): 盘前 / 盘中 / 复盘 first, then the user's own; `current` is the one
- * shown. 色点联动 (PR 二): 图表 / 下单 / 自选 / 作战表 carry a colour dot; blocks of one colour follow one contract.
+ * shown. 色点联动: 图表 / 下单 / 自选 / 作战表 carry a colour dot; blocks of one colour follow one contract.
+ *
+ * A block is named after its module (`chart`, `order`…); 图表 may be placed several times (owner 2026-11-06, 大屏要放很多
+ * 行情): `chart`, then `chart-2` … `chart-9`, each with its own contract and period (`charts`) unless its colour says
+ * otherwise. Every other module stays one block per board.
  */
 export const BOARDS_MAX = 11;
 const NAME_MAX = 12;
+export const CHARTS_MAX = 9;
 
 export type BoardModule = "chart" | "positions" | "order" | "watch" | "sheet" | "alert" | "chat";
+/** A block on a board: its module's name, or `chart-2` … `chart-9` for the further charts. */
+export type BoardBlock = string;
 export type BoardSize = "small" | "medium" | "large" | "xlarge" | "bar";
 export type BoardLock = "small" | "medium";
-export type BoardNode = MosaicNode<BoardModule>;
+export type BoardNode = MosaicNode<BoardBlock>;
 /** The modules that show a contract and so carry a 联动 dot; 持仓 / 提醒 / 对话 cover every contract. */
 export type LinkModule = "chart" | "order" | "watch" | "sheet";
 // Not red or green: those are the market direction colours.
 export type LinkColor = "blue" | "purple" | "orange";
+/** A chart may also follow nothing but its own contract (不联动). */
+export type LinkSetting = LinkColor | "none";
 export const LINK_MODULES: readonly LinkModule[] = ["chart", "order", "watch", "sheet"];
 export const LINK_COLORS: { id: LinkColor; label: string }[] = [{ id: "blue", label: "蓝" }, { id: "purple", label: "紫" }, { id: "orange", label: "橙" }];
-export const isLinkModule = (module: BoardModule): module is LinkModule => (LINK_MODULES as readonly string[]).includes(module);
-export interface Board { id: string; name: string; layout: BoardNode | null; locks: Partial<Record<BoardModule, BoardLock>>;
-  /** 联动色 per module; a module not named here is blue. */
-  links: Partial<Record<LinkModule, LinkColor>> }
-export const linkOf = (board: Board, module: LinkModule): LinkColor => board.links[module] ?? "blue";
-/**
- * The colour that follows the app's own contract (the one 下单 trades, the chart tabs and the AI follow): 下单's, else
- * blue. Every other colour follows a contract of its own on this board.
- */
-export const mainLink = (board: Board): LinkColor => leavesOf(board.layout).includes("order") ? linkOf(board, "order") : "blue";
-/** An AI arrangement on screen before 用这套 (never saved until then). */
-export interface BoardPreview { layout: BoardNode; locks: Partial<Record<BoardModule, BoardLock>>; note: string }
+/** A chart block's own contract and period (absent: the app's own). */
+export interface ChartChoice { symbol?: string; duration?: number }
+export const CHART_DURATIONS = [60, 180, 300, 900, 1800, 3600, 86400, 604800] as const;
+export interface Board { id: string; name: string; layout: BoardNode | null; locks: Partial<Record<BoardBlock, BoardLock>>;
+  /** 联动色 per block; a block not named here is blue, except a further chart, which follows its own contract. */
+  links: Partial<Record<BoardBlock, LinkSetting>>;
+  charts: Partial<Record<BoardBlock, ChartChoice>> }
 export interface Boards { current: string; items: Board[] }
 export type BoardSide = "left" | "right" | "top" | "bottom";
 
 export const SIZE_LABELS: Record<BoardSize, string> = { small: "小", medium: "中", large: "大", xlarge: "加大", bar: "一条" };
-export const MODULES: { id: BoardModule; label: string; sizes: BoardSize[] }[] = [
-  { id: "chart", label: "图表", sizes: ["small", "medium", "large", "xlarge"] },
+export const MODULES: { id: BoardModule; label: string; sizes: BoardSize[]; many?: boolean }[] = [
+  { id: "chart", label: "图表", sizes: ["small", "medium", "large", "xlarge"], many: true },
   { id: "positions", label: "持仓", sizes: ["small", "medium", "large"] },
   { id: "order", label: "下单", sizes: ["small", "medium", "large"] },
   { id: "watch", label: "自选报价", sizes: ["small", "medium", "large"] },
@@ -51,7 +55,33 @@ export const MODULES: { id: BoardModule; label: string; sizes: BoardSize[] }[] =
   { id: "chat", label: "对话", sizes: ["bar", "medium", "large"] },
 ];
 const MODULE_IDS = new Set(MODULES.map(item => item.id));
+const CHART_BLOCK = /^chart-[2-9]$/;
+export const isBlock = (block: unknown): block is BoardBlock => typeof block === "string" && (MODULE_IDS.has(block as BoardModule) || CHART_BLOCK.test(block));
+/** The module a block shows. */
+export const moduleOf = (block: BoardBlock): BoardModule => (CHART_BLOCK.test(block) ? "chart" : block) as BoardModule;
 export const moduleInfo = (module: BoardModule) => MODULES.find(item => item.id === module)!;
+/** How a block is called on screen: 图表 2 for a further chart. */
+export const blockLabel = (block: BoardBlock) => CHART_BLOCK.test(block) ? `图表 ${block.slice(6)}` : moduleInfo(moduleOf(block))?.label ?? block;
+export const isLinkModule = (module: BoardModule): module is LinkModule => (LINK_MODULES as readonly string[]).includes(module);
+export const isLinkBlock = (block: BoardBlock) => isLinkModule(moduleOf(block));
+export const linkOf = (board: Board, block: BoardBlock): LinkSetting => board.links[block] ?? (CHART_BLOCK.test(block) ? "none" : "blue");
+/**
+ * The colour that follows the app's own contract (the one 下单 trades, the chart tabs and the AI follow): 下单's, else
+ * blue. Every other colour follows a contract of its own on this board.
+ */
+export const mainLink = (board: Board): LinkColor => {
+  const order = leavesOf(board.layout).includes("order") ? linkOf(board, "order") : "blue";
+  return order === "none" ? "blue" : order;
+};
+/** An AI arrangement on screen before 用这套 (never saved until then). */
+export interface BoardPreview { layout: BoardNode; locks: Partial<Record<BoardBlock, BoardLock>>; charts: Partial<Record<BoardBlock, ChartChoice>>; note: string }
+/** The block a new chart gets: `chart` while there is none, then the first free `chart-n`. */
+export function nextChartBlock(layout: BoardNode | null): BoardBlock | null {
+  const taken = new Set(leavesOf(layout));
+  if (!taken.has("chart")) return "chart";
+  for (let n = 2; n <= CHARTS_MAX; n += 1) if (!taken.has(`chart-${n}`)) return `chart-${n}`;
+  return null;
+}
 
 /**
  * The size a block of `w` × `h` CSS px shows (the design's thresholds at 100 % type; they grow half as fast as the
@@ -82,18 +112,17 @@ export const DEFAULT_LAYOUTS: Record<"pre" | "live" | "review", BoardNode> = {
 };
 const defaultLayout = (id: string): BoardNode | null => (DEFAULT_LAYOUTS as Record<string, BoardNode>)[id] ?? null;
 export const DEFAULT_BOARDS: Boards = { current: "live", items: [
-  { id: "pre", name: "盘前", layout: DEFAULT_LAYOUTS.pre, locks: {}, links: {} },
-  { id: "live", name: "盘中", layout: DEFAULT_LAYOUTS.live, locks: {}, links: {} },
-  { id: "review", name: "复盘", layout: DEFAULT_LAYOUTS.review, locks: {}, links: {} },
+  { id: "pre", name: "盘前", layout: DEFAULT_LAYOUTS.pre, locks: {}, links: {}, charts: {} },
+  { id: "live", name: "盘中", layout: DEFAULT_LAYOUTS.live, locks: {}, links: {}, charts: {} },
+  { id: "review", name: "复盘", layout: DEFAULT_LAYOUTS.review, locks: {}, links: {}, charts: {} },
 ] };
 
-/** A stored node as the screen can draw it: known modules once each, splits of two or more, percentages summing to 100. */
-function cleanNode(raw: unknown, seen: Set<BoardModule>): BoardNode | null {
+/** A stored node as the screen can draw it: known blocks once each, splits of two or more, percentages summing to 100. */
+function cleanNode(raw: unknown, seen: Set<BoardBlock>): BoardNode | null {
   if (typeof raw === "string") {
-    const module = raw as BoardModule;
-    if (!MODULE_IDS.has(module) || seen.has(module)) return null;
-    seen.add(module);
-    return module;
+    if (!isBlock(raw) || seen.has(raw)) return null;
+    seen.add(raw);
+    return raw;
   }
   if (!raw || typeof raw !== "object" || (raw as { type?: unknown }).type !== "split") return null;
   const node = raw as { direction?: unknown; children?: unknown; splitPercentages?: unknown };
@@ -111,6 +140,30 @@ function cleanNode(raw: unknown, seen: Set<BoardModule>): BoardNode | null {
   const shares = total > 0 && kept.every(item => item.share > 0) ? kept.map(item => item.share / total * 100) : kept.map(() => 100 / kept.length);
   return split(node.direction, kept.map(item => item.child), shares);
 }
+export const cleanLayout = (raw: unknown): BoardNode | null => cleanNode(raw, new Set());
+
+const SYMBOL = /^[A-Za-z0-9_.@-]{3,40}$/;
+/** The per-block settings of the blocks on the layout, as the screen can use them. */
+function cleanSettings(layout: BoardNode | null, raw: { locks?: unknown; links?: unknown; charts?: unknown }): Pick<Board, "locks" | "links" | "charts"> {
+  const blocks = new Set(leavesOf(layout));
+  const entries = (value: unknown) => Object.entries(value && typeof value === "object" ? value as Record<string, unknown> : {}).filter(([block]) => blocks.has(block));
+  const locks: Board["locks"] = {};
+  entries(raw.locks).forEach(([block, lock]) => { if (lock === "small" || lock === "medium") locks[block] = lock; });
+  const links: Board["links"] = {};
+  entries(raw.links).forEach(([block, color]) => {
+    if (isLinkBlock(block) && (LINK_COLORS.some(option => option.id === color) || (color === "none" && moduleOf(block) === "chart"))) links[block] = color as LinkSetting;
+  });
+  const charts: Board["charts"] = {};
+  entries(raw.charts).forEach(([block, choice]) => {
+    if (moduleOf(block) !== "chart" || !choice || typeof choice !== "object") return;
+    const { symbol, duration } = choice as ChartChoice;
+    const clean: ChartChoice = {};
+    if (typeof symbol === "string" && SYMBOL.test(symbol)) clean.symbol = symbol;
+    if ((CHART_DURATIONS as readonly number[]).includes(duration as number)) clean.duration = duration;
+    if (clean.symbol || clean.duration) charts[block] = clean;
+  });
+  return { locks, links, charts };
+}
 
 /**
  * A stored document as the screen can show it. A board from the grid version (2026-11-05 morning, `tiles` / `cols` /
@@ -120,54 +173,46 @@ export function normalizeBoards(raw: Partial<Boards> | undefined | null): Boards
   const items = (Array.isArray(raw?.items) ? raw.items : []).flatMap(item => {
     if (!item || typeof item.id !== "string" || typeof item.name !== "string") return [];
     const legacy = !("layout" in item) || "tiles" in item;
-    const layout = legacy ? defaultLayout(item.id) : cleanNode(item.layout, new Set());
-    const locks: Board["locks"] = {};
-    Object.entries(item.locks ?? {}).forEach(([module, lock]) => {
-      if (MODULE_IDS.has(module as BoardModule) && (lock === "small" || lock === "medium")) locks[module as BoardModule] = lock;
-    });
-    const links: Board["links"] = {};
-    Object.entries(item.links ?? {}).forEach(([module, color]) => {
-      if (isLinkModule(module as BoardModule) && LINK_COLORS.some(option => option.id === color)) links[module as LinkModule] = color as LinkColor;
-    });
-    return [{ id: item.id, name: item.name, layout, locks, links }];
+    const layout = legacy ? defaultLayout(item.id) : cleanLayout(item.layout);
+    return [{ id: item.id, name: item.name, layout, ...cleanSettings(layout, item) }];
   }).slice(0, BOARDS_MAX);
   if (!items.length) return DEFAULT_BOARDS;
   return { current: items.some(item => item.id === raw?.current) ? raw!.current! : items[0].id, items };
 }
 
-export const leavesOf = (layout: BoardNode | null): BoardModule[] => layout === null ? [] : getLeaves(layout);
-export function pathOf(layout: BoardNode | null, module: BoardModule, path: MosaicPath = []): MosaicPath | null {
+export const leavesOf = (layout: BoardNode | null): BoardBlock[] => layout === null ? [] : getLeaves(layout);
+export function pathOf(layout: BoardNode | null, block: BoardBlock, path: MosaicPath = []): MosaicPath | null {
   if (layout === null) return null;
-  if (layout === module) return path;
+  if (layout === block) return path;
   if (isSplitNode(layout)) {
     for (let index = 0; index < layout.children.length; index += 1) {
-      const found = pathOf(layout.children[index], module, [...path, index]);
+      const found = pathOf(layout.children[index], block, [...path, index]);
       if (found) return found;
     }
   }
   return null;
 }
 
-/** Split the node at `path` so `module` takes the `side` part with `share` % (the rest stays the node). */
-export function insertAt(layout: BoardNode | null, path: MosaicPath, side: BoardSide, module: BoardModule, share = 50): BoardNode {
-  if (layout === null) return module;
+/** Split the node at `path` so `block` takes the `side` part with `share` % (the rest stays the node). */
+export function insertAt(layout: BoardNode | null, path: MosaicPath, side: BoardSide, block: BoardBlock, share = 50): BoardNode {
+  if (layout === null) return block;
   const node = getNodeAtPath(layout, path);
   if (node === null) throw new Error("那一块已经不在看板上了");
   const first = side === "left" || side === "top";
   const s = Math.min(90, Math.max(10, share));
-  const next = split(side === "left" || side === "right" ? "row" : "column", first ? [module, node] : [node, module], first ? [s, 100 - s] : [100 - s, s]);
+  const next = split(side === "left" || side === "right" ? "row" : "column", first ? [block, node] : [node, block], first ? [s, 100 - s] : [100 - s, s]);
   return path.length ? updateTree(layout, [{ path, spec: { $set: next } }]) : next;
 }
 
-export function removeLeaf(layout: BoardNode | null, module: BoardModule): BoardNode | null {
-  const path = pathOf(layout, module);
+export function removeLeaf(layout: BoardNode | null, block: BoardBlock): BoardNode | null {
+  const path = pathOf(layout, block);
   if (layout === null || path === null) return layout;
   return path.length ? updateTree(layout, [createRemoveUpdate(layout, path)]) : null;
 }
 
-/** The share (%) of `module`'s block in the split that holds it, and that split's direction. */
-export function shareOf(layout: BoardNode | null, module: BoardModule): { share: number; direction: "row" | "column" } | null {
-  const path = pathOf(layout, module);
+/** The share (%) of `block` in the split that holds it, and that split's direction. */
+export function shareOf(layout: BoardNode | null, block: BoardBlock): { share: number; direction: "row" | "column" } | null {
+  const path = pathOf(layout, block);
   if (layout === null || !path?.length) return null;
   const parent = getNodeAtPath(layout, getParentPath(path));
   if (!parent || !isSplitNode(parent)) return null;
@@ -177,41 +222,63 @@ export function shareOf(layout: BoardNode | null, module: BoardModule): { share:
 
 export interface BoardsChange {
   select?: string; create?: string; rename?: { id: string; name: string }; remove?: string;
-  /** Put a module beside `target` on its `side` taking `ratio` (0.1–0.9) of that block; without a target beside the whole
-   *  board (a third). A module already on the board moves there. */
-  place?: { module: BoardModule; target?: BoardModule; side?: BoardSide; ratio?: number };
-  /** 换成别的模块: the block of `module` shows `with` instead. */
-  replace?: { module: BoardModule; with: BoardModule };
-  /** Take a module off; its neighbours fill the room. */
-  take?: BoardModule;
-  /** 拖分隔线: `module`'s block gets `value` (0.05–0.95) of the split holding it, the others share the rest. */
-  ratio?: { module: BoardModule; value: number };
+  /** Put a module beside the block `target` on its `side` taking `ratio` (0.1–0.9) of it; without a target beside the
+   *  whole board (a third). A block already on the board (`block`, else the module's own) moves there; 图表 without
+   *  `block` adds another chart once one is there. A chart may get its contract and period at once. */
+  place?: { module: BoardModule; block?: BoardBlock; target?: BoardBlock; side?: BoardSide; ratio?: number; symbol?: string; duration?: number };
+  /** 换成别的模块: the block `module` shows `with` instead. */
+  replace?: { module: BoardBlock; with: BoardModule };
+  /** Take a block off; its neighbours fill the room. */
+  take?: BoardBlock;
+  /** 拖分隔线: the block gets `value` (0.05–0.95) of the split holding it, the others share the rest. */
+  ratio?: { module: BoardBlock; value: number };
   /** 档位: auto (follow the room) or lock to 小 / 中. */
-  lock?: { module: BoardModule; size: "auto" | BoardLock };
+  lock?: { module: BoardBlock; size: "auto" | BoardLock };
   /** A whole new layout (a finished drag, resize or drop): what react-mosaic handed back. */
   layout?: BoardNode | null;
-  /** 联动色: the module follows the contract of that colour. */
-  link?: { module: LinkModule; color: LinkColor };
-  /** 用这套: an AI arrangement's layout and locks in one step. */
-  arrange?: { layout: BoardNode; locks: Partial<Record<BoardModule, BoardLock>> };
+  /** 联动色: the block follows the contract of that colour (a chart also 不联动, its own contract). */
+  link?: { module: BoardBlock; color: LinkSetting };
+  /** A chart block's own contract and period (null: back to the app's own). */
+  chart?: { block: BoardBlock; symbol?: string | null; duration?: number | null };
+  /** 用这套: an AI arrangement's layout, locks and charts in one step. */
+  arrange?: { layout: BoardNode; locks: Partial<Record<BoardBlock, BoardLock>>; charts?: Partial<Record<BoardBlock, ChartChoice>> };
 }
 
-const KEYS = ["select", "create", "rename", "remove", "place", "replace", "take", "ratio", "lock", "layout", "link", "arrange"] as const;
+const KEYS = ["select", "create", "rename", "remove", "place", "replace", "take", "ratio", "lock", "layout", "link", "chart", "arrange"] as const;
 
 /** What one change does to the list (pure; throws a readable refusal). */
 export function planBoardsChange(change: BoardsChange, boards: Boards): Boards {
   const keys = KEYS.filter(key => change[key] !== undefined);
-  if (keys.length !== 1) throw new Error("boards 一次只做一件：select / create / rename / remove / place / replace / take / ratio / lock / link");
+  if (keys.length !== 1) throw new Error("boards 一次只做一件：select / create / rename / remove / place / replace / take / ratio / lock / link / chart");
   const named = (name: string) => {
     const clean = name.trim();
     if (!clean || clean.length > NAME_MAX) throw new Error(`看板名 1–${NAME_MAX} 个字`);
     return clean;
   };
   const current = boards.items.find(item => item.id === boards.current) ?? boards.items[0];
-  const withCurrent = (patch: Partial<Board>) => ({ ...boards, items: boards.items.map(item => item.id === current.id ? { ...item, ...patch } : item) });
-  const label = (module: BoardModule) => moduleInfo(module)?.label ?? module;
+  // Settings follow the blocks: what a removed block had goes with it.
+  const withCurrent = (patch: Partial<Board>) => ({ ...boards, items: boards.items.map(item => {
+    if (item.id !== current.id) return item;
+    const next = { ...item, ...patch };
+    return { ...next, ...cleanSettings(next.layout, next) };
+  }) });
   const known = (module: BoardModule) => { if (!MODULE_IDS.has(module)) throw new Error(`没有“${module}”这个模块`); };
-  const onBoard = (module: BoardModule) => { if (!leavesOf(current.layout).includes(module)) throw new Error(`这个看板上没有${label(module)}`); };
+  const onBoard = (block: BoardBlock) => { if (!leavesOf(current.layout).includes(block)) throw new Error(`这个看板上没有${isBlock(block) ? blockLabel(block) : `“${block}”`}`); };
+  const chartChoice = (block: BoardBlock, symbol?: string | null, duration?: number | null) => {
+    const old = current.charts[block] ?? {};
+    const next: ChartChoice = { ...old };
+    if (symbol !== undefined) { if (symbol === null) delete next.symbol; else if (SYMBOL.test(symbol)) next.symbol = symbol; else throw new Error("合约代码不对，比如 SHFE.rb2601"); }
+    if (duration !== undefined) {
+      if (duration === null) delete next.duration;
+      else if ((CHART_DURATIONS as readonly number[]).includes(duration)) next.duration = duration;
+      else throw new Error("周期是 60 / 180 / 300 / 900 / 1800 / 3600 / 86400 / 604800 秒");
+    }
+    const charts = { ...current.charts };
+    if (next.symbol || next.duration) charts[block] = next; else delete charts[block];
+    return charts;
+  };
+  // Picking a chart's own contract makes it 不联动 unless it was given a colour on purpose.
+  const ownLink = (block: BoardBlock, symbol?: string | null) => symbol && current.links[block] === undefined ? { ...current.links, [block]: "none" as const } : current.links;
   if (change.select !== undefined) {
     if (!boards.items.some(item => item.id === change.select)) throw new Error("没有这个看板");
     return { ...boards, current: change.select };
@@ -221,7 +288,7 @@ export function planBoardsChange(change: BoardsChange, boards: Boards): Boards {
     if (boards.items.length >= BOARDS_MAX) throw new Error(`最多存 ${BOARDS_MAX} 个看板，先删一个`);
     if (boards.items.some(item => item.name === name)) throw new Error(`已经有叫“${name}”的看板`);
     const id = `b${Date.now().toString(36)}`;
-    return { current: id, items: [...boards.items, { id, name, layout: null, locks: {}, links: {} }] };
+    return { current: id, items: [...boards.items, { id, name, layout: null, locks: {}, links: {}, charts: {} }] };
   }
   if (change.rename !== undefined) {
     const { id } = change.rename;
@@ -236,44 +303,48 @@ export function planBoardsChange(change: BoardsChange, boards: Boards): Boards {
     const rest = boards.items.filter(item => item.id !== change.remove);
     return { current: boards.current === change.remove ? rest[0].id : boards.current, items: rest };
   }
-  if (change.layout !== undefined) return withCurrent({ layout: change.layout === null ? null : cleanNode(change.layout, new Set()) });
+  if (change.layout !== undefined) return withCurrent({ layout: change.layout === null ? null : cleanLayout(change.layout) });
   if (change.arrange !== undefined) {
-    const layout = cleanNode(change.arrange.layout, new Set());
-    const locks: Board["locks"] = {};
-    leavesOf(layout).forEach(module => { const lock = change.arrange!.locks[module]; if (lock === "small" || lock === "medium") locks[module] = lock; });
-    return withCurrent({ layout, locks });
+    const layout = cleanLayout(change.arrange.layout);
+    return withCurrent({ layout, locks: change.arrange.locks, links: {}, charts: change.arrange.charts ?? {} });
   }
   if (change.link !== undefined) {
-    const { module, color } = change.link;
-    if (!isLinkModule(module)) throw new Error(`${label(module)}不跟单个合约，没有联动色`);
-    if (!LINK_COLORS.some(option => option.id === color)) throw new Error("联动色是 blue / purple / orange");
-    const links = { ...current.links };
-    if (color === "blue") delete links[module]; else links[module] = color;
-    return withCurrent({ links });
+    const { module: block, color } = change.link;
+    onBoard(block);
+    if (!isLinkBlock(block)) throw new Error(`${blockLabel(block)}不跟单个合约，没有联动色`);
+    if (!(LINK_COLORS.some(option => option.id === color) || (color === "none" && moduleOf(block) === "chart"))) {
+      throw new Error(moduleOf(block) === "chart" ? "联动色是 blue / purple / orange，或 none 不联动" : "联动色是 blue / purple / orange");
+    }
+    return withCurrent({ links: { ...current.links, [block]: color } });
+  }
+  if (change.chart !== undefined) {
+    const { block, symbol, duration } = change.chart;
+    onBoard(block);
+    if (moduleOf(block) !== "chart") throw new Error(`${blockLabel(block)}不是图表`);
+    const links = symbol && linkOf(current, block) !== "none" ? { ...current.links, [block]: "none" as const } : current.links;
+    return withCurrent({ charts: chartChoice(block, symbol, duration), links });
   }
   if (change.take !== undefined) {
     onBoard(change.take);
-    const locks = { ...current.locks };
-    delete locks[change.take];
-    return withCurrent({ layout: removeLeaf(current.layout, change.take), locks });
+    return withCurrent({ layout: removeLeaf(current.layout, change.take) });
   }
   if (change.replace !== undefined) {
-    const { module, with: next } = change.replace;
+    const { module: block, with: next } = change.replace;
     known(next);
-    onBoard(module);
-    if (module === next) return boards;
-    if (leavesOf(current.layout).includes(next)) throw new Error(`${label(next)}已经在这个看板上了，拿掉它或换成别的`);
-    const path = pathOf(current.layout, module)!;
-    const layout = path.length ? updateTree(current.layout!, [{ path, spec: { $set: next } }]) : next;
-    const locks = { ...current.locks };
-    delete locks[module];
-    return withCurrent({ layout, locks });
+    onBoard(block);
+    if (moduleOf(block) === next) return boards;
+    const nextBlock = next === "chart" ? nextChartBlock(current.layout) : next;
+    if (!nextBlock) throw new Error(`一个看板最多放 ${CHARTS_MAX} 块图表`);
+    if (leavesOf(current.layout).includes(nextBlock)) throw new Error(`${moduleInfo(next).label}已经在这个看板上了，拿掉它或换成别的`);
+    const path = pathOf(current.layout, block)!;
+    const layout = path.length ? updateTree(current.layout!, [{ path, spec: { $set: nextBlock } }]) : nextBlock;
+    return withCurrent({ layout });
   }
   if (change.ratio !== undefined) {
-    const { module, value } = change.ratio;
-    onBoard(module);
-    const path = pathOf(current.layout, module)!;
-    if (!path.length) throw new Error(`${label(module)}占着整块看板，没有可调的分隔线`);
+    const { module: block, value } = change.ratio;
+    onBoard(block);
+    const path = pathOf(current.layout, block)!;
+    if (!path.length) throw new Error(`${blockLabel(block)}占着整块看板，没有可调的分隔线`);
     const parentPath = getParentPath(path);
     const parent = getNodeAtPath(current.layout!, parentPath);
     if (!parent || !isSplitNode(parent)) throw new Error("那一块已经不在看板上了");
@@ -286,25 +357,31 @@ export function planBoardsChange(change: BoardsChange, boards: Boards): Boards {
     return withCurrent({ layout: parentPath.length ? updateTree(current.layout!, [{ path: parentPath, spec: { $set: next } }]) : next });
   }
   if (change.lock !== undefined) {
-    const { module, size } = change.lock;
-    onBoard(module);
+    const { module: block, size } = change.lock;
+    onBoard(block);
     const locks = { ...current.locks };
-    if (size === "auto") delete locks[module]; else locks[module] = size;
+    if (size === "auto") delete locks[block]; else locks[block] = size;
     return withCurrent({ locks });
   }
   const place = change.place!;
   known(place.module);
-  if (place.target === place.module) throw new Error("不能放在它自己旁边");
+  const placed = leavesOf(current.layout);
+  let block: BoardBlock | null = place.block ?? place.module;
+  if (place.block !== undefined && (!isBlock(place.block) || moduleOf(place.block) !== place.module)) throw new Error(`“${place.block}”不是${moduleInfo(place.module).label}的一块`);
+  if (place.module === "chart" && place.block === undefined && placed.includes("chart")) block = nextChartBlock(current.layout);
+  if (!block) throw new Error(`一个看板最多放 ${CHARTS_MAX} 块图表`);
+  if ((place.symbol !== undefined || place.duration !== undefined) && place.module !== "chart") throw new Error("只有图表能设合约和周期");
+  if (place.target === block) throw new Error("不能放在它自己旁边");
   const ratio = place.ratio ?? (place.target ? 0.5 : 0.33);
   if (ratio < 0.1 || ratio > 0.9) throw new Error("ratio 在 0.1 到 0.9 之间");
-  const without = removeLeaf(current.layout, place.module);
+  const without = removeLeaf(current.layout, block);
+  const charts = place.module === "chart" && (place.symbol !== undefined || place.duration !== undefined) ? chartChoice(block, place.symbol, place.duration) : current.charts;
   if (place.target !== undefined) {
-    known(place.target);
     const path = pathOf(without, place.target);
-    if (path === null) throw new Error(`这个看板上没有${label(place.target)}，先放它，或放在别的模块旁边`);
-    return withCurrent({ layout: insertAt(without, path, place.side ?? "right", place.module, ratio * 100) });
+    if (path === null) throw new Error(`这个看板上没有${isBlock(place.target) ? blockLabel(place.target) : `“${place.target}”`}，先放它，或放在别的模块旁边`);
+    return withCurrent({ layout: insertAt(without, path, place.side ?? "right", block, ratio * 100), charts, links: ownLink(block, place.symbol) });
   }
-  return withCurrent({ layout: insertAt(without, [], place.side ?? "right", place.module, ratio * 100) });
+  return withCurrent({ layout: insertAt(without, [], place.side ?? "right", block, ratio * 100), charts, links: ownLink(block, place.symbol) });
 }
 
 export interface BoardsHandle {

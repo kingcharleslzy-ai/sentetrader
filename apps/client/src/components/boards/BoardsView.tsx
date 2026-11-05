@@ -8,8 +8,10 @@ import { useDisclosureSurface, useUiSurface } from "../../uiSurfaces";
 import { HelpTip } from "../Blocks";
 import { Presence } from "../motion";
 import { arrangeBoard } from "../../api";
-import { LINK_COLORS, LINK_MODULES, MODULES, SIZE_LABELS, insertAt, isLinkModule, leavesOf, linkOf, mainLink, moduleInfo, normalizeBoards, pickSize, removeLeaf, shareOf,
-  type Board, type BoardLock, type BoardModule, type BoardNode, type BoardPreview, type BoardSize, type BoardsChange, type BoardsHandle, type LinkColor } from "./boards";
+import { CHART_DURATIONS, LINK_COLORS, MODULES, SIZE_LABELS, blockLabel, insertAt, isLinkBlock, leavesOf, linkOf, mainLink, moduleInfo, moduleOf, nextChartBlock,
+  normalizeBoards, pickSize, removeLeaf, shareOf, type Board, type BoardBlock, type BoardLock, type BoardModule, type BoardNode, type BoardPreview, type BoardSize,
+  type BoardsChange, type BoardsHandle, type LinkColor, type LinkSetting } from "./boards";
+import { durationLabel } from "../mobile/mobileMarketPrefs";
 import "./BoardsView.css";
 
 /** External drags (the 模块库) must name the Mosaic they drop into. */
@@ -25,7 +27,13 @@ const MODULE_ICONS: Record<BoardModule, string> = {
 };
 const ModuleIcon = ({ module }: { module: BoardModule }) => <svg viewBox="0 0 24 24" aria-hidden="true"><path d={MODULE_ICONS[module]} /></svg>;
 
-type TileReport = { module: BoardModule; size: BoardSize; locked: boolean } | { module: BoardModule; gone: true };
+type TileReport = { block: BoardBlock; size: BoardSize; locked: boolean } | { block: BoardBlock; gone: true };
+/** A raw arrangement (the AI's, or a `boards: {preview}` command) as the screen can show it; null when nothing is left. */
+function previewOf(raw: { layout: unknown; locks?: unknown; charts?: unknown }, note: string): BoardPreview | null {
+  const board = normalizeBoards({ current: "x", items: [{ id: "x", name: "x", layout: raw.layout as BoardNode, locks: (raw.locks ?? {}) as Board["locks"], links: {},
+    charts: (raw.charts ?? {}) as Board["charts"] }] }).items[0];
+  return board.layout ? { layout: board.layout, locks: board.locks, charts: board.charts, note: note.slice(0, 60) } : null;
+}
 export interface BoardsControl {
   handle: BoardsHandle;
   editing: boolean;
@@ -39,7 +47,7 @@ export interface BoardsControl {
   notice: string;
   notify: (message: string) => void;
   /** The size each block on screen picked (from its room, or its lock). */
-  sizes: Partial<Record<BoardModule, BoardSize>>;
+  sizes: Partial<Record<BoardBlock, BoardSize>>;
   reportTile: (tile: TileReport) => void;
   /** 色点联动: the contract a colour other than the main one follows on this board (undefined: the app's own). */
   linkSymbol: (color: LinkColor) => string | undefined;
@@ -60,7 +68,9 @@ export interface BoardsControl {
  * The `boards` UI command and the snapshot's `state.boards` (editing, the 模块库, each block's size and share); the list
  * itself is the account preference ui.boards. Lives with the workspace so a command lands while another view is on screen.
  */
-export function useBoardsControl(handle: BoardsHandle, show: () => void, available: boolean, baseUrl: string | undefined, fontScale: number): BoardsControl {
+export function useBoardsControl(handle: BoardsHandle, show: () => void, available: boolean, baseUrl: string | undefined, fontScale: number,
+  /** The main contracts the AI may give a chart (it answers with one of these symbols). */
+  contracts: readonly { symbol: string; name: string }[]): BoardsControl {
   const [editing, setEditingState] = useState(false);
   const [links, setLinks] = useState<Record<string, string>>({});
   const [preview, setPreview] = useState<BoardPreview | null>(null);
@@ -68,7 +78,7 @@ export function useBoardsControl(handle: BoardsHandle, show: () => void, availab
   const [arranging, setArranging] = useState(false);
   const canvas = useRef({ w: 0, h: 0 });
   const [library, setLibraryState] = useState(false);
-  const [sizes, setSizes] = useState<Partial<Record<BoardModule, BoardSize>>>({});
+  const [sizes, setSizes] = useState<Partial<Record<BoardBlock, BoardSize>>>({});
   const { resetUndo } = handle;
   const setEditing = useCallback((value: boolean) => {
     setEditingState(value);
@@ -80,8 +90,8 @@ export function useBoardsControl(handle: BoardsHandle, show: () => void, availab
   const notify = useCallback((message: string) => setNotice(message), []);
   useEffect(() => { if (!notice) return; const timer = setTimeout(() => setNotice(""), 5000); return () => clearTimeout(timer); }, [notice]);
   const reportTile = useCallback((tile: TileReport) => setSizes(current => {
-    if ("gone" in tile) { if (!current[tile.module]) return current; const next = { ...current }; delete next[tile.module]; return next; }
-    return current[tile.module] === tile.size ? current : { ...current, [tile.module]: tile.size };
+    if ("gone" in tile) { if (!current[tile.block]) return current; const next = { ...current }; delete next[tile.block]; return next; }
+    return current[tile.block] === tile.size ? current : { ...current, [tile.block]: tile.size };
   }), []);
   const boardId = handle.board.id;
   const linkSymbol = useCallback((color: LinkColor) => links[`${boardId}:${color}`], [links, boardId]);
@@ -91,7 +101,7 @@ export function useBoardsControl(handle: BoardsHandle, show: () => void, availab
   const { apply } = handle;
   const adopt = useCallback(() => {
     if (!preview) throw new Error("没有 AI 摆好的方案");
-    apply({ arrange: { layout: preview.layout, locks: preview.locks } });
+    apply({ arrange: { layout: preview.layout, locks: preview.locks, charts: preview.charts } });
     setPreview(null);
   }, [apply, preview]);
   const discard = useCallback(() => setPreview(null), []);
@@ -103,12 +113,10 @@ export function useBoardsControl(handle: BoardsHandle, show: () => void, availab
     setArranging(true);
     try {
       const result = await arrangeBoard(baseUrl, { ask: text.slice(0, 200), current: handle.board.layout,
-        width: Math.round(canvas.current.w), height: Math.round(canvas.current.h), fontScale });
-      const layout = normalizeBoards({ current: "x", items: [{ id: "x", name: "x", layout: result.layout as BoardNode, locks: {}, links: {} }] }).items[0].layout;
-      if (!layout) throw new Error("AI 这次没摆出能用的方案，换个说法再试");
-      const locks: BoardPreview["locks"] = {};
-      leavesOf(layout).forEach(module => { const lock = result.locks?.[module]; if (lock === "small" || lock === "medium") locks[module] = lock; });
-      setPreview({ layout, locks, note: String(result.note ?? "").slice(0, 60) });
+        width: Math.round(canvas.current.w), height: Math.round(canvas.current.h), fontScale, contracts: contractList.current.slice(0, 120) });
+      const next = previewOf(result, String(result.note ?? ""));
+      if (!next) throw new Error("AI 这次没摆出能用的方案，换个说法再试");
+      setPreview(next);
       setAskingState(false);
     } catch (error) {
       const detail = (error as { detail?: { detail?: unknown } }).detail?.detail;
@@ -118,18 +126,21 @@ export function useBoardsControl(handle: BoardsHandle, show: () => void, availab
       setArranging(false);
     }
   }, [baseUrl, fontScale, handle.board.layout]);
+  const contractList = useRef(contracts);
+  contractList.current = contracts;
   const latest = useRef({ handle, show, setEditing, adopt, discard, ask, followLink });
   latest.current = { handle, show, setEditing, adopt, discard, ask, followLink };
-  const { layout, locks } = handle.board;
+  const { layout, locks, charts } = handle.board;
   const main = mainLink(handle.board);
-  const tiles = leavesOf(layout).map(module => ({ module, size: sizes[module] ?? null, locked: locks[module] ?? null,
-    share: shareOf(layout, module) === null ? 100 : Math.round(shareOf(layout, module)!.share),
-    link: isLinkModule(module) ? linkOf(handle.board, module) : null }));
+  const tiles = leavesOf(layout).map(block => ({ block, module: moduleOf(block), size: sizes[block] ?? null, locked: locks[block] ?? null,
+    share: shareOf(layout, block) === null ? 100 : Math.round(shareOf(layout, block)!.share),
+    link: isLinkBlock(block) ? linkOf(handle.board, block) : null,
+    ...(moduleOf(block) === "chart" ? { symbol: charts[block]?.symbol ?? null, duration: charts[block]?.duration ?? null } : {}) }));
   const groups = Object.fromEntries(LINK_COLORS.flatMap(({ id }) => id !== main && linkSymbol(id) ? [[id, linkSymbol(id)!]] : []));
-  const shownPreview = preview ? { note: preview.note, modules: leavesOf(preview.layout) } : null;
+  const shownPreview = preview ? { note: preview.note, blocks: leavesOf(preview.layout) } : null;
   useUiSurface("boards", { state: { editing, library: editing && library, tiles, main, groups, preview: shownPreview, arranging }, apply: value => {
     const change = value as BoardsChange & { editing?: boolean; undo?: boolean; linkSymbol?: { color: LinkColor; symbol: string };
-      preview?: { layout: BoardNode; locks?: BoardPreview["locks"]; note?: string }; adopt?: boolean; discard?: boolean; ask?: string };
+      preview?: { layout: BoardNode; locks?: BoardPreview["locks"]; charts?: BoardPreview["charts"]; note?: string }; adopt?: boolean; discard?: boolean; ask?: string };
     const { handle: boards, show: open, setEditing: edit } = latest.current;
     if (change.linkSymbol !== undefined) {
       const { color, symbol } = change.linkSymbol;
@@ -139,11 +150,9 @@ export function useBoardsControl(handle: BoardsHandle, show: () => void, availab
     }
     if (change.preview !== undefined) {
       if (!editing) throw new Error("先进入编辑（boards: {editing: true}）再给出方案");
-      const shown = normalizeBoards({ current: "x", items: [{ id: "x", name: "x", layout: change.preview.layout, locks: {}, links: {} }] }).items[0].layout;
-      if (!shown) throw new Error("这个方案里没有能放的模块");
-      const previewLocks: BoardPreview["locks"] = {};
-      leavesOf(shown).forEach(module => { const lock = change.preview!.locks?.[module]; if (lock === "small" || lock === "medium") previewLocks[module] = lock; });
-      setPreview({ layout: shown, locks: previewLocks, note: (change.preview.note ?? "").slice(0, 60) });
+      const next = previewOf(change.preview, change.preview.note ?? "");
+      if (!next) throw new Error("这个方案里没有能放的模块");
+      setPreview(next);
       return;
     }
     if (change.adopt) { latest.current.adopt(); return; }
@@ -247,10 +256,10 @@ export function BoardsMenu({ control, active, onError }: { control: BoardsContro
 }
 
 /** One block: measures the room it has and picks its size from it (or its lock). */
-function TileBody({ module, lock, link, scale, editing, reportTile, renderTile }: { module: BoardModule; lock?: BoardLock; scale: number; editing: boolean;
+function TileBody({ block, lock, link, scale, editing, reportTile, renderTile }: { block: BoardBlock; lock?: BoardLock; scale: number; editing: boolean;
   /** 色点联动: shown when the board uses more than one colour (while editing the dot is in the name bar). */
-  link?: LinkColor;
-  reportTile: (tile: TileReport) => void; renderTile: (module: BoardModule, size: BoardSize) => ReactNode }) {
+  link?: LinkSetting;
+  reportTile: (tile: TileReport) => void; renderTile: (block: BoardBlock, size: BoardSize) => ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
   useLayoutEffect(() => {
@@ -262,20 +271,20 @@ function TileBody({ module, lock, link, scale, editing, reportTile, renderTile }
     observer.observe(node);
     return () => observer.disconnect();
   }, []);
-  const size = box.w && box.h ? pickSize(module, box.w, box.h, scale, lock) : null;
-  useEffect(() => { if (size) reportTile({ module, size, locked: Boolean(lock) }); }, [reportTile, module, size, lock]);
-  useEffect(() => () => reportTile({ module, gone: true }), [reportTile, module]);
-  return <div ref={ref} className={`board-tile size-${size ?? "pending"}`} data-agent-target={`board-tile:${module}`} data-state={size ?? undefined}
-    role="group" aria-label={`${moduleInfo(module).label}${size ? ` · ${SIZE_LABELS[size]}` : ""}`}>
-    <div className="board-tile-content" inert={editing || undefined}>{size ? renderTile(module, size) : null}</div>
-    {link ? <span className="board-link-dot" data-link={link} role="img" aria-label={`联动：${LINK_COLORS.find(item => item.id === link)?.label}`} /> : null}
+  const size = box.w && box.h ? pickSize(moduleOf(block), box.w, box.h, scale, lock) : null;
+  useEffect(() => { if (size) reportTile({ block, size, locked: Boolean(lock) }); }, [reportTile, block, size, lock]);
+  useEffect(() => () => reportTile({ block, gone: true }), [reportTile, block]);
+  return <div ref={ref} className={`board-tile size-${size ?? "pending"}`} data-agent-target={`board-tile:${block}`} data-state={size ?? undefined}
+    role="group" aria-label={`${blockLabel(block)}${size ? ` · ${SIZE_LABELS[size]}` : ""}`}>
+    <div className="board-tile-content" inert={editing || undefined}>{size ? renderTile(block, size) : null}</div>
+    {link && link !== "none" ? <span className="board-link-dot" data-link={link} role="img" aria-label={`联动：${LINK_COLORS.find(item => item.id === link)?.label}`} /> : null}
   </div>;
 }
 
-/** The block's ⋯ menu: 换成别的模块 / 档位 / 再分一块 / 拿掉 (one at a time, a disclosure per block). */
-function TileMenu({ module, size, run, layout, locked, link }: { module: BoardModule; size: BoardSize | undefined; layout: BoardNode | null; locked?: BoardLock;
-  link?: LinkColor; run: (change: BoardsChange) => boolean }) {
-  const [open, setOpen] = useDisclosureSurface("board-tile-menu", { id: module });
+/** The block's ⋯ menu: 换成别的模块 / 档位 / 联动色 / 再分一块 / 拿掉 (one at a time, a disclosure per block). */
+function TileMenu({ block, size, run, layout, locked, link }: { block: BoardBlock; size: BoardSize | undefined; layout: BoardNode | null; locked?: BoardLock;
+  link?: LinkSetting; run: (change: BoardsChange) => boolean }) {
+  const [open, setOpen] = useDisclosureSurface("board-tile-menu", { id: block });
   const [split, setSplit] = useState<"right" | "bottom" | null>(null);
   const ref = useRef<HTMLSpanElement>(null);
   const [up, setUp] = useState(false);
@@ -288,30 +297,35 @@ function TileMenu({ module, size, run, layout, locked, link }: { module: BoardMo
     window.addEventListener("pointerdown", close);
     return () => window.removeEventListener("pointerdown", close);
   }, [open, setOpen]);
-  const label = moduleInfo(module).label;
-  const free = MODULES.filter(item => !leavesOf(layout).includes(item.id));
+  const label = blockLabel(block);
+  const module = moduleOf(block);
+  // 图表 can always come once more (up to nine); the others while they are not on the board.
+  const free = MODULES.filter(item => item.many ? nextChartBlock(layout) !== null : !leavesOf(layout).includes(item.id));
   const act = (change: BoardsChange) => { if (run(change)) setOpen(false); };
   return <span className="board-tile-menu" ref={ref} onMouseDown={event => event.stopPropagation()}>
     <button type="button" className="board-tile-menu-button" aria-label={`${label}的菜单`} aria-expanded={open} aria-haspopup="menu" onClick={() => setOpen(!open)}><MoreHorizontal /></button>
-    {open ? <div className={`fdw-tab-menu board-tile-menu-list${up ? " up" : ""}`} role="menu" aria-label={`${label}的菜单`} data-agent-target={`board-tile-menu:${module}`}>
+    {open ? <div className={`fdw-tab-menu board-tile-menu-list${up ? " up" : ""}`} role="menu" aria-label={`${label}的菜单`} data-agent-target={`board-tile-menu:${block}`}>
       {split ? <>
         <small className="board-menu-caption">{split === "right" ? "左右分：右边放" : "上下分：下边放"}</small>
-        {free.map(item => <div role="none" key={item.id}><button type="button" role="menuitem" onClick={() => act({ place: { module: item.id, target: module, side: split } })}>
-          {item.label}</button></div>)}
+        {free.map(item => <div role="none" key={item.id}><button type="button" role="menuitem" onClick={() => act({ place: { module: item.id, target: block, side: split } })}>
+          {item.many ? `再放一块${item.label}` : item.label}</button></div>)}
       </> : <>
-        {free.length ? <><small className="board-menu-caption">换成别的模块</small>
-          {free.map(item => <div role="none" key={item.id}><button type="button" role="menuitem" onClick={() => act({ replace: { module, with: item.id } })}>换成{item.label}</button></div>)}</> : null}
+        {free.some(item => item.id !== module) ? <><small className="board-menu-caption">换成别的模块</small>
+          {free.filter(item => item.id !== module).map(item => <div role="none" key={item.id}><button type="button" role="menuitem"
+            onClick={() => act({ replace: { module: block, with: item.id } })}>换成{item.label}</button></div>)}</> : null}
         <small className="board-menu-caption">档位{size ? ` · 现在${SIZE_LABELS[size]}` : ""}</small>
         <div className="board-segment" role="radiogroup" aria-label={`${label}的档位`}>
-          <button type="button" role="radio" aria-checked={!locked} onClick={() => act({ lock: { module, size: "auto" } })}>自动</button>
-          <button type="button" role="radio" aria-checked={locked === "small"} onClick={() => act({ lock: { module, size: "small" } })}>{module === "chat" ? "锁一条" : "锁小"}</button>
-          <button type="button" role="radio" aria-checked={locked === "medium"} onClick={() => act({ lock: { module, size: "medium" } })}>锁中</button>
+          <button type="button" role="radio" aria-checked={!locked} onClick={() => act({ lock: { module: block, size: "auto" } })}>自动</button>
+          <button type="button" role="radio" aria-checked={locked === "small"} onClick={() => act({ lock: { module: block, size: "small" } })}>{module === "chat" ? "锁一条" : "锁小"}</button>
+          <button type="button" role="radio" aria-checked={locked === "medium"} onClick={() => act({ lock: { module: block, size: "medium" } })}>锁中</button>
         </div>
-        {link && isLinkModule(module) ? <>
+        {link ? <>
           <small className="board-menu-caption">联动色（同色的跟同一个合约）</small>
           <div className="board-segment" role="radiogroup" aria-label={`${label}的联动色`}>
             {LINK_COLORS.map(item => <button key={item.id} type="button" role="radio" aria-checked={link === item.id} aria-label={`联动${item.label}色`}
-              onClick={() => act({ link: { module, color: item.id } })}><span className="board-link-dot inline" data-link={item.id} aria-hidden="true" />{item.label}</button>)}
+              onClick={() => act({ link: { module: block, color: item.id } })}><span className="board-link-dot inline" data-link={item.id} aria-hidden="true" />{item.label}</button>)}
+            {module === "chart" ? <button type="button" role="radio" aria-checked={link === "none"} aria-label="不联动"
+              onClick={() => act({ link: { module: block, color: "none" } })}>不联动</button> : null}
           </div>
         </> : null}
         {free.length ? <div className="board-menu-row">
@@ -319,27 +333,50 @@ function TileMenu({ module, size, run, layout, locked, link }: { module: BoardMo
           <button type="button" className="app-button" onClick={() => setSplit("bottom")}>上下分</button>
         </div> : null}
         <i className="board-menu-divider" aria-hidden="true" />
-        <div role="none"><button type="button" role="menuitem" className="board-danger" onClick={() => act({ take: module })}><Trash2 />拿掉（旁边的补满）</button></div>
+        <div role="none"><button type="button" role="menuitem" className="board-danger" onClick={() => act({ take: block })}><Trash2 />拿掉（旁边的补满）</button></div>
       </>}
     </div> : null}
   </span>;
 }
 
+/** A chart block's own contract and period, in its name bar (the 多图 cell's choice: 跟顶栏 = the app's own). */
+function ChartPick({ block, choice, link, contracts, run }: { block: BoardBlock; choice: { symbol?: string; duration?: number }; link?: LinkSetting;
+  contracts: readonly { symbol: string; name: string }[]; run: (change: BoardsChange) => boolean }) {
+  const label = blockLabel(block);
+  const own = link === "none";
+  const listed = contracts.some(item => item.symbol === choice.symbol);
+  return <span className="board-chart-pick" onMouseDown={event => event.stopPropagation()}>
+    {/* Picking a contract makes the chart 不联动; 跟联动色 / 跟顶栏 puts it back on its colour or the app's contract. */}
+    <select aria-label={`${label}的合约`} value={own ? choice.symbol ?? "" : ""}
+      onChange={event => run(event.target.value ? { chart: { block, symbol: event.target.value } } : own && block === "chart" ? { link: { module: block, color: "blue" } } : { chart: { block, symbol: null } })}>
+      <option value="">{own ? "跟顶栏合约" : "跟联动色"}</option>
+      {choice.symbol && !listed ? <option value={choice.symbol}>{choice.symbol}</option> : null}
+      {contracts.map(item => <option key={item.symbol} value={item.symbol}>{item.name}</option>)}
+    </select>
+    <select aria-label={`${label}的周期`} value={choice.duration ?? ""} onChange={event => run({ chart: { block, duration: event.target.value ? Number(event.target.value) : null } })}>
+      <option value="">跟顶栏周期</option>
+      {CHART_DURATIONS.map(duration => <option key={duration} value={duration}>{durationLabel(duration)}</option>)}
+    </select>
+  </span>;
+}
+
 /** Editing: the block's name bar (react-mosaic makes its native host the drag handle) — its size, share and ⋯ menu. */
-function TileBar({ module, size, layout, locked, link, run }: { module: BoardModule; size: BoardSize | undefined; locked?: BoardLock;
-  link?: LinkColor; layout: BoardNode | null; run: (change: BoardsChange) => boolean }) {
-  const share = shareOf(layout, module);
-  return <div className="board-tile-bar" title={`拖动${moduleInfo(module).label}，放到别的模块边上`}>
-    <GripVertical aria-hidden="true" />{link ? <span className="board-link-dot inline" data-link={link} role="img"
-      aria-label={`联动：${LINK_COLORS.find(item => item.id === link)?.label}`} /> : null}<strong>{moduleInfo(module).label}</strong>
+function TileBar({ block, size, layout, locked, link, chart, contracts, run }: { block: BoardBlock; size: BoardSize | undefined; locked?: BoardLock;
+  link?: LinkSetting; layout: BoardNode | null; chart?: { symbol?: string; duration?: number }; contracts: readonly { symbol: string; name: string }[];
+  run: (change: BoardsChange) => boolean }) {
+  const share = shareOf(layout, block);
+  return <div className="board-tile-bar" title={`拖动${blockLabel(block)}，放到别的模块边上`}>
+    <GripVertical aria-hidden="true" />{link && link !== "none" ? <span className="board-link-dot inline" data-link={link} role="img"
+      aria-label={`联动：${LINK_COLORS.find(item => item.id === link)?.label}`} /> : null}<strong>{blockLabel(block)}</strong>
     <small>{size ? `${SIZE_LABELS[size]}${locked ? " · 锁定" : ""}` : ""}{share ? ` · ${Math.round(share.share)}%` : ""}</small>
+    {chart ? <ChartPick block={block} choice={chart} link={link} contracts={contracts} run={run} /> : null}
     <span className="board-grow" />
-    <TileMenu module={module} size={size} layout={layout} locked={locked} link={link} run={run} />
+    <TileMenu block={block} size={size} layout={layout} locked={locked} link={link} run={run} />
   </div>;
 }
 
 /** A 模块库 entry: drag it onto a block's edge (the block shows where it lands), or click to put it on the right. */
-function LibraryItem({ module, placed, onDragging, onDrop, onClick }: { module: BoardModule; placed: boolean; onDragging: (dragging: boolean) => void;
+function LibraryItem({ module, placed, many, onDragging, onDrop, onClick }: { module: BoardModule; placed: boolean; many?: boolean; onDragging: (dragging: boolean) => void;
   onDrop: (module: BoardModule, drop: MosaicDropData) => void; onClick: () => void }) {
   const [, drag] = useDrag(() => ({
     type: MosaicDragType.WINDOW,
@@ -350,9 +387,9 @@ function LibraryItem({ module, placed, onDragging, onDrop, onClick }: { module: 
   }), [module, placed, onDragging, onDrop]);
   const info = moduleInfo(module);
   return <li><button type="button" ref={node => { drag(node); }} className="board-library-item" disabled={placed}
-    aria-label={placed ? `${info.label}已在看板上` : `把${info.label}放进看板`} onClick={onClick}>
+    aria-label={placed ? `${info.label}已在看板上` : many ? `再放一块${info.label}` : `把${info.label}放进看板`} onClick={onClick}>
     <span className="board-library-icon"><ModuleIcon module={module} /></span>
-    <span className="board-library-text"><strong>{info.label}</strong><small>{placed ? "已在看板上" : "拖到某一块的边上"}</small></span>
+    <span className="board-library-text"><strong>{info.label}</strong><small>{placed ? module === "chart" ? "已经放满九块" : "已在看板上" : many ? "再放一块：拖到某一块的边上" : "拖到某一块的边上"}</small></span>
     {placed ? null : <GripVertical aria-hidden="true" />}
   </button></li>;
 }
@@ -365,8 +402,11 @@ function Library({ control, layout, run }: { control: BoardsControl; layout: Boa
   const card = useRef<HTMLElement>(null);
   const placed = leavesOf(layout);
   const onDrop = useCallback((module: BoardModule, drop: MosaicDropData) => {
-    run({ layout: insertAt(removeLeaf(layout, module), drop.path ?? [], drop.position ?? "right", module, drop.path?.length ? 50 : 33) });
-  }, [layout, run]);
+    // 图表 dropped again is one more chart block; any other module moves if it is already there.
+    const block = module === "chart" && placed.includes("chart") ? nextChartBlock(layout) : module;
+    if (!block) return;
+    run({ layout: insertAt(removeLeaf(layout, block), drop.path ?? [], drop.position ?? "right", block, drop.path?.length ? 50 : 33) });
+  }, [layout, run, placed]);
   const move = (event: ReactPointerEvent<HTMLElement>) => {
     const node = card.current;
     if (!node || (event.target as HTMLElement).closest("button")) return;
@@ -385,7 +425,8 @@ function Library({ control, layout, run }: { control: BoardsControl; layout: Boa
       <span className="board-grow" />
       <button type="button" className="board-icon-button" aria-label="收起模块库" onClick={() => control.setLibrary(false)}><X /></button>
     </header>
-    <ul>{MODULES.map(item => <LibraryItem key={item.id} module={item.id} placed={placed.includes(item.id)} onDragging={setDragging} onDrop={onDrop}
+    <ul>{MODULES.map(item => <LibraryItem key={item.id} module={item.id} placed={item.many ? nextChartBlock(layout) === null : placed.includes(item.id)}
+      many={item.many && placed.includes(item.id)} onDragging={setDragging} onDrop={onDrop}
       onClick={() => { run({ place: { module: item.id } }); }} />)}</ul>
   </aside>;
 }
@@ -395,11 +436,13 @@ function Library({ control, layout, run }: { control: BoardsControl; layout: Boa
  * (react-mosaic). Viewing, a block is its module at the size its room allows; editing, each block has a name bar (drag
  * it to another block's edge, ⋯ for 换 / 档位 / 分 / 拿掉), the dividers drag, and ＋ 模块 opens the 模块库.
  */
-export function BoardsView({ control, renderTile, scale }: {
+export function BoardsView({ control, renderTile, scale, contracts }: {
   control: BoardsControl;
   /** The font preference's factor (标准 1, 大字 1.1, 特大 1.2): the size thresholds grow half as fast. */
   scale: number;
-  renderTile: (module: BoardModule, size: BoardSize) => ReactNode;
+  renderTile: (block: BoardBlock, size: BoardSize) => ReactNode;
+  /** What a chart block's name bar offers as its own contract. */
+  contracts: readonly { symbol: string; name: string }[];
 }) {
   const { handle, editing, notify, sizes, reportTile, preview } = control;
   const { board } = handle;
@@ -420,12 +463,13 @@ export function BoardsView({ control, renderTile, scale }: {
   // An AI arrangement is shown as it would be (its locks too), not editable, until 用这套 or 不用.
   const shown: Pick<Board, "layout" | "locks"> = preview ?? board;
   const shaping = editing && !preview;
-  const dotted = LINK_MODULES.filter(module => leavesOf(shown.layout).includes(module));
-  const showDots = editing || new Set(dotted.map(module => linkOf(board, module))).size > 1;
-  const tile = (module: BoardModule, path: MosaicPath) => <MosaicWindow<BoardModule> path={path} title={moduleInfo(module).label} draggable={shaping}
-    renderToolbar={() => <div className="board-tile-bar-host">{shaping ? <TileBar module={module} size={sizes[module]} locked={board.locks[module]}
-      link={isLinkModule(module) ? linkOf(board, module) : undefined} layout={board.layout} run={run} /> : null}</div>}>
-    <TileBody module={module} lock={shown.locks[module]} link={showDots && !shaping && isLinkModule(module) ? linkOf(board, module) : undefined}
+  const dotted = leavesOf(shown.layout).filter(isLinkBlock).map(block => linkOf(board, block)).filter(link => link !== "none");
+  const showDots = editing || new Set(dotted).size > 1;
+  const tile = (block: BoardBlock, path: MosaicPath) => <MosaicWindow<BoardBlock> path={path} title={blockLabel(block)} draggable={shaping}
+    renderToolbar={() => <div className="board-tile-bar-host">{shaping ? <TileBar block={block} size={sizes[block]} locked={board.locks[block]}
+      link={isLinkBlock(block) ? linkOf(board, block) : undefined} layout={board.layout} run={run} contracts={contracts}
+      chart={moduleOf(block) === "chart" ? board.charts[block] ?? {} : undefined} /> : null}</div>}>
+    <TileBody block={block} lock={shown.locks[block]} link={showDots && !shaping && isLinkBlock(block) ? linkOf(board, block) : undefined}
       scale={scale} editing={editing} reportTile={reportTile} renderTile={renderTile} />
   </MosaicWindow>;
   return <section className={`board-view${shaping ? " editing" : ""}${preview ? " previewing" : ""}`} aria-label={`看板 ${board.name}`} data-agent-target="board-view"
@@ -440,7 +484,7 @@ export function BoardsView({ control, renderTile, scale }: {
     <ArrangeCard control={control} />
     <DndProvider backend={HTML5Backend}>
       <div className="board-canvas" data-agent-target="board-canvas" ref={canvasRef}>
-        <MosaicWithoutDragDropContext<BoardModule> mosaicId={MOSAIC_ID} className="board-mosaic" value={shown.layout}
+        <MosaicWithoutDragDropContext<BoardBlock> mosaicId={MOSAIC_ID} className="board-mosaic" value={shown.layout}
           onChange={next => { if (!preview) handle.preview(next); }} onRelease={next => { if (!preview) run({ layout: next }); }}
           resize={shaping ? { minimumPaneSizePercentage: 8 } : "DISABLED"} renderTile={tile}
           zeroStateView={<p className="board-empty-prompt">{editing ? "这一套还空着：点顶栏“＋ 模块”，把模块拖进来，或“让 AI 帮我摆”" : "这一套还空着：点顶栏“看板”旁的箭头，选“编辑”放模块进来"}</p>} />

@@ -447,13 +447,30 @@ BOARD_MODULE_COUNT = len(get_args(BOARD_MODULES))
 # colour follows the app's own). Not red or green, the market direction colours.
 BOARD_LINK_MODULES = Literal["chart", "order", "watch", "sheet"]
 BOARD_LINK_COLORS = Literal["blue", "purple", "orange"]
+# 多块图表 (owner 2026-11-06): a block is named after its module; 图表 may be placed up to nine times — `chart`, then
+# `chart-2` … `chart-9`, each with its own contract and period (`charts`) unless its colour says otherwise (a further
+# chart is 不联动, `none`, until given a colour). Every other module stays one block per board.
+BOARD_BLOCK_PATTERN = r"^(chart|positions|order|watch|sheet|alert|chat|chart-[2-9])$"
+BOARD_BLOCK = Annotated[str, Field(pattern=BOARD_BLOCK_PATTERN)]
+BOARD_BLOCKS_MAX = BOARD_MODULE_COUNT + 8
+BOARD_CHART_DURATIONS = Literal[60, 180, 300, 900, 1800, 3600, 86400, 604800]
+
+
+def board_module(block: str) -> str:
+    return "chart" if block.startswith("chart") else block
+
+
+class BoardChart(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    symbol: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_.@-]{3,40}$")
+    duration: BOARD_CHART_DURATIONS | None = None
 
 
 class BoardSplit(BaseModel):
     model_config = ConfigDict(extra="forbid")
     type: Literal["split"]
     direction: Literal["row", "column"]
-    children: list[BoardNode] = Field(min_length=2, max_length=BOARD_MODULE_COUNT)
+    children: list[BoardNode] = Field(min_length=2, max_length=BOARD_BLOCKS_MAX)
     splitPercentages: list[float] | None = None
 
     @model_validator(mode="after")
@@ -466,7 +483,7 @@ class BoardSplit(BaseModel):
         return self
 
 
-BoardNode = BOARD_MODULES | BoardSplit
+BoardNode = BOARD_BLOCK | BoardSplit
 BoardSplit.model_rebuild()
 
 
@@ -495,8 +512,9 @@ class Board(BaseModel):
     id: str = Field(pattern=BOARD_ID)
     name: str = Field(min_length=1, max_length=12)
     layout: BoardNode | None = None
-    locks: dict[BOARD_MODULES, Literal["small", "medium"]] = Field(default_factory=dict)
-    links: dict[BOARD_LINK_MODULES, BOARD_LINK_COLORS] = Field(default_factory=dict)
+    locks: dict[BOARD_BLOCK, Literal["small", "medium"]] = Field(default_factory=dict)
+    links: dict[BOARD_BLOCK, BOARD_LINK_COLORS | Literal["none"]] = Field(default_factory=dict)
+    charts: dict[BOARD_BLOCK, BoardChart] = Field(default_factory=dict)
     # The grid version's fields: read (so a stored board still validates) and dropped from every write.
     cols: Any = Field(default=None, exclude=True)
     rows: Any = Field(default=None, exclude=True)
@@ -513,7 +531,14 @@ class Board(BaseModel):
     def once(self):
         leaves = _board_leaves(self.layout)
         if len(set(leaves)) != len(leaves):
-            raise ValueError("一个模块在一个看板上只放一次")
+            raise ValueError("一块在一个看板上只放一次")
+        for block, color in self.links.items():
+            if board_module(block) not in get_args(BOARD_LINK_MODULES):
+                raise ValueError(f"{block} 不跟单个合约，没有联动色")
+            if color == "none" and board_module(block) != "chart":
+                raise ValueError("只有图表能不联动")
+        if any(board_module(block) != "chart" for block in self.charts):
+            raise ValueError("只有图表能设自己的合约和周期")
         return self
 
 
