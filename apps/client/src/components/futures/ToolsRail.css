@@ -1,4 +1,4 @@
-/* Tools rail: 对话 | 策略 新闻 | 下单 持仓 … 下载 设置 (at the bottom). One panel open at a time;
+/* Tools rail: 对话 | 调研 策略 提醒 | 下单 持仓 … 下载 设置 (at the bottom). One panel open at a time;
    the sliding brand bar (RailIndicator) marks it. Grid placement follows the dock side. */
 .fdw-shell.dock-open[data-dock-side="right"] .fdw-tools-rail { grid-column: 4; }
 .fdw-shell.dock-closed[data-dock-side="right"] .fdw-tools-rail { grid-column: 2; }
@@ -13,6 +13,7 @@
 .fdw-tools-rail :is(button, a) svg { width: 18px; height: 18px; transition: transform var(--dur-2) var(--ease-out); }
 .fdw-tools-rail :is(button, a):hover svg { transform: translateY(-2px); }
 .fdw-tools-rail .fdw-rail-bottom { margin-top: auto; }
+.fdw-tools-rail .fdw-alert-badge { top: 4px; right: 8px; font-style: normal; }
 .fdw-rail-sep { flex: none; width: 24px; height: 1px; margin: var(--space-1) 0; background: var(--fdw-line); }
 .fdw-rail-indicator { position: absolute; z-index: 2; left: 0; top: 0; width: 2px; border-radius: var(--radius-sm); background: var(--brand-gradient); box-shadow: var(--shadow-2); pointer-events: none; transition: transform var(--dur-3) var(--ease-out), height var(--dur-2) ease, opacity var(--dur-1) ease; }
 

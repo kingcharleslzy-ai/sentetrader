@@ -92,7 +92,7 @@ export const COMMANDABLE: Rule[] = [
   // 统一提醒 (#932, 2026-10-15; 2026-10-25 the right rail's 提醒 panel): the chart toolbar's bell, the panel / the phone's 提醒
   // page with its three tabs and AI 首页's 最新提醒 (before the generic rules: 新建 / 全部已读 / 不用 mean the center's things there).
   { match: /^提醒记录（\d+ 条未读）$/, via: "reminderCenter: {open: true | false}（K 线工具条的铃铛：打开提醒面板的提醒记录页签，N 是未读数；快照 state.reminderCenter）" },
-  { match: /^(打开|收起)提醒面板$/, via: "panel: reminders / null（右侧栏“提醒”；页签 reminders: {tab}，快照 state.reminders）" },
+  { match: /^(打开|收起)提醒面板(（本合约 \d+ 条在等触发）)?$/, via: "panel: reminders / null（右侧栏“提醒”；页签 reminders: {tab}，快照 state.reminders）" },
   { match: /^关闭提醒面板$/, via: "panel: null" },
   { match: control => REMINDER_GROUPS.has(control.group ?? "") && control.role === "tab" && /^(我的提醒|通用提醒|提醒记录)$/.test(control.label),
     via: "reminders: {tab: mine | general | history}（快照 state.reminders.tab）" },
@@ -242,9 +242,7 @@ export const COMMANDABLE: Rule[] = [
   { match: control => control.group === "chart-layout" && /^(单图|左右 2 格|2×2 四格)$/.test(control.label), via: "desktopCharts: {layout: single | two | four}（快照 state.preferences.ui.desktopCharts）" },
   { match: control => control.group === "chart-layout" && control.label === "4 周期", via: "desktopCharts: {preset: periods}（同合约 4 周期）" },
   { match: control => control.group === "chart-sync" && /^同步(周期|品种|十字线)$/.test(control.label), via: "desktopCharts: {syncDuration | syncSymbol | syncCrosshair}" },
-  // 自由布局 (2026-11-02): the side dock's tabs and their closes, and the 布局 dropdown.
-  { match: control => control.role === "tab" && /^(对话|调研|策略|提醒|下单|持仓)$/.test(control.label), via: "panel: ai | news | strategy | reminders | order | positions（选中这一页签）；拖页签＝dock: {panel, to: tab | left | right | above | below, of}" },
-  { match: /^关闭(对话|调研|策略|提醒|下单|持仓)$/, via: "dock: {panel, to: close}（只关这一个面板）" },
+  // 自由布局 (2026-11-02): the 布局 dropdown.
   { match: /^布局：/, via: "disclosure: workspace-layouts（设置 → 界面 → 布局 的保存的布局下拉，先 settingsPage: ui；快照 state.preferences.ui.workspaceLayouts）" },
   { match: control => control.group === "workspace-layouts-menu" && /^改名：/.test(control.label), via: "workspaceLayout: {rename: {id, name}}" },
   { match: control => control.group === "workspace-layouts-menu" && /^删除布局：/.test(control.label), via: "workspaceLayout: {remove: id}" },
@@ -350,10 +348,8 @@ export const COMMANDABLE: Rule[] = [
   { match: control => ["ai-command-result", "mobile-ai-result"].includes(control.group ?? "") && /撤销$/.test(control.label),
     via: "DELETE /api/market/alerts/{alert_id} | DELETE /api/market/drawings/{drawing_id} | DELETE /api/strategy-plans/{identifier}（任务步骤 step.action.undo 写明的那个业务接口）" },
   { match: /^(看全文|在对话里看明细|在对话里确认|在对话里看全文|到对话里确认)$/, via: "panel: ai" },
-  // AI 正在盯 (改版第二步): the line under the chart only opens where each watched item is managed.
-  { match: control => control.group === "ai-watching" && /^持仓 · .+检查中$/.test(control.label), via: "reminders: {tab: general}" },
-  { match: control => control.group === "ai-watching" && /提醒中$/.test(control.label), via: "reminders: {tab: mine}" },
-  { match: control => control.group === "ai-watching" && /运行中$/.test(control.label), via: "strategyTab: running" },
+  // 持仓栏 (2026-11-05): the mark for the position checks that are on opens 通用提醒.
+  { match: /^持仓检查：.+$/, via: "reminders: {tab: general}" },
   // 说人话 (2026-09-25): each parameter's “?” note (结果页 · 来自模板的参数).
   { match: control => control.role === "button" && /是什么$/.test(control.label) && /^ai-strategy|strategy-template/.test(`${control.surface} ${control.group ?? ""}`),
     via: "disclosure: {name: strategy-param-help, id: 参数key}（参数旁的“?”说明）" },

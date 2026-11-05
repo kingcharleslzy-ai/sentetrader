@@ -3,6 +3,7 @@ import { ChevronDown } from "lucide-react";
 import { useDisclosureSurface } from "../../uiSurfaces";
 import { LAYOUTS_MAX, type WorkspaceLayoutChange, type WorkspaceLayoutsHandle } from "./workspaceLayouts";
 import { Presence } from "../motion";
+import "./LayoutMenu.css";
 
 /**
  * 自由布局 (2026-11-02; in 设置 → 界面 → 布局 since 2026-11-04): the saved layouts' dropdown (`disclosure: workspace-layouts`) —

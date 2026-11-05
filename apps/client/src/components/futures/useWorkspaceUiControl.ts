@@ -32,7 +32,6 @@ import type { NotifyFilter } from "../mobile/notifyItems";
 import type { InstallEnvironment } from "../mobile/installEnvironment";
 import type { MobileMarketChange } from "../mobile/mobileMarketPrefs";
 import type { DesktopChartsChange } from "./desktopCharts";
-import type { DockPanel, DockPlace } from "./SideDock";
 import type { WorkspaceLayoutChange } from "./workspaceLayouts";
 
 interface Input {
@@ -135,9 +134,6 @@ export interface WorkspaceSurfaces {
   setContractProduct: (product: string | null) => void;
   quickSkipConfirm: boolean;
   setQuickSkipConfirm: (value: boolean) => void;
-  /** 自由布局 (2026-11-02): the open side panels and dockview's groups (snapshot `dockPanels` / `dockGroups`) and
-   *  the `dock` command; absent on a phone. */
-  dock?: { panels: DockPanel[]; groups: DockPanel[][]; place: (panel: DockPanel, to: DockPlace, of?: DockPanel) => void; close: (panel: DockPanel) => void };
   /** 自由布局: the `workspaceLayout` command; absent where there are no layouts (phone, visitor, replay). */
   workspaceLayout?: (change: WorkspaceLayoutChange) => void;
   /** 电脑版多图 (2026-11-02): the `desktopCharts` command; absent where there is no grid (phone, visitor, replay). */
@@ -315,15 +311,6 @@ export function useWorkspaceUiControl({ workspace, connectedRuntimeUrl, market, 
     }
     if (changes.duration != null) selectDuration(changes.duration);
     if (changes.chartView != null) selectChartView(changes.chartView);
-    if (changes.dock != null) {
-      if (mobile || !surfaces.dock) throw new Error("这个窗口是手机布局，没有右侧面板");
-      const { panel, to, of } = changes.dock as { panel: DockPanel; to: DockPlace | "close"; of?: DockPanel | null };
-      if (to === "close") surfaces.dock.close(panel);
-      else if (!surfaces.dock.panels.length) {
-        if (of) throw new Error(`右侧没有打开的面板，先打开${of}`);
-        setRightDock(panel);
-      } else surfaces.dock.place(panel, to, of ?? undefined);
-    }
     if (changes.workspaceLayout != null) {
       if (!surfaces.workspaceLayout) throw new Error(mobile ? "这个窗口是手机布局，没有保存的布局" : workspace.guest ? "登录后才能保存布局" : "回放里不能切布局");
       surfaces.workspaceLayout(changes.workspaceLayout as WorkspaceLayoutChange);
@@ -547,8 +534,6 @@ export function useWorkspaceUiControl({ workspace, connectedRuntimeUrl, market, 
     }
     // 侧栏重设计第三期 (2026-09-25): the open 上线 dialog's fields, and a running card's 执行方式.
     if (changes.strategyLaunch != null) registry("strategyLaunch")(changes.strategyLaunch);
-    // 自由布局 (2026-11-02): the strategy panel can stay mounted as a background dock tab, so these commands always
-    // bring it to the front; only the inner tab switch waits on the surface being absent.
     // 规则回测 (2026-09-25): the result card on the selected strategy's 详情; opens it first.
     if (changes.strategyBacktest != null) {
       setView("trade"); setRightDock("strategy");
@@ -661,7 +646,6 @@ export function useWorkspaceUiControl({ workspace, connectedRuntimeUrl, market, 
   const state: UiState = {
     ...(registered.remoteSettings ? { remoteSettings: registered.remoteSettings as Record<string, unknown> } : {}),
     symbol: workspace.selectedSymbol ?? null, duration: workspace.duration, view, panel: rightDock,
-    ...(surfaces.dock ? { dockPanels: surfaces.dock.panels, dockGroups: surfaces.dock.groups } : {}),
     // 分时图: the chart view next to its data period, like `duration` itself (an older Runtime
     // that predates the field rejects the heartbeat — the client ships with its Runtime).
     chartView,

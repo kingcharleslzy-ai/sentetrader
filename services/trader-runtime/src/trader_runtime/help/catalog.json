@@ -370,19 +370,17 @@
       ]
     },
     "workspace-layouts": {
-      "title": "自由布局：右侧并排开几个面板，几套摆法存在设置里",
+      "title": "自由布局：右侧一次开一个面板，几套摆法存在设置里",
       "group": "market",
       "skill": "chart-analysis",
       "words": [
         "布局",
-        "并排",
         "盘前布局",
         "保存布局"
       ],
-      "summary": "右侧可以同时开几个面板，拖页签并排；摆好的样子自动记住，想存几套在 设置 → 界面 → 布局 里切换。",
+      "summary": "右侧一次开一个面板；开着哪个面板、多图怎么排会自动记住，想存几套在 设置 → 界面 → 布局 里切换。",
       "steps": [
-        "右侧再开一个面板，它成为同一组里的页签",
-        "按住页签拖到边上，松手就并排或上下摆",
+        "侧栏点一个面板打开，点别的就换过去，再点同一个收起",
         "设置 → 界面 → 保存的布局：切换盘前、盘中、复盘或你建的布局",
         "下拉里“新建布局”起个名字，从空白开始摆（没有右侧面板、单图）；也能改名、删除",
         "在哪个布局里改了摆法，就自动存进那个布局"
@@ -390,24 +388,24 @@
       "faq": [
         {
           "q": "布局里存了什么？",
-          "a": "右侧开了哪些面板、怎么摆，还有多图是几格、每格看什么合约和周期。"
+          "a": "右侧开着哪个面板，还有多图是几格、每格看什么合约和周期。"
         },
         {
           "q": "换电脑还在吗？",
           "a": "在。布局跟账号走，网页和电脑客户端一样；手机版仍是底部几个标签。"
         },
         {
-          "q": "能让面板浮出成单独窗口吗？",
-          "a": "这一版还不能，只能在右侧并排或上下摆。"
+          "q": "右侧能同时开几个面板吗？",
+          "a": "不能。右侧一次只开一个，点别的就换过去，再点同一个收起。"
         },
         {
           "q": "能让 AI 帮我摆吗？",
-          "a": "能。说“把调研和持仓上下放”“切到复盘布局”“新建一个早盘布局”，它替你做。"
+          "a": "能。说“切到复盘布局”“新建一个早盘布局”，它替你做。"
         }
       ],
       "detail": [
-        "界面命令 dock={panel: ai|order|strategy|positions|news|reminders, to: tab|left|right|above|below|close, of?}：tab 放进 of 那一组当页签，left/right/above/below 放到 of 旁边（缺省 of 是当前面板），close 只关这一个；没开的面板会在那里打开。panel 命令仍是打开并选中一个面板（作为当前组的新页签），panel: null 仍是关掉整个右侧。快照 state.panel 是当前面板，state.dockPanels 是开着的面板，state.dockGroups 是每组里的面板。",
-        "界面命令 workspaceLayout（一次一项）：select <id> 切换；save <名字> 新建一个空白布局并切过去（没有右侧面板、单图、合约与周期不变；最多 11 个，名字 1–12 个字、不重名）；rename {id, name}；remove <id>（至少留一个，删当前的切到第一个）。默认 id：pre 盘前、live 盘中、review 复盘。下拉在 设置 → 界面 → 布局 的“保存的布局”一行（2026-11-04 从顶栏移来），是 disclosure: workspace-layouts，要先 settingsPage: ui。账号偏好 ui.workspaceLayouts = {current, items: [{id, name, dock: {panels, active, grid}, charts}]}，grid 是面板摆法（dockview 的布局数据），charts 是多图（选中格存的是当时图表的合约与周期，切过去会切回它）；charts 为空的布局切过去不动多图。现在这个布局里的改动停一秒后自动存进去；打开页面时恢复当前布局的右侧面板，多图和合约按这台设备当时的。拖拽用开源组件 dockview（MIT），面板浮出成独立窗口这一版没有做。"
+        "右侧一次只开一个面板：侧栏点别的面板就换过去，再点同一个收起，没有页签条。界面命令 panel 打开一个面板，panel: null 收起；快照 state.panel 是开着的面板。",
+        "界面命令 workspaceLayout（一次一项）：select <id> 切换；save <名字> 新建一个空白布局并切过去（没有右侧面板、单图、合约与周期不变；最多 11 个，名字 1–12 个字、不重名）；rename {id, name}；remove <id>（至少留一个，删当前的切到第一个）。默认 id：pre 盘前、live 盘中、review 复盘。下拉在 设置 → 界面 → 布局 的“保存的布局”一行（2026-11-04 从顶栏移来），是 disclosure: workspace-layouts，要先 settingsPage: ui。账号偏好 ui.workspaceLayouts = {current, items: [{id, name, dock: {active}, charts}]}，active 是开着的面板，charts 是多图（选中格存的是当时图表的合约与周期，切过去会切回它）；charts 为空的布局切过去不动多图。现在这个布局里的改动停一秒后自动存进去；打开页面时恢复当前布局的右侧面板，多图和合约按这台设备当时的。"
       ]
     },
     "chart-ai": {
@@ -1037,7 +1035,8 @@
       "detail": [
         "条件提醒（2026-10-25）：列在我的提醒那张表里。点“新建提醒”再点“按条件…”打开提醒编辑卡（借用策略编辑卡的提醒模式，面板标题和右侧栏都显示“提醒”，标题下的小字是卡上的合约）——只选盯哪个品种和周期、什么时候提醒（一组条件，不问做多做空；条件和策略的开仓条件同一套，可以用“补一句”说给 AI）和提醒时段，不填方向、手数和止损；“开始提醒”把它存成只提醒的策略并在当前合约上开始，条件满足时发一条提醒，写“提醒条件满足（只提醒，未下单）”（对话、桌面通知、语音和锁屏推送，跟“策略出卡与自动下单”的开关走），不出卡、不下单。改版第一步（2026-10-31）：编辑卡最上面是“说一句什么时候提醒你”，AI 按这句填好下面几项（这句点名了一个合约，如“螺纹 2701”，就换成那个合约，没点名用原来的）；①盯哪个品种可选“只盯这个合约”或“整张自选表（每个品种分别判断）”——开始时按每个自选品种的主力合约各开一份，之后自选表再变不跟；④响几次：只响一次（默认，响过自动停）/ 条件再满足再响（原来的做法，之前建的提醒都是这个）/ 每根 K 线最多一次；到期：今天收盘（默认）/ 本周 / 一直，到期自动停并在对话里说一声；底部“先存着不开始 / 开始提醒”。它不出现在“我的策略”；每条可以暂停 / 继续、编辑、删除（在跑的先暂停再删）。图表右键“在这里设提醒 ▸”可以按光标价设到价提醒，或按某条交易笔记新建条件提醒（笔记的进场规则作为第一句补一句）。手机提醒页同样能新建和编辑：编辑页整屏打开，只有品种、什么时候提醒和提醒时段，响几次与到期在“提醒时段与响几次”一段，底部“先存着不开始 / 开始提醒”。盘中异动仍在通用提醒里。",
         "提醒记录（统一提醒，2026-10-15）：每条提醒由 Runtime 记一行（同一件事只提醒一次），类别有 止损止盈、保护撤销、挂单未成交、目标持仓（下一步）、策略出卡、成交、撤单、到价、收盘前、风险度、保本、交割到期、盘中异动、每日复盘、今日作战表（标签写“每日自动 · 作战表”：系统每个交易日开盘前自动推，不用设置）、研讨完成、AI 简讯、急停（不写进对话）。一行是 时间 · 未读蓝点 · 类别标签 · 合约 · 一句话（名下有两个及以上账户时，带账户的行在合约后标账户名，两个账户的同类单不会看成重复；策略、AI 自主或止损下的单，成交一句末尾带来源，如“· 策略 · 双均线”；策略自动下单的执行卡只进策略自己的对话，别的对话看成交提醒就知道是哪个策略）；需要结果的带状态（如“平仓单 已成交 771.5 ×1”“仍在排队 0/1”），保本提醒还没答复时带“移到成本 / 不用”（与对话里那张卡同一接口，不会下单）。点一行先记已读，再去它指向的地方：交易类到对话里那张卡（不在当前对话时先切过去），挂单、成交与撤单去持仓与委托的委托页（成交与撤单只进提醒记录、不写进对话），复盘到那天的复盘，今日作战表到调研的作战表页，研讨到调研，AI 简讯到新闻。账户类提醒（成交、撤单、挂单未成交、复盘）先切到它的账户，界面显示那个账户后才打开；切不过去会提示原因并留在当前账户。",
-        "我的提醒是一张表（2026-10-31）：到某个价（“螺纹2701 · 价格到 3,040”）、碰到我画的线（“螺纹2701 · 碰到我画的线”）和条件提醒（在跑的合约 · 名字）各占一行，带状态和自己的操作；到价和画线的点合约名切到那个合约的图、“删除”删，触发后从表里移走，记进当天的提醒（见“到价提醒”）。“新建提醒”展开当前合约到某个价的表单，旁边“按条件…”打开提醒编辑卡。图上（电脑和手机）：到价提醒是一条标“提醒”的虚线；正在提醒的条件提醒里，凡是“收盘价 / 开盘价 / 最高价 / 最低价和某个价位比”的条件（如“收盘价跌破 3010”），在那个价位画一条标“条件”的点线，MACD、均线交叉这类没有价位的条件不画线；图下“AI 正在盯”一栏写“按条件 · 名字 提醒中”。条件提醒没起名字时存成“未命名提醒”。",
+        "我的提醒是一张表（2026-10-31）：到某个价（“螺纹2701 · 价格到 3,040”）、碰到我画的线（“螺纹2701 · 碰到我画的线”）和条件提醒（在跑的合约 · 名字）各占一行，带状态和自己的操作；到价和画线的点合约名切到那个合约的图、“删除”删，触发后从表里移走，记进当天的提醒（见“到价提醒”）。“新建提醒”展开当前合约到某个价的表单，旁边“按条件…”打开提醒编辑卡。图上（电脑和手机）：到价提醒是一条标“提醒”的虚线；正在提醒的条件提醒里，凡是“收盘价 / 开盘价 / 最高价 / 最低价和某个价位比”的条件（如“收盘价跌破 3010”），在那个价位画一条标“条件”的点线，MACD、均线交叉这类没有价位的条件不画线；条件提醒没起名字时存成“未命名提醒”。",
+        "电脑版侧栏“提醒”图标上的小数字是当前合约还在等触发的提醒条数：到价、碰到画的线和在跑的条件提醒（活动帧 strategies[].reminderOnly），没有就不显示，游客和回放不显示；已经发出的看铃铛和提醒记录。有持仓又开着持仓检查（保本、风险度、收盘前、盘中异动，开关在通用提醒）时，底部持仓栏“持仓”旁有一个小盾牌，悬停写开着的检查（如“保本、风险度 检查中”），点了打开提醒面板的通用提醒（reminders: {tab: general}）。",
         "界面命令：reminderCenter {open, filter: unread|all} 打开 / 关闭（电脑是提醒面板的“提醒记录”页签，铃铛直达；手机是提醒页的同一页签；同一个命令；页签另用 reminders {tab: mine|general|history} 切；手机也可 mobilePage: reminders），reminderCenter {more: true} 是“继续加载当天提醒”（快照 moreToday 为 true 时；读到下一批才算完成，没读到回 rejected、原因在 moreError），快照 state.reminderCenter {open, filter, unread, today, moreToday, moreAsked, moreDone, moreError, earlier}；新建表单 disclosure: reminder-alert-new。数据：GET /api/reminders?scope=today|earlier&before=&unread=1（界面读当天一次最多 10 页，再多时底部“继续加载当天提醒”带 before 接着读；换交易日后“查看更早”从头读），已读 POST /api/reminders/read {ids}|{all: true}。说“打开提醒 / 看看通知 / 未读的提醒 / 关掉提醒记录”直接打开或关闭。游客没有提醒记录。",
         "统一投递（#932，2026-10-15）：各类提醒“什么时候该提醒”的判定各管各的；投递只有一个入口——先看这类提醒的开关，再认领（提醒记录 reminders 表一行，用户×类别×去重键唯一），认领与对话消息、提醒卡在同一事务里提交（失败一起回滚、下一轮重试，不会出现“记了已发、对话里却没有”）；提交后发 feed.reminder（客户端重读提醒记录并弹桌面通知，type=update 是已有提醒的状态变化、不弹通知）、通话在线时口播、锁屏推送。交易与账户类落在用户正在看的对话（落点规则见“收盘前与风险度提醒”；止损止盈、保护撤销落在挂保护的会话，策略落在策略的会话，挂单未成交落在确认那张卡的会话）；信息类不写对话。",
         "类别与开关（偏好键，默认值）：止损止盈触发 stop_triggered → notify.stopTriggered（开）；保护单撤销 protection_cancelled → notify.protectionCancelled（开）；挂单未成交 order_unfilled 与目标持仓下一步 target_plan → notify.orderUnfilled（开）；策略 strategy → notify.strategySignalAlerts（开）；成交 fill / 撤单 cancel → notify.desktop.fills / notify.desktop.cancels（开）；到价 price_alert → notify.desktop.priceAlerts（开）；收盘前 market_close → notify.marketCloseReminder（关）；风险度 risk_ratio → notify.riskReminder（开）；保本 breakeven → notify.breakEven（开，阈值 notify.breakEvenRule）；交割到期 delivery → notify.delivery（开）；盘中异动 market_movement → notify.movement（关）；每日复盘 daily_review → notify.dailyReview（开）；今日作战表 morning_desk → notify.morningDesk（开）；研讨完成 research_debate → notify.researchDebate（开）；AI 简讯 brief → notify.desktop.briefs（关）；急停 emergency_stop 没有开关。旧的语音分项 voice.announceFills / voice.announceBriefs 已退役：只读兼容，不再生效，成交撤单与 AI 简讯的口播只看它们各自的开关。锁屏显示金额和手数 notify.lockScreenAmounts 不变。",
@@ -1753,15 +1752,11 @@
         {
           "q": "说下单会直接下吗？",
           "a": "不会。下单只出确认卡，你确认了才下。"
-        },
-        {
-          "q": "图下面那行“AI 正在盯”是什么？",
-          "a": "这个合约上还在等触发的：到价和画线提醒、在跑的条件提醒和策略，持有它时再加开着的持仓检查。点哪项就打开管它的地方；已经发出的提醒看铃铛。"
         }
       ],
       "detail": [
-        "AI 指令栏（改版第二步，2026-11-01）：电脑版顶栏合约标签右边，发出的就是对话里同一条消息（同一个对话，记录照常在对话面板），只是不用打开对话面板。结果不在栏下，而在 AI 球旁的小气泡里（2026-11-01 起；AI 球在看盘、行情表、复盘都显示；界面命令 disclosure: ai-command-result，发过一句后才有；data-agent-target=\"ai-command-result\"）：这轮任务里标了 action 的步骤——AI 建的到价提醒（POST /api/market/alerts）、画的线（POST /api/market/drawings）、存的策略或条件提醒草稿（POST /api/strategy-plans、模板生成），不论走它自己的工具还是 app_call，以及经 app_call 执行的界面命令（POST /api/app/ui/commands）——连成一句话；有前三种时带一个“撤销”，把能撤的依次撤掉，即 DELETE /api/market/alerts/{id}、DELETE /api/market/drawings/{id} 或 DELETE /api/strategy-plans/{id}（在监控、有委托或持仓时拒绝并显示原因）；做了几件事时有“在对话里看明细”。没做事时写回答的前 60 字和“看全文”。回答里有下单确认卡时提示“有一张下单确认卡，确认后才会下单”和“在对话里确认”，确认在对话里做。气泡约 8 秒淡出；有确认卡或能撤销时约 20 秒；鼠标或键盘焦点停在上面时不消失。栏里还有“按住说话”，说的话从这里发出。游客没有这条栏；手机上是底部中间的说话键，结果收成标签上方的回执（见“手机版”）。图表下方“AI 正在盯”一行（data-agent-target=\"ai-watching\"）列出本合约还在等触发的：到价 / 画线提醒、在跑的条件提醒与策略（活动帧 strategies[].reminderOnly 区分），持有本合约时再加一项开着的持仓检查（如“持仓 · 保本、风险度 检查中”），按钮只打开对应面板（reminders: {tab: mine | general}、strategyTab: running）；什么都没盯时写“没有在等触发的提醒、策略或持仓检查”，与手机一致。",
-        "输入框获得焦点时往下展开成浮层（顶栏不变高），最多 6 行，再多在框里滚动，失去焦点收回一行；回车发送，Shift+回车换行。指令栏缩成 ✦ ⌘K 按钮时，点它或按 ⌘K 输入框浮在顶栏上；按住说话时输入框换成音量条。气泡先写“AI 正在处理…”，做完写做了什么，撤销后写“已撤销：…”。“AI 正在盯”回放中也不显示，各项写成“涨到 3036 提醒中”“名字 提醒中”“名字 运行中”和“今天提醒过 N 次”，点了只打开对应面板、不改任何东西。"
+        "AI 指令栏（改版第二步，2026-11-01）：电脑版顶栏合约标签右边，发出的就是对话里同一条消息（同一个对话，记录照常在对话面板），只是不用打开对话面板。结果不在栏下，而在 AI 球旁的小气泡里（2026-11-01 起；AI 球在看盘、行情表、复盘都显示；界面命令 disclosure: ai-command-result，发过一句后才有；data-agent-target=\"ai-command-result\"）：这轮任务里标了 action 的步骤——AI 建的到价提醒（POST /api/market/alerts）、画的线（POST /api/market/drawings）、存的策略或条件提醒草稿（POST /api/strategy-plans、模板生成），不论走它自己的工具还是 app_call，以及经 app_call 执行的界面命令（POST /api/app/ui/commands）——连成一句话；有前三种时带一个“撤销”，把能撤的依次撤掉，即 DELETE /api/market/alerts/{id}、DELETE /api/market/drawings/{id} 或 DELETE /api/strategy-plans/{id}（在监控、有委托或持仓时拒绝并显示原因）；做了几件事时有“在对话里看明细”。没做事时写回答的前 60 字和“看全文”。回答里有下单确认卡时提示“有一张下单确认卡，确认后才会下单”和“在对话里确认”，确认在对话里做。气泡约 8 秒淡出；有确认卡或能撤销时约 20 秒；鼠标或键盘焦点停在上面时不消失。栏里还有“按住说话”，说的话从这里发出。游客没有这条栏；手机上是底部中间的说话键，结果收成标签上方的回执（见“手机版”）。",
+        "输入框获得焦点时往下展开成浮层（顶栏不变高），最多 6 行，再多在框里滚动，失去焦点收回一行；回车发送，Shift+回车换行。指令栏缩成 ✦ ⌘K 按钮时，点它或按 ⌘K 输入框浮在顶栏上；按住说话时输入框换成音量条。气泡先写“AI 正在处理…”，做完写做了什么，撤销后写“已撤销：…”。"
       ]
     },
     "conversation-cards": {
@@ -2668,7 +2663,7 @@
         "账户设置与遥控器：disclosure live-trading（设置 → 账户的实盘开关）open:false 照收，open:true 被拒（422，原因“暂无期货公司接入，实盘暂不可开启”），快照 state.liveTrading＝{state:\"off\", disabledReason}；disclosure plan-quota（先 settingsPage=account）展开档位的今日 token 与语音额度和用量；dialog change-password（先 settingsPage=account）只开关修改密码框，密码由用户本人输入和提交；tradingAccount 在会话第一条账户状态到达前 rejected（“账户状态加载中”）。remoteSettings 取值：布尔字段只收布尔；bindings 是按键到动作的对象，按键 up/down/left/right/ok/back/home/menu/tv/volumeUp/volumeDown/voice/power，动作 none（停用该键）/ptt（仅语音键）/cancel/chat/settings/scrollUp/scrollDown/focusPrevious/focusNext/activate（不自动提交交易）；resetBindings:true 恢复全部默认，回执以 state.remoteSettings.bindingsDefault 为准；diagnostic:true 须先打开 remote-diagnostics，离开自动停止；开诊断不能与停用或断开同批，断开不能与启用同批，恢复默认不能与 bindings 同批；空对象与 null 字段拒绝。state.remoteSettings 报 enabled、phase、supported、platform、deviceName、error、keyError、bindings、availableKeys、diagnostic、lastKey、frames、level。",
         "旧值 settingsPage=fees 与 strategy={tab:fees} 打开的是设置 → 交易 → 高级交易设置（settingsPage=trade-advanced），不是交易页；strategy={tab:fees} 时策略面板本身停在我的策略，按设置抽屉是否已打开高级交易设置判定 applied。",
         "电脑版多图：desktopCharts={layout?: single|two|four, preset?: periods, cells?: [{index, symbol?, duration?}], active?: 0–3, syncDuration?, syncSymbol?, syncCrosshair?}，几项可组合，按 preset → layout → cells → active → 开关生效；只对电脑布局（手机、游客、回放 rejected）；值是账号偏好 ui.desktopCharts，快照 state.preferences 回报，选中格的合约与周期是 state.symbol / duration。用法与规则见主题“多图”。",
-        "自由布局：dock={panel, to: tab|left|right|above|below|close, of?} 摆放右侧面板（可以同时开几个；panel 命令打开并选中一个，panel: null 关掉整个右侧；快照 state.dockPanels、state.dockGroups）；workspaceLayout={select|save|rename|remove} 管保存的布局（账号偏好 ui.workspaceLayouts，顶栏下拉 disclosure: workspace-layouts）。用法见主题“自由布局”。"
+        "自由布局：workspaceLayout={select|save|rename|remove} 管保存的布局（账号偏好 ui.workspaceLayouts，下拉在 设置 → 界面 → 布局，disclosure: workspace-layouts）；右侧一次只开一个面板，用 panel 命令。用法见主题“自由布局”。"
       ]
     },
     "skills": {

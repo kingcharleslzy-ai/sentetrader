@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, History } from "lucide-react";
+import { ChevronDown, ChevronUp, History, ShieldCheck } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { sameContract, type AccountOverviewSnapshot, type AccountPosition, type AiStopLoss, type InstrumentCatalog, type MarketQuoteSnapshot, type SimulationOrder, type StopMotion } from "../../api";
 import { StopMotionFields } from "./StopMotionFields";
@@ -550,6 +550,8 @@ export function PositionsBar({
   onOrderAction,
   onClosePosition,
   onOpenAll,
+  checks = [],
+  onChecks,
   history,
   onHistoryChange
 }: {
@@ -574,6 +576,9 @@ export function PositionsBar({
   onClosePosition: (position: AccountPosition) => void;
   /** "查看全部": the 持仓面板 on the right (1.6.6; it replaced the 持仓抽屉). */
   onOpenAll: () => void;
+  /** The position checks that are on ("保本", "盘中异动"…): a mark while anything is held, opening 通用提醒. */
+  checks?: readonly string[];
+  onChecks?: () => void;
   /** 委托"历史" — owned by the workspace so the bar and the 持仓面板 share one switch. */
   history: boolean;
   onHistoryChange: (history: boolean) => void;
@@ -585,6 +590,8 @@ export function PositionsBar({
   const positions = account?.positions ?? [];
   const rounds = review?.trades ?? [];
   if (collapsed && (autoHide ?? true) && !positions.length && !activeOrders.length) return null;
+  const checkMark = positions.length && checks.length && onChecks
+    ? <button type="button" className="fdw-strip-check" title={`${checks.join("、")} 检查中`} aria-label={`持仓检查：${checks.join("、")}`} onClick={onChecks}><ShieldCheck aria-hidden="true" /></button> : null;
   if (collapsed) {
     // One line: a chip per position (name, side and lots, floating P&L), the working orders and the
     // positions' market value. 今日 lives in the header's account chip.
@@ -593,6 +600,7 @@ export function PositionsBar({
     return (
       <section className="fdw-position-dock collapsed" aria-label="持仓与委托" data-testid="positions-bar" data-collapsed="true">
         <span className="fdw-strip-label">持仓</span>
+        {checkMark}
         <ul className="fdw-strip-chips" aria-label="持仓概览">
           {positions.slice(0, 6).map(position => {
             const name = position.instrumentName || contractLabel(position.symbol, instruments);
@@ -620,6 +628,7 @@ export function PositionsBar({
           <button type="button" className={tab === "fills" ? "active" : ""} onClick={() => onTabChange("fills")}>成交{review ? ` (${rounds.length})` : ""}</button>
         </nav>
         <div>
+          {checkMark}
           {tab === "orders" ? <button type="button" aria-pressed={history} onClick={() => onHistoryChange(!history)}>历史</button> : null}
           <button type="button" title="持仓面板" onClick={onOpenAll}>查看全部</button>
           <button type="button" aria-expanded={true} aria-label="收起持仓与委托" onClick={onToggle}><ChevronDown /></button>

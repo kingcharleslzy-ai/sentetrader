@@ -22,6 +22,10 @@
 .fdw-strip-sep { flex: none; width: 1px; height: 14px; background: var(--line); }
 .fdw-strip-stat { flex: none; color: var(--fdw-faint); white-space: nowrap; }
 .fdw-strip-stat b { color: var(--fdw-text); }
+/* The position checks that are on (保本, 风险度…): one small mark beside 持仓, opening 通用提醒. */
+.fdw-position-dock .fdw-strip-check { flex: none; width: 24px; height: 24px; display: grid; place-items: center; padding: 0; border: 0; border-radius: var(--radius-control); color: var(--accent); background: transparent; cursor: pointer; }
+.fdw-position-dock .fdw-strip-check:hover { background: var(--soft); }
+.fdw-strip-check svg { width: 14px; height: 14px; }
 .fdw-positions-summary { flex: none; width: 28px; height: 28px; margin-left: auto; display: grid; place-items: center; padding: 0; border: 0; border-radius: var(--radius-control); color: var(--muted); background: transparent; cursor: pointer; }
 .fdw-positions-summary:hover { color: var(--ink); background: var(--soft); }
 .fdw-positions-summary svg { width: 16px; height: 16px; }

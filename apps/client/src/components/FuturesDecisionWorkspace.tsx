@@ -12,7 +12,7 @@ import { AccountPnl } from "./AccountPnl";
 import { TradeReview } from "./TradeReview";
 import { ChevronLeft, CircleAlert, GripVertical, PanelRightClose, ReceiptText } from "lucide-react";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties, Dispatch, ReactNode, SetStateAction } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { chartSymbolOf, requestJson, sameContract, type MarketBoardRow } from "../api";
 import type { AccountPosition, MarketWorkbenchSnapshot, SimulationOrder } from "../api";
 import { ConnectionProgress } from "./ConnectionProgress";
@@ -42,7 +42,6 @@ import { ContractDrawer } from "./futures/WorkspaceDrawers";
 import { AiDock } from "./futures/AiDock";
 import { AiCommandBar } from "./futures/AiCommandBar";
 import { AiCommandBubble, useAiCommand } from "./futures/useAiCommand";
-import { AiWatching } from "./futures/AiWatching";
 import { NewsPanel, type NewsTab } from "./NewsPanel";
 import { useDebateHost } from "./ResearchDebate";
 import { productOfSymbol } from "./FlashFeed";
@@ -56,8 +55,6 @@ import { ChartGrid, ChartLayoutControls } from "./futures/ChartGrid";
 import { useDesktopCharts } from "./futures/desktopCharts";
 import { useWorkspaceLayouts } from "./futures/workspaceLayouts";
 import { LayoutMenu } from "./futures/LayoutMenu";
-import { NO_DOCK, SideDock, nextDock, sameDock, withoutPanel, type DockPanel, type DockState, type SideDockHandle } from "./futures/SideDock";
-import type { SerializedDockview } from "dockview-react";
 import { HighlightLayer } from "./HighlightLayer";
 import { TourIndicator } from "./TourIndicator";
 import { ToolsRail } from "./futures/ToolsRail";
@@ -332,17 +329,8 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   const [strategyUi, setStrategyUi] = useState<StrategyNavigationState | null>(null);
   const strategyNavigation = useRef<((changes: StrategyNavigation) => void) | undefined>(undefined);
   const navigation = useMemo(() => ({ publish: setStrategyUi, handler: strategyNavigation }), []);
-  // 自由布局 (2026-11-02): several side panels at once (SideDock); `rightDock` is the focused one — the state the
-  // `panel` command sets and reports — and setting it opens that panel as a tab, null closes the whole side.
-  const [dock, setDock] = useState<DockState>(NO_DOCK);
-  const [dockGroups, setDockGroups] = useState<DockPanel[][]>([]);
-  const rightDock = dock.active;
-  const setRightDock = useCallback<Dispatch<SetStateAction<RightDock>>>(next =>
-    setDock(current => nextDock(current, typeof next === "function" ? next(current.active) : next)), []);
-  const closeDock = useCallback((panel: DockPanel) => setDock(current => withoutPanel(current, panel)), []);
-  const sideDock = useRef<SideDockHandle>(null);
-  // The arrangement dockview last reported (saved with the layout) and the one a layout switch starts from.
-  const dockGrid = useRef<SerializedDockview | null>(null);
+  // One side panel at a time (owner 2026-11-05): another replaces it, the same one again closes it.
+  const [rightDock, setRightDock] = useState<RightDock>(null);
   // 调研面板's tab, held here so a debate started from 快讯 / 今日判断 / a command can switch to 辩论; the panel
   // opens on 品种调研 again once it is closed.
   // 今日作战表 (第 5 批) opens first for a member; a guest has no 自选 and starts on 品种调研.
@@ -719,18 +707,15 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     resolveSymbol: symbol => props.instruments?.items.find(item => item.symbol.toUpperCase() === symbol.toUpperCase())?.symbol,
     select: (symbol, duration) => { if (symbol) selectContract(symbol); if (duration) selectDuration(duration); } });
   // 自由布局 (2026-11-02): 盘前 / 盘中 / 复盘 and saved layouts (account preference ui.workspaceLayouts): the side
-  // panels with their arrangement and the 多图. A switch remounts the dock on the layout's arrangement.
-  const [dockEpoch, setDockEpoch] = useState(0);
+  // panel and the 多图.
   const workspaceLayouts = useWorkspaceLayouts({ document: prefs.preferences.ui?.workspaceLayouts, connected: Boolean(connectedRuntimeUrl),
     update: updatePreferences, enabled: gridAvailable && preferencesLoaded,
-    capture: () => ({ dock: { panels: dock.panels, active: dock.active, grid: dock.panels.length ? dockGrid.current : null }, charts: desktopCharts.snapshot() }),
+    capture: () => ({ dock: { active: rightDock }, charts: desktopCharts.snapshot() }),
     restore: (layout, opening) => {
-      dockGrid.current = layout.dock.grid;
-      setDock({ panels: layout.dock.panels, active: layout.dock.active ?? layout.dock.panels.at(-1) ?? null });
-      setDockEpoch(epoch => epoch + 1);
+      setRightDock(layout.dock.active);
       if (!opening && layout.charts) desktopCharts.restore(layout.charts);
     },
-    changeKey: JSON.stringify([dock, dockGroups, desktopCharts.charts, chartCurrent]) });
+    changeKey: JSON.stringify([rightDock, desktopCharts.charts, chartCurrent]) });
   useEnterMotion(coreRef, view, useStepMotion(["trade", "board", "review"].indexOf(view)));
   useEnterMotion(chartAreaRef, `${chartView}@${props.duration}#${desktopCharts.charts.layout}`, "fade");
   useEnterMotion(shellRef, workspaceLayouts.layouts.current, "fade");
@@ -988,7 +973,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   };
   const showReminderCenter = (open: boolean) => {
     if (open) openReminders("history");
-    else if (reminderShown) { if (mobile) setMobileSub(null); else closeDock("reminders"); }
+    else if (reminderShown) { if (mobile) setMobileSub(null); else setRightDock(null); }
   };
   const reminderApply = useRef<(value: unknown) => void>(() => undefined);
   reminderApply.current = value => {
@@ -1050,8 +1035,6 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
       chatSessionId: props.chatSessionId, chatHistory: chat.chatHistory, selectChat: chat.selectChat, chatBlocked: chat.chatBlocked,
       quickSkipConfirm, setQuickSkipConfirm,
       desktopCharts: gridAvailable ? desktopCharts.apply : undefined,
-      dock: mobile ? undefined : { panels: dock.panels, groups: dock.panels.length ? dockGroups : [], close: closeDock,
-        place: (panel, to, of) => { if (!sideDock.current) throw new Error("右侧没有打开的面板"); sideDock.current.place(panel, to, of); } },
       workspaceLayout: gridAvailable ? workspaceLayouts.apply : undefined,
       currentPositions: props.account?.positions ?? [], selectedPosition,
       selectPosition: position => { if (position) closePosition(position); else { setSelectedPositionKey(undefined); setCloseRequest(undefined); } },
@@ -1341,7 +1324,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   </>;
   const aiDock = (mobileChat?: Parameters<typeof AiDock>[0]["mobile"]) => <AiDock workspace={workspace} chat={chat} focus={focus} appWorkbench={appWorkbench}
       call={call} voiceUnavailableReason={voiceUnavailableReason}
-      onClose={() => closeDock("ai")} onPauseStrategy={pauseStrategy}
+      onClose={() => setRightDock(null)} onPauseStrategy={pauseStrategy}
       briefs={flowBriefs.items}
       quote={quote} decimals={decimals} selectedPrice={selectedPrice}
       currentPositions={currentPositions} decisionTurns={decisionTurns}
@@ -1358,7 +1341,10 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   const pendingMarketState = !market && !blockingMarketState
     ? <div className="fdw-blocking-state" role="status"><strong>{noContract ? props.instrumentsError || "还没有选择合约" : props.marketError || "正在读取行情…"}</strong>
       {noContract ? <button type="button" onClick={() => setContractOpen(true)}>选择合约</button> : null}</div> : null;
-  // AI 正在盯's 持仓 item (both layouts): the checks the Runtime runs on held positions while their 通用提醒 switch is on.
+  // The 提醒 rail count: this contract's price / line alerts and running condition reminders (the activity frame is its own).
+  const waitingReminders = alerts.active.filter(alert => sameContract(alert.symbol, quote?.symbol)).length
+    + (appWorkbench.activity?.strategies ?? []).filter(item => item.status === "monitoring" && item.reminderOnly).length;
+  // The phone's AI 正在盯 and the computer's positions bar mark: the checks the Runtime runs on held positions while their 通用提醒 switch is on.
   const positionChecks = [preferences.notify.breakEven !== false ? "保本" : "", preferences.notify.riskReminder ? "风险度" : "",
     preferences.notify.marketCloseReminder ? "收盘前" : "", preferences.notify.movement ? "盘中异动" : ""].filter(Boolean);
 
@@ -1627,17 +1613,17 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     );
   }
 
-  // 自由布局: each open side panel's content, drawn in its own dock slot.
-  const renderDockPanel = (panel: DockPanel): ReactNode => {
+  // The open side panel's content.
+  const renderDockPanel = (panel: Exclude<RightDock, null>): ReactNode => {
     switch (panel) {
       case "ai": return props.guest ? null : aiDock();
-      case "news": return <NewsPanel baseUrl={props.guest?.baseUrl ?? connectedRuntimeUrl} guest={Boolean(props.guest)} replay={Boolean(props.replayActive)} onGuestExpired={props.guest?.reportExpired} symbol={quote?.symbol} onClose={() => closeDock("news")}
+      case "news": return <NewsPanel baseUrl={props.guest?.baseUrl ?? connectedRuntimeUrl} guest={Boolean(props.guest)} replay={Boolean(props.replayActive)} onGuestExpired={props.guest?.reportExpired} symbol={quote?.symbol} onClose={() => setRightDock(null)}
           watchProducts={flashWatchProducts} watchlist={prefs.document ? watchlist : undefined} instruments={props.instruments?.items} onSelectSymbol={selectContract}
           debate={props.guest ? undefined : debate} tab={newsTab} onTab={setNewsTab} />;
-      case "reminders": return props.guest ? null : <RemindersPanel tab={remindersTab} onTab={setRemindersTab} onClose={() => closeDock("reminders")}
+      case "reminders": return props.guest ? null : <RemindersPanel tab={remindersTab} onTab={setRemindersTab} onClose={() => setRightDock(null)}
           center={reminderCenter} settings={reminderSettings} mine={myReminders} />;
       case "strategy": return props.guest ? null : <StrategyDock workspace={workspace} quote={quote}
-          onClose={() => closeDock("strategy")} tab={strategyTab} onTabChange={setStrategyTab}
+          onClose={() => setRightDock(null)} tab={strategyTab} onTabChange={setStrategyTab}
           onStrategySelected={focus.setActiveStrategy} autonomy={preferencesLoaded ? preferences.trade.aiAutonomy : undefined}
           onAskAi={askAi} explainBlocked={signalsBlocked} backtestBlocked={backtestBlocked}
           onShowReminders={showMyReminders}
@@ -1650,12 +1636,12 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
           tab={positionsTab} onTabChange={setPositionsTab} history={ordersHistory} onHistoryChange={setOrdersHistory}
           fillsSource={fillsSource} onFillsSourceChange={setFillsSource}
           onOrderAction={handleOrderAction} onClosePosition={closePosition} onRefresh={props.onRefreshAccount}
-          onClose={() => closeDock("positions")} activeProtections={activeProtections} protectionWarning={protectionWarning} onAskAi={askAi}
+          onClose={() => setRightDock(null)} activeProtections={activeProtections} protectionWarning={protectionWarning} onAskAi={askAi}
           stops={props.aiExecution?.stops} protectionBusy={props.aiExecutionBusy}
           onCreateStop={createPositionStop} onCancelStop={cancelPositionStop} />;
       case "order": return props.guest || view !== "trade" || !market ? null : (
           <section className="fdw-order-panel" aria-label="固定下单面板" data-agent-target="panel:order">
-            <header><div><ReceiptText /><span><strong>模拟交易</strong><small className={closed || !dataLive ? "blocked" : "live"}>{quote?.name ?? quote?.symbol} · {closed ? sessionLabel : dataLive ? "行情正常" : "不可下单"}</small></span></div><button type="button" aria-label="收起模拟下单" onClick={() => closeDock("order")}><PanelRightClose /></button></header>
+            <header><div><ReceiptText /><span><strong>模拟交易</strong><small className={closed || !dataLive ? "blocked" : "live"}>{quote?.name ?? quote?.symbol} · {closed ? sessionLabel : dataLive ? "行情正常" : "不可下单"}</small></span></div><button type="button" aria-label="收起模拟下单" onClick={() => setRightDock(null)}><PanelRightClose /></button></header>
             {/* 五档 → 下单票 → 本合约持仓 in one scroll region (2026-10-03). */}
             <div className="fdw-order-scroll">
               <OrderDepth quote={market.quote} selectedPrice={selectedPrice} onPriceSelect={pickLadderPrice} />
@@ -1744,13 +1730,6 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
                   openFills={openFills} openChat={openChat} setPrompt={setPrompt}
                   onReminder={mobile || props.guest ? undefined : playbook => openReminderEditor({ new: true, reminder: true,
                     ...(playbook ? { ask: `按我的交易笔记「${playbook.name}」设提醒：${playbook.entryRules.trim() || playbook.name}`.slice(0, 500) } : {}) })} /></ChartGrid>}
-                {market && !props.guest && !mobile && !props.replayActive ? <AiWatching
-                  alerts={alerts.active.filter(alert => sameContract(alert.symbol, quote?.symbol))} strategies={appWorkbench.activity?.strategies ?? []}
-                  checks={currentPositions.length ? positionChecks : []} onOpen={target => {
-                    if (target === "strategies") { setStrategyTab("running"); setRightDock("strategy"); }
-                    else if (target === "checks") openReminderSettings();
-                    else showMyReminders();
-                  }} /> : null}
                 {aiOrb}
                 </div>)}
                 {!props.guest && view === "review" ? <aside className="fdw-market-side">{props.runtimeBaseUrl !== undefined ? props.replayActive ? <TradeReview baseUrl={props.runtimeBaseUrl} symbol={props.selectedSymbol ?? ""} onFocus={setTradeFocus}/> : <AccountPnl baseUrl={props.runtimeBaseUrl} rootUrl={props.rootBaseUrl ?? props.runtimeBaseUrl} symbol={quote?.symbol ?? props.selectedSymbol ?? ""} chartSymbols={(props.instruments?.items ?? []).map(item => item.symbol)} chartAvailable={Boolean(quote)} accountId={reviewAccountId} foreignAccountId={foreignReviewAccountId} snapshots={ledgerSnapshots} onFocus={setTradeFocus} onSelectSymbol={props.onSelectSymbol} initialBalance={initialBalance} onInitialBalanceChange={setInitialBalance} onVoiceReview={call.available ? call.review : undefined} voiceReviewing={Boolean(call.status.review)} /> : <ActivityPanel account={props.account} simulationOrders={props.simulationOrders} busy={props.tradeBusy} onOrderAction={handleOrderAction} />}</aside> : null}
@@ -1759,6 +1738,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
                 review={tradeReview.review} foreignReview={foreignTradeReview.review} reviewError={tradeReview.error}
                 collapsed={positionsBar === "collapsed"} autoHide={autoHidePositionsBar} tab={positionsTab} onTabChange={setPositionsTab} onToggle={togglePositionsBar}
                 onOrderAction={handleOrderAction} onClosePosition={closePosition} onOpenAll={() => setRightDock("positions")}
+                checks={positionChecks} onChecks={openReminderSettings}
                 history={ordersHistory} onHistoryChange={setOrdersHistory} /> : null}
             </>
           ) : null}
@@ -1768,12 +1748,10 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
 
         {rightDock ? <aside className="fdw-side-workbench" aria-label="AI 与交易辅助工作区">
           <div className={`fdw-side-workbench-layout dock-${rightDock}`}>
-            <SideDock key={dockEpoch} handle={sideDock} state={dock} grid={dockGrid.current} render={renderDockPanel}
-              onState={(next, groups) => { setDock(current => sameDock(current, next) ? current : next); setDockGroups(groups); }}
-              onGrid={grid => { dockGrid.current = grid; }} />
+            {renderDockPanel(rightDock)}
           </div>
         </aside> : null}
-        <ToolsRail access={access} rightDock={rightDock} setRightDock={setRightDock} closeDock={closeDock} onTrade={() => setView("trade")} onSettings={() => setSettingsOpen(true)} settingsOpen={settingsOpen} strategyBlocked={strategyBlocked} />
+        <ToolsRail access={access} rightDock={rightDock} setRightDock={setRightDock} reminderCount={props.guest || props.replayActive ? 0 : waitingReminders} onTrade={() => setView("trade")} onSettings={() => setSettingsOpen(true)} settingsOpen={settingsOpen} strategyBlocked={strategyBlocked} />
       </div>
 
       {trailing}

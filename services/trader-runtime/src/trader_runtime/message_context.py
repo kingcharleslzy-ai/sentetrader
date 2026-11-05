@@ -463,10 +463,6 @@ def screen_snapshot_instruction(window: dict, *, focus_only: bool = False) -> st
             f"；mobileMarket.board={market.get('board')}" if view == "quotes"
             else f"；mobileMarket.layout={market.get('layout')}" if view == "multi"
             else f"；mobileMarket.subPane={market.get('subPane')}" if market.get("subPane") else "")
-    docked = state.get("dockPanels")
-    if isinstance(docked, list) and len(docked) > 1:
-        # 自由布局 (2026-11-02): several side panels are open; “旁边那个面板 / 下面的持仓”才有着落。
-        focus += f"；dockPanels={','.join(str(item) for item in docked)}"
     charts = (preferences.get("ui") or {}).get("desktopCharts") if isinstance(preferences, dict) else None
     if not state.get("mobileLayout") and isinstance(charts, dict) and charts.get("layout") in ("two", "four"):
         # 电脑版多图 (2026-11-02): which cell is selected (= state.symbol / duration), so “这一格 / 右边那张图”有着落。

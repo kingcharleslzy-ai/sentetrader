@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Bell, ChevronDown } from "lucide-react";
 import { HelpTip } from "../Blocks";
-import { NOTHING_WATCHED } from "../futures/AiWatching";
 import { FALLBACK_PRICE_TITLE, formatNumber, formatSigned, signClass } from "../futures/support";
 import { Sparkline } from "../Sparkline";
 import { CardSkeleton } from "./MobileFeed";
@@ -9,6 +8,8 @@ import { RollingText } from "./mobileMotion";
 import { SwipeRow, type RowAction } from "./RowActions";
 import { approvalMinutesLeft, type MobileFeedItem } from "./feedItems";
 import { NOTIFY_FILTERS, notifyTime, rowTime, type NotifyFilter, type NotifyRow } from "./notifyItems";
+
+const NOTHING_WATCHED = "没有在等触发的提醒、策略或持仓检查";
 
 /** AI 正在盯: what still waits to fire, each list already in words (what already fired is the 提醒记录's). */
 export interface WatchInfo {

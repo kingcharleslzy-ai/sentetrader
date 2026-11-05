@@ -259,9 +259,7 @@ test("every user-operable control is commandable or reachable, and visible to th
     // 电脑版多图 (2026-11-02): 2×2 四格 with the sync switches showing, then back to 单图.
     ["chart-grid", [{ desktopCharts: { layout: "four" } }], true],
     ["", [{ desktopCharts: { layout: "single" } }], false],
-    // 自由布局 (2026-11-02): two side panels, one under the other; the 保存的布局 dropdown lives in 设置 → 界面 (2026-11-04).
-    ["side-dock", [{ panel: "news" }, { dock: { panel: "positions", to: "below", of: "news" } }], true],
-    ["", [{ panel: null }], false],
+    // 自由布局 (2026-11-02): the 保存的布局 dropdown lives in 设置 → 界面 (2026-11-04).
     ["workspace-layouts", [{ settingsPage: "ui" }, { disclosure: { name: "workspace-layouts", open: true } }], true],
     ["", [{ disclosure: { name: "workspace-layouts", open: false } }, { settingsOpen: false }], false],
     ["quick-volume", [{ panel: "order" }, { quickVolume: 5 }], true],

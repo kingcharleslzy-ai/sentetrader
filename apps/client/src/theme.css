@@ -383,9 +383,9 @@ html[data-font-scale="extra-large"] { --font-xs: 13px; --font-sm: 14px; --font-m
 @keyframes ui-fade-in { from { opacity: 0; } }
 @keyframes ui-fade-out { to { opacity: 0; } }
 :where(.fdw-ind-popover, .ai-menu-list, .help-tip-pop) { animation: ui-fade-in var(--dur-1) var(--ease-out) backwards; }
-/* A side panel's content fades in as it opens and each time its tab is picked again (dockview puts it back in the page);
-   the chart area as it appears — a period not read before shows 正在读取 first (电脑版换场). */
-:where(.fdw-dock-slot, .fdw-chart-area) { animation: ui-fade-in var(--dur-2) var(--ease-out) backwards; }
+/* A side panel's content fades in as it opens; the chart area as it appears — a period not read before shows 正在读取
+   first (电脑版换场). */
+:where(.fdw-side-workbench-layout > *, .fdw-chart-area) { animation: ui-fade-in var(--dur-2) var(--ease-out) backwards; }
 :where(.fdw-ind-popover, .help-tip-pop)[data-closing], .ui-presence[data-closing] > .ai-menu-list { pointer-events: none; animation: ui-fade-out var(--dur-1) var(--ease-out) forwards; }
 /* 下拉与右键菜单 (电脑版第四批): 布局、AI 球、图表右键（及其子菜单）、帮助、合约页签、策略行、画线工具、停止 — fade in, and out through `Presence`. */
 :where(.fdw-layout-list, .ai-orb-menu, .fdw-context-menu, .app-help-menu, .fdm-stop-menu, .fdw-draw-flyout, .strategy-item-menu) { animation: ui-fade-in var(--dur-1) var(--ease-out) backwards; }

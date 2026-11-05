@@ -679,7 +679,7 @@ test("dockWidth 界面命令：在窗口上限内照设并回报，超过这个�
   }
 });
 
-test("自由布局：策略面板在后台标签时，strategyEditor 命令把它切到前面（快照 panel 回到 strategy）", () => {
+test("提醒面板开着时，strategyEditor 命令换成策略面板（快照 panel 回到 strategy）", async () => {
   const control = vi.spyOn(uiControl, "useUiControl").mockImplementation(() => {});
   const editor = vi.fn();
   function Panel() { useUiSurface("strategyEditor", { state: {}, apply: editor }, []); return <div>策略运行状态</div>; }
@@ -690,8 +690,8 @@ test("自由布局：策略面板在后台标签时，strategyEditor 命令把�
     act(() => { apply({ panel: "strategy" }); });
     act(() => { apply({ panel: "reminders" }); });
     expect(state()).toMatchObject({ panel: "reminders" });
-    expect(uiSurface("strategyEditor")).toBeTruthy();
-    act(() => { apply({ strategyEditor: { new: true, reminder: true } }); });
+    // The editor mounts with the panel; the command lands as it does (registerUiSurface's pending apply).
+    await act(async () => { apply({ strategyEditor: { new: true, reminder: true } }); });
     expect(state()).toMatchObject({ panel: "strategy" });
     expect(editor).toHaveBeenCalledWith({ new: true, reminder: true });
   } finally {
@@ -1602,8 +1602,8 @@ test("global emergency stop is visible outside AI and recovery requires explicit
   await waitFor(() => expect(screen.queryByRole("dialog",{name:"恢复 AI 模拟执行"})).toBeNull());
 });
 
-// 自由布局 (owner 2026-11-02): side panels may be open together; a newly opened one comes to the front as a tab.
-test("对话面板与策略面板可以同时开，后开的在前面，收起后回到前一个", () => {
+// One side panel at a time (owner 2026-11-05): another replaces it.
+test("对话面板与策略面板是互斥的两个面板，一次只开一个", () => {
   const values = props({strategyPanel:<div>策略运行状态</div>});
   render(<FuturesDecisionWorkspace {...values as any}/>);
   openAiPanel();
@@ -1612,10 +1612,8 @@ test("对话面板与策略面板可以同时开，后开的在前面，收起�
   fireEvent.click(screen.getByRole("button",{name:"打开策略面板"}));
   expect(screen.getByText("策略运行状态")).toBeVisible();
   expect(screen.queryByRole("textbox",{name:"向 AI 决策流提问"})).not.toBeInTheDocument();
-  // The rail's own button closes the panel it opened; the chat it covered is the focused one again.
+  // The rail's own button closes the panel it opened.
   fireEvent.click(screen.getByRole("button",{name:"收起策略"}));
-  expect(screen.getByTestId("futures-decision-workspace")).toHaveAttribute("data-right-dock", "ai");
-  fireEvent.click(screen.getByRole("button",{name:"收起对话"}));
   expect(screen.getByTestId("futures-decision-workspace")).toHaveAttribute("data-right-dock", "closed");
 });
 

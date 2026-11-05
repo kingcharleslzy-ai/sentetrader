@@ -1,19 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { SerializedDockview } from "dockview-react";
 import type { DesktopChartsPreferences, PreferencesDocument } from "../../userPreferences";
-import type { DockPanel } from "./SideDock";
+import type { RightDock } from "./support";
 import { DEFAULT_DESKTOP_CHARTS } from "./desktopCharts";
 
 /**
  * 自由布局 (2026-11-02): 盘前 / 盘中 / 复盘 and the layouts the user saves, in the account preference
- * `ui.workspaceLayouts` (mirrors the Runtime's WorkspaceLayoutsPreferences). A layout holds the open side panels
- * with their arrangement and the 多图 (cells[active] = the chart's own contract and period). Whatever changes on
+ * `ui.workspaceLayouts` (mirrors the Runtime's WorkspaceLayoutsPreferences). A layout holds the open side panel
+ * (one at a time since 2026-11-05) and the 多图 (cells[active] = the chart's own contract and period). Whatever changes on
  * screen is saved into the current layout a moment later; switching restores the other one. A new layout starts
- * blank (owner 2026-11-04): no side panels, one chart on the contract and period shown now.
+ * blank (owner 2026-11-04): no side panel, one chart on the contract and period shown now.
  */
 export interface WorkspaceLayout {
   id: string; name: string;
-  dock: { panels: DockPanel[]; active: DockPanel | null; grid: SerializedDockview | null };
+  dock: { active: RightDock };
   charts: DesktopChartsPreferences | null;
 }
 export interface WorkspaceLayouts { current: string; items: WorkspaceLayout[] }
@@ -22,7 +21,7 @@ export type LayoutCapture = Pick<WorkspaceLayout, "dock" | "charts">;
 
 export const LAYOUTS_MAX = 11;
 const NAME_MAX = 12;
-const EMPTY_DOCK = { panels: [], active: null, grid: null };
+const EMPTY_DOCK = { active: null };
 const DOCK_PANELS = new Set(["ai", "order", "strategy", "positions", "news", "reminders"]);
 export const DEFAULT_LAYOUTS: WorkspaceLayouts = { current: "live", items: [
   { id: "pre", name: "盘前", dock: EMPTY_DOCK, charts: null }, { id: "live", name: "盘中", dock: EMPTY_DOCK, charts: null },
@@ -31,9 +30,8 @@ export const DEFAULT_LAYOUTS: WorkspaceLayouts = { current: "live", items: [
 export function normalizeLayouts(raw: Partial<WorkspaceLayouts> | undefined | null): WorkspaceLayouts {
   const items = (Array.isArray(raw?.items) ? raw.items : []).flatMap(item => {
     if (!item || typeof item.id !== "string" || typeof item.name !== "string") return [];
-    const panels = (Array.isArray(item.dock?.panels) ? item.dock.panels : []).filter(panel => DOCK_PANELS.has(panel));
-    const active = item.dock?.active && panels.includes(item.dock.active) ? item.dock.active : null;
-    return [{ id: item.id, name: item.name, dock: { panels, active, grid: item.dock?.grid ?? null }, charts: item.charts ?? null }];
+    const active = item.dock?.active && DOCK_PANELS.has(item.dock.active) ? item.dock.active : null;
+    return [{ id: item.id, name: item.name, dock: { active }, charts: item.charts ?? null }];
   }).slice(0, LAYOUTS_MAX);
   if (!items.length) return DEFAULT_LAYOUTS;
   return { current: items.some(item => item.id === raw?.current) ? raw!.current! : items[0].id, items };
@@ -93,7 +91,7 @@ export function useWorkspaceLayouts({ document, connected, update, capture, rest
   connected: boolean;
   update: (patch: Record<string, unknown>) => Promise<PreferencesDocument>;
   capture: () => LayoutCapture;
-  /** `opening`: the page just loaded — the side panels come back, the 多图 and contract stay as this window has them. */
+  /** `opening`: the page just loaded — the side panel comes back, the 多图 and contract stay as this window has them. */
   restore: (layout: WorkspaceLayout, opening?: boolean) => void;
   changeKey: string;
   enabled: boolean;
@@ -113,7 +111,7 @@ export function useWorkspaceLayouts({ document, connected, update, capture, rest
     write(plan.layouts);
     if (plan.restore) latest.current.restore(plan.restore);
   }, [connected, write]);
-  // Opening the page puts the current layout's side panels back before anything is saved into it.
+  // Opening the page puts the current layout's side panel back before anything is saved into it.
   const loaded = document !== undefined;
   const [opened, setOpened] = useState(false);
   useEffect(() => {
