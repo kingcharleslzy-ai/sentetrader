@@ -45,6 +45,8 @@ x-trader-runtime-slot: &trader-runtime-slot
     RSSHUB_URL: ${RSSHUB_URL-http://172.17.0.1:11200}
     # News screening (news_screen.py): model calls per Beijing day; over it the feeds fall back to keywords.
     AI_TRADER_NEWS_SCREEN_DAILY_CALLS: ${AI_TRADER_NEWS_SCREEN_DAILY_CALLS:-300}
+    AI_TRADER_NEWS_SCREEN_PLAN_PERCENT: ${AI_TRADER_NEWS_SCREEN_PLAN_PERCENT:-0}
+    AI_TRADER_NEWS_SCREEN_PLAN_API_KEY_FILE: /run/secrets/news_screen_plan_api_key
     # Research / news / flash limits (docs: THREE_PLATFORM_AND_WEB_DEPLOYMENT.md). Counts carry the code's
     # own default here because the code reads an empty value as 0 (off); the models fall back through the
     # same chain as the code (news_* → NEWS_SCREEN → RESEARCH_DESK → deepseek-flash).
@@ -125,6 +127,7 @@ x-trader-runtime-slot: &trader-runtime-slot
     - deepseek_api_key
     - zhipu_api_key
     - moonshot_api_key
+    - news_screen_plan_api_key
     - fred_api_key
     - eia_api_key
     - voice_realtime_key
@@ -284,6 +287,8 @@ secrets:
     file: ${AI_TRADER_ZHIPU_API_KEY_FILE:-/dev/null}
   moonshot_api_key:
     file: ${AI_TRADER_MOONSHOT_API_KEY_FILE:-/dev/null}
+  news_screen_plan_api_key:
+    file: ${AI_TRADER_NEWS_SCREEN_PLAN_API_KEY_FILE:-/dev/null}
   # Research desk official data; an empty file just leaves FRED/EIA out.
   fred_api_key:
     file: ${AI_TRADER_FRED_API_KEY_FILE:-/dev/null}

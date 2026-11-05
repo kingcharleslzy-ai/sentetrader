@@ -5,8 +5,9 @@ through `screen_view`: a candidate the keyword rules already rule out (苹果公
 dropped with its group name; one with a stored verdict is kept with its one-line reading
 (event · direction · strength · reason) or dropped with the model's group name; one without a
 verdict yet is queued. The background loop judges queued (item, product) pairs in batches with
-one cheap structured model call each, through the Runtime's own adapter and the platform usage
-marker — never a new provider. Each pair is judged once and stored (`news_screen`).
+the Runtime's structured model adapter and platform usage marker. Opt-in ordinary batches use
+two private plan requests with official review; physical supply batches stay official. Only the
+final verdict for each pair is stored (`news_screen`).
 
 A kept verdict must say how the news reaches the product (`transmission`); one that cannot is
 dropped. It also names the event (`eventLabel`, reused across sources: the prompt lists the
@@ -58,6 +59,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict
 
 from .daily_budget import DailyCallBudget
+from .secret_values import secret_value
 
 log = logging.getLogger("uvicorn.error.research")
 
@@ -78,6 +80,7 @@ DROP_GROUPS = ("无关国际新闻", "无关宏观数据", "其他品种新闻",
                DEFAULT_GROUP)
 # The judgments' tokens book against this marker, never the quota of whoever opened the page.
 USAGE_USER = "platform:news-screen"
+PLAN_MODEL = "deepseek/deepseek-v4.1-flash"
 BATCH_PAIRS = 24
 TEXT_CHARS = 200
 CALL_TIMEOUT_SECONDS = 60
@@ -111,7 +114,8 @@ INSTRUCTIONS = """你是期货资讯筛选员。输入是若干条（新闻，�
 - transmission：不超过 30 个字，说清这条新闻经过什么途径影响到该品种的价格（例如“美元走强，以美元计价的金价承压”“冷库出库慢，现货压力传到期货”）。说不出具体途径的，relevant 一律为 false，dropReason 选“说不清怎么影响”。
 - eventLabel：不超过 16 个字的规范事件名，写“发生了什么”，不写来源和观点（例如“现货黄金日内下跌”“美债收益率创新高”）。knownLabels 列出了该品种今天已有的事件名，讲的是同一件事就原样复用那个名字；同一批里讲同一件事的几条也用同一个名字。
 - dropReason：relevant 为 false 时从 groups 里选一个分组名。productGroups 是某品种的“同名但不是它”专属分组，只用于名字相同、讲的却是别的东西的新闻（苹果公司之于苹果、黄金周之于黄金）；宏观、国际、其他品种的新闻不要放进去。relevant 为 true 时留空。
-每个 key 都要回答一次。"""
+每个 key 都要回答一次。
+公司和产业消息要按原文事实区分：利润、回购、股价变动本身不是该商品的供需。即便标题是财报，如正文披露该商品真实的生产、销售、库存、开停工或已签署的矿山开发事实，也要单独评估这一实物信息。写清范围是单一公司、地区还是全国，不要把单家变化夸成全市场冲击；计划和已实现分开。"""
 
 
 class ScreenVerdict(BaseModel):
@@ -151,6 +155,43 @@ def normalise_verdict(verdict: ScreenVerdict, groups: tuple[str, ...] = DROP_GRO
             "strength": verdict.strength if verdict.strength in STRENGTHS else "弱",
             "reason": (verdict.reason or "").strip()[:REASON_CHARS], "transmission": transmission,
             "eventLabel": (verdict.eventLabel or "").strip()[:LABEL_CHARS] or None}
+
+
+def _physical(pairs: Iterable[dict[str, Any]]) -> bool:
+    for pair in pairs:
+        for line in re.split(r"[。；;!?！？\n]|\.(?!\d)", pair["title"] + "。" + pair["text"]):
+            if re.search(r"停产|复产|停工|复工|禁运|(?:矿山|矿企|铜矿|油田).{0,20}罢工|production (?:halt|resum)|embargo", line, re.I):
+                return True
+            if re.search(r"产量|产销|销量|生产|销售|库存|产能|开采|出库|入库|减产|增产|停产|复产|production|sales volume|output|stockpiles?|inventor(?:y|ies)|capacity", line, re.I) and re.search(
+                r"\d[\d,.]*\s*(?:万|亿|千|百|万亿|百万|千万|[kKmM]|thousand |million )?\s*(?:公吨|吨|头|桶|磅|盎司|蒲式耳|公斤|千克|立方米|tonnes?\b|tons?\b|bbl\b|barrels?\b|ounces?\b|pounds?\b|bushels?\b|kg\b|kilograms?\b|cubic (?:meters?|metres?)\b|head\b|[%％])", line, re.I):
+                return True
+    return False
+
+
+def _guarded(pair: dict[str, Any]) -> bool:
+    text = pair["title"] + " " + pair["text"]
+    supply = re.search(r"产量|销量|库存|供需|供应|供给|需求|减产|增产|停产|复产|开停工|开工|投产|扩建|产能|矿山|矿企|统计修[正订]|重复统?计|[Pp]roduction|[Oo]utput|[Ii]nventor|[Ss]tockpiles?|[Mm]ine\b|[Ss]upply|[Ss]hutdown", text)
+    big = re.search(r"涨停|跌停|突破|跌破|暴涨|暴跌|飙升|大跌|大涨|breaks? (?:above|below)|surges?|plunges?", text, re.I) or any(
+        float(value) >= 3 for value in re.findall(r"(\d+(?:\.\d+)?)\s*[%％]", text))
+    return bool(supply or big)
+
+
+def _complete_verdicts(result: Any, payload: dict[str, Any]) -> dict[str, ScreenVerdict]:
+    expected = {pair["key"] for pair in payload["pairs"]}
+    answers = {verdict.key: verdict for verdict in result.value.verdicts}
+    if answers.keys() != expected or len(result.value.verdicts) != len(expected):
+        raise ValueError("news_screen_incomplete_verdicts")
+    for verdict in answers.values():
+        if verdict.relevant and (verdict.event not in EVENTS or verdict.direction not in DIRECTIONS
+                                 or verdict.strength not in STRENGTHS or not (verdict.transmission or "").strip()
+                                 or not (verdict.reason or "").strip() or not (verdict.eventLabel or "").strip()):
+            raise ValueError("news_screen_unreliable_verdict")
+    return answers
+
+
+def _decision(verdict: ScreenVerdict) -> tuple[bool, bool, str | None]:
+    value = normalise_verdict(verdict)
+    return value["relevant"], value.get("strength") in {"中", "强"}, value.get("direction")
 
 
 def research_day(moment: datetime | str | None) -> str:
@@ -500,7 +541,7 @@ class NewsScreener:
                 return
 
     async def run_round(self) -> int:
-        """One model call over a batch taken in turn across products (`_take`); the number of pairs judged."""
+        """Judge one batch taken in turn across products (`_take`); the number of pairs stored."""
         generator, model = self._adapter()
         if generator is None:
             return 0
@@ -541,9 +582,7 @@ class NewsScreener:
                               "text": entry["text"][:TEXT_CHARS]} for label, (key, entry) in keyed.items()]}
         started = self.clock()
         try:
-            result = await generator.complete_structured(
-                instructions=INSTRUCTIONS, input_text=json.dumps(payload, ensure_ascii=False), schema=ScreenBatch,
-                timeout_seconds=CALL_TIMEOUT_SECONDS, model=model, usage_user=USAGE_USER)
+            result, sources = await self._screen(generator, model, batch, payload)
         except asyncio.CancelledError:
             self._requeue(batch, count=False)
             raise
@@ -561,6 +600,8 @@ class NewsScreener:
                 answered[entry[0]] = normalise_verdict(verdict, DROP_GROUPS + own.get(entry[0][1], ()))
         judged_at = self.now().isoformat(timespec="seconds")
         keyed_entries = {key: entry for key, entry in batch}
+        source_models = {key: sources.get(label, model or getattr(generator, "model", None) or "default")
+                         for label, (key, _) in keyed.items()}
         with self.lock, self.connection:
             for (item_id, product), value in answered.items():
                 self.connection.execute(
@@ -573,7 +614,7 @@ class NewsScreener:
                     " event_label = excluded.event_label, published_at = excluded.published_at",
                     (item_id, product, int(value["relevant"]), value.get("event"), value.get("direction"),
                      value.get("strength"), value.get("reason"), value.get("dropReason"),
-                     model or getattr(generator, "model", None) or "default", judged_at, value.get("transmission"),
+                     source_models[(item_id, product)], judged_at, value.get("transmission"),
                      value.get("eventLabel"), keyed_entries[(item_id, product)]["publishedAt"] or None))
         self._settled(set(answered))  # stored first: a reader never sees a judged pair as unseen
         self._requeue([(key, entry) for key, entry in batch if key not in answered], count=True)
@@ -583,6 +624,71 @@ class NewsScreener:
                  sum(1 for value in answered.values() if not value["relevant"]),
                  int(getattr(result, "tokens", 0) or 0), self.clock() - started)
         return len(answered)
+
+    async def _screen(self, generator: Any, model: str | None,
+                      batch: list[tuple[tuple[str, str], dict[str, Any]]], payload: dict[str, Any]) -> tuple[Any, dict[str, str]]:
+        async def official(part: dict[str, Any], *, complete: bool = False) -> Any:
+            result = await generator.complete_structured(
+                instructions=INSTRUCTIONS, input_text=json.dumps(part, ensure_ascii=False), schema=ScreenBatch,
+                timeout_seconds=CALL_TIMEOUT_SECONDS, model=model, usage_user=USAGE_USER)
+            if complete:
+                _complete_verdicts(result, part)
+            return result
+
+        digest = hashlib.sha256(json.dumps(sorted(key for key, _ in batch)).encode()).hexdigest()
+        route = "official_disabled"
+        key = ""
+        try:
+            percent = max(0, min(100, int(os.getenv("AI_TRADER_NEWS_SCREEN_PLAN_PERCENT", "0") or 0)))
+            if percent:
+                if _physical(entry for _, entry in batch):
+                    route = "official_physical"
+                elif int(digest, 16) % 100 >= percent:
+                    route = "official_not_sampled"
+                else:
+                    route = "official_unconfigured"
+                    key = secret_value("AI_TRADER_NEWS_SCREEN_PLAN_API_KEY")
+        except (ValueError, RuntimeError):
+            route = "official_unconfigured"
+        if not key:
+            log.info("news_screen_route batch=%s route=%s pairs=%d", digest[:12], route, len(batch))
+            return await official(payload), {}
+
+        from .native_agent import ModelEndpoint, StructuredResult
+
+        endpoint = ModelEndpoint("news-screen-plan", "commandcode", "https://api.commandcode.ai/provider/v1", key, PLAN_MODEL)
+        try:
+            # Wait for both requests even if one fails; no orphan can keep spending after fallback.
+            results = await asyncio.gather(*(generator.complete_structured(
+                instructions=INSTRUCTIONS, input_text=json.dumps(payload, ensure_ascii=False), schema=ScreenBatch,
+                timeout_seconds=CALL_TIMEOUT_SECONDS, usage_user=USAGE_USER, endpoint=endpoint)
+                for _ in range(2)), return_exceptions=True)
+            if any(isinstance(result, BaseException) for result in results):
+                raise ValueError("news_screen_plan_failed")
+            first, second = (_complete_verdicts(result, payload) for result in results)
+        except asyncio.CancelledError:
+            raise
+        except Exception:  # no provider exception text: it may contain sensitive response headers
+            log.info("news_screen_route batch=%s route=official_fallback pairs=%d", digest[:12], len(batch))
+            return await official(payload, complete=True), {}
+
+        review = [pair for pair in payload["pairs"] if _decision(first[pair["key"]]) != _decision(second[pair["key"]])
+                  or (not _decision(first[pair["key"]])[1] and _guarded(pair))]
+        sources = {label: "commandcode:" + PLAN_MODEL for label in first}
+        tokens = sum(int(getattr(result, "tokens", 0) or 0) for result in results)
+        if review:
+            # Preserve original keys and all product context. No result is stored until review succeeds in full.
+            products = {pair["product"] for pair in review}
+            part = {**payload, "pairs": review,
+                    **{name: {product: value for product, value in payload[name].items() if product in products}
+                       for name in ("knownLabels", "productGroups")}}
+            checked = await official(part, complete=True)
+            for verdict in checked.value.verdicts:
+                first[verdict.key] = verdict
+                sources[verdict.key] = model or getattr(generator, "model", None) or "default"
+            tokens += int(getattr(checked, "tokens", 0) or 0)
+        log.info("news_screen_route batch=%s route=plan pairs=%d review=%d", digest[:12], len(batch), len(review))
+        return StructuredResult(ScreenBatch(verdicts=list(first.values())), [], tokens), sources
 
     def _settled(self, keys: set[tuple[str, str]]) -> None:
         """Judged pairs: out of flight, any duplicate queued meanwhile cleared, failures forgotten."""

@@ -2913,9 +2913,10 @@ class NativeAgentAdapter:
         self, endpoint: ModelEndpoint, request: dict[str, Any], *, turn: _Turn | None,
         on_summary: Callable[[str], None] | None = None, reasoning_effort: str | None = None,
         meter: _Turn | None = None, on_text: Callable[[str], Awaitable[None]] | None = None,
+        client: AsyncOpenAI | None = None, usage_user: str | None = None,
     ) -> _Round:
-        client = self.model_clients[endpoint.slug]
-        traits = self._traits[endpoint.slug]
+        client = client or self.model_clients[endpoint.slug]
+        traits = self._traits.get(endpoint.slug) or dict(PROVIDER_TRAITS.get(endpoint.provider, PROVIDER_TRAITS["deepseek"]))
         attempt = dict(request)
         if endpoint.upstream:
             attempt["model"] = endpoint.upstream
@@ -2942,6 +2943,7 @@ class NativeAgentAdapter:
         started = monotonic()
         status = "failed"
         usage: dict[str, int] = {}
+        requests = 1
         # The turn whose usage this request counts toward (a side request of the turn — history
         # compaction — passes it as `meter`, it must not stream into the turn's answer).
         meter = meter or turn
@@ -2951,6 +2953,7 @@ class NativeAgentAdapter:
             except openai.BadRequestError:
                 if "reasoning" not in attempt:
                     raise
+                requests += 1
                 if meter is not None:
                     meter.usage["requests"] += 1  # the rejected request was sent too
                 log.info("agent_request run_id=%s model=%s status=http_400_reasoning elapsed_ms=%.1f",
@@ -2988,6 +2991,15 @@ class NativeAgentAdapter:
                      meter.run_id if meter else "-", endpoint.slug, status, (monotonic() - started) * 1000,
                      usage.get("input_tokens", 0), usage.get("output_tokens", 0), usage.get("cached_tokens", 0),
                      usage.get("reasoning_tokens", 0), len(request.get("tools") or ()))
+            if usage_user == "platform:news-screen":
+                try:
+                    self.store.add_turn_usage(
+                        run_id=str(uuid4()), user_id=usage_user, session_id="", route="news-screen",
+                        origin=endpoint.provider, model=endpoint.upstream or endpoint.slug, status=status,
+                        usage={**usage, "requests": requests}, first_text_ms=None,
+                        elapsed_ms=round((monotonic() - started) * 1000))
+                except Exception:  # measurement must never break screening
+                    log.exception("news_screen_usage_record_failed")
 
     async def _consume(
         self, stream: Any, turn: _Turn | None, *, on_summary: Callable[[str], None] | None = None,
@@ -3947,6 +3959,7 @@ class NativeAgentAdapter:
         on_progress: Callable[..., None] | None = None, json_schema: dict[str, Any] | None = None,
         usage_user: str | None = None,
         max_output_tokens: int | None = None, light_reasoning: bool = False,
+        endpoint: ModelEndpoint | None = None,
     ) -> StructuredResult:
         """One bounded request/response without conversation history.
 
@@ -3962,10 +3975,14 @@ class NativeAgentAdapter:
         cut off or empty after the correction round is `model_output_empty`, told
         apart from `model_output_invalid` (text that does not fit the schema).
         """
-        endpoint = self._endpoint_for(model)
-        effort: str | None = None
+        # A background caller may own a private endpoint; it never enters the conversation catalog.
+        if endpoint is not None and (usage_user != "platform:news-screen" or tools):
+            raise NativeAgentError("model_unavailable")
+        private_client = self._make_client(endpoint) if endpoint is not None else None
+        endpoint = endpoint or self._endpoint_for(model)
+        effort: str | None = "low" if private_client is not None else None
         if light_reasoning:
-            effort = self._traits[endpoint.slug].get("light_effort") or "minimal"
+            effort = (self._traits.get(endpoint.slug) or PROVIDER_TRAITS["deepseek"]).get("light_effort") or "minimal"
         allowed = {name for name in (tools or set()) if name == "web_search"}
         resolved_schema = json_schema or schema.model_json_schema()
         # Not every provider honors text.format (GLM returns prose), so the
@@ -3985,6 +4002,8 @@ class NativeAgentAdapter:
         tool_calls: list[tuple[str, dict[str, Any], dict[str, Any]]] = []
         tokens = 0
         corrected = False
+        stream_options: dict[str, Any] = ({"client": private_client, "usage_user": usage_user}
+                                          if usage_user == "platform:news-screen" else {})
         try:
             async with asyncio.timeout(timeout_seconds):
                 for _ in range(5):
@@ -3992,6 +4011,7 @@ class NativeAgentAdapter:
                         endpoint, request, turn=None,
                         on_summary=(lambda summary: on_progress(stage="模型正在分析交易条件", summary=summary))
                         if on_progress else None, reasoning_effort=effort,
+                        **stream_options,
                     )
                     tokens += result.usage_tokens or max(
                         self._estimate_tokens(request["input"]) + len(result.text) // 2, 1)
@@ -4046,6 +4066,8 @@ class NativeAgentAdapter:
             raise NativeAgentError("model_request_failed")
         finally:
             self._record_structured_usage(tokens, usage_user or self.usage_user)
+            if private_client is not None:
+                await private_client.close()
 
     def _record_structured_usage(self, tokens: int, user: str | None) -> None:
         # The shared (owner-password) adapter serves everyone: the caller names the user.
