@@ -660,10 +660,11 @@ def restore_unknown_fields(document: dict[str, Any], unknown: dict[str, Any]) ->
         if isinstance(value, dict) and isinstance(current, dict):
             merged[key] = restore_unknown_fields(current, value)
         elif isinstance(value, list) and isinstance(current, list):
+            # Every known item stays: a list that grew since (a new 布局) must not be cut to the strangers' length.
             merged[key] = [
-                restore_unknown_fields(item, stranger)
-                if isinstance(stranger, dict) and isinstance(item, dict) else item
-                for item, stranger in zip(current, value)
+                restore_unknown_fields(item, value[index])
+                if index < len(value) and isinstance(value[index], dict) and isinstance(item, dict) else item
+                for index, item in enumerate(current)
             ]
         else:
             merged[key] = value
