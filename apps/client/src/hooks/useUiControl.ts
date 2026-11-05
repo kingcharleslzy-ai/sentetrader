@@ -15,7 +15,8 @@ const IDLE_PULSE_MS = 30_000;
 /** A drag (dock width, chart pane sizes) changes state on every pointer move; one pulse after it settles. */
 const STATE_CHANGE_DEBOUNCE_MS = 250;
 type Command = { commandId: string; expectedRevision: number; changes: UiChanges };
-type Receipt = { commandId: string; status: "applied" | "rejected" };
+/** `reason`: why the window could not run it (the error it threw), for the AI and the readback to say. */
+type Receipt = { commandId: string; status: "applied" | "rejected"; reason?: string };
 /** Whether this window's heartbeat is accepted; false after three consecutive 422s (shown in the workspace). */
 export interface UiControlHealth { registered: boolean; detail: string }
 let health: UiControlHealth = { registered: true, detail: "" };
@@ -54,7 +55,7 @@ export function useUiControl(baseUrl: string | undefined, workspace: string | un
     let device: AgentDevice | undefined;
     let captureReceipt: components["schemas"]["CaptureReceipt"] | undefined;
     let capturing: Promise<void> | undefined;
-    let pending: { command: Command; rejected: boolean } | undefined;
+    let pending: { command: Command; rejected: boolean; reason?: string } | undefined;
     const current = () => !stopped && fence.isCurrent();
     let inFlight = false;
     let rejected = 0;
@@ -64,7 +65,8 @@ export function useUiControl(baseUrl: string | undefined, workspace: string | un
       clearTimeout(timer);
       // The window says only whether it ran the command; the Runtime judges from the state this heartbeat
       // and the next ones carry whether it took effect (ui_control.changes_match).
-      const receipt: Receipt | undefined = pending && { commandId: pending.command.commandId, status: pending.rejected ? "rejected" : "applied" };
+      const receipt: Receipt | undefined = pending && { commandId: pending.command.commandId, status: pending.rejected ? "rejected" : "applied",
+        ...(pending.rejected && pending.reason ? { reason: pending.reason.slice(0, 300) } : {}) };
       controller = new AbortController();
       const timeout = setTimeout(() => controller?.abort(), 3000);
       try {
@@ -87,7 +89,7 @@ export function useUiControl(baseUrl: string | undefined, workspace: string | un
           if (command.expectedRevision !== latest.current.revision) pending.rejected = true;
           else {
             try { latest.current.apply(command.changes); }
-            catch { pending.rejected = true; }
+            catch (error) { pending.rejected = true; if (error instanceof Error && error.message) pending.reason = error.message; }
           }
         }
         const capture = (result as components["schemas"]["UiPulseResult"]).capture;

@@ -444,9 +444,9 @@
         }
       ],
       "detail": [
-        "界面命令 view: dashboard 打开看板；boards（一次一项）：select <id> 切到一个看板并打开；create <名字> 新建空白看板并切过去（最多 11 个，名字 1–12 个字、不重名）；rename {id, name}；remove <id>（至少留一个，删当前的切到第一个）；place {module, size?, x?, y?} 把模块放到当前看板，已在上面的就挪位置或换档（不给 x、y 时原位换档，放不下找第一个空位，还放不下就 rejected）；take <module> 拿掉；editing true / false 进入或退出编辑（进入也会打开看板）；undo true 撤销这次编辑里最近一次放、挪、换档或拿掉（没有可撤销的就 rejected）。默认 id：pre 盘前、live 盘中、review 复盘。",
+        "界面命令 view: dashboard 打开看板；boards（一次一项）：select <id> 切到一个看板并打开；create <名字> 新建空白看板并切过去（最多 11 个，名字 1–12 个字、不重名）；rename {id, name}；remove <id>（至少留一个，删当前的切到第一个）；place {module, size?, x?, y?} 把模块放到当前看板，已在上面的就挪位置或换档（不给 x、y 时原位换档，放不下找第一个空位，还放不下就 rejected，回执的 reason 说清楚这块画布有几列几行、哪里放不下）；take <module> 拿掉；editing true / false 进入或退出编辑（进入也会打开看板）；undo true 撤销这次编辑里最近一次放、挪、换档或拿掉（没有可撤销的就 rejected）。默认 id：pre 盘前、live 盘中、review 复盘。",
         "模块 module：chart 图表（small / medium / large / xlarge / full）、positions 持仓（small / medium / large）、order 下单（small / medium / large）、watch 自选报价（small / medium / large / wide）。每档占的格数不变：small 3×2、medium 6×2、large 6×4、xlarge 9×6、wide 12×4、full 12×8；x、y 是模块左上角所在的格（从 0 数），模块不能出界、不能叠在一起。",
-        "格子数不固定（所有者 11-05）：每格大小固定（标准字号 92×78 像素，大字、特大按 110%、120% 放大），画布的列数和行数按量到的实际大小算，笔记本大约 12×8，大屏和带鱼屏多出列和行，不按屏幕宽度分段。每个看板记着自己是在多少格上摆的（ui.boards 每项的 cols、rows）：在更大的画布上打开，多出来的是空格子；在更小的画布上打开，还放得下的模块原地不动，放不下的往下挪、页面竖着滚，比画布还宽的模块让画布横着滚，模块本身不压缩。在这块画布上放、挪、换档或拿掉模块，看板就按这块画布当时的样子重新记下格数和位置。编辑时的模块库浮在画布上，不占格子。",
+        "格子数不固定（所有者 11-05）：每格大小固定（标准字号 88×74 像素；字号每大一档，格子只放大一半：大字 +5%、特大 +10%，所以 1440×900 的笔记本三种字号下都约 12×8），画布的列数和行数按量到的实际大小算，笔记本大约 12×8，大屏和带鱼屏多出列和行，不按屏幕宽度分段。每个看板记着自己是在多少格上摆的（ui.boards 每项的 cols、rows）：在更大的画布上打开，多出来的是空格子；在更小的画布上打开，还放得下的模块原地不动，放不下的先找上面和旁边的空位，实在没有才往下挪、页面竖着滚，比画布还宽的模块让画布横着滚，模块本身不压缩。在这块画布上放、挪、换档或拿掉模块，看板就按这块画布当时的样子重新记下格数和位置。编辑时的模块库浮在画布上，不占格子。",
         "账号偏好 ui.boards = {current, items: [{id, name, cols, rows, tiles: [{module, size, x, y}]}]}，快照 state.preferences 回报；state.boards = {editing, selected} 是这个窗口是否在编辑、选中了哪个模块。顶栏下拉是 disclosure: boards-menu，编辑时的模块库是 disclosure: board-library，看板页签旁的 ⋯（改名、删除）是 disclosure: board-more。只有登录用户的电脑布局有看板（手机、游客、回放 rejected）。格子拖拽用开源组件 react-grid-layout（MIT）。"
       ]
     },

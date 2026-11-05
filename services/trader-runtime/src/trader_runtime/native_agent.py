@@ -541,6 +541,7 @@ class _Turn:
     ui_not_run: str | None = None
     # The step the window refused (its change in the user's words), for the closing line.
     ui_refused: str | None = None
+    ui_refused_reason: str = ""
     # 我的流程: set while the turn runs a routine (step-scoped tools, no direct order tool at all).
     routine: _RoutineRun | None = None
     # Token 计量 (2026-10-14): this turn's model requests and their usage split, summed per request;
@@ -3698,6 +3699,7 @@ class NativeAgentAdapter:
                 turn.ui_error = str(receipt.get("status") or "unknown")
                 if turn.ui_error == "rejected" and call.name == "app_call":
                     turn.ui_refused = describe_ui_change(receipt.get("changes") or {})
+                    turn.ui_refused_reason = str(receipt.get("reason") or "")
         except (ValueError, TypeError, KeyError, AttributeError):
             # An attempted write with no usable receipt cannot be sent again.
             turn.ui_error = "unknown"
@@ -3708,7 +3710,10 @@ class NativeAgentAdapter:
         steps = [describe_ui_change(receipt.get("changes") or {}) for receipt in turn.ui_receipts.values()]
         done = f"已改好：{'；'.join(steps)}。" if steps else ""
         if turn.ui_error == "rejected" and turn.ui_refused:
-            # The window refused this step (a day with no review, a surface that is not there): say which.
+            # The window refused this step (a day with no review, a surface that is not there): say which, and why
+            # when the window said.
+            if turn.ui_refused_reason:
+                return done + f"「{turn.ui_refused}」没有生效：{turn.ui_refused_reason.rstrip('。')}。没有重复提交。"
             return done + f"「{turn.ui_refused}」没有生效（窗口没有接受这一步，比如那一天没有记录或这里没有这个入口），没有重复提交。"
         if turn.ui_error:
             return done + "其余界面操作尚未确认完成，没有重复提交。请查看当前界面或明确要切到哪里。"

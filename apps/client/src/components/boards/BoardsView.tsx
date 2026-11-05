@@ -7,7 +7,7 @@ import { applyUiSurface, useDisclosureSurface, useUiSurface } from "../../uiSurf
 import { fitClasses, rowContentOverflows, useFitLevel } from "../futures/useHeaderFit";
 import { HelpTip } from "../Blocks";
 import { Presence } from "../motion";
-import { CELL, MODULES, SIZE_CELLS, measuredGrid, moduleInfo, shownBoard, type BoardModule, type BoardSize, type BoardsChange, type BoardsHandle } from "./boards";
+import { MODULES, cellSize, SIZE_CELLS, measuredGrid, moduleInfo, shownBoard, type BoardModule, type BoardSize, type BoardsChange, type BoardsHandle } from "./boards";
 import "./BoardsView.css";
 
 const GAP = 8;
@@ -192,7 +192,7 @@ export function BoardsView({ control, renderTile, onExit, onError, scale }: {
   useEffect(() => { setScreen(screen); }, [setScreen, screen?.cols, screen?.rows]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => setScreen(null), [setScreen]);
   const shown = shownBoard(board, screen);
-  const cellW = CELL.w * scale, cellH = CELL.h * scale;
+  const { w: cellW, h: cellH } = cellSize(scale);
   const gridWidth = shown.cols * cellW + (shown.cols - 1) * GAP;
   const gridHeight = shown.rows * cellH + (shown.rows - 1) * GAP;
   const layout: Layout = shown.tiles.map(tile => ({ i: tile.module, x: tile.x, y: tile.y, w: SIZE_CELLS[tile.size].w, h: SIZE_CELLS[tile.size].h }));
@@ -255,7 +255,7 @@ export function BoardsView({ control, renderTile, onExit, onError, scale }: {
                 <div className="board-tile-content" inert={editing || undefined}>{renderTile(tile.module, tile.size)}</div>
                 {editing ? <button type="button" className="board-tile-grip" aria-pressed={isSelected}
                   aria-label={`选中${info.label}（${SIZE_CELLS[tile.size].label}），拖动可挪位置`} onClick={() => setSelected(isSelected ? null : tile.module)}>
-                  <GripVertical /><span>{info.label} · {SIZE_CELLS[tile.size].label}</span>
+                  <span><GripVertical />{info.label} · {SIZE_CELLS[tile.size].label}</span>
                 </button> : null}
                 {isSelected ? <div className="board-tile-tools" role="toolbar" aria-label={`${info.label}的档位`}>
                   <div className="board-segment" role="radiogroup" aria-label="档位">

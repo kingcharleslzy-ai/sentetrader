@@ -15,8 +15,13 @@ export const DEFAULT_COLS = 12;
 export const DEFAULT_ROWS = 8;
 export const MAX_COLS = 40;
 export const MAX_ROWS = 30;
-/** One cell at 100 % type (标准字号); the 大字 default makes a laptop's canvas about 12 × 8. */
-export const CELL = { w: 92, h: 78 };
+/** One cell at 100 % type (标准字号). It grows half as fast as the type (大字 +5 %, 特大 +10 %), so a 1440 × 900 laptop
+ *  keeps about 12 × 8 at every font size while the text inside still gets its room. */
+export const CELL = { w: 88, h: 74 };
+export const cellSize = (fontScale: number) => {
+  const grow = 1 + (fontScale - 1) / 2;
+  return { w: CELL.w * grow, h: CELL.h * grow };
+};
 export const BOARDS_MAX = 11;
 const NAME_MAX = 12;
 
@@ -89,26 +94,33 @@ export function freeSpot(tiles: BoardTile[], module: BoardModule, size: BoardSiz
 }
 
 /** How many cells a measured canvas holds at this type scale (never fewer than one small module). */
-export function measuredGrid(width: number, height: number, scale: number, gap: number): Grid {
-  const w = CELL.w * scale, h = CELL.h * scale;
+export function measuredGrid(width: number, height: number, fontScale: number, gap: number): Grid {
+  const { w, h } = cellSize(fontScale);
   return { cols: Math.min(MAX_COLS, Math.max(3, Math.floor((width + gap) / (w + gap)))),
     rows: Math.min(MAX_ROWS, Math.max(2, Math.floor((height + gap) / (h + gap)))) };
 }
 
 /**
  * The board as a canvas of `screen` cells shows it: a board laid out on more columns keeps every tile that still fits
- * where it is and moves the others down (never narrower — a module wider than the canvas widens it and the canvas
- * scrolls sideways); the grid grows downward for what moved, and a larger canvas only adds empty cells.
+ * where it is; each one that does not takes the first free spot from the top-left (beside or above the others), and
+ * only when the canvas has none it goes below them and the page scrolls. Never narrower — a module wider than the
+ * canvas widens it and the canvas scrolls sideways; a larger canvas only adds empty cells.
  */
 export function shownBoard(board: Board, screen: Grid | null): Grid & { tiles: BoardTile[] } {
   if (!screen) return { cols: board.cols, rows: board.rows, tiles: board.tiles };
   const cols = Math.max(screen.cols, ...board.tiles.map(item => SIZE_CELLS[item.size].w));
-  const placed: BoardTile[] = [];
-  for (const item of [...board.tiles].sort((a, b) => a.y - b.y || a.x - b.x)) {
+  const ordered = [...board.tiles].sort((a, b) => a.y - b.y || a.x - b.x);
+  const placed: BoardTile[] = ordered.filter(item => item.x + SIZE_CELLS[item.size].w <= cols);
+  for (const item of ordered.filter(one => !placed.includes(one))) {
     const size = SIZE_CELLS[item.size];
-    const next = { ...item, x: Math.min(item.x, cols - size.w) };
-    while (placed.some(other => overlaps(other, next))) next.y += 1;
-    placed.push(next);
+    let spot: BoardTile | undefined;
+    for (let y = 0; !spot && y < MAX_ROWS; y += 1) {
+      for (let x = 0; x <= cols - size.w; x += 1) {
+        const probe = { ...item, x, y };
+        if (!placed.some(other => overlaps(other, probe))) { spot = probe; break; }
+      }
+    }
+    placed.push(spot ?? { ...item, x: 0, y: Math.max(0, ...placed.map(other => other.y + SIZE_CELLS[other.size].h)) });
   }
   const used = Math.max(0, ...placed.map(item => item.y + SIZE_CELLS[item.size].h));
   return { cols, rows: Math.min(MAX_ROWS, Math.max(screen.rows, used)), tiles: board.tiles.map(item => placed.find(one => one.module === item.module)!) };
@@ -176,10 +188,12 @@ export function planBoardsChange(change: BoardsChange, boards: Boards, screen: G
   if (place.x !== undefined || place.y !== undefined) spot = { x: place.x ?? there?.x ?? 0, y: place.y ?? there?.y ?? 0 };
   else if (there && fits({ ...there, size }, current) && !others.some(other => overlaps(other, { ...there, size }))) spot = { x: there.x, y: there.y };
   else spot = freeSpot(current.tiles, place.module, size, current);
-  if (!spot) throw new Error(`没有空位放${info.label}（${SIZE_CELLS[size].label}），先挪开或删掉别的模块`);
+  const canvas = `这块画布只有 ${current.cols} 列 × ${current.rows} 行`;
+  if (!spot) throw new Error(`${canvas}，没有空位放${info.label}（${SIZE_CELLS[size].label}，占 ${SIZE_CELLS[size].w}×${SIZE_CELLS[size].h} 格），先挪开或删掉别的模块`);
   const next = { module: place.module, size, ...spot };
-  if (!fits(next, current)) throw new Error(`${info.label}（${SIZE_CELLS[size].label}）放在那里会超出画布`);
-  if (others.some(other => overlaps(other, next))) throw new Error(`那里已经有别的模块了`);
+  if (!fits(next, current)) throw new Error(`${canvas}，${info.label}（${SIZE_CELLS[size].label}，占 ${SIZE_CELLS[size].w}×${SIZE_CELLS[size].h} 格）从第 ${next.x + 1} 列、第 ${next.y + 1} 行放会超出；不给位置就自动找空位`);
+  const blocking = others.find(other => overlaps(other, next));
+  if (blocking) throw new Error(`第 ${next.x + 1} 列、第 ${next.y + 1} 行放${info.label}会压到${moduleInfo(blocking.module).label}，换个位置或不给位置自动找空位`);
   return withCurrent(there ? current.tiles.map(item => item.module === place.module ? next : item) : [...current.tiles, next]);
 }
 

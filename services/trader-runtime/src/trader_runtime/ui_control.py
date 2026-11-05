@@ -1513,6 +1513,8 @@ class UiReceipt(BaseModel):
     model_config = ConfigDict(extra="forbid")
     commandId: UUID
     status: Literal["applied", "rejected", "unknown"]
+    # Why the window could not run it, in the user's words (the error it threw); an older client sends none.
+    reason: str | None = Field(default=None, max_length=300)
 
 
 class UiPulse(BaseModel):
@@ -1535,6 +1537,8 @@ class UiCommandResult(UiCommand):
     status: Literal["queued", "dispatched", "applied", "rejected", "expired", "unknown"]
     state: UiState | None
     observedRevision: int | None = None
+    # A rejected command: why the window refused it (absent when the window gave no reason).
+    reason: str | None = None
 
 
 class UiWindowSnapshot(BaseModel):
@@ -1577,11 +1581,12 @@ class Command:
     observed_revision: int | None = None
     # When the window reported it ran the command (an "applied" receipt): the Runtime then judges it.
     claimed: float | None = None
+    reason: str | None = None
 
     def result(self):
         return {**self.request.model_dump(mode="json", exclude_unset=True),
                 "status": self.status, "state": self.state,
-                "observedRevision": self.observed_revision}
+                "observedRevision": self.observed_revision, **({"reason": self.reason} if self.reason else {})}
 
 
 # What an applied command changed, in the user's words (AI audit 2026-10-13): a multi-step interface
@@ -2485,6 +2490,7 @@ def register_ui_control(app, current_user):
                         log_result(command)
                     else:
                         command.status = body.receipt.status if authorized else "unknown"
+                        command.reason = body.receipt.reason if command.status == "rejected" else None
                         command.state = body.state.model_dump()
                         command.observed_revision = body.revision
                         log_result(command)

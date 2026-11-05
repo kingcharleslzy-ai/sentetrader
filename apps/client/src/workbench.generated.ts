@@ -3853,6 +3853,8 @@ export interface components {
             state: components["schemas"]["UiState"] | null;
             /** Observedrevision */
             observedRevision?: number | null;
+            /** Reason */
+            reason?: string | null;
         };
         /** UiDevice */
         UiDevice: {
@@ -3939,6 +3941,8 @@ export interface components {
              * @enum {string}
              */
             status: "applied" | "rejected" | "unknown";
+            /** Reason */
+            reason?: string | null;
         };
         /** UiState */
         UiState: {
