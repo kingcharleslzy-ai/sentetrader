@@ -59,7 +59,7 @@ const positionName = (position: AccountPosition, instruments?: InstrumentCatalog
 const yuan = (positions: AccountPosition[]) => positions.filter(position => position.currency !== "USD");
 
 /** 持仓 · 小: 总浮盈和持仓个数. */
-export function PositionsSmall({ positions, onOpen }: { positions: AccountPosition[]; onOpen: () => void }) {
+export function PositionsSmall({ positions, instruments, onOpen }: { positions: AccountPosition[]; instruments?: InstrumentCatalog; onOpen: () => void }) {
   const own = yuan(positions);
   const total = own.reduce((sum, position) => sum + position.unrealizedPnl, 0);
   const winning = own.filter(position => position.unrealizedPnl > 0).length;
@@ -70,6 +70,11 @@ export function PositionsSmall({ positions, onOpen }: { positions: AccountPositi
       <small className="board-caption">浮动盈亏</small>
       <strong className={`board-figure ${signClass(total)}`}>{formatSigned(total, 0)}</strong>
       <span className="board-split"><span className="positive">{winning} 个赚</span><span className="negative">{losing} 个亏</span></span>
+      {/* A tall block lists the positions below, as many as the height holds (the rest is cut, never squeezed). */}
+      <span className="board-more-rows" aria-hidden="true">{positions.map(position => <span key={`${position.accountId ?? ""}:${position.symbol}:${position.direction}`}>
+        <span className="board-ellipsis">{positionName(position, instruments)} <i className={`board-side ${position.direction}`}>{position.direction === "long" ? "多" : "空"}</i>{position.volume}手</span>
+        <strong className={signClass(position.unrealizedPnl)}>{formatSigned(position.unrealizedPnl, 0)}</strong>
+      </span>)}</span>
     </> : <span className="board-empty">没有持仓</span>}
   </button>;
 }
@@ -261,6 +266,8 @@ export function AlertCompact({ waiting, latest, onOpen, medium }: {
   if (!medium) return <button type="button" className="board-tile-open board-alert-small" aria-label={`提醒在等 ${waiting.length} 个，打开提醒面板`} onClick={onOpen}>
     <span className="board-tile-head"><strong>提醒</strong></span>
     <span className="board-count"><strong className="board-figure">{waiting.length}</strong><small>个在等</small></span>
+    {waiting.length ? <span className="board-more-rows" aria-hidden="true">{waiting.map(item => <span key={item.key}>
+      <span className="board-ellipsis"><strong>{item.name}</strong> {item.text}</span></span>)}</span> : null}
     {latest ? <span className="board-latest"><small>{latest.at} 响过</small><strong>{latest.title}</strong></span> : <small className="board-caption">今天还没响过</small>}
   </button>;
   return <div className="board-alert-medium">

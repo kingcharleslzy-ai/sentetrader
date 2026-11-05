@@ -1712,7 +1712,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     const compact = size === "small" || size === "medium";
     if (module === "positions") {
       const positions = props.account?.positions ?? [];
-      if (size === "small") return <PositionsSmall positions={positions} onOpen={() => setRightDock("positions")} />;
+      if (size === "small") return <PositionsSmall positions={positions} instruments={props.instruments} onOpen={() => setRightDock("positions")} />;
       if (size === "medium") return <PositionsMedium positions={positions} instruments={props.instruments} onOpen={() => setRightDock("positions")} />;
       return <PositionsLarge positions={positions} instruments={props.instruments} orders={props.simulationOrders.filter(orderIsActive)}
         fills={props.account?.activity.trades ?? []} onOpen={() => setRightDock("positions")} onClose={closePosition}

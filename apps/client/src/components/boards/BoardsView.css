@@ -242,3 +242,14 @@
 .board-preview-bar > span:not(.board-grow) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .board-view.previewing .board-tile { outline: 1px dashed color-mix(in srgb, var(--accent) 50%, transparent); outline-offset: -1px; }
 .board-entry-tool svg { flex: none; }
+
+/* Small sizes in a tall block: the rows below fill the height that is there (cut at the edge, never stretched). */
+.board-more-rows { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; margin-top: var(--space-1); }
+.board-more-rows > span { flex: none; display: flex; align-items: center; gap: var(--space-2); min-height: 30px; border-top: 1px solid var(--line); font-size: var(--font-sm); white-space: nowrap; }
+.board-more-rows > span > strong { flex: none; margin-left: auto; }
+.board-positions-small .board-caption { margin-top: var(--space-1); }
+.board-alert-small .board-latest { margin-top: var(--space-1); }
+/* 下单 · 小: the 买多 / 卖空 buttons keep their height in a tall block. */
+.board-order:not(.medium) .board-order-buttons { flex: 0 0 auto; grid-auto-rows: minmax(56px, 72px); }
+/* react-mosaic's drag preview sits under each block with a black border; in the theme it is the block's own card. */
+.board-mosaic .mosaic-window > .mosaic-preview { border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--panel); }

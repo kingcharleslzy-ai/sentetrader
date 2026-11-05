@@ -112,7 +112,8 @@ export function useBoardsControl(handle: BoardsHandle, show: () => void, availab
       setAskingState(false);
     } catch (error) {
       const detail = (error as { detail?: { detail?: unknown } }).detail?.detail;
-      throw new Error(typeof detail === "string" ? detail : error instanceof Error && !/^\d{3} /.test(error.message) ? error.message : "AI 这次没摆好，稍后再试");
+      throw new Error(typeof detail === "string" ? detail : error instanceof Error && !/^\d{3} /.test(error.message) ? error.message : "AI 这次没摆好，稍后再试",
+        { cause: error });
     } finally {
       setArranging(false);
     }
