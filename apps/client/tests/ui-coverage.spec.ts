@@ -262,6 +262,15 @@ test("every user-operable control is commandable or reachable, and visible to th
     // 自由布局 (2026-11-02): the 保存的布局 dropdown lives in 设置 → 界面 (2026-11-04).
     ["workspace-layouts", [{ settingsPage: "ui" }, { disclosure: { name: "workspace-layouts", open: true } }], true],
     ["", [{ disclosure: { name: "workspace-layouts", open: false } }, { settingsOpen: false }], false],
+    // 看板 (2026-11-05): the 盘中 board as it starts (加大图表 + 小下单 + 小自选 + 中持仓), the header's board list and
+    // ⋯, then editing with the 模块库 open and 持仓 at its large size, back to trade.
+    ["dashboard", [{ view: "dashboard" }, { boards: { select: "live" } }], true],
+    ["boards-menu", [{ disclosure: { name: "boards-menu", open: true } }], true],
+    ["", [{ disclosure: { name: "boards-menu", open: false } }], false],
+    ["board-more", [{ disclosure: { name: "board-more", open: true } }], true],
+    ["", [{ disclosure: { name: "board-more", open: false } }], false],
+    ["board-editing", [{ boards: { editing: true } }, { boards: { select: "review" } }], true],
+    ["", [{ boards: { editing: false } }, { view: "trade" }], false],
     ["quick-volume", [{ panel: "order" }, { quickVolume: 5 }], true],
     ["", [{ quickVolume: 1 }], false],
     // 图表指标就地编辑 (2026-10-02): the chart labels' popovers, opened as disclosures.

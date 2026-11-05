@@ -21,6 +21,7 @@
     "openapi-fetch": "0.17.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
+    "react-grid-layout": "2.3.0",
     "web-vitals": "6.2.2"
   },
   "devDependencies": {

@@ -175,7 +175,7 @@ it("游客取消登录后，提示条不挡住右侧工具栏的点击（#710 A�
     await enter();
     fireEvent.click(screen.getByRole("button",{name:"打开策略面板"}));
     fireEvent.click(screen.getByText("取消登录"));
-    const toast=screen.getByText("登录后可使用此功能");
+    const toast=screen.getByText("登录后可使用此功能").closest(".toast") as HTMLElement;
     expect(toast).toHaveClass("toast");
     expect(getComputedStyle(toast).pointerEvents).toBe("none");
     fireEvent.click(screen.getByRole("button",{name:"打开调研面板"}));

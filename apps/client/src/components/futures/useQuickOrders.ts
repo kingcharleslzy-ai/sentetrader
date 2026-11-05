@@ -112,13 +112,14 @@ export function useQuickOrders({ quote, runtimeBaseUrl, tradeBusy, simulationEna
     } catch {if (current(order)) setQuickMessage("模拟委托未确认，请查看委托回报，不会自动重提。");}
     finally {quickInFlight.current = false; setQuickBusy(false);}
   };
-  /** Entry for every quick order: confirm first unless the user turned confirmation off. */
+  /** Entry for every quick order: confirm first unless the user turned confirmation off (`confirm`: always ask —
+   *  the 看板's small 下单, owner 2026-11-05). */
   const requestAction = (action: Omit<Extract<PendingQuickOrder, {kind: "orders"}>, "symbol" | "contextKey"> | Omit<Extract<PendingQuickOrder, {kind: "cancel"}>, "symbol" | "contextKey">
-    | Omit<Extract<PendingQuickOrder, {kind: "reverse"}>, "symbol" | "contextKey">) => {
+    | Omit<Extract<PendingQuickOrder, {kind: "reverse"}>, "symbol" | "contextKey">, options: { confirm?: boolean } = {}) => {
     if (!quote) return;
     if (quickInFlight.current || pending || tradeBusy) return;
     const order = { symbol: quote.symbol, contextKey: currentContext, ...action };
-    if (skipConfirm) void submitQuick(order); else setPending(order);
+    if (skipConfirm && !options.confirm) void submitQuick(order); else setPending(order);
   };
   return { pending, setPending, quickBusy, quickMessage, requestAction,
     submitQuick };

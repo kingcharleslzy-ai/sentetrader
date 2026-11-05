@@ -10,6 +10,7 @@ import type { DrawingDefaults } from "./chartDrawingModel";
  * read so consumers never see `undefined`.
  */
 import type { WorkspaceLayouts } from "./components/futures/workspaceLayouts";
+import type { Boards } from "./components/boards/boards";
 
 export type DurationSeconds = 60 | 180 | 300 | 900 | 1800 | 3600 | 86400 | 604800;
 /** 分时图 (2026-10-02): which chart the workbench opens on; absent on an older Runtime. */
@@ -77,7 +78,10 @@ export interface UserPreferences {
     desktopCharts?: Partial<DesktopChartsPreferences>;
     /** 自由布局 (2026-11-02): 盘前 / 盘中 / 复盘 and saved layouts; absent on an older Runtime
      *  (`normalizeLayouts` in futures/workspaceLayouts.ts fills the defaults). */
-    workspaceLayouts?: Partial<WorkspaceLayouts> };
+    workspaceLayouts?: Partial<WorkspaceLayouts>;
+    /** 看板 (2026-11-05): 盘前 / 盘中 / 复盘 and the user's own boards; absent on an older Runtime
+     *  (`normalizeBoards` in boards/boards.ts fills the defaults). */
+    boards?: Partial<Boards> };
   /** 报价总表 (2026-10-02): which columns the board shows (order = display order; 品种/合约 fixed
    *  first and never in the list), the sort and the exchange filter. Absent on an older Runtime
    *  (the normalizers in support.ts fill the defaults). */

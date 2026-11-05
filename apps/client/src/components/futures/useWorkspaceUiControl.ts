@@ -322,6 +322,13 @@ export function useWorkspaceUiControl({ workspace, connectedRuntimeUrl, market, 
     }
     if (changes.view === "review" && workspace.access?.reason("review-summary")) throw new Error(workspace.access.reason("review-summary"));
     if (changes.view === "board" && workspace.guest) throw new Error("游客暂无报价总表");
+    // 看板 (2026-11-05): a member's desktop window, outside a replay; `boards` is the board list and its editing.
+    if (changes.view === "dashboard" && (workspace.guest || workspace.replayActive)) throw new Error(workspace.guest ? "登录后才能用看板" : "回放里不能用看板");
+    if (changes.boards != null) {
+      if (mobile) throw new Error("这个窗口是手机布局，没有看板");
+      if (!uiSurface("boards")) throw new Error(workspace.guest ? "登录后才能用看板" : workspace.replayActive ? "回放里不能用看板" : "看板还没读到，稍后再试");
+      applyUiSurface("boards", changes.boards);
+    }
     if (changes.view != null) {
       if (workspace.replayEnded && changes.view !== "review") throw new Error("回放已结束");
       setView(changes.view);
@@ -662,6 +669,7 @@ export function useWorkspaceUiControl({ workspace, connectedRuntimeUrl, market, 
     positionsTab: surfaces.positionsTab, fillsSource: surfaces.fillsSource, strategyTab: surfaces.strategyTab, ordersHistory: surfaces.ordersHistory,
     // 报价总表 / 合约抽屉两级: reported only while the surface is on screen, so an older
     // Runtime (extra="forbid") accepts the whole heartbeat.
+    ...(registered.boards ? { boards: registered.boards as UiState["boards"] } : {}),
     ...(view === "board" ? { boardExchange: surfaces.boardExchange, boardSort: surfaces.boardSort, boardWatchlistCount: surfaces.boardWatchlistCount } : {}),
     ...(openDialog === "contract-drawer" ? { contractProduct: surfaces.contractProduct, contractCatalog: contractCatalogState(workspace) } : {}),
     ticketMode: (registered.ticketMode as "open" | "close" | "target" | undefined) ?? null, quickOrderConfirm: !surfaces.quickSkipConfirm, quickVolume: (registered.quickVolume as 1 | 2 | 5 | undefined) ?? 1,

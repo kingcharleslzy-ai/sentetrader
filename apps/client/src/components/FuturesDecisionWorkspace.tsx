@@ -62,7 +62,10 @@ import { WorkspaceHeader } from "./futures/WorkspaceHeader";
 import { buildPromptContext } from "./futures/promptContext";
 import { useChartFocus } from "./futures/useChartFocus";
 import { useQuickOrderSkipConfirm, useQuickOrders } from "./futures/useQuickOrders";
-import { QuickActions, useTicketQuickActions } from "./futures/QuickActions";
+import { QuickActions, quickCloseRequests, useTicketQuickActions } from "./futures/QuickActions";
+import { useBoards, type BoardModule, type BoardSize } from "./boards/boards";
+import { BoardsMenu, BoardsView, useBoardsControl } from "./boards/BoardsView";
+import { ChartSmall, ChartMedium, OrderCompact, PositionsSmall, PositionsMedium, WatchCompact, watchRows } from "./boards/BoardTiles";
 import { QuickOrderDialog } from "./futures/QuickOrderDialog";
 import { useTradeReview } from "../hooks/useTradeReview";
 import { useForeignBoard } from "../hooks/useForeignBoard";
@@ -716,18 +719,23 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
       if (!opening && layout.charts) desktopCharts.restore(layout.charts);
     },
     changeKey: JSON.stringify([rightDock, desktopCharts.charts, chartCurrent]) });
-  useEnterMotion(coreRef, view, useStepMotion(["trade", "board", "review"].indexOf(view)));
+  // 看板 (owner 2026-11-05): 盘前 / 盘中 / 复盘 and the user's own boards (account preference ui.boards).
+  const boardsAvailable = gridAvailable;
+  const boards = useBoards({ document: prefs.preferences.ui?.boards, connected: Boolean(connectedRuntimeUrl), update: updatePreferences });
+  const boardsControl = useBoardsControl(boards, () => selectView("dashboard"), boardsAvailable && preferencesLoaded);
+  const dashboardWatch = view === "dashboard" && boards.board.tiles.some(tile => tile.module === "watch");
+  useEnterMotion(coreRef, view, useStepMotion(["trade", "board", "dashboard", "review"].indexOf(view)));
   useEnterMotion(chartAreaRef, `${chartView}@${props.duration}#${desktopCharts.charts.layout}`, "fade");
   useEnterMotion(shellRef, workspaceLayouts.layouts.current, "fade");
   // The phone's 报价 · 外盘 板块 has its own read too: only that board open means no domestic board.
   const phoneForeignOnly = phoneMarket && mobileMarket.market.view === "quotes" && mobileMarket.market.board === "FOREIGN";
-  const boardWant = useMemo<BoardWant>(() => contractOpen || phoneMarket || (!phoneHome && boardExchange === "all") ? { all: true }
+  const boardWant = useMemo<BoardWant>(() => contractOpen || phoneMarket || (!phoneHome && !dashboardWatch && boardExchange === "all") ? { all: true }
     : phoneHome ? { products: flashWatchProducts }
-    : boardExchange === "watchlist" ? { products: watchlist } : { exchanges: [boardExchange] },
-  [contractOpen, phoneMarket, phoneHome, flashWatchProducts, boardExchange, watchlist]);
+    : dashboardWatch || boardExchange === "watchlist" ? { products: watchlist } : { exchanges: [boardExchange] },
+  [contractOpen, phoneMarket, phoneHome, dashboardWatch, flashWatchProducts, boardExchange, watchlist]);
   // The 外盘 group has its own read: a window showing only it does not keep the domestic board subscribed.
   const board = useMarketBoard(connectedRuntimeUrl,
-    (!mobile && view === "board" && boardExchange !== FOREIGN_BOARD) || contractOpen || (phoneMarket && !phoneForeignOnly) || phoneHome, undefined, boardWant);
+    (!mobile && view === "board" && boardExchange !== FOREIGN_BOARD) || dashboardWatch || contractOpen || (phoneMarket && !phoneForeignOnly) || phoneHome, undefined, boardWant);
   const homePositions = props.account?.positions;
   const homeHoldings = useMemo<HomeQuote[]>(() => !phoneHome ? [] : quoteRows({ board: board.snapshot, boardId: "watchlist", positions: homePositions ?? [],
     watchlist: [], instruments: props.instruments?.items ?? [], extra: EMPTY_BOARD_ROWS }).map(row => {
@@ -746,8 +754,9 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     curve: homeCurves.get(`${row.symbol.toUpperCase()}@900`)?.market?.bars?.slice(-48).map(bar => bar.close) })), [homeWatch, homeCurves]);
   // The desktop board is not on screen in the phone layout: neither of its reads runs there.
   // 外盘 rows are read for the 外盘 chip, and for 自选 when it holds a foreign product (外盘代码统一 2026-10-21).
-  const foreignBoard = useForeignBoard(connectedRuntimeUrl, !mobile && view === "board"
-    && (boardExchange === FOREIGN_BOARD || (boardExchange === "watchlist" && watchlist.some(isForeignProductKey))));
+  const foreignBoard = useForeignBoard(connectedRuntimeUrl, (!mobile && view === "board"
+    && (boardExchange === FOREIGN_BOARD || (boardExchange === "watchlist" && watchlist.some(isForeignProductKey))))
+    || (dashboardWatch && watchlist.some(isForeignProductKey)));
   const boardExchanges = useMemo(
     () => [...new Set((props.instruments?.items ?? []).map(item => item.exchangeId))], [props.instruments]);
   // A starred product without a board row still needs its display name (the grey 暂无报价 row).
@@ -1318,7 +1327,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
       ownerStatus={ownerPlan.status} preferences={prefs} skills={skills} routines={routineActions} mobile={mobile}
       layoutMenu={gridAvailable ? <LayoutMenu handle={workspaceLayouts} /> : undefined} /> : null}</Presence>
 
-    <Presence>{accessNotice && (!settingsOpen || props.guest?.loginOpen) ? <div className="toast" role="status">{accessNotice}</div> : null}</Presence>
+    <Presence>{accessNotice && (!settingsOpen || props.guest?.loginOpen) ? <div className="toast" data-kind="warning" role="status"><i aria-hidden="true">!</i><span>{accessNotice}</span></div> : null}</Presence>
     {signalNotice ? <p className="fdw-signal-notice" role="status" data-testid="strategy-signal-notice">{signalNotice}</p> : null}
     {!props.guest && !uiControlHealth.registered ? <div className="fdw-global-error" role="status" data-agent-target="ui-control-health">界面命令不可用：登记失败（{uiControlHealth.detail.slice(0, 160) || "/api/ui/pulse 422"}）</div> : null}
   </>;
@@ -1639,7 +1648,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
           onClose={() => setRightDock(null)} activeProtections={activeProtections} protectionWarning={protectionWarning} onAskAi={askAi}
           stops={props.aiExecution?.stops} protectionBusy={props.aiExecutionBusy}
           onCreateStop={createPositionStop} onCancelStop={cancelPositionStop} />;
-      case "order": return props.guest || view !== "trade" || !market ? null : (
+      case "order": return props.guest || (view !== "trade" && view !== "dashboard") || !market ? null : (
           <section className="fdw-order-panel" aria-label="固定下单面板" data-agent-target="panel:order">
             <header><div><ReceiptText /><span><strong>模拟交易</strong><small className={closed || !dataLive ? "blocked" : "live"}>{quote?.name ?? quote?.symbol} · {closed ? sessionLabel : dataLive ? "行情正常" : "不可下单"}</small></span></div><button type="button" aria-label="收起模拟下单" onClick={() => setRightDock(null)}><PanelRightClose /></button></header>
             {/* 五档 → 下单票 → 本合约持仓 in one scroll region (2026-10-03). */}
@@ -1654,6 +1663,58 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
           </section>
         );
     }
+  };
+  // The chart's bar (contract, price, periods, tools): above the trade view's chart, or the 看板's large 图表 (no 多图 there).
+  const marketCommand = (onBoard = false) => market ? <MarketCommand workspace={workspace} market={market} headerCurrentContract={headerCurrentContract} chartView={chartView} decimals={decimals} onOpenContracts={() => setContractOpen(true)}
+                onSelectDuration={selectDuration} onSelectChartView={selectChartView}
+                alerts={alerts.available ? alerts : undefined}
+                reminderBell={reminderAvailable ? <ReminderBell open={reminderShown} onOpenChange={showReminderCenter} unread={reminders.unread} /> : undefined}
+                chartLayout={gridAvailable && !onBoard ? <ChartLayoutControls handle={desktopCharts} onError={setAccessNotice} /> : undefined}
+                foldedChartLayout={gridAvailable && !onBoard ? <ChartLayoutControls handle={desktopCharts} onError={setAccessNotice} help={false} /> : undefined}
+                drawings={drawings.available ? drawings : undefined}
+                watchlistStar={watchlistHead} onToggleWatchlist={watchlistChange} watchlistStatus={watchlistStatus || undefined}
+ /> : null;
+  // The workspace's one chart stage: the trade view's chart, or the 看板's 图表 at its large sizes (never both at once).
+  const chartStage = market ? <ChartStage workspace={workspace} market={market} chartView={chartView} decimals={decimals} chartSettings={chartSettings} setChartSettings={setChartSettings}
+    chartPreferences={chartPreferences} onChartIndicatorsChange={updateChartPreferences} chartIndicatorStatus={prefs.status}
+    annotationsVisible={preferences.chart.aiAnnotationsVisible} resolvedTheme={resolvedTheme} appWorkbench={appWorkbench} focus={focus}
+    alerts={alerts.available ? alerts : undefined}
+    drawings={drawings.available ? drawings : undefined}
+    selectedPrice={selectedPrice} setSelectedPrice={setSelectedPrice}
+    onSelectDuration={selectDuration} onSelectChartView={selectChartView}
+    openFills={openFills} openChat={openChat} setPrompt={setPrompt}
+    onReminder={mobile || props.guest ? undefined : playbook => openReminderEditor({ new: true, reminder: true,
+      ...(playbook ? { ask: `按我的交易笔记「${playbook.name}」设提醒：${playbook.entryRules.trim() || playbook.name}`.slice(0, 500) } : {}) })} /> : null;
+  // 看板 (2026-11-05): one module at one size. Small and medium are their own layouts; the large ones are the panels.
+  const renderBoardTile = (module: BoardModule, size: BoardSize): ReactNode => {
+    const compact = size === "small" || size === "medium";
+    if (module === "positions") {
+      const positions = props.account?.positions ?? [];
+      if (size === "small") return <PositionsSmall positions={positions} onOpen={() => setRightDock("positions")} />;
+      if (size === "medium") return <PositionsMedium positions={positions} instruments={props.instruments} onOpen={() => setRightDock("positions")} />;
+      return renderDockPanel("positions");
+    }
+    if (module === "watch") {
+      const openBoard = (exchange: BoardExchange = "watchlist") => { setBoardExchange(exchange); selectView("board"); };
+      if (compact) return <WatchCompact rows={watchRows(board.snapshot?.rows, watchlist)} selectedSymbol={props.selectedSymbol} onSelect={selectContract}
+        onOpen={() => openBoard()} medium={size === "medium"} emptyText={watchlist.length ? board.error || "正在读取报价…" : "还没有自选：在报价总表里点星标加"} />;
+      return <MarketBoard snapshot={board.snapshot} foreign={foreignBoard} error={board.error} query={boardQuery} onQueryChange={setBoardQuery}
+        exchange="watchlist" onExchangeChange={openBoard} sort={boardSort} onSortChange={setBoardSort}
+        columns={boardColumns} availableExchanges={boardExchanges} selectedSymbol={props.selectedSymbol} onSelect={selectContract}
+        watchlist={watchlist} productNames={boardProductNames} onToggleWatchlist={watchlistChange} watchlistStatus={watchlistStatus || undefined} />;
+    }
+    if (!market) return <p className="board-empty" role="status">{props.marketError || "行情连接后显示"}</p>;
+    const name = contractLabel(market.quote.symbol, props.instruments);
+    if (module === "chart") {
+      if (size === "small") return <ChartSmall market={market} name={name} onOpen={() => selectView("trade")} />;
+      if (size === "medium") return <ChartMedium market={market} name={name} onOpen={() => selectView("trade")}
+        chart={{ settings: chartSettings, onSettingsChange: setChartSettings, preferences: chartPreferences, resolvedTheme, timeZone: "Asia/Shanghai" }} />;
+      return <div className="board-chart-large">{marketCommand(true)}<div className="fdw-chart-area">{chartStage}</div></div>;
+    }
+    if (compact) return <OrderCompact market={market} name={name} positions={currentPositions} quick={quick} medium={size === "medium"}
+      enabled={props.simulationEnabled && !props.tradeBusy} blockedReason={props.simulationEnabled ? undefined : props.simulationBlockedReason}
+      closeRequests={quickCloseRequests(currentPositions, market.quote.symbol, "all")} />;
+    return renderDockPanel("order");
   };
   return (
     <AccountAccessContext.Provider value={accessContext}><UiNavigationContext.Provider value={navigation}><div ref={shellRef}
@@ -1670,6 +1731,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     >
       <WorkspaceHeader workspace={workspace} view={view} onSelectView={selectView} recoveryButton={executionStopped ? recoveryButton : null} tradingAccounts={tradingAccounts}
         onVisibleCurrentContractChange={setHeaderCurrentContract}
+        boardsEntry={boardsAvailable && preferencesLoaded ? <BoardsMenu control={boardsControl} active={view === "dashboard"} onError={setAccessNotice} /> : undefined}
         pinnedSymbols={pinnedSymbols} onSelectContract={selectContractTab} onPinContract={() => { setContractPinMode(true); setContractOpen(true); }} onUnpinContract={unpinContractTab} replayBlocked={replayBlocked}
         guestActions={props.guest ? <PttButton ptt={ptt} /> : undefined}
         aiBar={props.guest || mobile ? undefined : <AiCommandBar busy={Boolean(props.chatBusy || chat.sendingPrompt)} chatOpen={rightDock === "ai"}
@@ -1700,18 +1762,12 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
           {view === "trade" ? pendingMarketState : null}
           {market || (!props.guest && view === "review") ? (
             <>
-              {!market || view === "board" ? null : <MarketCommand workspace={workspace} market={market} headerCurrentContract={headerCurrentContract} chartView={chartView} decimals={decimals} onOpenContracts={() => setContractOpen(true)}
-                onSelectDuration={selectDuration} onSelectChartView={selectChartView}
-                alerts={alerts.available ? alerts : undefined}
-                reminderBell={reminderAvailable ? <ReminderBell open={reminderShown} onOpenChange={showReminderCenter} unread={reminders.unread} /> : undefined}
-                chartLayout={gridAvailable ? <ChartLayoutControls handle={desktopCharts} onError={setAccessNotice} /> : undefined}
-                foldedChartLayout={gridAvailable ? <ChartLayoutControls handle={desktopCharts} onError={setAccessNotice} help={false} /> : undefined}
-                drawings={drawings.available ? drawings : undefined}
-                watchlistStar={watchlistHead} onToggleWatchlist={watchlistChange} watchlistStatus={watchlistStatus || undefined}
- />}
+              {!market || view === "board" || view === "dashboard" ? null : marketCommand()}
 
               <section ref={coreRef} className={`fdw-market-core ${view} ${view === "review" ? "side-open" : "side-closed"}`}>
-                {view === "board" ? <MarketBoard snapshot={board.snapshot} foreign={foreignBoard} error={board.error} query={boardQuery} onQueryChange={setBoardQuery}
+                {view === "dashboard" ? <BoardsView control={boardsControl} renderTile={renderBoardTile} onExit={() => selectView("trade")} onError={setAccessNotice}
+                  scale={Number.parseInt(FONT_SCALE_OPTIONS.find(option => option.value === props.fontScale)?.percentage ?? "100", 10) / 100} />
+                : view === "board" ? <MarketBoard snapshot={board.snapshot} foreign={foreignBoard} error={board.error} query={boardQuery} onQueryChange={setBoardQuery}
                   exchange={boardExchange} onExchangeChange={setBoardExchange} sort={boardSort} onSortChange={setBoardSort}
                   columns={boardColumns} onColumnsChange={boardColumnsChange} columnsStatus={prefs.status}
                   availableExchanges={boardExchanges} selectedSymbol={props.selectedSymbol} onSelect={selectBoardContract}
@@ -1720,21 +1776,12 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
                 {blockingMarketState}
                 {market && <ChartGrid enabled={gridAvailable} handle={desktopCharts} baseUrl={connectedRuntimeUrl} own={{ market, error: props.marketError }}
                   nameOf={symbol => contractLabel(symbol, props.instruments)} chartSettings={chartSettings} setChartSettings={setChartSettings}
-                  chartPreferences={chartPreferences} resolvedTheme={resolvedTheme} onError={setAccessNotice}><ChartStage workspace={workspace} market={market} chartView={chartView} decimals={decimals} chartSettings={chartSettings} setChartSettings={setChartSettings}
-                  chartPreferences={chartPreferences} onChartIndicatorsChange={updateChartPreferences} chartIndicatorStatus={prefs.status}
-                  annotationsVisible={preferences.chart.aiAnnotationsVisible} resolvedTheme={resolvedTheme} appWorkbench={appWorkbench} focus={focus}
-                  alerts={alerts.available ? alerts : undefined}
-                  drawings={drawings.available ? drawings : undefined}
-                  selectedPrice={selectedPrice} setSelectedPrice={setSelectedPrice}
-                  onSelectDuration={selectDuration} onSelectChartView={selectChartView}
-                  openFills={openFills} openChat={openChat} setPrompt={setPrompt}
-                  onReminder={mobile || props.guest ? undefined : playbook => openReminderEditor({ new: true, reminder: true,
-                    ...(playbook ? { ask: `按我的交易笔记「${playbook.name}」设提醒：${playbook.entryRules.trim() || playbook.name}`.slice(0, 500) } : {}) })} /></ChartGrid>}
+                  chartPreferences={chartPreferences} resolvedTheme={resolvedTheme} onError={setAccessNotice}>{chartStage}</ChartGrid>}
                 {aiOrb}
                 </div>)}
                 {!props.guest && view === "review" ? <aside className="fdw-market-side">{props.runtimeBaseUrl !== undefined ? props.replayActive ? <TradeReview baseUrl={props.runtimeBaseUrl} symbol={props.selectedSymbol ?? ""} onFocus={setTradeFocus}/> : <AccountPnl baseUrl={props.runtimeBaseUrl} rootUrl={props.rootBaseUrl ?? props.runtimeBaseUrl} symbol={quote?.symbol ?? props.selectedSymbol ?? ""} chartSymbols={(props.instruments?.items ?? []).map(item => item.symbol)} chartAvailable={Boolean(quote)} accountId={reviewAccountId} foreignAccountId={foreignReviewAccountId} snapshots={ledgerSnapshots} onFocus={setTradeFocus} onSelectSymbol={props.onSelectSymbol} initialBalance={initialBalance} onInitialBalanceChange={setInitialBalance} onVoiceReview={call.available ? call.review : undefined} voiceReviewing={Boolean(call.status.review)} /> : <ActivityPanel account={props.account} simulationOrders={props.simulationOrders} busy={props.tradeBusy} onOrderAction={handleOrderAction} />}</aside> : null}
               </section>
-              {market && !props.guest && (!props.replayActive || view === "trade") ? <PositionsBar account={props.account} instruments={props.instruments} quote={quote} simulationOrders={props.simulationOrders} busy={props.tradeBusy}
+              {market && !props.guest && view !== "dashboard" && (!props.replayActive || view === "trade") ? <PositionsBar account={props.account} instruments={props.instruments} quote={quote} simulationOrders={props.simulationOrders} busy={props.tradeBusy}
                 review={tradeReview.review} foreignReview={foreignTradeReview.review} reviewError={tradeReview.error}
                 collapsed={positionsBar === "collapsed"} autoHide={autoHidePositionsBar} tab={positionsTab} onTabChange={setPositionsTab} onToggle={togglePositionsBar}
                 onOrderAction={handleOrderAction} onClosePosition={closePosition} onOpenAll={() => setRightDock("positions")}

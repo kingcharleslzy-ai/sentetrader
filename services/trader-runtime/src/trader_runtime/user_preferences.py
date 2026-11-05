@@ -433,6 +433,97 @@ class WorkspaceLayoutsPreferences(BaseModel):
         return self
 
 
+# 看板 (owner 2026-11-05, 第二批): blank screens of cells the user fills with modules, each at one of its sizes (each size
+# its own layout). A cell keeps one size, so the canvas has as many cells as its measured space holds (about 12 × 8 on a
+# laptop); each board keeps the grid it was laid out on (`cols` × `rows`) and the client moves what does not fit on a
+# smaller canvas down. 盘前 / 盘中 / 复盘 come first; `current` is the one shown. One tile per module; tiles stay on the
+# board's grid and never overlap. The client mirrors this in components/boards/boards.ts.
+BOARD_DEFAULT_COLS = 12
+BOARD_DEFAULT_ROWS = 8
+BOARD_MAX_COLS = 40
+BOARD_MAX_ROWS = 30
+BOARDS_MAX = 11
+BOARD_ID = r"^[a-z0-9-]{1,24}$"
+BOARD_MODULES = Literal["chart", "positions", "order", "watch"]
+BOARD_SIZES = Literal["small", "medium", "large", "xlarge", "wide", "full"]
+BOARD_SIZE_CELLS = {"small": (3, 2), "medium": (6, 2), "large": (6, 4), "xlarge": (9, 6), "wide": (12, 4), "full": (12, 8)}
+BOARD_MODULE_SIZES = {
+    "chart": ("small", "medium", "large", "xlarge", "full"),
+    "positions": ("small", "medium", "large"),
+    "order": ("small", "medium", "large"),
+    "watch": ("small", "medium", "large", "wide"),
+}
+
+
+class BoardTile(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    module: BOARD_MODULES
+    size: BOARD_SIZES
+    x: int = Field(ge=0, lt=BOARD_MAX_COLS, strict=True)
+    y: int = Field(ge=0, lt=BOARD_MAX_ROWS, strict=True)
+
+    @model_validator(mode="after")
+    def known_size(self):
+        if self.size not in BOARD_MODULE_SIZES[self.module]:
+            raise ValueError(f"{self.module} 没有 {self.size} 这一档")
+        return self
+
+    def cells(self) -> set[tuple[int, int]]:
+        w, h = BOARD_SIZE_CELLS[self.size]
+        return {(self.x + dx, self.y + dy) for dx in range(w) for dy in range(h)}
+
+
+class Board(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str = Field(pattern=BOARD_ID)
+    name: str = Field(min_length=1, max_length=12)
+    cols: int = Field(default=BOARD_DEFAULT_COLS, ge=3, le=BOARD_MAX_COLS, strict=True)
+    rows: int = Field(default=BOARD_DEFAULT_ROWS, ge=2, le=BOARD_MAX_ROWS, strict=True)
+    tiles: list[BoardTile] = Field(default_factory=list, max_length=len(BOARD_MODULE_SIZES))
+
+    @model_validator(mode="after")
+    def apart(self):
+        for tile in self.tiles:
+            w, h = BOARD_SIZE_CELLS[tile.size]
+            if tile.x + w > self.cols or tile.y + h > self.rows:
+                raise ValueError("模块超出这个看板的格子")
+        if len({tile.module for tile in self.tiles}) != len(self.tiles):
+            raise ValueError("一个模块在一个看板上只放一次")
+        taken: set[tuple[int, int]] = set()
+        for tile in self.tiles:
+            cells = tile.cells()
+            if cells & taken:
+                raise ValueError("模块不能叠在一起")
+            taken |= cells
+        return self
+
+
+def _default_boards() -> list[Board]:
+    def tile(module: BOARD_MODULES, size: BOARD_SIZES, x: int, y: int) -> BoardTile:
+        return BoardTile(module=module, size=size, x=x, y=y)
+    return [
+        Board(id="pre", name="盘前", tiles=[tile("chart", "large", 0, 0), tile("watch", "large", 6, 0), tile("positions", "medium", 0, 4)]),
+        Board(id="live", name="盘中", tiles=[tile("chart", "xlarge", 0, 0), tile("order", "small", 9, 0), tile("watch", "small", 9, 2),
+                                           tile("positions", "medium", 0, 6)]),
+        Board(id="review", name="复盘", tiles=[tile("positions", "large", 0, 0), tile("chart", "large", 6, 0)]),
+    ]
+
+
+class BoardsPreferences(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    current: str = Field(default="live", pattern=BOARD_ID)
+    items: list[Board] = Field(default_factory=_default_boards, min_length=1, max_length=BOARDS_MAX)
+
+    @model_validator(mode="after")
+    def known_current(self):
+        ids = [item.id for item in self.items]
+        if len(set(ids)) != len(ids):
+            raise ValueError("看板 id 不能重复")
+        if self.current not in ids:
+            raise ValueError("当前看板不在列表里")
+        return self
+
+
 class UiPreferences(BaseModel):
     model_config = ConfigDict(extra="forbid")
     quickSkills: list[str] = Field(default_factory=lambda: list(DEFAULT_QUICK_SKILLS),
@@ -449,6 +540,8 @@ class UiPreferences(BaseModel):
     desktopCharts: DesktopChartsPreferences = Field(default_factory=DesktopChartsPreferences)
     # 自由布局 (2026-11-02): 盘前 / 盘中 / 复盘 and the saved ones (side panels + 多图), remembered per account.
     workspaceLayouts: WorkspaceLayoutsPreferences = Field(default_factory=WorkspaceLayoutsPreferences)
+    # 看板 (2026-11-05): 盘前 / 盘中 / 复盘 and the user's own boards, remembered per account.
+    boards: BoardsPreferences = Field(default_factory=BoardsPreferences)
 
     @field_validator("quickSkills")
     @classmethod

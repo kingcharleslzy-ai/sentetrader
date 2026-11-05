@@ -1,0 +1,33 @@
+{
+  "about": "看板第二批（11-05）：顶栏看板进“盘中”（加大图表 + 小下单 + 小自选 + 中持仓），下拉里有“新建空白看板”；新建“回读看板”后进入编辑，模块库在右边；放中档图表、小档下单、中档自选、小档持仓，换档、拿掉再撤销，完成后小档下单露出买多 / 卖空（点了先弹确认，回读不点）。只改测试账号自己的看板偏好，最后回到“盘中”、删掉“回读看板”、回交易台。",
+  "steps": [
+    {"ui": {"view": "trade"}, "expect": {"view": "trade"}},
+    {"ui": {"view": "dashboard"}, "expect": {"view": "dashboard", "preferences.ui.boards.current": {"exists": true}}},
+    {"ui": {"boards": {"select": "live"}}, "expect": {"view": "dashboard", "preferences.ui.boards.current": "live"}},
+    {"screenshot": "21-live-board"},
+    {"ui": {"disclosure": {"name": "boards-menu", "open": true}}, "expect": {"observation.controls": {"includes": "新建空白看板"}}},
+    {"screenshot": "22-boards-menu"},
+    {"ui": {"disclosure": {"name": "boards-menu", "open": false}}},
+    {"ui": {"boards": {"create": "回读看板"}}, "expect": {"preferences.ui.boards.items": {"includes": "回读看板"}}},
+    {"api": "GET /api/preferences", "expect": {"body.preferences.ui.boards.current": {"exists": true}}, "save": {"boardId": "body.preferences.ui.boards.current"}},
+    {"ui": {"boards": {"editing": true}}, "expect": {"boards.editing": true, "observation.controls": {"includes": "把图表放进看板"}}},
+    {"screenshot": "23-blank-editing"},
+    {"ui": {"boards": {"place": {"module": "chart", "size": "medium", "x": 0, "y": 0}}}, "expect": {"observation.controls": {"includes": "选中图表（中）"}}},
+    {"ui": {"boards": {"place": {"module": "order", "size": "small", "x": 6, "y": 0}}}, "expect": {"observation.controls": {"includes": "选中下单（小）"}}},
+    {"ui": {"boards": {"place": {"module": "watch", "size": "medium", "x": 6, "y": 2}}}, "expect": {"observation.controls": {"includes": "选中自选报价（中）"}}},
+    {"ui": {"boards": {"place": {"module": "positions", "size": "small", "x": 0, "y": 2}}}, "expect": {"observation.controls": {"includes": "选中持仓（小）"}}},
+    {"ui": {"boards": {"place": {"module": "positions", "size": "large"}}}, "expect": {"observation.controls": {"includes": "选中持仓（大）"}}},
+    {"ui": {"boards": {"take": "positions"}}, "expect": {"observation.controls": {"includes": "把持仓放进看板"}}},
+    {"ui": {"boards": {"undo": true}}, "expect": {"observation.controls": {"includes": "选中持仓（大）"}}},
+    {"screenshot": "24-filled-editing"},
+    {"ui": {"boards": {"editing": false}}, "expect": {"boards.editing": false, "observation.controls": {"includes": "买多"}}},
+    {"screenshot": "25-filled"},
+    {"ui": {"disclosure": {"name": "board-more", "open": true}}, "expect": {"observation.controls": {"includes": "删除这套看板"}}},
+    {"ui": {"disclosure": {"name": "board-more", "open": false}}}
+  ],
+  "cleanup": [
+    {"ui": {"boards": {"select": "live"}}, "expect": {"preferences.ui.boards.current": "live"}},
+    {"ui": {"boards": {"remove": "{{boardId}}"}}, "expect": {"preferences.ui.boards.current": "live"}},
+    {"ui": {"view": "trade"}, "expect": {"view": "trade"}}
+  ]
+}

@@ -3,7 +3,7 @@ import type { TradingChartSettings } from "../TradingCharts";
 import { tickDecimals } from "../../chartDrawingModel";
 import { CHART_SETTINGS_STORAGE_KEY } from "../../theme";
 
-export type FuturesWorkspaceView = "watch" | "trade" | "review" | "board";
+export type FuturesWorkspaceView = "watch" | "trade" | "review" | "board" | "dashboard";
 export type PriceMode = "limit" | "opponent" | "last";
 /** 平今 / 平昨 the user picked on the ticket; "auto" (the default) leaves the split to the Runtime's planner
  *  (设置 → 交易 → 平今平昨 over the closable volumes; a close spanning both comes back as one batch card). */

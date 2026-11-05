@@ -248,6 +248,27 @@ export const COMMANDABLE: Rule[] = [
   { match: control => control.group === "workspace-layouts-menu" && /^删除布局：/.test(control.label), via: "workspaceLayout: {remove: id}" },
   { match: control => control.group === "workspace-layouts-menu" && control.label === "新建布局", via: "workspaceLayout: {save: 名字}（新建空白布局）" },
   { match: control => control.group === "workspace-layouts-menu" && control.role === "button", via: "workspaceLayout: {select: id}（布局名）" },
+  // 看板 (2026-11-05): the header entry and its list, the board bar, editing (tiles, sizes, 模块库) and the small /
+  // medium tiles' own buttons (the large ones are the panels, judged by their own rules).
+  { match: control => control.role === "button" && control.label === "看板", via: "view: dashboard（顶栏看板：进上次用的那套）" },
+  { match: /^(选择看板|更多看板)$/, via: "disclosure: boards-menu（顶栏看板的箭头下拉；看板栏太窄时只留当前看板，“更多看板”打开同一个下拉）" },
+  { match: control => ["boards-menu", "board-view"].includes(control.group ?? "") && control.label === "新建空白看板", via: "boards: {create: 名字}（新建空白看板，界面上随即进入编辑 = boards: {editing: true}）" },
+  { match: control => control.group === "boards-menu" || (control.group === "board-view" && control.role === "tab"), via: "boards: {select: id}（看板名；快照 state.preferences.ui.boards.current）" },
+  { match: control => control.group === "board-view" && control.label === "回到交易", via: "view: trade" },
+  { match: control => control.group === "board-view" && control.label === "改名或删除这套看板", via: "disclosure: board-more（⋯：改名、删除）" },
+  { match: control => control.group === "board-more" && (control.label === "改名" || control.label === "名字"), via: "boards: {rename: {id, name}}" },
+  { match: control => control.group === "board-more" && /^(删除这套看板|确认删除“.+”)$/.test(control.label), via: "boards: {remove: id}（界面上点两下：先出确认）" },
+  { match: control => control.group === "board-view" && /^(编辑|完成)$/.test(control.label), via: "boards: {editing: true | false}（快照 state.boards.editing）" },
+  { match: control => control.group === "board-view" && control.label === "撤销", via: "boards: {undo: true}（撤销这次编辑里最近一步）" },
+  { match: control => ["board-view", "board-library"].includes(control.group ?? "") && /^(模块库|收起模块库)$/.test(control.label), via: "disclosure: board-library（编辑时的模块库）" },
+  { match: control => control.group === "board-library" && /^(把.+放进看板|.+已在看板上，选中它)$/.test(control.label), via: "boards: {place: {module, size?, x?, y?}}（拖进格子或点一下放进第一个空位）" },
+  { match: control => (control.group ?? "").startsWith("board-tile:") && /^选中.+拖动可挪位置$/.test(control.label), via: "boards: {place: {module, x, y}}（拖动挪位置；选中只是露出档位条，快照 state.boards.selected）" },
+  { match: control => (control.group ?? "").startsWith("board-tile:") && control.role === "radio" && /^(小|中|大|加大|通栏|整版)$/.test(control.label), via: "boards: {place: {module, size}}（换档）" },
+  { match: control => (control.group ?? "").startsWith("board-tile:") && /^从看板删除/.test(control.label), via: "boards: {take: module}" },
+  { match: control => control.group === "board-tile:chart" && /，打开(完整)?图表$|走势，打开图表$/.test(control.label), via: "view: trade（小 / 中档图表点开交易台的图表）" },
+  { match: control => control.group === "board-tile:positions" && /打开持仓面板$/.test(control.label), via: "panel: positions（小 / 中档持仓点开持仓面板）" },
+  { match: control => control.group === "board-tile:watch" && /打开报价总表$/.test(control.label), via: "view: board + boardExchange: watchlist（小 / 中档自选点开报价总表的自选）" },
+  { match: control => control.group === "board-tile:watch" && control.role === "button", via: "symbol（中档自选点一行：所有模块跟着换合约）" },
   { match: control => /^chart-cell:\d$/.test(control.group ?? "") && /^选中第 \d 格：/.test(control.label), via: "desktopCharts: {active: 格子序号 0–3}（选中的格就是图表本身，下单、合约标签和 AI 跟它）" },
   { match: control => control.group === "mobile-subpanes" && control.label === "完成", via: "mobileMarket: {subPanes: false}" },
   { match: control => control.group === "mobile-subpanes" && /^(KDJ|MACD|RSI|持仓量|CCI|成交量)\d?$/.test(control.label), via: "preference: chart.subPaneList（副图 0–3 个，电脑同一份）" },
@@ -517,7 +538,8 @@ export const COMMANDABLE: Rule[] = [
   { match: control => control.surface.startsWith("dialog-contract") && /[A-Z]+\.[A-Za-z0-9]+/.test(control.label), via: "symbol（抽屉里的最近合约与月份行）" },
   // 报价总表 (2026-10-01): the view, the exchange chips, the sortable columns and the row click-through.
   { match: /^报价$/, via: "view: board" },
-  { match: control => control.surface.startsWith("board") && control.role === "button" && /^(自选|全部|上期所|能源中心|大商所|郑商所|中金所|广期所|外盘)$/.test(control.label),
+  // 看板's large 自选 is the same table (group board): a chip there opens the 报价总表 on that exchange.
+  { match: control => (control.surface.startsWith("board") || control.group === "board") && control.role === "button" && /^(自选|全部|上期所|能源中心|大商所|郑商所|中金所|广期所|外盘)$/.test(control.label),
     via: "boardExchange: all|watchlist|SHFE|INE|DCE|CZCE|CFFEX|GFEX|FOREIGN（总表筛选，自选＝只看星标品种，外盘＝海外主连只读报价；快照 state.boardExchange、state.boardWatchlistCount 是自选数）" },
   // 自选品种 (2026-10-02): one account list behind all three stars (报价表行 / 合约抽屉品种行 / 合约头部).
   { match: /^(加入|移出)自选 /, via: "preference: watchlist.products（“交易所.品种”整段清单：先读再增删该品种后整段写回，三处星标同一份）" },
@@ -621,6 +643,10 @@ export const COMMANDABLE: Rule[] = [
 
 /** Controls the catalog covers with a business capability instead of a UI command. */
 export const CAPABILITY: Rule[] = [
+  // 看板 · 下单 小 / 中档 (2026-11-05): the order's own volume and price mode, then 买多 / 卖空 / 平仓 open the
+  // quick-order-confirm card (closeOnly) — the same quick-order path as the ticket's 快捷 row; an AI orders by card.
+  { match: control => control.group === "board-tile:order" && (/^(少一手|多一手|买多.*|卖空.*|平仓.*)$/.test(control.label) || control.role === "radio"),
+    via: "交易意图：委托走 POST /api/simulation/orders / propose_order（看板下单的手数与价格方式只是这一单的参数，点买卖先弹 quick-order-confirm；界面不提供下单命令）" },
   // 多 AI 研讨 (2026-10-11): 写进今日判断 and 取消 are business calls on the debate.
   { match: control => control.group === "research-debate" && /^(写进今日判断|正在写入…|已写进今日判断（.+）)$/.test(control.label),
     via: "POST /api/research/debates/{id}/adopt（研讨结论经调研员的核对写进今日判断，进历史；快照 state.researchDebate.canAdopt / adopted）" },

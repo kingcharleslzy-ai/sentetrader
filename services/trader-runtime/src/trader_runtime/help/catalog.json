@@ -408,6 +408,48 @@
         "界面命令 workspaceLayout（一次一项）：select <id> 切换；save <名字> 新建一个空白布局并切过去（没有右侧面板、单图、合约与周期不变；最多 11 个，名字 1–12 个字、不重名）；rename {id, name}；remove <id>（至少留一个，删当前的切到第一个）。默认 id：pre 盘前、live 盘中、review 复盘。下拉在 设置 → 界面 → 布局 的“保存的布局”一行（2026-11-04 从顶栏移来），是 disclosure: workspace-layouts，要先 settingsPage: ui。账号偏好 ui.workspaceLayouts = {current, items: [{id, name, dock: {active}, charts}]}，active 是开着的面板，charts 是多图（选中格存的是当时图表的合约与周期，切过去会切回它）；charts 为空的布局切过去不动多图。现在这个布局里的改动停一秒后自动存进去；打开页面时恢复当前布局的右侧面板，多图和合约按这台设备当时的。"
       ]
     },
+    "boards": {
+      "title": "看板：点一下进入空白一屏，模块自由拼",
+      "group": "market",
+      "skill": "chart-analysis",
+      "words": [
+        "看板",
+        "仪表盘",
+        "小组件",
+        "模块"
+      ],
+      "summary": "顶栏“看板”打开一整屏格子，把图表、持仓、下单、自选按大小拼在一起，盘前、盘中、复盘各一套。",
+      "steps": [
+        "点顶栏“看板”，进上次用的那套",
+        "点“编辑”，从模块库把模块拖进格子",
+        "点选模块换档或删除，按住左上角拖动换位置",
+        "点“完成”收起格子，“回到交易”回平时界面"
+      ],
+      "faq": [
+        {
+          "q": "每一档有什么不同？",
+          "a": "小档只留最要紧的一两样，中档多一层，大档就是完整的面板；图表还有加大和整版，自选还有通栏。"
+        },
+        {
+          "q": "小档能直接下单吗？",
+          "a": "只有下单的小档和中档能买卖，点了一定先弹确认框；其他小档只看，点一下打开完整面板。"
+        },
+        {
+          "q": "大屏幕能多摆几个吗？",
+          "a": "能。每格大小固定，跟着字号放大，屏幕大格子就多；换到小屏幕，放不下的模块往下挪，页面上下滚，不压扁。"
+        },
+        {
+          "q": "换电脑还在吗？",
+          "a": "在，看板跟账号走，网页和电脑客户端一样；手机版不做看板。"
+        }
+      ],
+      "detail": [
+        "界面命令 view: dashboard 打开看板；boards（一次一项）：select <id> 切到一个看板并打开；create <名字> 新建空白看板并切过去（最多 11 个，名字 1–12 个字、不重名）；rename {id, name}；remove <id>（至少留一个，删当前的切到第一个）；place {module, size?, x?, y?} 把模块放到当前看板，已在上面的就挪位置或换档（不给 x、y 时原位换档，放不下找第一个空位，还放不下就 rejected）；take <module> 拿掉；editing true / false 进入或退出编辑（进入也会打开看板）；undo true 撤销这次编辑里最近一次放、挪、换档或拿掉（没有可撤销的就 rejected）。默认 id：pre 盘前、live 盘中、review 复盘。",
+        "模块 module：chart 图表（small / medium / large / xlarge / full）、positions 持仓（small / medium / large）、order 下单（small / medium / large）、watch 自选报价（small / medium / large / wide）。每档占的格数不变：small 3×2、medium 6×2、large 6×4、xlarge 9×6、wide 12×4、full 12×8；x、y 是模块左上角所在的格（从 0 数），模块不能出界、不能叠在一起。",
+        "格子数不固定（所有者 11-05）：每格大小固定（标准字号 92×78 像素，大字、特大按 110%、120% 放大），画布的列数和行数按量到的实际大小算，笔记本大约 12×8，大屏和带鱼屏多出列和行，不按屏幕宽度分段。每个看板记着自己是在多少格上摆的（ui.boards 每项的 cols、rows）：在更大的画布上打开，多出来的是空格子；在更小的画布上打开，还放得下的模块原地不动，放不下的往下挪、页面竖着滚，比画布还宽的模块让画布横着滚，模块本身不压缩。在这块画布上放、挪、换档或拿掉模块，看板就按这块画布当时的样子重新记下格数和位置。编辑时的模块库浮在画布上，不占格子。",
+        "账号偏好 ui.boards = {current, items: [{id, name, cols, rows, tiles: [{module, size, x, y}]}]}，快照 state.preferences 回报；state.boards = {editing, selected} 是这个窗口是否在编辑、选中了哪个模块。顶栏下拉是 disclosure: boards-menu，编辑时的模块库是 disclosure: board-library，看板页签旁的 ⋯（改名、删除）是 disclosure: board-more。只有登录用户的电脑布局有看板（手机、游客、回放 rejected）。格子拖拽用开源组件 react-grid-layout（MIT）。"
+      ]
+    },
     "chart-ai": {
       "title": "让 AI 在图上讲解",
       "group": "market",
@@ -2663,7 +2705,8 @@
         "账户设置与遥控器：disclosure live-trading（设置 → 账户的实盘开关）open:false 照收，open:true 被拒（422，原因“暂无期货公司接入，实盘暂不可开启”），快照 state.liveTrading＝{state:\"off\", disabledReason}；disclosure plan-quota（先 settingsPage=account）展开档位的今日 token 与语音额度和用量；dialog change-password（先 settingsPage=account）只开关修改密码框，密码由用户本人输入和提交；tradingAccount 在会话第一条账户状态到达前 rejected（“账户状态加载中”）。remoteSettings 取值：布尔字段只收布尔；bindings 是按键到动作的对象，按键 up/down/left/right/ok/back/home/menu/tv/volumeUp/volumeDown/voice/power，动作 none（停用该键）/ptt（仅语音键）/cancel/chat/settings/scrollUp/scrollDown/focusPrevious/focusNext/activate（不自动提交交易）；resetBindings:true 恢复全部默认，回执以 state.remoteSettings.bindingsDefault 为准；diagnostic:true 须先打开 remote-diagnostics，离开自动停止；开诊断不能与停用或断开同批，断开不能与启用同批，恢复默认不能与 bindings 同批；空对象与 null 字段拒绝。state.remoteSettings 报 enabled、phase、supported、platform、deviceName、error、keyError、bindings、availableKeys、diagnostic、lastKey、frames、level。",
         "旧值 settingsPage=fees 与 strategy={tab:fees} 打开的是设置 → 交易 → 高级交易设置（settingsPage=trade-advanced），不是交易页；strategy={tab:fees} 时策略面板本身停在我的策略，按设置抽屉是否已打开高级交易设置判定 applied。",
         "电脑版多图：desktopCharts={layout?: single|two|four, preset?: periods, cells?: [{index, symbol?, duration?}], active?: 0–3, syncDuration?, syncSymbol?, syncCrosshair?}，几项可组合，按 preset → layout → cells → active → 开关生效；只对电脑布局（手机、游客、回放 rejected）；值是账号偏好 ui.desktopCharts，快照 state.preferences 回报，选中格的合约与周期是 state.symbol / duration。用法与规则见主题“多图”。",
-        "自由布局：workspaceLayout={select|save|rename|remove} 管保存的布局（账号偏好 ui.workspaceLayouts，下拉在 设置 → 界面 → 布局，disclosure: workspace-layouts）；右侧一次只开一个面板，用 panel 命令。用法见主题“自由布局”。"
+        "自由布局：workspaceLayout={select|save|rename|remove} 管保存的布局（账号偏好 ui.workspaceLayouts，下拉在 设置 → 界面 → 布局，disclosure: workspace-layouts）；右侧一次只开一个面板，用 panel 命令。用法见主题“自由布局”。",
+        "看板：view: dashboard 打开；boards={select|create|rename|remove|place|take|editing|undo}（账号偏好 ui.boards，快照 state.boards = {editing, selected}，顶栏下拉 disclosure: boards-menu，模块库 disclosure: board-library，⋯ disclosure: board-more）。用法、模块和档位见主题“看板”。"
       ]
     },
     "skills": {

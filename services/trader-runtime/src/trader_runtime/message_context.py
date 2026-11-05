@@ -79,7 +79,7 @@ class WorkspaceRecentActionContext(BaseModel):
     ]
     occurredAt: str = Field(min_length=1, max_length=80)
     symbol: str = Field(min_length=1, max_length=80, pattern=CONTEXT_SYMBOL_PATTERN)
-    view: Literal["watch", "trade", "review", "board"] | None = None
+    view: Literal["watch", "trade", "review", "board", "dashboard"] | None = None
     durationSeconds: Literal[60, 180, 300, 900, 1800, 3600, 86400, 604800] | None = None
     price: float | None = Field(default=None, gt=0)
     side: Literal["buy_open", "sell_open", "buy_close", "sell_close"] | None = None
@@ -114,7 +114,7 @@ class FuturesWorkspaceContext(BaseModel):
 
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
-    view: Literal["watch", "trade", "review", "board"]
+    view: Literal["watch", "trade", "review", "board", "dashboard"]
     # "depth" (the 价格阶梯, removed 2026-10-07) is only sent by older desktop clients.
     rightDock: Literal["ai", "depth", "order"] | None = None
     symbol: str = Field(min_length=1, max_length=80, pattern=CONTEXT_SYMBOL_PATTERN)

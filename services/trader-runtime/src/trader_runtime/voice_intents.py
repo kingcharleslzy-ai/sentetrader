@@ -328,6 +328,13 @@ def match_intent(text: str) -> Intent | None:
     market = _mobile_market_intent(s)
     if market is not None:
         return market
+    # 看板 (2026-11-05): the board itself, or one of the three it starts with by name.
+    board = _rx(rf"(?:{_OPEN}|回到|回|返回)?(盘前|盘中|复盘)(?:的)?(?:看板|仪表盘)").match(s)
+    if board:
+        return Intent("boards", {"boards": {"select": {"盘前": "pre", "盘中": "live", "复盘": "review"}[board.group(1)]}},
+                      f"到{board.group(1)}看板了")
+    if _rx(rf"(?:{_OPEN}|回到|回|返回)?(?:看板|仪表盘)(?:页|页面|视图)?").match(s):
+        return Intent("view", {"view": "dashboard"}, "到看板了")
     # 交易台 / 报价总表 / 复盘
     if _rx(rf"(?:{_OPEN}|回到|回|返回)?(?:复盘)(?:页|页面|视图)?").match(s):
         return Intent("view", {"view": "review"}, "到复盘页了")

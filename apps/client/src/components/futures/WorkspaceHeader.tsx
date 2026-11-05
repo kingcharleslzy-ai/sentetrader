@@ -28,6 +28,8 @@ interface Props {
   recoveryButton: ReactNode;
   /** The session's account directory; hidden without a second granted account. */
   tradingAccounts: TradingAccountsView;
+  /** 看板 (2026-11-05): the 看板 button and its board list, beside 报价; absent for a visitor, a phone or a replay. */
+  boardsEntry?: ReactNode;
   /** Pinned contracts: every one is a trade-view tab. */
   pinnedSymbols: string[];
   onSelectContract: (symbol: string) => void;
@@ -45,7 +47,7 @@ interface Props {
  * review / replay, connection state and equity; drags the desktop window.
  * Contract tabs are role=tab with aria-selected; review and replay stay buttons.
  */
-export function WorkspaceHeader({ workspace, view, onSelectView, recoveryButton, tradingAccounts, pinnedSymbols, onSelectContract, onPinContract, onUnpinContract, onVisibleCurrentContractChange, replayBlocked, guestActions, aiBar }: Props) {
+export function WorkspaceHeader({ workspace, view, onSelectView, recoveryButton, tradingAccounts, pinnedSymbols, onSelectContract, onPinContract, onUnpinContract, onVisibleCurrentContractChange, replayBlocked, guestActions, aiBar, boardsEntry }: Props) {
   const headerRef = useRef<HTMLElement | null>(null);
   const [menu, setMenu] = useState<"more" | "pick" | null>(null);
   const [blocked, setBlocked] = useState("");
@@ -154,6 +156,7 @@ export function WorkspaceHeader({ workspace, view, onSelectView, recoveryButton,
         <i className="fdw-nav-divider" aria-hidden="true" />
         <span className="fdw-view-group">
         {!workspace.guest ? <button type="button" className={`fdw-nav-view ${view === "board" ? "active" : ""}`} aria-label="报价" onClick={() => onSelectView("board")}><Table2 /><span>报价</span></button> : null}
+        {boardsEntry}
         <button type="button" className={`fdw-nav-view ${view === "review" ? "active" : ""}`} aria-label="复盘" onClick={() => { if (allowed("review-summary")) onSelectView("review"); }}><History /><span>复盘</span></button>
         {workspace.onOpenReplay && <button type="button" className={`fdw-nav-view ${replay && view === "trade" ? "active" : ""}`} aria-label="回放" title={replayBlocked && !replay ? replayBlocked : undefined} onClick={() => { if (replay) onSelectView("trade"); else if (!workspace.access && replayBlocked) setBlocked(replayBlocked); else if (allowed("market-replay")) workspace.onOpenReplay?.(); }}><Play /><span>回放</span></button>}
         </span>

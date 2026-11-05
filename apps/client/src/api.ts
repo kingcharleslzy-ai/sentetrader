@@ -419,7 +419,7 @@ export interface FuturesWorkspacePromptContext {
   selectedEvent?: { strategyId?: string | null; eventType: "fill" | "attempt" | "protection" | "order"; eventId: string; eventTime: string };
   /** 对象级 AI (2026-09-25): the object an "AI ▾" menu item asked about. */
   focus?: { kind: "strategy" | "strategy_instance" | "position" | "order" | "strategy_edit"; id: string; label: string };
-  view: "watch" | "trade" | "review" | "board";
+  view: "watch" | "trade" | "review" | "board" | "dashboard";
   rightDock: "ai" | "order" | null;
   symbol: string;
   instrumentName?: string;
@@ -483,7 +483,7 @@ export interface FuturesWorkspacePromptContext {
       | "position_selected" | "order_draft_created" | "manual_order_submitted" | "order_action";
     occurredAt: string;
     symbol: string;
-    view?: "watch" | "trade" | "review" | "board";
+    view?: "watch" | "trade" | "review" | "board" | "dashboard";
     durationSeconds?: 60 | 180 | 300 | 900 | 1800 | 3600 | 86400 | 604800;
     price?: number;
     side?: "buy_open" | "sell_open" | "buy_close" | "sell_close";

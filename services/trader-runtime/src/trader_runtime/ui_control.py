@@ -19,6 +19,9 @@ from .instruments import PRODUCT_KEY_PATTERN, SYMBOL_PATTERN, foreign_display_na
 from .ui_captures import ONLINE_SECONDS, CaptureReceipt, CaptureRequest, register_ui_captures
 from .ui_surfaces import surface_aliases, surface_ids, surface_labels, surfaces_with
 from .user_preferences import (
+    BOARD_ID,
+    BOARD_MODULES,
+    BOARD_SIZES,
     CATEGORIES,
     DESKTOP_CHART_CELLS,
     DESKTOP_CHART_LAYOUTS,
@@ -411,6 +414,53 @@ class WorkspaceLayoutChange(BaseModel):
         if len(given) != 1 or len(self.model_fields_set) != 1:
             raise ValueError("workspaceLayout 一次只做一件：select / save / rename / remove")
         return self
+
+
+class BoardPlace(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    module: BOARD_MODULES
+    size: BOARD_SIZES | None = None
+    x: int | None = Field(default=None, ge=0, lt=40, strict=True)
+    y: int | None = Field(default=None, ge=0, lt=30, strict=True)
+
+
+class BoardRename(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str = Field(pattern=BOARD_ID)
+    name: str = Field(min_length=1, max_length=12)
+
+
+class BoardsChange(BaseModel):
+    """看板 (2026-11-05), one key per command: select 切到一个看板（并打开看板）, create 新建一个空白看板并切过去, rename {id,
+    name}, remove 删除一个看板（删当前的切到第一个）, place {module, size?, x?, y?} 把模块放到当前看板上或挪动 / 换档（不给 x、y：
+    原位换档，放不下就找第一个空位）, take 从当前看板拿掉一个模块, editing 进入（并打开看板）/ 退出编辑, undo 撤销这次编辑里
+    最近一次放、挪、换档或拿掉. Modules chart / positions
+    / order / watch; sizes small 3×2 / medium 6×2 / large 6×4 / xlarge 9×6（只图表）/ wide 12×4（只自选）/ full 12×8（只图表）
+    cells, x and y the tile's top-left cell on the grid the window's canvas holds (its measured size, about 12 × 8 on a
+    laptop; a place lays the board out on that grid). The list is the account preference ui.boards; state.boards
+    carries editing and the selected tile."""
+    model_config = ConfigDict(extra="forbid")
+    select: str | None = Field(default=None, pattern=BOARD_ID)
+    create: str | None = Field(default=None, min_length=1, max_length=12)
+    rename: BoardRename | None = None
+    remove: str | None = Field(default=None, pattern=BOARD_ID)
+    place: BoardPlace | None = None
+    take: BOARD_MODULES | None = None
+    editing: bool | None = None
+    undo: Literal[True] | None = None
+
+    @model_validator(mode="after")
+    def one_key(self):
+        given = [key for key in self.model_fields_set if getattr(self, key) is not None]
+        if len(given) != 1 or len(self.model_fields_set) != 1:
+            raise ValueError("boards 一次只做一件：select / create / rename / remove / place / take / editing / undo")
+        return self
+
+
+class BoardsState(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    editing: bool
+    selected: BOARD_MODULES | None = None
 
 
 class DialogChange(BaseModel):
@@ -1066,6 +1116,8 @@ class UiState(BaseModel):
     view: Literal[surface_ids("views", state=None)]
     # "depth" (the 价格阶梯, removed 2026-10-07) is only reported by older desktop clients that still have it.
     panel: PANEL | None
+    # 看板 (2026-11-05): editing and the selected tile; a client before the field (or a visitor / phone) reports none.
+    boards: BoardsState | None = None
     settingsOpen: bool
     theme: Literal["dark", "light", "system"]
     dockSide: Literal["left", "right"]
@@ -1299,6 +1351,7 @@ class UiChanges(BaseModel):
                        "mobileMarket 改手机版看盘（只对手机布局有效，先切到看盘标签；一次一项）：view quotes 报价列表 / multi 多图 / single 单图；board 报价板块 watchlist 自选 / main 主力 / SHFE 上期所 / DCE 大商所 / CZCE 郑商所 / CFFEX 中金所 / GFEX 广期所 / INE 能源中心 / FOREIGN 外盘（点一行打开它的单图；切到报价）；columns 报价的数值列 1–4 个（last 最新 / changePercent 涨跌幅 / change 涨跌 / openInterest 持仓量 / bid 买价 / ask 卖价 / volume 成交量 / openInterestChange 日增仓）；layout 多图布局 four 4 合约 / periods 同合约 4 周期 / six 6 图（切到多图）；cell {index, symbol?, duration?} 改多图当前布局的一格（symbol null＝自动补位；同合约 4 周期里 symbol 切当前合约）；subPane 单图下面显示哪个副图（kd / macd / rsi / oi 持仓量 / cci / volume 成交量，未选的替换正在显示的那个）；subPanes true/false 开关副图设置面板（选 0–3 个副图、主图指标 均线 / 布林 / SAR、各指标参数，快照 disclosures.mobile-subpanes）。都记在账号偏好 ui.mobileMarket 与 chart.subPaneList，快照 state.preferences。"
                        "desktopCharts 改电脑版多图（只对电脑布局有效；几项可一起给，按 preset → layout → cells → active → 开关的顺序生效）：layout single 单图 / two 左右 2 格 / four 2×2 四格；preset periods 同合约 4 周期（四格、同步品种、5 分 / 15 分 / 1 小时 / 日线）；cells [{index 0–3, symbol?, duration?}] 改格子的合约（null＝自动补位）与周期，选中格就是图表本身；active 选中哪一格（它成为当前合约：下单票、合约标签、AI 都跟它）；syncDuration / syncSymbol 所有格跟选中格的周期 / 合约；syncCrosshair 十字线对齐同一时间。记在账号偏好 ui.desktopCharts，快照 state.preferences；格子 data-agent-target=\"chart-cell:<序号>\"。"
                        "workspaceLayout 管保存的布局（一次一项）：select <id> 切到一个布局（右侧面板和多图都换成它存的样子）；save <名字> 新建一个空白布局并切过去（没有右侧面板、单图、合约与周期不变；最多 11 个）；rename {id, name} 改名；remove <id> 删除（删当前的切到第一个）。默认有 pre 盘前 / live 盘中 / review 复盘；现在这个布局里的改动会自动存进它。列表是账号偏好 ui.workspaceLayouts（快照 state.preferences），下拉在 设置 → 界面 → 布局（先 settingsPage: ui），是 disclosure: workspace-layouts。"
+                       "boards 管看板（view dashboard 打开它；一次一项）：select <id> 切到一个看板；create <名字> 新建空白看板并切过去；rename {id, name}；remove <id>；place {module: chart / positions / order / watch, size?: small / medium / large / xlarge / wide / full, x?, y?: 左上角格子，从 0 数，画布格数按窗口实际大小算（笔记本约 12×8）} 放模块或挪位置、换档（各模块能用的档和格子规则见帮助 boards）；take <module> 拿掉模块；editing true / false 进入 / 退出编辑；undo true 撤销这次编辑里最近一步。默认有 pre 盘前 / live 盘中 / review 复盘；列表是账号偏好 ui.boards，快照 state.boards 是编辑状态和选中的模块，顶栏下拉是 disclosure: boards-menu，编辑时的模块库是 disclosure: board-library，⋯（改名 / 删除）是 disclosure: board-more。"
                        "researchDebate 操作“多 AI 辩论”页（电脑是调研面板“品种”下的辩论子页，同 panel: debate；手机是调研页上的整屏子页；一次一项）：start 发起或打开辩论——start: \"desk\" 等于今日判断旁的“让 AI 们辩一轮”（今日议题），start: \"event\" 辩当前品种最新一条重要快讯，start: <事件 id>（快讯接口 events[].id）等于快讯行的“研讨”；同一事件同一品种当天只辩一次、今日议题资料没变时直接打开已有结果；open: <研讨 id> 打开一次辩论（也是“以前的辩论”里的一格）；rerun: true 是结果页的“再辩一轮”（新跑一次，计入当日次数）；close: true 收起辩论页。辩论本身走 POST /api/research/debates（技术面、供需基本面、资金持仓、新闻宏观四位分析师先同时写报告，再多方开场、空方回应、多方反驳、空方反驳，一句一句流式出现，最后裁判匿名裁决，约 2 到 3 分钟；写完的报告卡片用 disclosure: debate-analyst-technical / supply / flow / news 展开收起），写进今日判断走 POST /api/research/debates/{id}/adopt，停止走 POST /api/research/debates/{id}/cancel（快照 state.researchDebate：id、status queued/running/done/review 需复核/failed/cancelled、step（collect / analysts / turn1…turn4 / judge）、analysts（四份报告写完几份，没写成也算）、lesson（上次复盘）、speaking（正在说的一方）、topic、stance、confidence、canAdopt、adopted、request）。游客不能发起。",
     })
     symbol: str | None = Field(default=None, pattern=SYMBOL_PATTERN, max_length=40)
@@ -1413,6 +1466,8 @@ class UiChanges(BaseModel):
     desktopCharts: DesktopChartsChange | None = None
     # 自由布局 (2026-11-02): the saved layouts.
     workspaceLayout: WorkspaceLayoutChange | None = None
+    # 看板 (2026-11-05): the boards, their tiles and editing.
+    boards: BoardsChange | None = None
     # 提醒中心 (2026-10-15): the bell's popover on a computer, the 提醒 page on a phone.
     reminderCenter: ReminderCenterChange | None = None
 
@@ -1937,6 +1992,36 @@ def _workspace_layout_matches(state, value) -> bool:
     return all(item.get("id") != value["remove"] for item in items)
 
 
+def _boards_matches(state, value) -> bool:
+    """看板: the account document the window reports holds the change (a window without it is judged by its receipt);
+    editing is the window's own state.boards; undo is judged by the window's receipt."""
+    if "undo" in value:
+        return True
+    if "editing" in value:
+        boards_state = state.get("boards")
+        return isinstance(boards_state, dict) and boards_state.get("editing") is value["editing"] and (
+            not value["editing"] or state.get("view") == "dashboard")
+    preferences = state.get("preferences")
+    boards = preference_value(preferences, "ui.boards") if isinstance(preferences, dict) else None
+    if not isinstance(boards, dict):
+        return True
+    items = [item for item in boards.get("items") or [] if isinstance(item, dict)]
+    current = next((item for item in items if item.get("id") == boards.get("current")), {})
+    tiles = [tile for tile in current.get("tiles") or [] if isinstance(tile, dict)]
+    if "select" in value:
+        return boards.get("current") == value["select"] and state.get("view") == "dashboard"
+    if "create" in value:
+        return current.get("name") == value["create"]
+    if "rename" in value:
+        return any(item.get("id") == value["rename"]["id"] and item.get("name") == value["rename"]["name"] for item in items)
+    if "remove" in value:
+        return all(item.get("id") != value["remove"] for item in items)
+    if "take" in value:
+        return all(tile.get("module") != value["take"] for tile in tiles)
+    wanted = {key: item for key, item in value["place"].items() if item is not None}
+    return any(all(tile.get(key) == item for key, item in wanted.items()) for tile in tiles if tile.get("module") == wanted["module"])
+
+
 def _desktop_charts_matches(state, value) -> bool:
     """电脑版多图: the account document the window reports holds every given value; the selected cell is the
     window's own contract and period (a window without the document is judged by its own receipt)."""
@@ -2088,6 +2173,9 @@ def changes_match(state, changes):
                 return False
         elif key == "workspaceLayout":
             if not _workspace_layout_matches(state, value):
+                return False
+        elif key == "boards":
+            if not _boards_matches(state, value):
                 return False
         elif key == "positionsTab":
             wanted = POSITIONS_TAB_ALIASES.get(value, value)
