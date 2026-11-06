@@ -1,6 +1,6 @@
 [package]
 name = "ai-trader-desktop"
-version = "1.9.0"
+version = "1.9.1"
 description = "AI Trader Tauri desktop shell"
 authors = ["kingcharleslzy-ai"]
 edition = "2021"

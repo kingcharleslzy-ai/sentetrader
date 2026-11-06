@@ -14491,6 +14491,7 @@
         "type": "null"
        }
       ],
+      "description": "命令被拒绝的中文原因；state 和 observedRevision 是拒绝时的最新窗口状态与版本",
       "title": "Reason"
      },
      "state": {
@@ -17039,10 +17040,10 @@
  "info": {
   "description": "TqKq 模拟盘默认不设平台手数或次数上限，也不逐单请求授权；每次动作仍重新校验行情、账户、持仓和可配置风险规则。实盘始终关闭。",
   "title": "Sente Runtime",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "x-ai-trader": {
-   "commit": "5515fe70b74b40acb3454aa946c92b2669ffeee3",
-   "version": "1.9.0"
+   "commit": "679ac475615529ff7af7263644ad957ff90ff866",
+   "version": "1.9.1"
   }
  },
  "openapi": "3.1.0",
@@ -24489,7 +24490,7 @@
   },
   "/api/simulation/order-estimate": {
    "get": {
-    "description": "下单前的“钱”估算（只读，不做校验或拦截）：开仓给保证金约/手续费约/可开手数，\n平仓给释放保证金约与今昨拆分的手续费（`positionBucket` 省略 = all，按账户平今平昨\n偏好拆；`position_bucket` 下划线写法兼容旧调用方，两写法同值只算一个，冲突返回 422）。\n缺数据的字段为 null 并带 `missing` 原因码。",
+    "description": "下单前的“钱”估算（只读，不做校验或拦截）：开仓给保证金约/手续费约/可开手数，\n平仓给释放保证金约与今昨拆分的手续费（`positionBucket` 省略 = all，按账户平今平昨\n偏好拆；`position_bucket` 下划线写法兼容旧调用方，两写法同值只算一个，冲突返回 422）。\n缺数据的字段为 null 并带 `missing` 原因码；symbol、accountId、currency 为实际下单合约、账户和币种。",
     "operationId": "get_simulation_order_estimate_api_simulation_order_estimate_get",
     "parameters": [
      {
