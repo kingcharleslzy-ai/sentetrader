@@ -325,6 +325,22 @@ def test_the_models_slots_must_rest_on_the_users_words_or_the_context():
     products = ("螺纹钢", "沪金")
     long_au = [{"symbol": "SHFE.au2612", "direction": "long", "volume": 2}]
 
+    from trader_runtime.order_intent_parse import ParseContext, mentions, parse
+    from trader_runtime.turn_router import answer_route
+    reply = "平仓，卖出平今沪银2702一手。"
+    route = answer_route(reply, said="把刚才新开的沪银2702一手平掉，别动沪金。先给我确认卡。",
+                         question="开仓还是平仓？", basis=None, catalog=["沪银", "沪金"])
+    assert route is not None and route.said == reply
+    silver = [{"symbol": "SHFE.ag2702", "instrumentName": "沪银2702", "productId": "ag"}]
+    closed = OrderIntent(act="close", symbol="SHFE.ag2702", dir="long", vol=1, bucket="today")
+    assert ground(closed, route.said, products=("沪银", "沪金"), chart=None,
+                  positions=[{"symbol": "SHFE.ag2702", "direction": "long", "volume": 1}], items=silver) == closed
+    context = ParseContext(products=("沪银",))
+    assert mentions("卖出平今沪银2702一手", context).acts == {"close"}
+    assert parse("买入平昨沪银2702一手", context) == OrderIntent(
+        act="close", symbol="沪银2702", product="沪银", dir="short", vol=1, bucket="yesterday")
+    assert mentions("卖一手沪银平掉", context).acts == {"open", "close"}
+
     def check(intent, said, **kwargs):
         return ground(intent, said, products=products, chart=kwargs.get("chart"),
                       positions=kwargs.get("positions", ()), cards=kwargs.get("cards", ()))

@@ -299,6 +299,8 @@ def answer_route(text: str, *, said: str, question: str, basis: OrderIntent | No
             return TurnRoute("order_intent", order=replace(basis, **slots), said=both, hint=hint)
     if isinstance(parsed, OrderIntent) and front_order(parsed) is not None:
         return None  # a whole order on its own: a new sentence
+    if contract and words.counts and words.acts:
+        both = text  # An explicit restatement supplies its own slots; the earlier ambiguity is no longer evidence.
     stated = (isinstance(parsed, OrderIntent) and parsed.stance == "order"
               or isinstance(parsed, Uncertain) and (parsed.gap in ORDER_GAPS or parsed.gap == "no_order"))
     if stated:

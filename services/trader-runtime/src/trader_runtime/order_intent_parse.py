@@ -526,6 +526,11 @@ def _tokens(text: str, ctx: ParseContext, *, skim: bool = False) -> list[_Token]
             kind, value = _VOCAB[word]
             if word == "单" and out and out[-1].kind == "num":
                 kind = "hand"  # 口语“下 5 单多单”“开一单” = 5 手 / 1 手（所有者 2026-11-02 语音实测）
+            if kind in {"close", "close_bucket"} and out and out[-1].kind == "side" and text[:at].endswith(out[-1].text):
+                side = out.pop()
+                if kind == "close_bucket":
+                    out.append(_Token("bucket", value, ""))
+                kind, value, word = "close", "long" if side.value == "short" else "short", side.text + word
             out.append(_Token(kind, value, word))
         at = match.end()
     return out
