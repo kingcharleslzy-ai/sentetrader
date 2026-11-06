@@ -1658,8 +1658,7 @@ class UiCommandResult(UiCommand):
     status: Literal["queued", "dispatched", "applied", "rejected", "expired", "unknown"]
     state: UiState | None
     observedRevision: int | None = None
-    # A rejected command: why the window refused it (absent when the window gave no reason).
-    reason: str | None = None
+    reason: str | None = Field(default=None, description="命令被拒绝的中文原因；state 和 observedRevision 是拒绝时的最新窗口状态与版本")
 
 
 class UiWindowSnapshot(BaseModel):
@@ -2421,6 +2420,7 @@ def changes_match(state, changes):
 # definition plus the description sentences that name it come from `ui_field_detail` on request
 # (app_capabilities operation="ui:<field>"). Both derive from UiChanges: no second hand-written table.
 UI_COMMAND_OPERATION = "POST /api/app/ui/commands"
+UI_REVISION_CHANGED = "界面已变化，命令未执行；请读取最新状态后再操作"
 
 
 def _ui_resolve(schema: dict[str, Any], defs: dict[str, Any]) -> dict[str, Any]:
@@ -2534,6 +2534,7 @@ def register_ui_control(app, current_user):
         state = pulse.state.model_dump()
         if refused(state, changes):
             command.status = "rejected"
+            command.reason = str(state["reminderCenter"]["moreError"])[:300]
         elif changes_match(state, changes):
             command.status = "applied"
         elif final:
@@ -2669,14 +2670,12 @@ def register_ui_control(app, current_user):
                     if authorized and body.receipt.status == "applied":
                         # The window ran it; judge() decides whether it took effect, on this and later heartbeats.
                         command.status, command.claimed = "dispatched", monotonic()
-                    elif authorized and body.receipt.status == "rejected" and body.revision != command.request.expectedRevision:
-                        # The window had moved on before it ran it (state settling late, 2026-11-01 readback): the
-                        # same outcome as a refusal at dispatch — rejected with no state, which callers re-send.
-                        command.status = "rejected"
-                        log_result(command)
                     else:
                         command.status = body.receipt.status if authorized else "unknown"
-                        command.reason = body.receipt.reason if command.status == "rejected" else None
+                        command.reason = (body.receipt.reason or (
+                            UI_REVISION_CHANGED
+                            if body.revision != command.request.expectedRevision else "窗口未能执行命令，请检查当前状态"
+                        )) if command.status == "rejected" else None
                         command.state = body.state.model_dump()
                         command.observed_revision = body.revision
                         log_result(command)
@@ -2692,9 +2691,15 @@ def register_ui_control(app, current_user):
                     await command.identity.verify()
                 except HTTPException:
                     command.status = "rejected"
+                    command.reason = "命令的登录身份已失效，未执行；请重新连接"
+                    command.state, command.observed_revision = body.state.model_dump(), body.revision
+                    log_result(command)
                     continue
                 if command.request.expectedRevision != body.revision:
                     command.status = "rejected"
+                    command.reason = UI_REVISION_CHANGED
+                    command.state, command.observed_revision = body.state.model_dump(), body.revision
+                    log_result(command)
                     continue
                 command.status = "dispatched"
                 return {"command": command.result()}

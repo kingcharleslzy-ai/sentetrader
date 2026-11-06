@@ -302,6 +302,8 @@ async def test_ui_receipt_wait_allows_pulse_and_preserves_command_identity(tmp_p
                 assert (await c.post(prefix + '/api/ui/pulse', json=fresh)).json()['command'] is None
                 rejected = (await c.get(prefix + '/api/app/ui/commands/' + revoked_body['commandId'])).json()
                 assert rejected['status'] == 'rejected'
+                assert '身份已失效' in rejected['reason'] and rejected['observedRevision'] == 0
+                assert rejected['state']['theme'] == 'dark'
             finally:
                 if not pending.done(): pending.cancel()
                 await asyncio.gather(pending, return_exceptions=True)
@@ -310,10 +312,10 @@ async def test_ui_receipt_wait_allows_pulse_and_preserves_command_identity(tmp_p
 
 
 async def test_window_refusing_an_outdated_command_reads_as_moved_on(tmp_path):
-    """A window whose state settled after dispatch refuses the command for its revision: that receipt has no
-    state, like a refusal at dispatch, so the agent and readback re-send it against the new revision."""
+    """Both pre-dispatch and window refusals carry their reason and the latest state."""
     from uuid import uuid4
 
+    from trader_runtime.turn_router import ui_command_moved_on
     from trader_runtime.ui_control import ChartOptions
 
     app = create_app(tmp_path / 'runtime.sqlite3', runtime_state_root=tmp_path, agent_mode='fake', local_token='ui-test-token')
@@ -335,7 +337,17 @@ async def test_window_refusing_an_outdated_command_reads_as_moved_on(tmp_path):
             moved = {**pulse, 'revision': 1, 'receipt': {'commandId': cid, 'status': 'rejected'}}
             assert (await c.post('/api/ui/pulse', json=moved)).status_code == 200
             result = (await c.get('/api/app/ui/commands/' + cid)).json()
-            assert result['status'] == 'rejected' and result['state'] is None
+            assert result['status'] == 'rejected' and result['state']['theme'] == 'dark'
+            assert result['observedRevision'] == 1 and '界面已变化' in result['reason']
+            assert ui_command_moved_on({'ok': True, 'data': result})
+            assert not ui_command_moved_on({'ok': True, 'data': {**result, 'reason': '窗口未能执行命令'}})
+            # The same race before dispatch must be just as observable.
+            queued = {**body, 'commandId': str(uuid4()), 'expectedRevision': 1}
+            assert (await c.post('/api/app/ui/commands', json=queued)).status_code in {200, 202}
+            assert (await c.post('/api/ui/pulse', json={**pulse, 'revision': 2})).json()['command'] is None
+            result = (await c.get('/api/app/ui/commands/' + queued['commandId'])).json()
+            assert result['status'] == 'rejected' and result['state']['theme'] == 'dark'
+            assert result['observedRevision'] == 2 and '界面已变化' in result['reason']
 
 
 async def test_capability_names_are_identifiers_and_tool_entries_carry_descriptions(tmp_path: Path) -> None:

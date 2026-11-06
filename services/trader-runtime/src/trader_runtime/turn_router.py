@@ -486,13 +486,14 @@ async def send_ui_command(call: Callable[..., Awaitable[dict[str, Any]]], window
 
 def ui_command_moved_on(result: dict[str, Any]) -> bool:
     """A UI command refused only because the window's revision moved on — before queueing (409 界面已变化, nothing
-    attempted) or by the window / at dispatch (rejected with no state). Safe to send again at the new revision."""
+    attempted) or by the window / at dispatch (explicit reason; older servers omit state). Safe to send again."""
+    from .ui_control import UI_REVISION_CHANGED
     data = result.get("data")
     if not isinstance(data, dict):
         data = {}
     if not result.get("ok"):
         return result.get("uiCommandAttempted") is False and "界面已变化" in str(data.get("detail") or "")
-    return data.get("status") == "rejected" and data.get("state") is None
+    return data.get("status") == "rejected" and (data.get("reason") == UI_REVISION_CHANGED or data.get("state") is None)
 
 
 async def run_tour_step(op: str, *, window: dict[str, Any], call: Callable[..., Awaitable[dict[str, Any]]]) -> dict[str, Any]:

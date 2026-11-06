@@ -2545,13 +2545,14 @@ class TraderReadOnlyTools:
         from fastapi import HTTPException
 
         from .agent_api import AppCall
+        from .turn_router import ui_command_moved_on
         for attempt in range(2):
             body = {"commandId": str(uuid4()), "windowId": window["windowId"], "expectedRevision": window["revision"], "changes": changes}
             result = await self.app_capabilities.call(AppCall(operation="POST /api/app/ui/commands", query={"waitMs": 3000}, body=body),
                                                       user=user_id, session_id=session_id)
             if result.get("ok"):
                 receipt = result["data"]
-                if receipt.get("status") == "rejected" and attempt == 0 and receipt.get("state") is None:
+                if attempt == 0 and ui_command_moved_on(result):
                     # Rejected before the client saw it: the window moved on.
                     window = await self._ui_window(window["windowId"], user_id=user_id, session_id=session_id, task_id=None)
                     continue
