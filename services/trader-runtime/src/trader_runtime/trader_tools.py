@@ -381,10 +381,12 @@ class ProposeOrderArguments(OrderLegArguments):
     legs: list[OrderLegArguments] | None = Field(default=None, min_length=2, max_length=4,
                                                  description="一句里有几单时填（不出卡，Runtime 请用户一单一单说）；一单时不填")
     reason: str = Field(min_length=1, max_length=1000, description="一句话写用户的原意")
+    uiWindowId: str | None = Field(default=None, max_length=40,
+        description="外部 AI 必填：先打开 AI 对话，填 GET /api/app/ui/windows 的目标 windowId；卡进入该窗口当前对话。内置 AI 省略。")
 
     @model_validator(mode="after")
     def _one_order_or_legs(self) -> ProposeOrderArguments:
-        own = self.model_dump(exclude={"legs", "reason"}, exclude_none=True)
+        own = self.model_dump(exclude={"legs", "reason", "uiWindowId"}, exclude_none=True)
         if self.legs and own:
             raise ValueError("legs 与本层下单字段只能二选一")
         if not self.legs and self.act is None:
@@ -1682,6 +1684,7 @@ class TraderReadOnlyTools:
                     "不出卡的中文原因（userFacing）。只写用户说了的：没说的方向、手数、合约留空，Runtime 会追问，不要猜，也不要先读持仓、"
                     "行情或 K 线来算参数。只是问、转述已做的事、条件单（到价/到时间才下）、或用户自己收回时不调用。"
                     "撤单、改保护用各自的工具；本工具不下单、不撤单。返回里的合约、方向、手数、价格就是卡上的数，回答按它们复述。"
+                    "外部 AI 用 uiWindowId 指定当前对话窗口；返回 sessionId、uiWindowId，每张候选带 proposalId、proposalVersion、approvalId、accountId，供查询与作废；确认只能由用户点卡片。"
                 ),
                 "inputSchema": TOOL_ARGUMENT_MODELS["propose_order"].model_json_schema(),
             })
@@ -3830,7 +3833,9 @@ class TraderReadOnlyTools:
     def _close_batch_response(tool: str, proposal: dict[str, Any]) -> TraderToolResult:
         return TraderToolResult(
             tool=tool, readOnly=False,
-            data={"proposalId": proposal["proposalId"], "status": proposal["status"], "totalOrders": proposal["totalOrders"],
+            data={"proposalId": proposal["proposalId"], "proposalVersion": proposal["version"],
+                  "approvalId": proposal.get("approvalId"), "accountId": proposal.get("accountId"),
+                  "status": proposal["status"], "totalOrders": proposal["totalOrders"],
                   "orders": [{k: o.get(k) for k in ("symbol", "name", "side", "volume", "positionBucket", "limitPrice")} for o in proposal["orders"]],
                   "skipped": proposal.get("skipped") or [],
                   **({"remainingProtection": proposal["remainingProtection"]}
@@ -3920,6 +3925,9 @@ class TraderReadOnlyTools:
             return {"event": card.event, **self._close_batch_response("propose_order", proposal).data}
         return {
             "proposalId": proposal["proposalId"],
+            "proposalVersion": proposal["version"],
+            "approvalId": proposal.get("approvalId"),
+            "accountId": proposal.get("accountId"),
             "status": proposal["status"],
             # The card's own numbers, so the sentence the user hears and the card they see carry the
             # same price, side, size and contract.

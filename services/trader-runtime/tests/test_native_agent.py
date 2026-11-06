@@ -1515,18 +1515,56 @@ def test_an_unpaired_earlier_turn_is_dropped_whole_before_the_request(native_app
     assert NativeAgentAdapter._paired_tool_items(in_flight) == in_flight
 
 
-async def test_an_external_app_call_tool_card_reaches_the_conversation(native_client: AsyncClient, native_application: FastAPI):
-    """`tool:propose_order` through app_call (the external AI's card tool, 意图重构第 3 步): the card is published to
-    the caller's session like a turn's card. The three retired card tools are no capability any more."""
-    created = await native_client.post("/api/agent/call", json={"operation": "tool:propose_order", "body": {
-        "act": "open", "symbol": "SHFE.au2612", "dir": "short", "vol": 1, "price": "queue", "reason": "外部 agent 生成候选"}})
+@pytest.mark.parametrize("mode", ["local", "cloud"])
+async def test_an_external_app_call_tool_card_reaches_the_conversation(native_client: AsyncClient, native_application: FastAPI, mode):
+    """An external card belongs to the selected window's visible conversation, with usable query/reject references."""
+    from uuid import uuid4
+
+    session = await native_client.post("/api/sessions", params={"chat": True}, json={"mode": mode, "agentId": "native"})
+    assert session.status_code == 201
+    session_id = session.json()["sessionId"]
+    window_id = str(uuid4())
+    pulse = _window_pulse(window_id, "当前对话")
+    pulse["state"].update(chatSessionId=session_id, panel="ai")
+    assert (await native_client.post("/api/ui/pulse", json=pulse)).status_code == 200
+    bridge = native_application.state.app_capabilities
+    # The open UI stream already has its own binding, distinct from the external caller's cookie transport.
+    bridge.bind_session(session_id, "local-user", {"authorization": f"Bearer {TOKEN}"})
+    binding = bridge._session_headers.get(session_id)
+    if mode == "cloud":
+        tools = await bridge.session_tools(session_id, "local-user", {"authorization": f"Bearer {TOKEN}"})
+        assert tools.autonomy is not None
+        tools.autonomy.allow_cloud_owner = True  # The existing personal-cloud simulation configuration.
+    body = {"act": "open", "symbol": "SHFE.au2612", "dir": "short", "vol": 1, "price": "queue", "reason": "外部 agent 生成候选"}
+    missing = await native_client.post("/api/agent/call", json={"operation": "tool:propose_order", "body": body})
+    assert missing.status_code == 422 and "uiWindowId" in missing.text
+    invalid = await native_client.post("/api/agent/call", json={"operation": "tool:propose_order", "body": {
+        **body, "uiWindowId": window_id, "act": "invalid"}})
+    assert invalid.status_code == 200 and not invalid.json()["ok"]
+    assert invalid.json()["data"]["errorCode"] == "invalid_tool_arguments"
+    created = await native_client.post("/api/agent/call", json={"operation": "tool:propose_order", "body": {**body, "uiWindowId": window_id}})
     assert created.status_code == 200, created.text
-    proposal_id = created.json()["data"]["data"]["proposalId"]
-    session_id = next(iter(native_application.state.app_capabilities.sessions.values()))
+    data = created.json()["data"]["data"]
+    proposal_id = data["proposalId"]
+    assert data["sessionId"] == session_id and data["uiWindowId"] == window_id
+    assert bridge._session_headers.get(session_id) is binding
+    assert native_application.state.store.connection.execute("SELECT COUNT(*) FROM sessions").fetchone()[0] == 1
     published = [event for _, event in native_application.state.store.list_events(session_id) if event["name"] == "proposal.trade"]
     assert published and published[-1]["payload"]["proposalId"] == proposal_id
-    retired = await native_client.post("/api/agent/call", json={"operation": "tool:create_trade_proposal", "body": {
-        "symbol": "SHFE.au2612", "side": "sell_open", "volume": 1, "reason": "旧工具"}})
+    record = (await native_client.get(f"/api/proposals/{proposal_id}")).json()
+    assert record["sessionId"] == session_id and record["version"] == data["proposalVersion"]
+    assert data["approvalId"] == record["approvalId"]
+    assert data["accountId"] == record["payload"].get("accountId")
+    rejected = await native_client.post("/api/agent/call", json={"operation": "tool:reject_proposal", "body": {
+        "proposalId": proposal_id, "proposalVersion": data["proposalVersion"]}})
+    assert rejected.json()["data"]["data"]["status"] == "rejected"
+    assert (await native_client.get(f"/api/proposals/{proposal_id}")).json()["status"] == "rejected"
+    pulse["revision"] = 1
+    pulse["state"]["chatSessionId"] = "missing-session"
+    assert (await native_client.post("/api/ui/pulse", json=pulse)).status_code == 200
+    absent = await native_client.post("/api/agent/call", json={"operation": "tool:propose_order", "body": {**body, "uiWindowId": window_id}})
+    assert absent.status_code == 409 and "当前对话" in absent.text
+    retired = await native_client.post("/api/agent/call", json={"operation": "tool:create_trade_proposal", "body": body})
     assert retired.status_code == 404
 
 

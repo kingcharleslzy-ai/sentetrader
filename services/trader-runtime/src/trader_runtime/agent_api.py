@@ -730,13 +730,26 @@ class AppCapabilities:
                         "data": json.loads(response["contentItems"][0]["text"])}
             # Native tools are shared with the embedded model, preserving the
             # existing simulation/risk/recovery checks and actual session owner.
-            if not session_id or target is not self.app:
+            external_window = None
+            mode = "local"
+            if tool_name == "propose_order" and session_id is None:
+                window_id = (args.body or {}).get("uiWindowId")
+                if not isinstance(window_id, str) or not window_id:
+                    raise HTTPException(422, "外部出卡需要 uiWindowId，请先打开 AI 对话并读取目标窗口")
+                external_window = await tools._ui_window(window_id, user_id=user, session_id=None, task_id=None, headers=headers)
+                session_id = external_window["state"].get("chatSessionId")
+                bound = target.state.broker.get_session(session_id, user) if session_id else None
+                if bound is None:
+                    raise HTTPException(409, "目标窗口没有可用的当前对话，请先打开 AI 对话并重新读取窗口")
+                mode = bound.mode
+            if external_window is None and (not session_id or target is not self.app):
                 session_id = await bridge.tool_session(user, headers)
-            bridge.bind_session(session_id, user, headers)
+            if external_window is None:
+                bridge.bind_session(session_id, user, headers)
             response, card = await (await bridge.session_tools(session_id, user, headers)).call_async(
                 tool=args.operation.removeprefix("tool:"), arguments=args.body or {},
-                turn_id="app-call:" + uuid4().hex, mode="local", session_id=session_id, user_id=user,
-                host_identity=identity)
+                turn_id="app-call:" + uuid4().hex, mode=mode, session_id=session_id, user_id=user,
+                host_identity=identity, chart=external_window["state"].get("symbol") if external_window else None)
             for event, payload in card_events(card):
                 # A card the tool produced (a proposal, a backtest) belongs to the conversation it was
                 # created in; an external caller's card was previously stored but never shown. Several cards of one
@@ -744,6 +757,8 @@ class AppCapabilities:
                 kind = "approval" if event.startswith("proposal.") else "chart" if event in {"card.backtest", "card.strategy_backtest"} else "artifact"
                 await target.state.broker.publish(session_id, kind=kind, name=event, payload=payload)
             data = json.loads(response["contentItems"][0]["text"])
+            if external_window is not None and isinstance(data.get("data"), dict):
+                data["data"].update({"sessionId": session_id, "uiWindowId": external_window["windowId"]})
             return {"ok": response["success"], "status": 200 if response["success"] else 409,
                 "operation": args.operation, "environment": "replay" if getattr(target.state.data_provider, "identifier", None) else "simulation", "data": data}
         route = bridge.routes().get(args.operation)
