@@ -1389,7 +1389,7 @@ button:active {
 
 @container reading (max-width: 420px) {
   .bubble { font-size: var(--font-md); }
-  .card-title small { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card-title small { overflow-wrap: anywhere; }
   .condition { grid-template-columns: 22px minmax(0, 1fr); }
   .condition small { grid-column: 2; }
 }

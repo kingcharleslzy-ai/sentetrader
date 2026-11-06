@@ -40,5 +40,7 @@
 .fdw-order-topline .bid { background: var(--market-down-soft); color: var(--market-down); }
 .fdw-order-topline button { line-height: 1.25; }
 .fdw-order-topline button strong { display: inline; }
-.fdw-order-topline button small { margin-left: var(--space-1); }
+/* 最新's change wraps under the price as a whole when the cell is narrow (large type), never cut or split at its sign. */
+.fdw-order-topline button { white-space: normal; }
+.fdw-order-topline button small { display: inline-block; margin-left: var(--space-1); white-space: nowrap; }
 .fdw-order-holdings .fdw-dock-rows strong > small { margin-left: var(--space-2); color: var(--muted); font-size: var(--font-sm); font-weight: 400; }

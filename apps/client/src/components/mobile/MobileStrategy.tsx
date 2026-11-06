@@ -370,7 +370,7 @@ export function MobileStrategy({ strategies, instruments, blocked, tab, onTabCha
             {Object.entries(strategies.notices).filter(([id, notice]) => notice && !running.some(run => run.strategyId === id))
               .map(([id, notice]) => <p key={id} className="fdm-note" role="status">{notice}</p>)}
             {!running.length && strategies.loaded && !strategies.failed ? (
-              <div className="fdm-empty"><FlaskConical aria-hidden="true" /><strong>没有正在运行的策略</strong><span>在电脑上点开一个策略，按“上线运行”。</span></div>
+              <div className="fdm-empty"><FlaskConical aria-hidden="true" /><strong>没有正在运行的策略</strong><span>在“我的策略”里点开一个策略，按“上线运行”。</span></div>
             ) : null}
           </> : <>
             {onNew ? <div className="fdm-strat-new-row">

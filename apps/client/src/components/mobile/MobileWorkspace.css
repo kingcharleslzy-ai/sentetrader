@@ -1088,7 +1088,8 @@
 .fdm-stop { position: relative; margin-left: auto; }
 .fdm-stop-toggle {
   min-height: 44px; display: inline-flex; align-items: center; gap: var(--space-1); padding: 0 var(--space-3);
-  border: 1px solid var(--line-strong); border-radius: var(--radius-control); color: var(--ink); background: transparent; font-size: var(--font-md);
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent); border-radius: var(--radius-control); color: var(--danger); background: var(--danger-soft);
+  font-size: var(--font-md); font-weight: 600;
 }
 .fdm-stop-toggle svg { color: var(--danger); }
 .fdm-stop-menu {

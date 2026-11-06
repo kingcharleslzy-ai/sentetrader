@@ -62,7 +62,7 @@ html[data-font-scale="extra-large"] :is(.rc-mobile, .rc-latest) { --rc-name: var
 .rc-row {
   width: 100%; display: grid; grid-template-columns: 40px minmax(0, 1fr) 14px; gap: var(--space-0) var(--space-2); align-items: start;
   padding: var(--space-3) var(--space-2) var(--space-3) 0; border: 0; border-radius: var(--radius-control);
-  color: var(--ink); background: transparent; text-align: left; cursor: pointer;
+  color: var(--ink); background: transparent; text-align: left; white-space: normal; cursor: pointer;
 }
 .rc-row:hover { background: var(--surface-hover); }
 .rc-row > time { padding-top: var(--space-0); color: var(--muted); font: var(--font-sm)/1.6 var(--font-num); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
