@@ -32,7 +32,7 @@
     {"ui": {"boards": {"take": "chart-2"}}},
     {"api": "GET /api/preferences", "save": {"mainPanes": "body.preferences.chart.subPaneList"}},
     {"ui": {"boards": {"place": {"module": "chart", "target": "chart", "side": "right"}}}, "expect": {"boards.tiles": {"includes": "\"chart-2\""}}},
-    {"ui": {"boards": {"chart": {"block": "chart-2", "panes": ["cci", "oi"]}}}, "expect": {"preferences.ui.boards.items": {"includes": "\"panes\":[\"cci\",\"oi\"]"}, "observation.text": {"includes": "CCI"}}},
+    {"ui": {"boards": {"chart": {"block": "chart-2", "panes": ["cci", "oi"]}}}, "expect": {"preferences.ui.boards.items": {"includes": "\"panes\":[\"cci\",\"oi\"]"}, "observation.text": {"includes": "持仓量"}}},
     {"api": "GET /api/preferences", "expect": {"body.preferences.chart.subPaneList": {"includes": "{{mainPanes}}"}}},
     {"screenshot": "23b-follow-chart-panes"},
     {"ui": {"disclosure": {"name": "board-chart-menu", "id": "chart-2", "open": true}}, "expect": {"observation.controls": {"includes": "编辑看板"}}},
