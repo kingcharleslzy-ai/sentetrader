@@ -445,17 +445,16 @@ export function requestStatus(error: unknown): number | undefined {
 }
 export function strategyError(error: unknown, fallback: string, closedMessage?: string): string {
   const status = requestStatus(error);
+  let body = (error as {detail?: unknown})?.detail;
+  if (!body && error instanceof Error) { try { body = JSON.parse(error.message.replace(/^\d{3} /, "")); } catch { /* Network error has no response body. */ } }
+  const detail = (body as {detail?: unknown})?.detail || body;
   if (status === 403) {
     // 4.3 执行归属与角色拒绝：detail 是裸错误码（not_execution_owner / account_read_only /
     // account_not_granted），不是连接失效。
-    const detail = (error as {detail?: unknown})?.detail;
     const code = typeof detail === "string" ? detail : (detail as {code?: string} | undefined)?.code;
     if (code && strategyStatusTerms[code]) return strategyStatusTerms[code];
   }
   if (status === 401 || status === 403) return "连接已失效，请在设置中重新连接后重试。";
-  let body = (error as {detail?: unknown})?.detail;
-  if (!body && error instanceof Error) { try { body = JSON.parse(error.message.replace(/^\d{3} /, "")); } catch { /* Network error has no response body. */ } }
-  const detail = (body as {detail?: unknown})?.detail || body;
   // A structured refusal ({code}) reads through the same terms as a plain one.
   const message = typeof detail === "string" ? detail : (detail as {message?: string})?.message ?? (detail as {code?: string})?.code;
   if (message) {

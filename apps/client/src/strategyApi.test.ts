@@ -7,6 +7,10 @@ describe("strategyError account-role refusals", () => {
   test("403 with a bare 4.3 code explains the role boundary instead of a lost connection", () => {
     const error = { status: 403, detail: "not_execution_owner" };
     expect(strategyError(error, "启动失败")).toContain("执行负责人");
+    expect(strategyError({ status: 403, detail: { detail: "not_execution_owner" } }, "启动失败"))
+      .toContain("执行负责人");
+    expect(strategyError(new Error('403 {"detail":"not_execution_owner"}'), "启动失败"))
+      .toContain("执行负责人");
     expect(strategyError({ status: 403, detail: "account_read_only" }, "启动失败"))
       .toContain("查看权限");
     expect(strategyError({ status: 403, detail: "account_not_granted" }, "启动失败"))
