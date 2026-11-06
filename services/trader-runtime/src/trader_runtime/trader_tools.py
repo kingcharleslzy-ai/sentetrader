@@ -1427,7 +1427,7 @@ class TraderReadOnlyTools:
              "不要从成交或交易日志加总，也不要用“今日 − 浮动”推算。")
         market_description = (
             "读取指定合约经 Runtime 校验的只读行情快照与时效。价格来自 TqSdk/TqKq 当前期货行情源；"
-            "账户仍为模拟账户，委托与撤单能力关闭。contract 带合约乘数/每跳/每手保证金手续费/交易时段，"
+            "账户为模拟账户；本工具只读，模拟委托与撤单使用各自正式能力，实盘始终关闭。contract 带合约乘数/每跳/每手保证金手续费/交易时段，"
             "deliveryNotice 带个人账户交割月最后可持仓日与剩余交易日——“一手多少钱”“什么时候要平仓”用它答。"
             "contract.commissionPerLot 与下单票、estimate_order 同一个估算（元/手，开仓一手按现价），commissionSource 标来源。"
             if not self._market_is_synthetic()
