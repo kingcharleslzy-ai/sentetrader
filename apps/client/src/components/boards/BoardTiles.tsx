@@ -1,4 +1,5 @@
-import { useState, type ComponentProps, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
+import { SUB_PANES_MAX } from "../chartIndicators";
 import { foreignQuoteOnly, sameContract, type AccountPosition, type AccountSnapshot, type InstrumentCatalog, type MarketBoardRow, type MarketWorkbenchSnapshot, type RemoteTradeSnapshot,
   type SimulationOrder } from "../../api";
 import { TradingCharts } from "../TradingCharts";
@@ -41,14 +42,38 @@ export function ChartSmall({ market, name, onOpen }: { market: MarketWorkbenchSn
 
 export type PassiveChartProps = Omit<ComponentProps<typeof TradingCharts>, "bars" | "symbol" | "priceTick" | "durationSeconds" | "passive">;
 
-/** 图表 · 中: 干净的 K 线，没有工具栏，只标周期. */
+/** How many 副图 a passive chart of this height shows: the price pane keeps about 120 px, each 副图 about 64. */
+const panesThatFit = (height: number) => Math.max(0, Math.floor((height - 120) / 64));
+
+/** 图表 · 中: 干净的 K 线，没有工具栏，只标周期; 副图 as many as its height holds (the rest come back when it grows). */
 export function ChartMedium({ market, name, chart, onOpen }: { market: MarketWorkbenchSnapshot; name: string; chart: PassiveChartProps; onOpen: () => void }) {
+  const body = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState(0);
+  useLayoutEffect(() => {
+    const node = body.current;
+    if (!node) return;
+    const read = () => setHeight(node.clientHeight);
+    read();
+    const observer = new ResizeObserver(read);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+  // (A stored entry may still be the older {type} form.)
+  const list = chart.preferences?.subPaneList?.map(pane => typeof pane === "string" ? pane : pane.type);
+  const room = height ? panesThatFit(height) : list?.length ?? 0;
+  const hidden = list && list.length > room ? list.slice(room) : [];
+  const shown: PassiveChartProps = hidden.length && list ? {
+    ...chart, preferences: { ...chart.preferences!, subPaneList: list.slice(0, room) },
+    // An edit on the shown 副图 keeps the ones this height hides.
+    onIndicatorsChange: chart.onIndicatorsChange ? patch => chart.onIndicatorsChange!(patch.subPaneList
+      ? { ...patch, subPaneList: [...patch.subPaneList, ...hidden.filter(pane => !patch.subPaneList!.includes(pane))].slice(0, SUB_PANES_MAX) } : patch) : undefined,
+  } : chart;
   return <div className="board-chart-medium">
     <button type="button" className="board-tile-head board-tile-link" aria-label={`${name}，打开完整图表`} onClick={onOpen}>
       <strong>{name}</strong><DayPrice market={market} /><small>{durationLabel(market.durationSeconds)}</small>
     </button>
-    <div className="board-chart-body">
-      <TradingCharts passive helpAvailable={false} {...chart} bars={market.bars} symbol={market.quote.symbol}
+    <div className="board-chart-body" ref={body}>
+      <TradingCharts passive helpAvailable={false} {...shown} bars={market.bars} symbol={market.quote.symbol}
         priceTick={market.quote.priceTick} durationSeconds={market.durationSeconds} />
     </div>
   </div>;
@@ -277,7 +302,7 @@ export function SheetCompact({ rows, status, symbol, name, onOpen, onOpenRow, me
       {row && nearestText(row) ? <small className="board-caption">{nearestText(row)}</small> : null}
       {rows.length > 1 ? <span className="board-more-rows" aria-hidden="true">{rows.filter(other => other !== row).map(other => <span key={other.product}>
         <strong>{other.name}</strong><i className="board-priority" data-priority={other.priority}>{other.priority}</i>
-        <span className="board-ellipsis">{other.judgment?.headline ?? "暂无判断"}</span></span>)}</span> : null}
+        <span className="board-wrap">{other.judgment?.headline ?? "暂无判断"}</span></span>)}</span> : null}
     </button>;
   }
   return <div className="board-sheet-medium">
@@ -285,7 +310,7 @@ export function SheetCompact({ rows, status, symbol, name, onOpen, onOpenRow, me
     {rows.length ? <ul className="board-rows">{rows.map(row => <li key={row.product}>
       <button type="button" aria-label={`${row.name}：${row.judgment?.headline ?? "暂无判断"}，看调研`} onClick={() => row.symbol ? onOpenRow(row.symbol) : onOpen()}>
         <strong>{row.name}</strong><i className="board-priority" data-priority={row.priority}>{row.priority}</i>
-        <span className="board-ellipsis">{row.judgment?.headline ?? "暂无判断"}</span><small>{nearestText(row)}</small>
+        <span className="board-wrap">{row.judgment?.headline ?? "暂无判断"}</span><small>{nearestText(row)}</small>
       </button></li>)}</ul> : <p className="board-empty">{status}</p>}
   </div>;
 }
@@ -452,7 +477,7 @@ export function DebateCompact({ debate, name, loading, onOpen, medium }: { debat
   const head = <span className="board-tile-head"><strong>多 AI 辩论</strong><small>{name}{when ? ` · ${when}` : ""}</small></span>;
   if (!medium) return <button type="button" className="board-tile-open board-debate-small" aria-label={`${name}的多 AI 辩论，打开辩论页`} onClick={onOpen}>
     {head}
-    {debate ? <><strong className="board-sentence">{verdict}</strong>{debate.headline ? <span className="board-ellipsis">{debate.headline}</span> : null}</>
+    {debate ? <><strong className="board-sentence">{verdict}</strong>{debate.headline ? <span className="board-wrap">{debate.headline}</span> : null}</>
       : <span className="board-empty">{loading ? "正在读取" : "这个品种还没辩过：点开发起一场"}</span>}
   </button>;
   return <div className="board-debate-medium">
@@ -461,7 +486,7 @@ export function DebateCompact({ debate, name, loading, onOpen, medium }: { debat
     {debate ? <div className="board-debate-body">
       <p className="board-debate-verdict"><strong>{verdict}</strong>{debate.headline ? ` ${debate.headline}` : ""}</p>
       {debate.reports?.length ? <span className="board-more-rows" aria-hidden="true">{debate.reports.map(report => <span key={report.title}>
-        <small>{report.title}</small><span className="board-ellipsis">{report.text}</span></span>)}</span> : null}
+        <small>{report.title}</small><span className="board-wrap">{report.text}</span></span>)}</span> : null}
     </div> : <p className="board-empty">{loading ? "正在读取" : "这个品种还没辩过：点开辩论页发起一场"}</p>}
   </div>;
 }

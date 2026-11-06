@@ -329,10 +329,19 @@
 /* 每块的最小地方 (owner 2026-11-06): what does not fit a narrow block is cut with an ellipsis, never pushed out of it —
    the big figures, a sentence, and the name bar, whose ⋯ always stays inside. */
 .board-tile .board-figure, .board-tile .board-tile-head > strong, .board-tile .board-tile-head > small { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* A one-line figure or title keeps its line: in a short block the rows below give way, never these. */
+.board-tile .board-figure, .board-tile .board-tile-head, .board-tile .board-split, .board-tile .board-count { flex: none; }
 .board-tile-open, .board-tile-content > div { min-width: 0; overflow: hidden; }
 /* (The bar itself does not clip: the ⋯ list hangs below it.) */
 .board-tile-bar > strong, .board-tile-bar > small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .board-tile-bar > strong { flex: 0 1 auto; }
 .board-tile-bar > small { flex: 0 10 auto; }
 .board-tile-bar > svg, .board-tile-bar > .board-link-dot, .board-tile-menu { flex: none; }
-.board-tile-open > .board-empty { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+/* 长句默认换行 (owner 2026-11-06): a sentence wraps; only what the block's height cannot hold is cut, at a whole line with an
+   ellipsis — more lines the taller the block (container queries on the block's own height). Titles and figures stay one line. */
+.board-tile-open > .board-empty { min-width: 0; white-space: normal; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.board-wrap { flex: 1; min-width: 0; line-height: 1.45; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.board-more-rows > span:has(.board-wrap), .board-rows li > button:has(.board-wrap) { align-items: flex-start; padding-top: var(--space-1); padding-bottom: var(--space-1); }
+@container (min-height: 220px) { .board-sentence { -webkit-line-clamp: 5; } .board-wrap { -webkit-line-clamp: 3; } }
+@container (min-height: 320px) { .board-sentence { -webkit-line-clamp: 8; } .board-wrap { -webkit-line-clamp: 4; } }
+@container (min-height: 480px) { .board-sentence { -webkit-line-clamp: 14; } .board-wrap { -webkit-line-clamp: 6; } }

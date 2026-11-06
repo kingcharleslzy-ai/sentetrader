@@ -98,21 +98,39 @@ export function nextChartBlock(layout: BoardNode | null): BoardBlock | null {
 }
 
 /**
- * The size a block of `w` × `h` CSS px shows (the design's thresholds at 100 % type; they grow half as fast as the
- * font preference). A lock picks 小 or 中 instead.
+ * 由大往小试 (owner 2026-11-06, after a wide 780 × 200 chart came out as a line): every size of a module says the least
+ * room it needs, at 100 % type (growing half as fast as the font). A block takes the fullest size its room holds; the
+ * smallest is what is left. A lock caps it at 小 or 中. The chart draws its K 线 (with as many 副图 as fit) from 320 × 160;
+ * only a really small block gets the line.
  */
+export const SIZE_NEEDS: Record<BoardModule, Partial<Record<BoardSize, { w: number; h: number }>>> = {
+  chart: { xlarge: { w: 900, h: 480 }, large: { w: 480, h: 300 }, medium: { w: 320, h: 160 } },
+  positions: { large: { w: 560, h: 300 }, medium: { w: 340, h: 150 } },
+  order: { large: { w: 420, h: 420 }, medium: { w: 460, h: 200 } },
+  watch: { large: { w: 520, h: 320 }, medium: { w: 340, h: 150 } },
+  sheet: { large: { w: 520, h: 360 }, medium: { w: 340, h: 170 } },
+  alert: { medium: { w: 300, h: 150 } },
+  chat: { large: { w: 480, h: 360 }, medium: { w: 300, h: 150 } },
+  account: { large: { w: 480, h: 200 }, medium: { w: 300, h: 120 } },
+  orders: { large: { w: 600, h: 300 }, medium: { w: 400, h: 180 } },
+  strategies: { large: { w: 420, h: 400 }, medium: { w: 300, h: 150 } },
+  flash: { large: { w: 520, h: 400 }, medium: { w: 380, h: 240 } },
+  pnl: { large: { w: 520, h: 400 }, medium: { w: 360, h: 300 } },
+  debate: { large: { w: 480, h: 400 }, medium: { w: 340, h: 200 } },
+  notes: { large: { w: 460, h: 360 }, medium: { w: 300, h: 150 } },
+  briefs: { large: { w: 420, h: 260 }, medium: { w: 300, h: 150 } },
+};
+const LADDER: BoardSize[] = ["xlarge", "large", "medium"];
+
+/** The size a block of `w` × `h` CSS px shows: the fullest whose needs fit, else the module's smallest (对话: 一条). */
 export function pickSize(module: BoardModule, w: number, h: number, fontScale: number, lock?: BoardLock): BoardSize {
   const g = 1 + (fontScale - 1) / 2;
-  const small = w < 420 * g || h < 230 * g;
-  if (module === "chat") {
-    if (lock === "small" || h < 150 * g) return "bar";
-    return lock === "medium" || !(w >= 560 * g && h >= 380 * g) ? "medium" : "large";
-  }
-  if (lock) return lock;
-  if (module === "alert") return small ? "small" : "medium";
-  if (module === "chart" && w >= 1000 * g && h >= 560 * g) return "xlarge";
-  if (w >= 620 * g && h >= 380 * g) return "large";
-  return small ? "small" : "medium";
+  const smallest: BoardSize = module === "chat" ? "bar" : "small";
+  if (lock === "small") return smallest;
+  const needs = SIZE_NEEDS[module];
+  const tried = lock === "medium" ? ["medium" as const] : LADDER;
+  const fits = tried.find(size => { const need = needs[size]; return need && w >= need.w * g && h >= need.h * g; });
+  return fits ?? smallest;
 }
 
 /**
