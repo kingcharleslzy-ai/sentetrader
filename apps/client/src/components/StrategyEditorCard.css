@@ -88,8 +88,11 @@
 .se-card .se-seg > button:hover:not(:disabled) { color: var(--ink); background: var(--soft); }
 .se-card .se-seg > button[aria-pressed="true"], .se-card .se-seg > select.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 .se-card .se-seg > button:disabled { opacity: .5; cursor: not-allowed; }
-/* Folded (Seg's fit level): the buttons give way to the dropdown of the same choice. */
-.se-card .se-seg.se-seg-folded > button { display: none; }
+/* Folded (Seg's fit level): the buttons give way to the dropdown of the same choice. The class alone decides, over the
+   rendered `hidden`: useFitLevel tries each level on the live DOM before React re-renders, and a dropdown left showing
+   from a folded render counted as overflow, so the choice stayed folded when room came back. */
+.se-card .se-seg.se-seg-folded > button, .se-card .se-seg:not(.se-seg-folded) > .se-seg-fold { display: none; }
+.se-card .se-seg.se-seg-folded > .se-seg-fold { display: inline-block; }
 .se-card .se-seg.se-seg-folded > select { max-width: none; border-right: 0; padding-right: calc(var(--space-3) + 10px);
   background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
   background-position: right calc(var(--space-3) + 4px) center, right var(--space-3) center; background-size: 4px 4px; background-repeat: no-repeat; }
@@ -136,7 +139,9 @@
 .se-card .se-ctl[data-changed] { border-color: var(--warning); }
 /* A count outside its rule (#755): red until fixed; the reason is in the box's title and the 还差 line. */
 .se-card .se-ctl[data-invalid] { border-color: var(--danger); }
-.se-card .se-mark { display: inline-flex; align-items: center; gap: var(--space-1); }
+/* It may shrink below its content (min-width 0, at most its row): a 分段选择 inside then measures its own overflow and
+   folds into the dropdown before a button is cut by the block (开仓手数 · 按波动, 响几次 at 特大; retest 1.9.1). */
+.se-card .se-mark { display: inline-flex; align-items: center; gap: var(--space-1); min-width: 0; max-width: 100%; }
 /* 流程图 → 表单: the field a block stands for, lit for a moment. */
 .se-card [data-flash] { border-radius: var(--radius-card); animation: ui-fill-arrival var(--dur-2) var(--ease-out); }
 

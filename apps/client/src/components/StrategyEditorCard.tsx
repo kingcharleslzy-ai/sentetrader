@@ -101,7 +101,8 @@ function Seg<T extends string | number>({ label, options, value, onChange, disab
   const folded = useFitLevel(ref, options.map(option => option.label).join("|"), SEG_FIT, segOverflows) > 0;
   const at = options.findIndex(option => option.value === value);
   return <span ref={ref} className={`se-seg${folded ? " se-seg-folded" : ""}`} role="group" aria-label={label}>
-    <select className="on" aria-label={label} hidden={!folded} value={at < 0 ? "" : String(at)} disabled={disabled}
+    {/* Shown by the fold class while useFitLevel tries levels on the live DOM (see .se-seg-fold), `hidden` otherwise. */}
+    <select className="on se-seg-fold" aria-label={label} hidden={!folded} value={at < 0 ? "" : String(at)} disabled={disabled}
       onChange={event => onChange(options[Number(event.target.value)].value)}>
       {at < 0 ? <option value="" disabled>选择</option> : null}
       {options.map((option, index) => <option key={String(option.value)} value={String(index)} disabled={Boolean(option.reason)}>{option.label}</option>)}
