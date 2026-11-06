@@ -1,5 +1,5 @@
 import { createPortal } from "react-dom";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type MutableRefObject, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MutableRefObject, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { Check, ChevronDown, GripVertical, LayoutDashboard, MoreHorizontal, Pencil, Plus, Sparkles, Trash2, Undo2, X } from "lucide-react";
 import { DndProvider, useDrag } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
@@ -10,9 +10,9 @@ import { HelpTip } from "../Blocks";
 import { ChartPopover } from "../chartIndicatorEditor";
 import { Presence } from "../motion";
 import { arrangeBoard } from "../../api";
-import { CHART_DURATIONS, LINK_COLORS, MODULES, SIZE_LABELS, blockLabel, insertAt, isLinkBlock, leavesOf, linkOf, mainLink, moduleInfo, moduleOf, nextChartBlock,
+import { CHART_DURATIONS, LINK_COLORS, MODULES, blockMin, fitLayout, SIZE_LABELS, blockLabel, insertAt, isLinkBlock, leavesOf, linkOf, mainLink, moduleInfo, moduleOf, nextChartBlock,
   normalizeBoards, pickSize, removeLeaf, shareOf, type Board, type BoardBlock, type BoardLock, type BoardModule, type BoardNode, type BoardPreview, type BoardSize,
-  type BoardsChange, type BoardsHandle, type LinkColor, type LinkSetting } from "./boards";
+  type BlockMinimum, type BoardsChange, type BoardsHandle, type LinkColor, type LinkSetting } from "./boards";
 import { durationLabel } from "../mobile/mobileMarketPrefs";
 import "./BoardsView.css";
 
@@ -70,8 +70,12 @@ export interface BoardsControl {
   setAsking: (open: boolean) => void;
   arranging: boolean;
   ask: (sentence: string) => Promise<void>;
-  /** The canvas's measured size, which the AI arranges for. */
+  /** The canvas's measured size, which the AI arranges for and every layout is fitted to (each block its minimum room). */
   canvas: MutableRefObject<{ w: number; h: number }>;
+  setCanvas: (box: { w: number; h: number }) => void;
+  fit: (layout: BoardNode | null) => BoardNode | null;
+  /** The smallest room a block gets (dragging a divider stops there; some modules need more, see `of`). */
+  minimum: BlockMinimum;
   /** 快讯 on the board: its own filter and sort (the 调研 panel's 快讯 keeps its own). */
   flash: { filter: BoardFlashFilter; sort: BoardFlashSort };
   setFlash: (patch: Partial<{ filter: BoardFlashFilter; sort: BoardFlashSort }>) => void;
@@ -92,6 +96,13 @@ export function useBoardsControl(handle: BoardsHandle, show: () => void, availab
   const [asking, setAskingState] = useState(false);
   const [arranging, setArranging] = useState(false);
   const canvas = useRef({ w: 0, h: 0 });
+  const [canvasBox, setCanvasBox] = useState({ w: 0, h: 0 });
+  const setCanvas = useCallback((box: { w: number; h: number }) => {
+    canvas.current = box;
+    setCanvasBox(old => old.w === box.w && old.h === box.h ? old : box);
+  }, []);
+  const minimum = useMemo(() => blockMin(fontScale), [fontScale]);
+  const fit = useCallback((layout: BoardNode | null) => fitLayout(layout, canvasBox.w, canvasBox.h, minimum), [canvasBox, minimum]);
   const [flash, setFlashState] = useState<{ filter: BoardFlashFilter; sort: BoardFlashSort }>({ filter: "watch", sort: "time" });
   const setFlash = useCallback((patch: Partial<{ filter: BoardFlashFilter; sort: BoardFlashSort }>) => setFlashState(current => ({ ...current, ...patch })), []);
   const [library, setLibraryState] = useState(false);
@@ -118,9 +129,9 @@ export function useBoardsControl(handle: BoardsHandle, show: () => void, availab
   const { apply } = handle;
   const adopt = useCallback(() => {
     if (!preview) throw new Error("没有 AI 摆好的方案");
-    apply({ arrange: { layout: preview.layout, locks: preview.locks, charts: preview.charts } });
+    apply({ arrange: { layout: fit(preview.layout) ?? preview.layout, locks: preview.locks, charts: preview.charts } });
     setPreview(null);
-  }, [apply, preview]);
+  }, [apply, preview, fit]);
   const discard = useCallback(() => setPreview(null), []);
   const setAsking = useCallback((open: boolean) => setAskingState(open), []);
   const ask = useCallback(async (sentence: string) => {
@@ -147,7 +158,9 @@ export function useBoardsControl(handle: BoardsHandle, show: () => void, availab
   contractList.current = contracts;
   const latest = useRef({ handle, show, setEditing, adopt, discard, ask, followLink });
   latest.current = { handle, show, setEditing, adopt, discard, ask, followLink };
-  const { layout, locks, charts } = handle.board;
+  const { locks, charts } = handle.board;
+  // Shares as the screen shows them (fitted to the canvas), so the snapshot and the screen say the same.
+  const layout = useMemo(() => fit(handle.board.layout), [fit, handle.board.layout]);
   const main = mainLink(handle.board);
   const tiles = leavesOf(layout).map(block => ({ block, module: moduleOf(block), size: sizes[block] ?? null, locked: locks[block] ?? null,
     share: shareOf(layout, block) === null ? 100 : Math.round(shareOf(layout, block)!.share),
@@ -201,7 +214,7 @@ export function useBoardsControl(handle: BoardsHandle, show: () => void, availab
     if (change.select !== undefined || change.create !== undefined) open();
   } }, [editing, library, JSON.stringify(tiles), main, JSON.stringify(groups), JSON.stringify(shownPreview), arranging, hasFlash, flash.filter, flash.sort], available);
   return { handle, editing, setEditing, library, setLibrary, show, notice, notify, sizes, reportTile, linkSymbol, followLink,
-    preview, adopt, discard, asking, setAsking, arranging, ask, canvas, flash, setFlash };
+    preview, adopt, discard, asking, setAsking, arranging, ask, canvas, setCanvas, fit, minimum, flash, setFlash };
 }
 
 /**
@@ -498,24 +511,28 @@ export function BoardsView({ control, renderTile, scale, contracts }: {
     try { handle.apply(change); return true; } catch (error) { notify(error instanceof Error ? error.message : "看板暂时不能修改"); return false; }
   }, [handle, notify]);
   const canvasRef = useRef<HTMLDivElement>(null);
-  const { canvas } = control;
+  const { setCanvas, fit, minimum } = control;
   useLayoutEffect(() => {
     const node = canvasRef.current;
     if (!node) return;
-    const read = () => { canvas.current = { w: node.clientWidth, h: node.clientHeight }; };
+    // The canvas's own padding is not room for the blocks.
+    const read = () => { const style = getComputedStyle(node); const pad = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+      setCanvas({ w: node.clientWidth - pad, h: node.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom) }); };
     read();
     const observer = new ResizeObserver(read);
     observer.observe(node);
     return () => observer.disconnect();
-  }, [canvas]);
+  }, [setCanvas]);
   // An AI arrangement is shown as it would be (its locks too), not editable, until 用这套 or 不用.
-  const shown: Pick<Board, "layout" | "locks"> = preview ?? board;
+  const stored: Pick<Board, "layout" | "locks"> = preview ?? board;
+  const shownLayout = useMemo(() => fit(stored.layout), [fit, stored.layout]);
+  const shown = { ...stored, layout: shownLayout };
   const shaping = editing && !preview;
   const dotted = leavesOf(shown.layout).filter(isLinkBlock).map(block => linkOf(board, block)).filter(link => link !== "none");
   const showDots = editing || new Set(dotted).size > 1;
   const tile = (block: BoardBlock, path: MosaicPath) => <MosaicWindow<BoardBlock> path={path} title={blockLabel(block)} draggable={shaping}
     renderToolbar={() => <div className="board-tile-bar-host">{shaping ? <TileBar block={block} size={sizes[block]} locked={board.locks[block]}
-      link={isLinkBlock(block) ? linkOf(board, block) : undefined} layout={board.layout} run={run} contracts={contracts}
+      link={isLinkBlock(block) ? linkOf(board, block) : undefined} layout={shownLayout} run={run} contracts={contracts}
       chart={moduleOf(block) === "chart" ? board.charts[block] ?? {} : undefined} /> : null}</div>}>
     <TileBody block={block} lock={shown.locks[block]} link={showDots && !shaping && isLinkBlock(block) ? linkOf(board, block) : undefined}
       scale={scale} editing={editing} reportTile={reportTile} renderTile={renderTile} />
@@ -534,7 +551,7 @@ export function BoardsView({ control, renderTile, scale, contracts }: {
       <div className="board-canvas" data-agent-target="board-canvas" ref={canvasRef}>
         <MosaicWithoutDragDropContext<BoardBlock> mosaicId={MOSAIC_ID} className="board-mosaic" value={shown.layout}
           onChange={next => { if (!preview) handle.preview(next); }} onRelease={next => { if (!preview) run({ layout: next }); }}
-          resize={shaping ? { minimumPaneSizePercentage: 8 } : "DISABLED"} renderTile={tile}
+          resize={shaping ? { minimumPaneSizePercentage: 1, minimumPaneSizePx: { row: minimum.w, column: minimum.h } } : "DISABLED"} renderTile={tile}
           zeroStateView={<p className="board-empty-prompt">{editing ? "这一套还空着：点顶栏“＋ 模块”，把模块拖进来，或“让 AI 帮我摆”" : "这一套还空着：点顶栏“看板”旁的箭头，选“编辑”放模块进来"}</p>} />
       </div>
       {preview ? null : <Library control={control} layout={board.layout} run={run} />}

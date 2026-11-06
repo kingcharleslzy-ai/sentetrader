@@ -111,6 +111,57 @@ export function pickSize(module: BoardModule, w: number, h: number, fontScale: n
   return small ? "small" : "medium";
 }
 
+/**
+ * 每块的最小地方 (owner 2026-11-06, after a block was split down to ~95 px): a block never gets less room than the small
+ * size needs — this wide and tall at 100 % type (growing half as fast as the font, like the size thresholds), the 8 px
+ * between blocks included. Dragging a divider stops there (react-mosaic's minimumPaneSizePx) and every layout shown —
+ * a place, an AI arrangement, an old board — is fitted to it first.
+ */
+export const BLOCK_MIN = { w: 168, h: 104 };
+/** 下单's small size is its 手数 row and the 买多 / 卖空 buttons: it needs more height than the others. */
+const MODULE_MIN: Partial<Record<BoardModule, { w: number; h: number }>> = { order: { w: 200, h: 168 } };
+export type BlockMinimum = { w: number; h: number; of: (block: BoardBlock) => { w: number; h: number } };
+export const blockMin = (fontScale: number): BlockMinimum => {
+  const g = 1 + (fontScale - 1) / 2;
+  const scaled = (min: { w: number; h: number }) => ({ w: Math.round(min.w * g) + 8, h: Math.round(min.h * g) + 8 });
+  const base = scaled(BLOCK_MIN);
+  const own = Object.fromEntries(Object.entries(MODULE_MIN).map(([module, min]) => [module, scaled(min)]));
+  return { ...base, of: block => own[moduleOf(block)] ?? base };
+};
+
+/** The room a node needs: a block its minimum, a split its children's side by side (or stacked). */
+function needOf(node: BoardNode, min: BlockMinimum): { w: number; h: number } {
+  if (!isSplitNode(node)) return min.of(node as BoardBlock);
+  const needs = node.children.map(child => needOf(child, min));
+  return node.direction === "row"
+    ? { w: needs.reduce((sum, need) => sum + need.w, 0), h: Math.max(...needs.map(need => need.h)) }
+    : { w: Math.max(...needs.map(need => need.w)), h: needs.reduce((sum, need) => sum + need.h, 0) };
+}
+
+/**
+ * The layout as a `w` × `h` canvas can show it: each split's shares raised where a child would get less than it needs,
+ * the room taken from the children that have more than they need (in proportion to what they can spare). When even the
+ * minimums do not fit, each child gets room in proportion to its need. The stored proportions are untouched otherwise.
+ */
+export function fitLayout(layout: BoardNode | null, w: number, h: number, min: BlockMinimum): BoardNode | null {
+  if (!layout || !isSplitNode(layout) || w <= 0 || h <= 0) return layout;
+  const along = layout.direction === "row" ? w : h;
+  const count = layout.children.length;
+  const shares = layout.splitPercentages ?? layout.children.map(() => 100 / count);
+  const needs = layout.children.map(child => { const need = needOf(child, min); return (layout.direction === "row" ? need.w : need.h) / along * 100; });
+  const total = needs.reduce((sum, need) => sum + need, 0);
+  let fitted = shares;
+  if (total >= 100) fitted = needs.map(need => need / total * 100);
+  else if (shares.some((share, index) => share < needs[index])) {
+    const deficit = shares.reduce((sum, share, index) => sum + Math.max(0, needs[index] - share), 0);
+    const spare = shares.reduce((sum, share, index) => sum + Math.max(0, share - needs[index]), 0);
+    fitted = shares.map((share, index) => share < needs[index] ? needs[index] : share - (share - needs[index]) / spare * deficit);
+  }
+  const children = layout.children.map((child, index) => layout.direction === "row"
+    ? fitLayout(child, w * fitted[index] / 100, h, min)! : fitLayout(child, w, h * fitted[index] / 100, min)!);
+  return { ...layout, children, splitPercentages: fitted };
+}
+
 const split = (direction: "row" | "column", children: BoardNode[], splitPercentages: number[]): BoardNode =>
   ({ type: "split", direction, children, splitPercentages });
 /** The design's three, as proportions. */

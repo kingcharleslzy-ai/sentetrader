@@ -310,3 +310,14 @@
 .board-debate-medium .board-empty, .board-notes-medium .board-empty, .board-briefs-medium .board-empty,
 .board-strategies-medium .board-empty { margin: var(--space-3); white-space: normal; text-align: left; line-height: 1.5; }
 .board-briefs-toggle { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); font-size: var(--font-md); }
+
+/* 每块的最小地方 (owner 2026-11-06): what does not fit a narrow block is cut with an ellipsis, never pushed out of it —
+   the big figures, a sentence, and the name bar, whose ⋯ always stays inside. */
+.board-tile .board-figure, .board-tile .board-tile-head > strong, .board-tile .board-tile-head > small { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board-tile-open, .board-tile-content > div { min-width: 0; overflow: hidden; }
+/* (The bar itself does not clip: the ⋯ list hangs below it.) */
+.board-tile-bar > strong, .board-tile-bar > small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board-tile-bar > strong { flex: 0 1 auto; }
+.board-tile-bar > small { flex: 0 10 auto; }
+.board-tile-bar > svg, .board-tile-bar > .board-link-dot, .board-tile-menu { flex: none; }
+.board-tile-open > .board-empty { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
