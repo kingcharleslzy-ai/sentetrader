@@ -21,6 +21,7 @@ import { EquityCurve, FundsLines, RISK_HELP } from "./StrategyRiskBlocks";
 import type { InstrumentCatalog } from "../api";
 import { numberProblem, type NumberRule } from "../numberField";
 import type { StrategyPlan } from "../strategyApi";
+import { useFitLevel } from "./futures/useHeaderFit";
 import "./StrategyEditorCard.css";
 
 /**
@@ -89,10 +90,22 @@ export const EDITOR_HELP = {
 } as const;
 const Help = ({ id, label }: { id: keyof typeof EDITOR_HELP; label: string }) => <HelpTip helpKey={`strategy-editor:${id}`} label={label}>{EDITOR_HELP[id]}</HelpTip>;
 
-/** Segmented choice (起点 / 周期 / 方向 / 止损方式 …): one pressed button. */
+const SEG_FIT = ["se-seg-folded"];
+const segOverflows = (node: HTMLElement) => node.scrollWidth - node.clientWidth > 1;
+
+/** Segmented choice (起点 / 周期 / 方向 / 止损方式 …): one pressed button. Never wraps (UI contract: a control gives way
+ *  instead): when its buttons do not fit the width it has, the same choice shows as a dropdown (useFitLevel). */
 function Seg<T extends string | number>({ label, options, value, onChange, disabled }: {
   label: string; options: { value: T; label: string; reason?: string | null }[]; value: T | null; onChange: (value: T) => void; disabled?: boolean }) {
-  return <span className="se-seg" role="group" aria-label={label}>
+  const ref = useRef<HTMLSpanElement>(null);
+  const folded = useFitLevel(ref, options.map(option => option.label).join("|"), SEG_FIT, segOverflows) > 0;
+  const at = options.findIndex(option => option.value === value);
+  return <span ref={ref} className={`se-seg${folded ? " se-seg-folded" : ""}`} role="group" aria-label={label}>
+    <select className="on" aria-label={label} hidden={!folded} value={at < 0 ? "" : String(at)} disabled={disabled}
+      onChange={event => onChange(options[Number(event.target.value)].value)}>
+      {at < 0 ? <option value="" disabled>选择</option> : null}
+      {options.map((option, index) => <option key={String(option.value)} value={String(index)} disabled={Boolean(option.reason)}>{option.label}</option>)}
+    </select>
     {options.map(option => <button type="button" key={String(option.value)} aria-pressed={value === option.value} disabled={disabled || Boolean(option.reason)}
       title={option.reason ?? undefined} onClick={() => onChange(option.value)}>{option.label}</button>)}
   </span>;

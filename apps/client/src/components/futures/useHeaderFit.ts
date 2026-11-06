@@ -157,6 +157,8 @@ export function useFitLevel(row: RefObject<HTMLElement | null>, contentKey: stri
       });
     });
     observer.observe(node);
+    // A row sized by its content (a folded control is narrower than its room) must hear its container grow back.
+    if (node.parentElement) observer.observe(node.parentElement);
     return () => {
       observer.disconnect();
       if (frame.current && typeof cancelAnimationFrame === "function") cancelAnimationFrame(frame.current);

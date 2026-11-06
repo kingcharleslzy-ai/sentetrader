@@ -79,7 +79,7 @@
 .se-card .se-x:hover { color: var(--danger); background: var(--soft); }
 
 /* Segmented choices. */
-.se-card .se-seg { display: inline-flex; flex-wrap: wrap; max-width: 100%; border: 1px solid var(--line-strong); border-radius: var(--radius-control); overflow: hidden; }
+.se-card .se-seg { display: inline-flex; flex-wrap: nowrap; max-width: 100%; border: 1px solid var(--line-strong); border-radius: var(--radius-control); overflow: hidden; }
 .se-card .se-seg > button, .se-card .se-seg > select {
   padding: var(--space-0) var(--space-3); min-height: 26px; border: 0; border-right: 1px solid var(--line-strong); border-radius: 0;
   background: var(--panel); color: var(--muted); font-size: var(--font-md);
@@ -88,6 +88,11 @@
 .se-card .se-seg > button:hover:not(:disabled) { color: var(--ink); background: var(--soft); }
 .se-card .se-seg > button[aria-pressed="true"], .se-card .se-seg > select.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 .se-card .se-seg > button:disabled { opacity: .5; cursor: not-allowed; }
+/* Folded (Seg's fit level): the buttons give way to the dropdown of the same choice. */
+.se-card .se-seg.se-seg-folded > button { display: none; }
+.se-card .se-seg.se-seg-folded > select { max-width: none; border-right: 0; padding-right: calc(var(--space-3) + 10px);
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: right calc(var(--space-3) + 4px) center, right var(--space-3) center; background-size: 4px 4px; background-repeat: no-repeat; }
 .se-card .se-seg > select { appearance: none; field-sizing: content; padding-right: var(--space-3); cursor: pointer; max-width: 160px; }
 
 /* A field control: number / select / time inputs inside one bordered pill. */
