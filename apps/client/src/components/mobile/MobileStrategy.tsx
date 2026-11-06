@@ -3,7 +3,7 @@ import { FlaskConical, OctagonX, Plus } from "lucide-react";
 import { getStrategyMonitor, setStrategyMonitoring, stopStrategyMonitoring, type InstrumentCatalog, type StrategyDrawdown,
   type StrategyFunds, type StrategyMonitorSnapshot } from "../../api";
 import { DrawdownStatus, FundsLines } from "../StrategyRiskBlocks";
-import { launchBlockedReason, needsAnswersOf, periodLabel, resumeAfterDrawdown, strategiesChanged, strategyError, strategySymbol, strategyText, useStrategies, validateAndStart, type SavedStrategy, type StrategyList } from "../../strategyApi";
+import { launchBlockedReason, needsAnswersOf, periodLabel, resumeAfterDrawdown, scopeLabel, strategiesChanged, strategyError, strategySymbol, strategyText, useStrategies, validateAndStart, type SavedStrategy, type StrategyList } from "../../strategyApi";
 import { feedReportServes, reportKey, useFeedReports } from "../../feedView";
 import { runStrategyBacktest, useBacktestCard } from "../../strategyBacktests";
 import { launchDefaults } from "../StrategySignalAction";
@@ -164,6 +164,7 @@ export function useMobileStrategies({ baseUrl, rootUrl, enabled, detailed, chart
     if (!rootUrl || !plan) return;
     if (backtestBlocked) { fail(item.strategyId, backtestBlocked); return; }
     if (needsAnswersOf(item)) { fail(item.strategyId, "策略还有待确认的条件，先点“编辑”完善再回测"); return; }
+    if (!strategySymbol(item, chartSymbol)) { fail(item.strategyId, "请先在看盘中选择策略范围内的具体合约，再回测"); return; }
     fail(item.strategyId, "");
     void runStrategyBacktest(rootUrl, { strategyId: item.strategyId, symbol: strategySymbol(item, chartSymbol),
       ...(plan.timeframeSeconds ? {} : { timeframe: chartTimeframe }) })
@@ -176,6 +177,7 @@ export function useMobileStrategies({ baseUrl, rootUrl, enabled, detailed, chart
     const id = item.strategyId;
     if (!baseUrl || busy) return;
     if (needsAnswersOf(item)) { fail(id, "策略还有待确认的条件，先点“编辑”完善再上线"); return; }
+    if (!launchSymbol(item)) { fail(id, "请先在看盘中选择策略范围内的具体合约，再上线"); return; }
     setBusy(id); fail(id, "");
     setNotices(current => ({ ...current, [id]: "" }));
     try {
@@ -378,7 +380,9 @@ export function MobileStrategy({ strategies, instruments, blocked, tab, onTabCha
             {strategies.mine.map(item => <MineCard key={item.strategyId} item={item} selected={context === item.strategyId} onSelect={() => setPicked(item.strategyId)}
               busy={strategies.busy === item.strategyId} error={strategies.errors[item.strategyId]} notice={strategies.notices[item.strategyId]}
               launching={strategies.launchFor === item.strategyId}
-              launchText={`在 ${contractLabel(strategies.launchSymbol(item.source), instruments)}${item.source.definition.plan?.timeframeSeconds ? ` · ${periodLabel(item.source.definition.plan.timeframeSeconds)}` : ""} 上线运行，执行方式固定“出卡确认”：信号来了先出卡，你点确认才下单。`}
+              launchText={strategies.launchSymbol(item.source)
+                ? `在 ${contractLabel(strategies.launchSymbol(item.source), instruments)}${item.source.definition.plan?.timeframeSeconds ? ` · ${periodLabel(item.source.definition.plan.timeframeSeconds)}` : ""} 上线运行，执行方式固定“出卡确认”：信号来了先出卡，你点确认才下单。`
+                : `策略适用范围：${scopeLabel(item.source)}。请先在看盘中选择范围内的具体合约，再上线。`}
               onEdit={() => onEdit?.(item.source)} onBacktest={() => strategies.backtest(item.source)}
               onLaunchAsk={open => strategies.askLaunch(open ? item.strategyId : null)} onLaunch={() => void strategies.launch(item.source)}
               onRunning={() => onTabChange("running")} />)}

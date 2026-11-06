@@ -588,6 +588,7 @@ function ruledCounts(form: EditorForm): [number | null, NumberRule][] {
 }
 export function missingParts(form: EditorForm): string[] {
   const missing: string[] = [];
+  if (!form.symbol.trim()) missing.push("策略范围内的具体合约");
   const used = usedEntryGroups(form);
   const ready = used.some(key => form[key].locked || form[key].rows.some(row => rowComplete(row, rowContext(form, key, "rows"))));
   if (!ready) missing.push("开仓条件");

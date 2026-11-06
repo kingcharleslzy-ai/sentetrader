@@ -340,7 +340,8 @@ export function allowsSymbol(item: SavedStrategy, symbol: string): boolean {
 /** The contract a library strategy is edited and backtested on (the desktop panel and the phone's 我的策略):
  *  the chart's when its scope allows it, else its scope's first concrete contract. */
 export function strategySymbol(item: SavedStrategy, chartSymbol: string): string {
-  return allowsSymbol(item, chartSymbol) ? chartSymbol : strategyScope(item).symbols.find(value => CONTRACT.test(value)) ?? chartSymbol;
+  return [chartSymbol, item.symbol, ...strategyScope(item).symbols]
+    .find(value => Boolean(value) && CONTRACT.test(value) && allowsSymbol(item, value)) ?? "";
 }
 /** The plan still has the designer's open questions: it is answered (完善策略) before a backtest or 上线. */
 export const needsAnswersOf = (item: SavedStrategy | undefined) => Boolean(item?.definition.plan && (item.definition.plan.questions.length || item.definition.plan.clarifications?.length));

@@ -74,6 +74,12 @@ it("两个分页：正在运行（合约周期、今日盈亏、持仓、今日�
   const mine = screen.getByRole("article", { name: "均线金叉 10/30" });
   expect(mine).toHaveTextContent("运行中短均线上穿长均线就做多。最近回测 +1.2 万最多亏 -3,100胜率 55%");
   expect(screen.getByRole("article", { name: "苹果区间" })).toHaveTextContent("没上线还没回测");
+  const apple = screen.getByRole("article", { name: "苹果区间" });
+  fireEvent.click(within(apple).getByRole("button", { name: "上线…" }));
+  expect(within(apple).getByRole("alertdialog")).toHaveTextContent("请先在看盘中选择范围内的具体合约");
+  await act(async () => { fireEvent.click(within(apple).getByRole("button", { name: "确认上线" })); });
+  expect(posts()).toEqual([]);
+  expect(within(apple).getByRole("alert")).toHaveTextContent("请先在看盘中选择策略范围内的具体合约");
 });
 
 it("停止并平仓先确认，确认后请 Runtime 停止并出平仓卡（不直接下单），结果写在卡下", async () => {

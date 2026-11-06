@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { allowsSymbol, CONTRACT, conditionText, designerPlanProblem, isAdvancedCondition, operandLabel, planBlockRows, strategyError, strategyStatusText, type Operand, type RuleCondition,
-  type StrategyPlan } from "./strategyApi";
+import { allowsSymbol, CONTRACT, conditionText, designerPlanProblem, isAdvancedCondition, operandLabel, planBlockRows, strategyError, strategyStatusText, strategySymbol, type Operand, type RuleCondition,
+  type SavedStrategy, type StrategyPlan } from "./strategyApi";
 import { rememberStrategyScopes } from "./api";
 
 describe("strategyError account-role refusals", () => {
@@ -138,7 +138,7 @@ describe("strategy building-block labels", () => {
 describe("外盘策略上线（外盘三期）", () => {
   test("上线框认 CME 月份合约与外盘图表主连，按品种范围放行", () => {
     rememberStrategyScopes([{ symbol: "KQD.m@COMEX.GC", strategyScope: "CME.GCE" }, { symbol: "KQD.m@COMEX.SI", strategyScope: "CME.SIE" }]);
-    const item = { definition: { instrumentScope: { mode: "selected", symbols: ["CME.GCE"] } } } as never;
+    const item = { definition: { instrumentScope: { mode: "selected", symbols: ["CME.GCE"] } } } as SavedStrategy;
     expect(CONTRACT.test("CME.GCEZ26") && CONTRACT.test("KQD.m@COMEX.GC") && CONTRACT.test("SHFE.rb2701")).toBe(true);
     expect(CONTRACT.test("CME.GCE")).toBe(false);
     expect(allowsSymbol(item, "CME.GCEG27")).toBe(true);
@@ -147,6 +147,10 @@ describe("外盘策略上线（外盘三期）", () => {
     expect(allowsSymbol(item, "KQD.m@COMEX.SI")).toBe(false);   // 白银图表不在黄金策略的范围里
     expect(allowsSymbol(item, "KQD.m@NYMEX.CL")).toBe(false);   // 目录没给范围的主连不放行
     expect(allowsSymbol(item, "SHFE.au2612")).toBe(false);
+    expect(strategySymbol(item, "CFFEX.IC2612")).toBe("");
+    expect(strategySymbol(item, "KQD.m@COMEX.GC")).toBe("KQD.m@COMEX.GC");
+    expect(strategySymbol({ ...item, symbol: "CME.GCEZ26" }, "CFFEX.IC2612")).toBe("CME.GCEZ26");
+    expect(strategySymbol({ definition: { instrumentScope: { mode: "selected", symbols: ["SHFE.rb2701"] } } } as never, "CFFEX.IC2612")).toBe("SHFE.rb2701");
     const domestic = { definition: { instrumentScope: { mode: "selected", symbols: ["SHFE.rb"] } } } as never;
     expect(allowsSymbol(domestic, "SHFE.rb2701")).toBe(true);
     expect(allowsSymbol(domestic, "KQD.m@COMEX.GC")).toBe(false);
