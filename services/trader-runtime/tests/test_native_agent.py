@@ -21,6 +21,8 @@ from httpx import ASGITransport, AsyncClient
 
 from fixtures.card_tools import legacy_card_args
 from fixtures.fake_responses_server import CORE_TOOLS, FakeResponsesServer
+from test_owner_auth import PASSWORD, PASSWORD_HASH, SESSION_SECRET
+from trader_runtime.auth import OWNER_COOKIE_NAME, OwnerAuth
 from trader_runtime.main import create_app
 from trader_runtime.model_provider import KIMI_MODEL
 from trader_runtime.strategy_explanations import ModelSummary
@@ -51,7 +53,7 @@ def _fast_research_deadlines(monkeypatch):
 
 
 @pytest.fixture
-async def native_application(tmp_path: Path, responses_server: FakeResponsesServer, monkeypatch):
+async def native_application(tmp_path: Path, responses_server: FakeResponsesServer, monkeypatch, request):
     monkeypatch.setenv("ZHIPU_API_KEY", ZHIPU_KEY)
     monkeypatch.setenv("MOONSHOT_API_KEY", KIMI_KEY)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
@@ -63,6 +65,7 @@ async def native_application(tmp_path: Path, responses_server: FakeResponsesServ
         deepseek_api_key=DEEPSEEK_KEY,
         native_transport=responses_server.transport(),
         engineering_root=tmp_path / "ai-trader-project",
+        **getattr(request, "param", {}),
     )
     yield application
     await application.state.runs.shutdown()
@@ -77,9 +80,12 @@ async def native_client(native_application: FastAPI):
         transport=ASGITransport(app=native_application), base_url="http://test",
         headers={"origin": ORIGIN},
     ) as client:
-        response = await client.post(
-            "/api/auth/local", headers={"authorization": f"Bearer {TOKEN}", "origin": ORIGIN}
-        )
+        if isinstance(native_application.state.auth, OwnerAuth):
+            response = await client.post("/api/auth/owner", json={"username": "charles", "password": PASSWORD})
+        else:
+            response = await client.post(
+                "/api/auth/local", headers={"authorization": f"Bearer {TOKEN}", "origin": ORIGIN}
+            )
         assert response.status_code == 200
         yield client
 
@@ -1516,7 +1522,10 @@ def test_an_unpaired_earlier_turn_is_dropped_whole_before_the_request(native_app
 
 
 @pytest.mark.parametrize("mode", ["local", "cloud"])
-async def test_an_external_app_call_tool_card_reaches_the_conversation(native_client: AsyncClient, native_application: FastAPI, mode):
+@pytest.mark.parametrize("bound", [False, True], ids=["empty", "bound"])
+@pytest.mark.parametrize("native_application", [{}, {"auth_mode": "owner-password", "owner_username": "charles",
+    "owner_password_hash": PASSWORD_HASH, "owner_session_secret": SESSION_SECRET, "cors_origins": {ORIGIN}}], indirect=True, ids=["local-token", "owner-password"])
+async def test_an_external_app_call_tool_card_reaches_the_conversation(native_client: AsyncClient, native_application: FastAPI, mode, bound):
     """An external card belongs to the selected window's visible conversation, with usable query/reject references."""
     from uuid import uuid4
 
@@ -1528,11 +1537,17 @@ async def test_an_external_app_call_tool_card_reaches_the_conversation(native_cl
     pulse["state"].update(chatSessionId=session_id, panel="ai")
     assert (await native_client.post("/api/ui/pulse", json=pulse)).status_code == 200
     bridge = native_application.state.app_capabilities
-    # The open UI stream already has its own binding, distinct from the external caller's cookie transport.
-    bridge.bind_session(session_id, "local-user", {"authorization": f"Bearer {TOKEN}"})
+    auth = native_application.state.auth
+    user = auth.validate(native_client.cookies.get(OWNER_COOKIE_NAME)).scoped_user_id if isinstance(auth, OwnerAuth) else "local-user"
+    headers = dict(native_client.build_request("GET", "/").headers)
+    if bound:
+        # The UI stream may have a distinct transport binding; external calls must preserve it.
+        token = native_client.cookies.get(OWNER_COOKIE_NAME) if isinstance(auth, OwnerAuth) else TOKEN
+        bridge.bind_session(session_id, user, {**headers, "authorization": f"Bearer {token}"})
     binding = bridge._session_headers.get(session_id)
+    assert (binding is not None) == bound
     if mode == "cloud":
-        tools = await bridge.session_tools(session_id, "local-user", {"authorization": f"Bearer {TOKEN}"})
+        tools = await bridge.session_tools(session_id, user, headers)
         assert tools.autonomy is not None
         tools.autonomy.allow_cloud_owner = True  # The existing personal-cloud simulation configuration.
     body = {"act": "open", "symbol": "SHFE.au2612", "dir": "short", "vol": 1, "price": "queue", "reason": "外部 agent 生成候选"}
@@ -1547,7 +1562,9 @@ async def test_an_external_app_call_tool_card_reaches_the_conversation(native_cl
     data = created.json()["data"]["data"]
     proposal_id = data["proposalId"]
     assert data["sessionId"] == session_id and data["uiWindowId"] == window_id
-    assert bridge._session_headers.get(session_id) is binding
+    assert bridge._session_headers.get(session_id) is not None
+    if bound:
+        assert bridge._session_headers.get(session_id) is binding
     assert native_application.state.store.connection.execute("SELECT COUNT(*) FROM sessions").fetchone()[0] == 1
     published = [event for _, event in native_application.state.store.list_events(session_id) if event["name"] == "proposal.trade"]
     assert published and published[-1]["payload"]["proposalId"] == proposal_id

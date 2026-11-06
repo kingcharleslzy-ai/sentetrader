@@ -231,7 +231,7 @@ class AppCapabilities:
         self._session_headers: dict[str, tuple[str, dict[str, str]]] = {}
         self._user_generations: dict[str, int] = {}
 
-    def bind_session(self, session_id, user, headers):
+    def bind_session(self, session_id, user, headers, *, overwrite=True):
         if self.app.state.broker.get_session(session_id, user) is None:
             raise HTTPException(404, "session_not_found")
         for identifier, (owner, _) in list(self._session_headers.items()):
@@ -240,7 +240,7 @@ class AppCapabilities:
         binding = (user, {
             key: headers[key] for key in ("authorization", "cookie") if key in headers
         })
-        if self._session_headers.get(session_id) != binding:
+        if self._session_headers.get(session_id) != binding and (overwrite or session_id not in self._session_headers):
             self._session_headers[session_id] = binding
 
     def forget_session(self, session_id):
@@ -744,9 +744,10 @@ class AppCapabilities:
                 mode = bound.mode
             if external_window is None and (not session_id or target is not self.app):
                 session_id = await bridge.tool_session(user, headers)
-            if external_window is None:
-                bridge.bind_session(session_id, user, headers)
-            response, card = await (await bridge.session_tools(session_id, user, headers)).call_async(
+            session_tools = await bridge.session_tools(session_id, user, headers)
+            # An empty conversation has no message identity yet; preserve an open UI stream's existing binding.
+            bridge.bind_session(session_id, user, headers, overwrite=external_window is None)
+            response, card = await session_tools.call_async(
                 tool=args.operation.removeprefix("tool:"), arguments=args.body or {},
                 turn_id="app-call:" + uuid4().hex, mode=mode, session_id=session_id, user_id=user,
                 host_identity=identity, chart=external_window["state"].get("symbol") if external_window else None)
