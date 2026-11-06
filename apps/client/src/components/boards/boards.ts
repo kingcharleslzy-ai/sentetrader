@@ -153,7 +153,8 @@ export const blockMin = (fontScale: number): BlockMinimum => {
 };
 
 /** The room a node needs: a block its minimum, a split its children's side by side (or stacked). */
-function needOf(node: BoardNode, min: BlockMinimum): { w: number; h: number } {
+export function needOf(node: BoardNode | null, min: BlockMinimum): { w: number; h: number } {
+  if (!node) return { w: 0, h: 0 };
   if (!isSplitNode(node)) return min.of(node as BoardBlock);
   const needs = node.children.map(child => needOf(child, min));
   return node.direction === "row"

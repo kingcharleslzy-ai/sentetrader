@@ -31,7 +31,8 @@
 .board-notice { flex: none; align-self: center; max-width: min(640px, calc(100% - 32px)); margin: var(--space-2) 0 0; padding: var(--space-1) var(--space-3);
   border: 1px solid color-mix(in srgb, var(--warning) 45%, transparent); border-radius: var(--radius-pill); background: var(--warning-soft); color: var(--warning);
   font-size: var(--font-sm); line-height: 1.45; }
-.board-canvas { position: relative; flex: 1; min-width: 0; min-height: 0; padding: 5px; }
+.board-canvas { position: relative; flex: 1; min-width: 0; min-height: 0; padding: 5px; overflow: auto; }
+.board-layout { position: relative; width: 100%; height: 100%; }
 .board-empty-prompt { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); margin: 0; padding: var(--space-2) var(--space-4); color: var(--muted); font-size: var(--font-md); white-space: nowrap; }
 
 /* react-mosaic in the theme: 8px between blocks, blocks are cards, the divider shows on hover and while dragged. */

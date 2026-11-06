@@ -13,7 +13,7 @@ import { menuHost, useMenuPlace } from "../futures/ChartContextMenu";
 import { openAppHelp } from "../AppHelp";
 import { Presence } from "../motion";
 import { arrangeBoard } from "../../api";
-import { CHART_DURATIONS, LINK_COLORS, MODULES, blockMin, fitLayout, SIZE_LABELS, blockLabel, insertAt, isLinkBlock, leavesOf, linkOf, mainLink, moduleInfo, moduleOf, nextChartBlock,
+import { CHART_DURATIONS, LINK_COLORS, MODULES, blockMin, fitLayout, SIZE_LABELS, blockLabel, insertAt, isLinkBlock, leavesOf, linkOf, mainLink, moduleInfo, moduleOf, needOf, nextChartBlock,
   normalizeBoards, pickSize, removeLeaf, shareOf, type Board, type BoardBlock, type BoardLock, type BoardModule, type BoardNode, type BoardPreview, type BoardSize,
   type BlockMinimum, type BoardsChange, type BoardsHandle, type LinkColor, type LinkSetting } from "./boards";
 import { durationLabel } from "../mobile/mobileMarketPrefs";
@@ -108,7 +108,10 @@ export function useBoardsControl(handle: BoardsHandle, show: () => void, availab
     setCanvasBox(old => old.w === box.w && old.h === box.h ? old : box);
   }, []);
   const minimum = useMemo(() => blockMin(fontScale), [fontScale]);
-  const fit = useCallback((layout: BoardNode | null) => fitLayout(layout, canvasBox.w, canvasBox.h, minimum), [canvasBox, minimum]);
+  const fit = useCallback((layout: BoardNode | null) => {
+    const need = needOf(layout, minimum);
+    return fitLayout(layout, Math.max(canvasBox.w, need.w), Math.max(canvasBox.h, need.h), minimum);
+  }, [canvasBox, minimum]);
   const [taken, setTaken] = useState<BoardBlock | null>(null);
   useEffect(() => { if (!taken) return; const timer = setTimeout(() => setTaken(null), 6000); return () => clearTimeout(timer); }, [taken]);
   const [flash, setFlashState] = useState<{ filter: BoardFlashFilter; sort: BoardFlashSort }>({ filter: "watch", sort: "time" });
@@ -569,6 +572,7 @@ export function BoardsView({ control, renderTile, scale, contracts }: {
   }, [setCanvas]);
   // An AI arrangement is shown as it would be (its locks too), not editable, until 用这套 or 不用.
   const stored: Pick<Board, "layout" | "locks"> = preview ?? board;
+  const needed = needOf(stored.layout, minimum);
   const shownLayout = useMemo(() => fit(stored.layout), [fit, stored.layout]);
   const shown = { ...stored, layout: shownLayout };
   const shaping = editing && !preview;
@@ -613,6 +617,7 @@ export function BoardsView({ control, renderTile, scale, contracts }: {
     <ArrangeCard control={control} />
     <DndProvider backend={HTML5Backend}>
       <div className="board-canvas" data-agent-target="board-canvas" ref={canvasRef}>
+        <div className="board-layout" style={{ minWidth: needed.w, minHeight: needed.h }}>
         <MosaicWithoutDragDropContext<BoardBlock> mosaicId={MOSAIC_ID} className="board-mosaic" value={shown.layout}
           onChange={next => { if (!preview) handle.preview(next); }} onRelease={(next, meta?: MosaicChangeMeta<BoardBlock>) => {
             if (preview) return;
@@ -622,6 +627,7 @@ export function BoardsView({ control, renderTile, scale, contracts }: {
           }}
           resize={shaping ? { minimumPaneSizePercentage: 1, minimumPaneSizePx: { row: minimum.w, column: minimum.h } } : "DISABLED"} renderTile={tile}
           zeroStateView={<p className="board-empty-prompt">{editing ? "这一套还空着：点顶栏“＋ 模块”，把模块拖进来，或“让 AI 帮我摆”" : "这一套还空着：点顶栏“看板”旁的箭头，选“编辑”放模块进来"}</p>} />
+        </div>
       </div>
       {preview ? null : <Library control={control} layout={board.layout} run={run} />}
     </DndProvider>
