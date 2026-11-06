@@ -1,6 +1,6 @@
 [project]
 name = "ai-trader-tqkq-sidecar"
-version = "1.8.1"
+version = "1.9.0"
 description = "Isolated read-only TqKq snapshot sidecar for AI Trader"
 requires-python = ">=3.12"
 dependencies = []

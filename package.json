@@ -1,6 +1,6 @@
 {
   "name": "ai-trader",
-  "version": "1.8.1",
+  "version": "1.9.0",
   "private": true,
   "description": "AI 原生期货单页客户端第一阶段工程",
   "packageManager": "npm@10.9.7",
@@ -45,5 +45,9 @@
     "globals": "17.12.0",
     "openapi-typescript": "7.13.0",
     "typescript-eslint": "8.70.0"
+  },
+  "overrides": {
+    "minimatch@>=7.0.0 <11.0.1": "11.0.1",
+    "glob": "14.0.2"
   }
 }

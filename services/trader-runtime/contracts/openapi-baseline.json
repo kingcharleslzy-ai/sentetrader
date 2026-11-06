@@ -223,6 +223,18 @@
       "title": "Fills",
       "type": "array"
      },
+     "foreignAccount": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Foreignaccount"
+     },
      "orders": {
       "items": {
        "$ref": "#/components/schemas/ActivityOrder"
@@ -316,6 +328,11 @@
       "title": "Recentattempts",
       "type": "array"
      },
+     "reminderOnly": {
+      "default": false,
+      "title": "Reminderonly",
+      "type": "boolean"
+     },
      "status": {
       "title": "Status",
       "type": "string"
@@ -375,6 +392,37 @@
      "accountIds"
     ],
     "title": "AdminMarketSourcesRequest",
+    "type": "object"
+   },
+   "AdminPaperResetRequest": {
+    "additionalProperties": false,
+    "description": "重置本站模拟账户 (#1204): the account id typed again, so a reset is never one stray call.",
+    "properties": {
+     "confirmAccountId": {
+      "maxLength": 200,
+      "title": "Confirmaccountid",
+      "type": "string"
+     }
+    },
+    "required": [
+     "confirmAccountId"
+    ],
+    "title": "AdminPaperResetRequest",
+    "type": "object"
+   },
+   "AdminPasswordResetRequest": {
+    "properties": {
+     "newPassword": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Newpassword",
+      "type": "string"
+     }
+    },
+    "required": [
+     "newPassword"
+    ],
+    "title": "AdminPasswordResetRequest",
     "type": "object"
    },
    "AdminPlanCreateRequest": {
@@ -633,6 +681,29 @@
     "title": "AiExecutionLimitsRequest",
     "type": "object"
    },
+   "AiExecutionResumeRequest": {
+    "properties": {
+     "sessionId": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Sessionid",
+      "type": "string"
+     },
+     "symbol": {
+      "maxLength": 80,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9_.@-]+$",
+      "title": "Symbol",
+      "type": "string"
+     }
+    },
+    "required": [
+     "sessionId",
+     "symbol"
+    ],
+    "title": "AiExecutionResumeRequest",
+    "type": "object"
+   },
    "AiExecutionStartRequest": {
     "properties": {
      "durationMinutes": {
@@ -731,6 +802,17 @@
    },
    "AiStopLossRequest": {
     "properties": {
+     "breakevenAtR": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Breakevenatr"
+     },
      "positionBucket": {
       "enum": [
        "today",
@@ -783,6 +865,16 @@
       ],
       "title": "Takeprofitprice"
      },
+     "trailing": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/ProtectionTrailing"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
      "triggerPrice": {
       "anyOf": [
        {
@@ -809,6 +901,36 @@
      "volume"
     ],
     "title": "AiStopLossRequest",
+    "type": "object"
+   },
+   "AiStopRepriceRequest": {
+    "description": "图上拖线改价：一条保护的止损或止盈改到新价位；previous 是拖动起点（被别处改过就拒绝）。",
+    "properties": {
+     "level": {
+      "enum": [
+       "stop",
+       "take"
+      ],
+      "title": "Level",
+      "type": "string"
+     },
+     "previous": {
+      "exclusiveMinimum": 0.0,
+      "title": "Previous",
+      "type": "number"
+     },
+     "price": {
+      "exclusiveMinimum": 0.0,
+      "title": "Price",
+      "type": "number"
+     }
+    },
+    "required": [
+     "level",
+     "previous",
+     "price"
+    ],
+    "title": "AiStopRepriceRequest",
     "type": "object"
    },
    "AppCall": {
@@ -889,6 +1011,115 @@
      "advice"
     ],
     "title": "ApplyAdviceRequest",
+    "type": "object"
+   },
+   "ArrangeContract": {
+    "additionalProperties": false,
+    "properties": {
+     "name": {
+      "maxLength": 40,
+      "title": "Name",
+      "type": "string"
+     },
+     "symbol": {
+      "pattern": "^(?:KQD?\\.[A-Za-z]@)?[A-Za-z]+\\.[A-Za-z0-9]+$",
+      "title": "Symbol",
+      "type": "string"
+     }
+    },
+    "required": [
+     "symbol",
+     "name"
+    ],
+    "title": "ArrangeContract",
+    "type": "object"
+   },
+   "ArrangeRequest": {
+    "additionalProperties": false,
+    "properties": {
+     "ask": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Ask",
+      "type": "string"
+     },
+     "contracts": {
+      "items": {
+       "$ref": "#/components/schemas/ArrangeContract"
+      },
+      "maxItems": 120,
+      "title": "Contracts",
+      "type": "array"
+     },
+     "current": {
+      "title": "Current"
+     },
+     "fontScale": {
+      "default": 1,
+      "maximum": 2.0,
+      "minimum": 0.5,
+      "title": "Fontscale",
+      "type": "number"
+     },
+     "height": {
+      "maximum": 20000.0,
+      "minimum": 0.0,
+      "title": "Height",
+      "type": "integer"
+     },
+     "width": {
+      "maximum": 20000.0,
+      "minimum": 0.0,
+      "title": "Width",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "ask",
+     "width",
+     "height"
+    ],
+    "title": "ArrangeRequest",
+    "type": "object"
+   },
+   "ArrangeResult": {
+    "properties": {
+     "charts": {
+      "additionalProperties": {
+       "additionalProperties": {
+        "type": "string"
+       },
+       "type": "object"
+      },
+      "title": "Charts",
+      "type": "object"
+     },
+     "layout": {
+      "title": "Layout"
+     },
+     "locks": {
+      "additionalProperties": {
+       "enum": [
+        "small",
+        "medium"
+       ],
+       "type": "string"
+      },
+      "title": "Locks",
+      "type": "object"
+     },
+     "note": {
+      "title": "Note",
+      "type": "string"
+     }
+    },
+    "required": [
+     "layout",
+     "locks",
+     "charts",
+     "note"
+    ],
+    "title": "ArrangeResult",
     "type": "object"
    },
    "AtrStop": {
@@ -1065,26 +1296,610 @@
     "title": "BacktestRequest",
     "type": "object"
    },
-   "BindTqkqRequest": {
+   "Board": {
+    "additionalProperties": false,
     "properties": {
-     "password": {
-      "maxLength": 400,
-      "minLength": 1,
-      "title": "Password",
+     "charts": {
+      "patternProperties": {
+       "^(chart|positions|order|watch|sheet|alert|chat|account|orders|strategies|flash|pnl|debate|notes|briefs|chart-[2-9])$": {
+        "$ref": "#/components/schemas/BoardChart"
+       }
+      },
+      "title": "Charts",
+      "type": "object"
+     },
+     "id": {
+      "pattern": "^[a-z0-9-]{1,24}$",
+      "title": "Id",
       "type": "string"
      },
-     "username": {
-      "maxLength": 200,
+     "layout": {
+      "anyOf": [
+       {
+        "pattern": "^(chart|positions|order|watch|sheet|alert|chat|account|orders|strategies|flash|pnl|debate|notes|briefs|chart-[2-9])$",
+        "type": "string"
+       },
+       {
+        "$ref": "#/components/schemas/BoardSplit"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Layout"
+     },
+     "links": {
+      "patternProperties": {
+       "^(chart|positions|order|watch|sheet|alert|chat|account|orders|strategies|flash|pnl|debate|notes|briefs|chart-[2-9])$": {
+        "anyOf": [
+         {
+          "enum": [
+           "blue",
+           "purple",
+           "orange"
+          ],
+          "type": "string"
+         },
+         {
+          "const": "none",
+          "type": "string"
+         }
+        ]
+       }
+      },
+      "title": "Links",
+      "type": "object"
+     },
+     "locks": {
+      "patternProperties": {
+       "^(chart|positions|order|watch|sheet|alert|chat|account|orders|strategies|flash|pnl|debate|notes|briefs|chart-[2-9])$": {
+        "enum": [
+         "small",
+         "medium"
+        ],
+        "type": "string"
+       }
+      },
+      "title": "Locks",
+      "type": "object"
+     },
+     "name": {
+      "maxLength": 12,
       "minLength": 1,
-      "title": "Username",
+      "title": "Name",
       "type": "string"
      }
     },
     "required": [
-     "username",
-     "password"
+     "id",
+     "name"
     ],
-    "title": "BindTqkqRequest",
+    "title": "Board",
+    "type": "object"
+   },
+   "BoardChart": {
+    "additionalProperties": false,
+    "properties": {
+     "duration": {
+      "anyOf": [
+       {
+        "enum": [
+         60,
+         180,
+         300,
+         900,
+         1800,
+         3600,
+         86400,
+         604800
+        ],
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Duration"
+     },
+     "panes": {
+      "anyOf": [
+       {
+        "items": {
+         "enum": [
+          "kd",
+          "macd",
+          "rsi",
+          "oi",
+          "cci",
+          "volume"
+         ],
+         "type": "string"
+        },
+        "maxItems": 3,
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Panes"
+     },
+     "symbol": {
+      "anyOf": [
+       {
+        "pattern": "^[A-Za-z0-9_.@-]{3,40}$",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Symbol"
+     }
+    },
+    "title": "BoardChart",
+    "type": "object"
+   },
+   "BoardChartChange": {
+    "additionalProperties": false,
+    "properties": {
+     "block": {
+      "pattern": "^(chart|positions|order|watch|sheet|alert|chat|account|orders|strategies|flash|pnl|debate|notes|briefs|chart-[2-9])$",
+      "title": "Block",
+      "type": "string"
+     },
+     "duration": {
+      "anyOf": [
+       {
+        "enum": [
+         60,
+         180,
+         300,
+         900,
+         1800,
+         3600,
+         86400,
+         604800
+        ],
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Duration"
+     },
+     "panes": {
+      "anyOf": [
+       {
+        "items": {
+         "enum": [
+          "kd",
+          "macd",
+          "rsi",
+          "oi",
+          "cci",
+          "volume"
+         ],
+         "type": "string"
+        },
+        "maxItems": 3,
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Panes"
+     },
+     "symbol": {
+      "anyOf": [
+       {
+        "pattern": "^(?:KQD?\\.[A-Za-z]@)?[A-Za-z]+\\.[A-Za-z0-9]+$",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Symbol"
+     }
+    },
+    "required": [
+     "block"
+    ],
+    "title": "BoardChartChange",
+    "type": "object"
+   },
+   "BoardFlash": {
+    "additionalProperties": false,
+    "properties": {
+     "filter": {
+      "anyOf": [
+       {
+        "enum": [
+         "product",
+         "watch",
+         "macro",
+         "all"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Filter"
+     },
+     "sort": {
+      "anyOf": [
+       {
+        "enum": [
+         "time",
+         "impact"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Sort"
+     }
+    },
+    "title": "BoardFlash",
+    "type": "object"
+   },
+   "BoardLink": {
+    "additionalProperties": false,
+    "properties": {
+     "color": {
+      "anyOf": [
+       {
+        "enum": [
+         "blue",
+         "purple",
+         "orange"
+        ],
+        "type": "string"
+       },
+       {
+        "const": "none",
+        "type": "string"
+       }
+      ],
+      "title": "Color"
+     },
+     "module": {
+      "pattern": "^(chart|positions|order|watch|sheet|alert|chat|account|orders|strategies|flash|pnl|debate|notes|briefs|chart-[2-9])$",
+      "title": "Module",
+      "type": "string"
+     }
+    },
+    "required": [
+     "module",
+     "color"
+    ],
+    "title": "BoardLink",
+    "type": "object"
+   },
+   "BoardLinkSymbol": {
+    "additionalProperties": false,
+    "properties": {
+     "color": {
+      "enum": [
+       "blue",
+       "purple",
+       "orange"
+      ],
+      "title": "Color",
+      "type": "string"
+     },
+     "symbol": {
+      "pattern": "^(?:KQD?\\.[A-Za-z]@)?[A-Za-z]+\\.[A-Za-z0-9]+$",
+      "title": "Symbol",
+      "type": "string"
+     }
+    },
+    "required": [
+     "color",
+     "symbol"
+    ],
+    "title": "BoardLinkSymbol",
+    "type": "object"
+   },
+   "BoardLock": {
+    "additionalProperties": false,
+    "properties": {
+     "module": {
+      "pattern": "^(chart|positions|order|watch|sheet|alert|chat|account|orders|strategies|flash|pnl|debate|notes|briefs|chart-[2-9])$",
+      "title": "Module",
+      "type": "string"
+     },
+     "size": {
+      "enum": [
+       "auto",
+       "small",
+       "medium"
+      ],
+      "title": "Size",
+      "type": "string"
+     }
+    },
+    "required": [
+     "module",
+     "size"
+    ],
+    "title": "BoardLock",
+    "type": "object"
+   },
+   "BoardPlace": {
+    "additionalProperties": false,
+    "properties": {
+     "block": {
+      "anyOf": [
+       {
+        "pattern": "^(chart|positions|order|watch|sheet|alert|chat|account|orders|strategies|flash|pnl|debate|notes|briefs|chart-[2-9])$",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Block"
+     },
+     "duration": {
+      "anyOf": [
+       {
+        "enum": [
+         60,
+         180,
+         300,
+         900,
+         1800,
+         3600,
+         86400,
+         604800
+        ],
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Duration"
+     },
+     "module": {
+      "enum": [
+       "chart",
+       "positions",
+       "order",
+       "watch",
+       "sheet",
+       "alert",
+       "chat",
+       "account",
+       "orders",
+       "strategies",
+       "flash",
+       "pnl",
+       "debate",
+       "notes",
+       "briefs"
+      ],
+      "title": "Module",
+      "type": "string"
+     },
+     "ratio": {
+      "anyOf": [
+       {
+        "maximum": 0.9,
+        "minimum": 0.1,
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ratio"
+     },
+     "side": {
+      "anyOf": [
+       {
+        "enum": [
+         "left",
+         "right",
+         "top",
+         "bottom"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Side"
+     },
+     "symbol": {
+      "anyOf": [
+       {
+        "pattern": "^(?:KQD?\\.[A-Za-z]@)?[A-Za-z]+\\.[A-Za-z0-9]+$",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Symbol"
+     },
+     "target": {
+      "anyOf": [
+       {
+        "pattern": "^(chart|positions|order|watch|sheet|alert|chat|account|orders|strategies|flash|pnl|debate|notes|briefs|chart-[2-9])$",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Target"
+     }
+    },
+    "required": [
+     "module"
+    ],
+    "title": "BoardPlace",
+    "type": "object"
+   },
+   "BoardPreview": {
+    "additionalProperties": false,
+    "properties": {
+     "charts": {
+      "patternProperties": {
+       "^(chart|positions|order|watch|sheet|alert|chat|account|orders|strategies|flash|pnl|debate|notes|briefs|chart-[2-9])$": {
+        "$ref": "#/components/schemas/BoardChart"
+       }
+      },
+      "title": "Charts",
+      "type": "object"
+     },
+     "layout": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Layout"
+     },
+     "locks": {
+      "patternProperties": {
+       "^(chart|positions|order|watch|sheet|alert|chat|account|orders|strategies|flash|pnl|debate|notes|briefs|chart-[2-9])$": {
+        "enum": [
+         "small",
+         "medium"
+        ],
+        "type": "string"
+       }
+      },
+      "title": "Locks",
+      "type": "object"
+     },
+     "note": {
+      "default": "",
+      "maxLength": 60,
+      "title": "Note",
+      "type": "string"
+     }
+    },
+    "required": [
+     "layout"
+    ],
+    "title": "BoardPreview",
+    "type": "object"
+   },
+   "BoardPreviewState": {
+    "additionalProperties": false,
+    "properties": {
+     "blocks": {
+      "items": {
+       "pattern": "^(chart|positions|order|watch|sheet|alert|chat|account|orders|strategies|flash|pnl|debate|notes|briefs|chart-[2-9])$",
+       "type": "string"
+      },
+      "title": "Blocks",
+      "type": "array"
+     },
+     "note": {
+      "default": "",
+      "title": "Note",
+      "type": "string"
+     }
+    },
+    "title": "BoardPreviewState",
+    "type": "object"
+   },
+   "BoardRatio": {
+    "additionalProperties": false,
+    "properties": {
+     "module": {
+      "pattern": "^(chart|positions|order|watch|sheet|alert|chat|account|orders|strategies|flash|pnl|debate|notes|briefs|chart-[2-9])$",
+      "title": "Module",
+      "type": "string"
+     },
+     "value": {
+      "maximum": 0.95,
+      "minimum": 0.05,
+      "title": "Value",
+      "type": "number"
+     }
+    },
+    "required": [
+     "module",
+     "value"
+    ],
+    "title": "BoardRatio",
+    "type": "object"
+   },
+   "BoardRename": {
+    "additionalProperties": false,
+    "properties": {
+     "id": {
+      "pattern": "^[a-z0-9-]{1,24}$",
+      "title": "Id",
+      "type": "string"
+     },
+     "name": {
+      "maxLength": 12,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "name"
+    ],
+    "title": "BoardRename",
+    "type": "object"
+   },
+   "BoardReplace": {
+    "additionalProperties": false,
+    "properties": {
+     "module": {
+      "pattern": "^(chart|positions|order|watch|sheet|alert|chat|account|orders|strategies|flash|pnl|debate|notes|briefs|chart-[2-9])$",
+      "title": "Module",
+      "type": "string"
+     },
+     "with": {
+      "enum": [
+       "chart",
+       "positions",
+       "order",
+       "watch",
+       "sheet",
+       "alert",
+       "chat",
+       "account",
+       "orders",
+       "strategies",
+       "flash",
+       "pnl",
+       "debate",
+       "notes",
+       "briefs"
+      ],
+      "title": "With",
+      "type": "string"
+     }
+    },
+    "required": [
+     "module",
+     "with"
+    ],
+    "title": "BoardReplace",
     "type": "object"
    },
    "BoardSortChange": {
@@ -1144,6 +1959,495 @@
     "title": "BoardSortPreferences",
     "type": "object"
    },
+   "BoardSplit": {
+    "additionalProperties": false,
+    "properties": {
+     "children": {
+      "items": {
+       "anyOf": [
+        {
+         "pattern": "^(chart|positions|order|watch|sheet|alert|chat|account|orders|strategies|flash|pnl|debate|notes|briefs|chart-[2-9])$",
+         "type": "string"
+        },
+        {
+         "$ref": "#/components/schemas/BoardSplit"
+        }
+       ]
+      },
+      "maxItems": 23,
+      "minItems": 2,
+      "title": "Children",
+      "type": "array"
+     },
+     "direction": {
+      "enum": [
+       "row",
+       "column"
+      ],
+      "title": "Direction",
+      "type": "string"
+     },
+     "splitPercentages": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "number"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Splitpercentages"
+     },
+     "type": {
+      "const": "split",
+      "title": "Type",
+      "type": "string"
+     }
+    },
+    "required": [
+     "type",
+     "direction",
+     "children"
+    ],
+    "title": "BoardSplit",
+    "type": "object"
+   },
+   "BoardTileState": {
+    "additionalProperties": false,
+    "properties": {
+     "block": {
+      "pattern": "^(chart|positions|order|watch|sheet|alert|chat|account|orders|strategies|flash|pnl|debate|notes|briefs|chart-[2-9])$",
+      "title": "Block",
+      "type": "string"
+     },
+     "duration": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Duration"
+     },
+     "link": {
+      "anyOf": [
+       {
+        "enum": [
+         "blue",
+         "purple",
+         "orange"
+        ],
+        "type": "string"
+       },
+       {
+        "const": "none",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Link"
+     },
+     "locked": {
+      "anyOf": [
+       {
+        "enum": [
+         "small",
+         "medium"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Locked"
+     },
+     "module": {
+      "enum": [
+       "chart",
+       "positions",
+       "order",
+       "watch",
+       "sheet",
+       "alert",
+       "chat",
+       "account",
+       "orders",
+       "strategies",
+       "flash",
+       "pnl",
+       "debate",
+       "notes",
+       "briefs"
+      ],
+      "title": "Module",
+      "type": "string"
+     },
+     "share": {
+      "maximum": 100.0,
+      "minimum": 0.0,
+      "title": "Share",
+      "type": "integer"
+     },
+     "size": {
+      "anyOf": [
+       {
+        "enum": [
+         "small",
+         "medium",
+         "large",
+         "xlarge",
+         "bar"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Size"
+     },
+     "symbol": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Symbol"
+     }
+    },
+    "required": [
+     "block",
+     "module",
+     "share"
+    ],
+    "title": "BoardTileState",
+    "type": "object"
+   },
+   "BoardsChange": {
+    "additionalProperties": false,
+    "description": "看板 · 铺满版 (2026-11-05), one key per command: select 切到一个看板（并打开看板）, create 新建一个空白看板并切过去,\nrename {id, name}, remove 删除一个看板（删当前的切到第一个）, place {module, block?, target?, side?, ratio?, symbol?,\nduration?} 把模块放到 target 那一块的 side 边（left / right / top / bottom，默认 right），占那一块的 ratio（0.1–0.9，\n默认 0.5）；不给 target 就放在整块看板的 side 边、占三分之一；已在看板上的那一块挪过去。块的名字就是模块名，图表可以放\n多块（chart、chart-2 … chart-9）：module chart 不给 block 且已有图表时再放一块，给 block 就是挪那一块；图表可同时给\nsymbol、duration（它自己的合约和周期，再放的图表默认不联动、用自己的合约）, chart {block, symbol?, duration?} 给某一块\n图表设自己的合约 / 周期 / 副图（panes: kd / macd / rsi / oi / cci / volume 最多 3 个；null 回到顶栏的）, replace {module: 块, with: 模块} 那一块换成另一个模块,\ntake <块> 拿掉一块（旁边的补满）, ratio {module: 块, value} 拖分隔线：那一块占它所在那一层的 value（0.05–0.95）,\nlock {module, size: auto / small / medium} 档位跟着地方大小自动选或锁小 / 锁中, editing 进入（并打开看板）/ 退出编辑,\nundo 撤销这次编辑里最近一步, link {module: 块, color} 联动色（图表 / 下单 / 自选 / 作战表的块各一个颜色 blue / purple /\norange，图表还可以 none 不联动；同色的跟同一个合约；下单所在的颜色跟着顶栏的当前合约）, linkSymbol {color, symbol} 让另一个颜色的那几块换到某个合约,\npreview {layout, locks?, note?} 编辑时先把一套摆法摆出来给用户看（不保存）, adopt 用这套（存下，可撤销）, discard 不用,\nask <一句话> 让 AI 帮我摆（编辑时；AI 只给摆法，结果是 preview）, flash {filter?: product / watch / macro / all, sort?: time /\nimpact} 看板上快讯那一块自己的筛选和排序（调研面板的快讯另有 news 命令）. Modules chart / positions / order / watch / sheet（作战表）/ alert（提醒）/ chat（对话）,\neach at most once per board except 图表 (up to nine). The list is the account preference ui.boards; state.boards carries\nediting, the 模块库 and each block's size, lock, share, colour and (charts) contract and period.",
+    "properties": {
+     "adopt": {
+      "anyOf": [
+       {
+        "const": true,
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Adopt"
+     },
+     "ask": {
+      "anyOf": [
+       {
+        "maxLength": 200,
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ask"
+     },
+     "chart": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/BoardChartChange"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "create": {
+      "anyOf": [
+       {
+        "maxLength": 12,
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Create"
+     },
+     "discard": {
+      "anyOf": [
+       {
+        "const": true,
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Discard"
+     },
+     "editing": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Editing"
+     },
+     "flash": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/BoardFlash"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "link": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/BoardLink"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "linkSymbol": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/BoardLinkSymbol"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "lock": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/BoardLock"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "place": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/BoardPlace"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "preview": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/BoardPreview"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "ratio": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/BoardRatio"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "remove": {
+      "anyOf": [
+       {
+        "pattern": "^[a-z0-9-]{1,24}$",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Remove"
+     },
+     "rename": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/BoardRename"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "replace": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/BoardReplace"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "select": {
+      "anyOf": [
+       {
+        "pattern": "^[a-z0-9-]{1,24}$",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Select"
+     },
+     "take": {
+      "anyOf": [
+       {
+        "pattern": "^(chart|positions|order|watch|sheet|alert|chat|account|orders|strategies|flash|pnl|debate|notes|briefs|chart-[2-9])$",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Take"
+     },
+     "undo": {
+      "anyOf": [
+       {
+        "const": true,
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Undo"
+     }
+    },
+    "title": "BoardsChange",
+    "type": "object"
+   },
+   "BoardsPreferences": {
+    "additionalProperties": false,
+    "properties": {
+     "current": {
+      "default": "live",
+      "pattern": "^[a-z0-9-]{1,24}$",
+      "title": "Current",
+      "type": "string"
+     },
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/Board"
+      },
+      "maxItems": 11,
+      "minItems": 1,
+      "title": "Items",
+      "type": "array"
+     }
+    },
+    "title": "BoardsPreferences",
+    "type": "object"
+   },
+   "BoardsState": {
+    "additionalProperties": false,
+    "properties": {
+     "arranging": {
+      "default": false,
+      "title": "Arranging",
+      "type": "boolean"
+     },
+     "editing": {
+      "title": "Editing",
+      "type": "boolean"
+     },
+     "flash": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/BoardFlash"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "groups": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "propertyNames": {
+       "enum": [
+        "blue",
+        "purple",
+        "orange"
+       ]
+      },
+      "title": "Groups",
+      "type": "object"
+     },
+     "library": {
+      "default": false,
+      "title": "Library",
+      "type": "boolean"
+     },
+     "main": {
+      "default": "blue",
+      "enum": [
+       "blue",
+       "purple",
+       "orange"
+      ],
+      "title": "Main",
+      "type": "string"
+     },
+     "preview": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/BoardPreviewState"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "tiles": {
+      "items": {
+       "$ref": "#/components/schemas/BoardTileState"
+      },
+      "title": "Tiles",
+      "type": "array"
+     }
+    },
+    "required": [
+     "editing"
+    ],
+    "title": "BoardsState",
+    "type": "object"
+   },
    "BollPreferences": {
     "additionalProperties": false,
     "properties": {
@@ -1201,7 +2505,7 @@
    },
    "BreakEvenRule": {
     "additionalProperties": false,
-    "description": "保本提醒的阈值 (2026-10-06): 浮盈达到“成本到止损的距离”的 `multiple` 倍时问（默认 1 倍风险），\n或 mode=amount 时按该持仓浮动盈亏达到 `amount` 元。",
+    "description": "保本提醒的阈值 (2026-10-06): 浮盈达到“成本到止损的距离”的 `multiple` 倍时问（默认 1 倍风险），\n或 mode=amount 时按该持仓浮动盈亏达到 `amount` 元。外盘美元子账户的持仓在 mode=amount 时按自己的\n美元门槛 `amountUsd`（所有者 2026-10-21）；不设（null）就按 `multiple` 判断——美元盈亏从不比人民币门槛。",
     "properties": {
      "amount": {
       "default": 1000,
@@ -1209,6 +2513,19 @@
       "minimum": 1.0,
       "title": "Amount",
       "type": "integer"
+     },
+     "amountUsd": {
+      "anyOf": [
+       {
+        "maximum": 10000000.0,
+        "minimum": 1.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Amountusd"
      },
      "mode": {
       "default": "multiple",
@@ -1375,7 +2692,7 @@
       "anyOf": [
        {
         "maxLength": 40,
-        "pattern": "^[A-Za-z]+\\.[A-Za-z0-9]+$",
+        "pattern": "^(?:KQD?\\.[A-Za-z]@)?[A-Za-z]+\\.[A-Za-z0-9]+$",
         "type": "string"
        },
        {
@@ -2252,7 +3569,7 @@
       "anyOf": [
        {
         "maxLength": 40,
-        "pattern": "^[A-Za-z]+\\.[A-Za-z0-9]+$",
+        "pattern": "^(?:KQD?\\.[A-Za-z]@)?[A-Za-z]+\\.[A-Za-z0-9]+$",
         "type": "string"
        },
        {
@@ -3258,6 +4575,202 @@
     "title": "DesignRequest",
     "type": "object"
    },
+   "DesktopChartCellChange": {
+    "additionalProperties": false,
+    "description": "电脑版多图 (2026-11-02): one cell's contract (null = 自动补位) and/or period. The selected cell is the chart\nitself, so a change to it switches the chart's contract / period.",
+    "properties": {
+     "duration": {
+      "anyOf": [
+       {
+        "enum": [
+         60,
+         180,
+         300,
+         900,
+         1800,
+         3600,
+         86400,
+         604800
+        ],
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Duration"
+     },
+     "index": {
+      "exclusiveMaximum": 4.0,
+      "minimum": 0.0,
+      "title": "Index",
+      "type": "integer"
+     },
+     "symbol": {
+      "anyOf": [
+       {
+        "maxLength": 40,
+        "pattern": "^(?:KQD?\\.[A-Za-z]@)?[A-Za-z]+\\.[A-Za-z0-9]+$",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Symbol"
+     }
+    },
+    "required": [
+     "index"
+    ],
+    "title": "DesktopChartCellChange",
+    "type": "object"
+   },
+   "DesktopChartsChange": {
+    "additionalProperties": false,
+    "description": "电脑版多图 (2026-11-02), desktop layout only. Keys combine and apply in this order: preset → layout → cells\n→ active → the three switches. preset periods = 2×2 四格、同步品种、四个周期 5 分 / 15 分 / 1 小时 / 日线. The values\nare the account preference ui.desktopCharts reported in state.preferences; the selected cell's contract and\nperiod are state.symbol / state.duration.",
+    "properties": {
+     "active": {
+      "anyOf": [
+       {
+        "exclusiveMaximum": 4.0,
+        "minimum": 0.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Active"
+     },
+     "cells": {
+      "anyOf": [
+       {
+        "items": {
+         "$ref": "#/components/schemas/DesktopChartCellChange"
+        },
+        "maxItems": 4,
+        "minItems": 1,
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cells"
+     },
+     "layout": {
+      "anyOf": [
+       {
+        "enum": [
+         "single",
+         "two",
+         "four"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Layout"
+     },
+     "preset": {
+      "anyOf": [
+       {
+        "const": "periods",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Preset"
+     },
+     "syncCrosshair": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Synccrosshair"
+     },
+     "syncDuration": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Syncduration"
+     },
+     "syncSymbol": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Syncsymbol"
+     }
+    },
+    "title": "DesktopChartsChange",
+    "type": "object"
+   },
+   "DesktopChartsPreferences": {
+    "additionalProperties": false,
+    "properties": {
+     "active": {
+      "default": 0,
+      "exclusiveMaximum": 4.0,
+      "minimum": 0.0,
+      "title": "Active",
+      "type": "integer"
+     },
+     "cells": {
+      "items": {
+       "$ref": "#/components/schemas/MobileChartCell"
+      },
+      "maxItems": 4,
+      "title": "Cells",
+      "type": "array"
+     },
+     "layout": {
+      "default": "single",
+      "enum": [
+       "single",
+       "two",
+       "four"
+      ],
+      "title": "Layout",
+      "type": "string"
+     },
+     "syncCrosshair": {
+      "default": true,
+      "title": "Synccrosshair",
+      "type": "boolean"
+     },
+     "syncDuration": {
+      "default": false,
+      "title": "Syncduration",
+      "type": "boolean"
+     },
+     "syncSymbol": {
+      "default": false,
+      "title": "Syncsymbol",
+      "type": "boolean"
+     }
+    },
+    "title": "DesktopChartsPreferences",
+    "type": "object"
+   },
    "DesktopNotifications": {
     "additionalProperties": false,
     "properties": {
@@ -3309,7 +4822,9 @@
        "strategy-designer",
        "proposal-confirm",
        "update-dialog",
-       "strategy-launch"
+       "strategy-launch",
+       "change-password",
+       "protection-reprice-confirm"
       ],
       "title": "Name",
       "type": "string"
@@ -3376,10 +4891,13 @@
        "voice-call",
        "voice-mute",
        "voice-menu",
+       "voice-playback",
        "voice-review",
        "unlinked-notes",
        "review-how",
+       "habits-how",
        "chat-history",
+       "ai-command-result",
        "activity-clear",
        "strategy-guide",
        "strategy-new",
@@ -3410,6 +4928,7 @@
        "board-columns",
        "price-alerts",
        "reminder-alert-new",
+       "playbook-editor",
        "price-alerts-others",
        "position-protection",
        "contract-info",
@@ -3437,6 +4956,19 @@
        "chart-drawing-style",
        "chart-drawing-settings",
        "chart-context-menu",
+       "workspace-layouts",
+       "boards-menu",
+       "board-more",
+       "board-library",
+       "board-arrange",
+       "board-flash-calendar",
+       "board-chart-ma-editor",
+       "board-chart-pane-add",
+       "board-chart-pane-editor",
+       "board-chart-menu",
+       "board-chart-pick",
+       "board-tile-menu",
+       "board-context-menu",
        "chart-periods-more",
        "order-depth",
        "ticket-protection",
@@ -3449,13 +4981,19 @@
        "mobile-subpanes",
        "mobile-subpanes-overlays",
        "mobile-quote-columns",
+       "mobile-execution-stop",
        "mobile-chart-cell",
+       "row-actions",
        "mobile-drawing-style-row",
        "debate-sheets",
        "debate-sources",
        "debate-stats",
        "debate-log",
-       "debate-judge"
+       "debate-judge",
+       "debate-analyst-technical",
+       "debate-analyst-supply",
+       "debate-analyst-flow",
+       "debate-analyst-news"
       ],
       "title": "Name",
       "type": "string"
@@ -3470,6 +5008,32 @@
      "open"
     ],
     "title": "DisclosureChange",
+    "type": "object"
+   },
+   "DockLayout": {
+    "additionalProperties": false,
+    "properties": {
+     "active": {
+      "anyOf": [
+       {
+        "enum": [
+         "ai",
+         "order",
+         "strategy",
+         "positions",
+         "news",
+         "reminders"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Active"
+     }
+    },
+    "title": "DockLayout",
     "type": "object"
    },
    "DraftBody": {
@@ -4123,7 +5687,7 @@
    },
    "FeedViewRequest": {
     "additionalProperties": false,
-    "description": "What the window shows (2026-10-12): page visibility (Page Visibility API) and the board rows\non screen (None = no board). A hidden page gets no chart market or board push; account,\nactivity, execution and every event (orders, alerts, reminders, AI results) keep flowing.",
+    "description": "What the window shows (2026-10-12): page visibility (Page Visibility API) and the board rows\non screen (None = no board). A hidden page gets no chart market, board or report push; account,\nactivity, execution and every event (orders, alerts, reminders, AI results) keep flowing.\n`reports` (通用报告推送, 2026-11-03): the cloud reports on screen, each as its name and its HTTP read's query.",
     "properties": {
      "board": {
       "anyOf": [
@@ -4134,6 +5698,17 @@
         "type": "null"
        }
       ]
+     },
+     "reports": {
+      "items": {
+       "maxLength": 700,
+       "minLength": 1,
+       "pattern": "^[a-z][a-z0-9-]{0,31}(\\?[A-Za-z0-9_.,:%=&+-]{1,660})?$",
+       "type": "string"
+      },
+      "maxItems": 32,
+      "title": "Reports",
+      "type": "array"
      },
      "visible": {
       "default": true,
@@ -4379,7 +5954,8 @@
        "watch",
        "trade",
        "review",
-       "board"
+       "board",
+       "dashboard"
       ],
       "title": "View",
       "type": "string"
@@ -5724,7 +7300,7 @@
       "anyOf": [
        {
         "maxLength": 40,
-        "pattern": "^[A-Za-z]+\\.[A-Za-z0-9]+$",
+        "pattern": "^(?:KQD?\\.[A-Za-z]@)?[A-Za-z]+\\.[A-Za-z0-9]+$",
         "type": "string"
        },
        {
@@ -5772,7 +7348,7 @@
       "anyOf": [
        {
         "maxLength": 40,
-        "pattern": "^[A-Za-z]+\\.[A-Za-z0-9]+$",
+        "pattern": "^(?:KQD?\\.[A-Za-z]@)?[A-Za-z]+\\.[A-Za-z0-9]+$",
         "type": "string"
        },
        {
@@ -6215,7 +7791,7 @@
       "anyOf": [
        {
         "maxLength": 40,
-        "pattern": "^[A-Za-z]+\\.[A-Za-z0-9]+$",
+        "pattern": "^(?:KQD?\\.[A-Za-z]@)?[A-Za-z]+\\.[A-Za-z0-9]+$",
         "type": "string"
        },
        {
@@ -6228,7 +7804,9 @@
       "anyOf": [
        {
         "enum": [
+         "sheet",
          "desk",
+         "debate",
          "flash",
          "news",
          "data"
@@ -6688,6 +8266,28 @@
     "title": "OwnerLogoutRequest",
     "type": "object"
    },
+   "OwnerPasswordChangeRequest": {
+    "properties": {
+     "currentPassword": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Currentpassword",
+      "type": "string"
+     },
+     "newPassword": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Newpassword",
+      "type": "string"
+     }
+    },
+    "required": [
+     "currentPassword",
+     "newPassword"
+    ],
+    "title": "OwnerPasswordChangeRequest",
+    "type": "object"
+   },
    "OwnerRegisterRequest": {
     "properties": {
      "inviteCode": {
@@ -6757,7 +8357,7 @@
       "anyOf": [
        {
         "maxLength": 40,
-        "pattern": "^[A-Za-z]+\\.[A-Za-z0-9]+$",
+        "pattern": "^(?:KQD?\\.[A-Za-z]@)?[A-Za-z]+\\.[A-Za-z0-9]+$",
         "type": "string"
        },
        {
@@ -6770,7 +8370,7 @@
       "anyOf": [
        {
         "maxLength": 40,
-        "pattern": "^[A-Za-z]+\\.[A-Za-z0-9]+$",
+        "pattern": "^(?:KQD?\\.[A-Za-z]@)?[A-Za-z]+\\.[A-Za-z0-9]+$",
         "type": "string"
        },
        {
@@ -6940,6 +8540,53 @@
     "title": "PlanBacktestRequest",
     "type": "object"
    },
+   "PlaybookRequest": {
+    "additionalProperties": false,
+    "description": "打法本 (2026-10-25): one setup — its name and the user's own entry / exit / stop rules in words; `strategyId`\noptionally links one of the user's strategies (the rules a program can check).",
+    "properties": {
+     "entryRules": {
+      "default": "",
+      "maxLength": 300,
+      "title": "Entryrules",
+      "type": "string"
+     },
+     "exitRules": {
+      "default": "",
+      "maxLength": 300,
+      "title": "Exitrules",
+      "type": "string"
+     },
+     "name": {
+      "maxLength": 20,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+     },
+     "stopRules": {
+      "default": "",
+      "maxLength": 200,
+      "title": "Stoprules",
+      "type": "string"
+     },
+     "strategyId": {
+      "anyOf": [
+       {
+        "maxLength": 80,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Strategyid"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "title": "PlaybookRequest",
+    "type": "object"
+   },
    "PositionSelection": {
     "additionalProperties": false,
     "properties": {
@@ -6953,7 +8600,7 @@
      },
      "symbol": {
       "maxLength": 40,
-      "pattern": "^[A-Za-z]+\\.[A-Za-z0-9]+$",
+      "pattern": "^(?:KQD?\\.[A-Za-z]@)?[A-Za-z]+\\.[A-Za-z0-9]+$",
       "title": "Symbol",
       "type": "string"
      }
@@ -7269,7 +8916,7 @@
    },
    "PriceAlertCreateRequest": {
     "additionalProperties": false,
-    "description": "到价提醒 creation body: `direction` may be omitted — the Runtime infers it from the live\nquote (above the last price → 涨到, below → 跌到); `via` records which surface set it.",
+    "description": "到价提醒 creation body: `direction` may be omitted — the Runtime infers it from the live\nquote (above the last price → 涨到, below → 跌到); `via` records which surface set it. `drawingId` (改版\n2026-10-31): 碰到这条线就提醒 — the contract and the price are the user's drawing's (symbol / price may be left out),\na sloped line is watched where it is each second, and deleting the line deletes the alert.",
     "properties": {
      "direction": {
       "anyOf": [
@@ -7286,6 +8933,18 @@
       ],
       "title": "Direction"
      },
+     "drawingId": {
+      "anyOf": [
+       {
+        "maxLength": 40,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Drawingid"
+     },
      "note": {
       "default": "",
       "maxLength": 60,
@@ -7300,6 +8959,9 @@
        {
         "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
         "type": "string"
+       },
+       {
+        "type": "null"
        }
       ],
       "title": "Price"
@@ -7317,8 +8979,8 @@
       "title": "Sessionid"
      },
      "symbol": {
+      "default": "",
       "maxLength": 60,
-      "minLength": 1,
       "title": "Symbol",
       "type": "string"
      },
@@ -7333,11 +8995,65 @@
       "type": "string"
      }
     },
-    "required": [
-     "symbol",
-     "price"
-    ],
     "title": "PriceAlertCreateRequest",
+    "type": "object"
+   },
+   "ProtectionTrailing": {
+    "additionalProperties": false,
+    "description": "手动止损的追踪方式（2026-10-25 第 4 批）：策略的追踪止损（按最新价只收紧、不放松），ATR 吊灯在挂上时按\natrTimeframe 周期最近收完的 K 线算一次 ATR（atrPeriod 根）并固定。bar_extreme（只限手动止损）：多单止损跟到\natrTimeframe 周期最近 value 根已收完 K 线的最低价、空单跟到最高价，每收完一根重算，同样只紧不松；activateAfter 不用。",
+    "properties": {
+     "activateAfter": {
+      "default": 0,
+      "description": "浮盈达到多少才开始追踪；0 立即追踪。",
+      "maximum": 10000.0,
+      "minimum": 0.0,
+      "title": "Activateafter",
+      "type": "number"
+     },
+     "atrPeriod": {
+      "default": 14,
+      "maximum": 200.0,
+      "minimum": 2.0,
+      "title": "Atrperiod",
+      "type": "integer"
+     },
+     "atrTimeframe": {
+      "default": 300,
+      "description": "ATR 吊灯 / 前 N 根 K 线按哪个周期算（秒）",
+      "enum": [
+       60,
+       180,
+       300,
+       900,
+       1800,
+       3600,
+       86400
+      ],
+      "title": "Atrtimeframe",
+      "type": "integer"
+     },
+     "mode": {
+      "enum": [
+       "percent",
+       "ticks",
+       "atr_chandelier",
+       "bar_extreme"
+      ],
+      "title": "Mode",
+      "type": "string"
+     },
+     "value": {
+      "exclusiveMinimum": 0.0,
+      "maximum": 10000.0,
+      "title": "Value",
+      "type": "number"
+     }
+    },
+    "required": [
+     "mode",
+     "value"
+    ],
+    "title": "ProtectionTrailing",
     "type": "object"
    },
    "PullbackSetup": {
@@ -7952,6 +9668,42 @@
     "title": "ReminderItem",
     "type": "object"
    },
+   "ReminderOptions": {
+    "additionalProperties": false,
+    "description": "提醒页的提醒怎么响 (改版第一步 2026-10-31)，只用于 reminderOnly 的计划。",
+    "properties": {
+     "repeat": {
+      "default": "rearm",
+      "description": "响几次：once 只响一次（响过就自动停）；rearm 同一个信号只响一次，条件不再满足后再满足才再响（原来的做法）；bar 条件满足的每根 K 线最多响一次。",
+      "enum": [
+       "once",
+       "rearm",
+       "bar"
+      ],
+      "title": "Repeat",
+      "type": "string"
+     },
+     "until": {
+      "default": "forever",
+      "description": "到期：today 开始提醒那个交易日收盘、week 本周最后一个交易日收盘、forever 一直；到期自动停并说一声。",
+      "enum": [
+       "today",
+       "week",
+       "forever"
+      ],
+      "title": "Until",
+      "type": "string"
+     },
+     "watchlist": {
+      "default": false,
+      "description": "整张自选表：开始提醒时按自选表每个品种的主力合约各上线一个实例，每个品种分别判断（上线后自选表再变不跟）。",
+      "title": "Watchlist",
+      "type": "boolean"
+     }
+    },
+    "title": "ReminderOptions",
+    "type": "object"
+   },
    "ReminderPage": {
     "properties": {
      "items": {
@@ -8052,6 +9804,18 @@
       ],
       "title": "Debateid"
      },
+     "page": {
+      "anyOf": [
+       {
+        "const": "sheet",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Page"
+     },
      "sessionId": {
       "anyOf": [
        {
@@ -8114,6 +9878,124 @@
      "unread"
     ],
     "title": "ReminderUnread",
+    "type": "object"
+   },
+   "RemindersNavigation": {
+    "additionalProperties": false,
+    "description": "提醒面板（电脑右侧栏）/ 提醒页（手机）的页签（2026-10-25）：mine 我的提醒（到价、画线、条件提醒一张表）/ general 通用提醒（原设置 → 提醒）/ history 提醒记录（原提醒中心）。",
+    "properties": {
+     "tab": {
+      "anyOf": [
+       {
+        "enum": [
+         "mine",
+         "general",
+         "history"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tab"
+     }
+    },
+    "title": "RemindersNavigation",
+    "type": "object"
+   },
+   "RemoteSettingsChange": {
+    "additionalProperties": false,
+    "properties": {
+     "bindings": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "enum": [
+          "none",
+          "ptt",
+          "cancel",
+          "chat",
+          "settings",
+          "scrollUp",
+          "scrollDown",
+          "focusPrevious",
+          "focusNext",
+          "activate"
+         ],
+         "type": "string"
+        },
+        "propertyNames": {
+         "enum": [
+          "up",
+          "down",
+          "left",
+          "right",
+          "ok",
+          "back",
+          "home",
+          "menu",
+          "tv",
+          "volumeUp",
+          "volumeDown",
+          "voice",
+          "power"
+         ]
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Bindings"
+     },
+     "diagnostic": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Diagnostic"
+     },
+     "disconnect": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Disconnect"
+     },
+     "enabled": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Enabled"
+     },
+     "resetBindings": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Resetbindings"
+     }
+    },
+    "title": "RemoteSettingsChange",
     "type": "object"
    },
    "ReplayControl": {
@@ -8199,7 +10081,7 @@
      },
      "symbol": {
       "maxLength": 40,
-      "pattern": "^[A-Za-z]+\\.[A-Za-z]+\\d{3,4}$",
+      "pattern": "^(?:KQD?\\.[A-Za-z]@)?[A-Za-z]+\\.[A-Za-z0-9]+$",
       "title": "Symbol",
       "type": "string"
      },
@@ -8271,7 +10153,7 @@
    },
    "ResearchDebateChange": {
     "additionalProperties": false,
-    "description": "多 AI 研讨 (2026-10-11): the debate sub-view — in the 新闻面板 on a computer (the panel widens to half\nthe window), a full-screen page over the 调研 tab on a phone. One field per command: `start` = press\n研讨 on a 快讯 event (`start: <事件 id>`, events[].id), 让 AI 们辩一轮 on 今日判断 (`start: \"desk\"`) or the\nnewest 重要 event of the product being read (`start: \"event\"`) — an event already debated today, or an\nunchanged 今日议题, opens its result instead of running again; `open` shows one debate by id; `rerun` is\n再辩一轮 on the open one (a new run); `close` goes back. Starting runs POST /api/research/debates (three or five\nmodel calls — five when round one disagrees — about 40 seconds, the day's cap applies); 写进今日判断 is POST /api/research/debates/{id}/adopt.",
+    "description": "多 AI 研讨 (2026-10-11; its own page 2026-10-24): the 辩论 page — the right rail's 辩论 on a computer (half\nthe window, `panel: debate`), a full-screen page over the 调研 tab on a phone. One field per command: `start` =\npress 研讨 on a 快讯 event (`start: <事件 id>`, events[].id), 让 AI 们辩一轮 on 今日判断 (`start: \"desk\"`) or the\nnewest 重要 event of the product being read (`start: \"event\"`) — an event already debated today, or an\nunchanged 今日议题, opens its result instead of running again; `open` shows one debate by id; `rerun` is\n再辩一轮 on the open one (a new run); `close` closes the page. Starting runs POST /api/research/debates (four\nanalysts' reports written at once, then four spoken turns one after another, then the judge — about two to three\nminutes, the day's cap applies; reports and turns stream into the page; a finished report's card folds with\n`disclosure: debate-analyst-<technical|supply|flow|news>`); 写进今日判断 is POST /api/research/debates/{id}/adopt.",
     "properties": {
      "close": {
       "anyOf": [
@@ -8363,6 +10245,40 @@
    "ReviewUiState": {
     "additionalProperties": false,
     "properties": {
+     "currencies": {
+      "anyOf": [
+       {
+        "items": {
+         "enum": [
+          "CNY",
+          "USD"
+         ],
+         "type": "string"
+        },
+        "maxItems": 2,
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Currencies"
+     },
+     "currency": {
+      "anyOf": [
+       {
+        "enum": [
+         "CNY",
+         "USD"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Currency"
+     },
      "dailyReview": {
       "anyOf": [
        {
@@ -8402,6 +10318,18 @@
       "default": "",
       "title": "Filter",
       "type": "string"
+     },
+     "habits": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Habits"
      },
      "month": {
       "anyOf": [
@@ -8915,7 +10843,7 @@
       "type": "integer"
      },
      "symbol": {
-      "pattern": "^[A-Za-z]+\\.[A-Za-z]+(?:\\d{3,4}|[FGHJKMNQUVXZ]\\d{2})$",
+      "pattern": "^[A-Za-z]+\\.[A-Za-z][A-Za-z0-9]*(?:\\d{3,4}|[FGHJKMNQUVXZ]\\d{2})$",
       "title": "Symbol",
       "type": "string"
      },
@@ -9255,6 +11183,17 @@
       "description": "补一句：表单空时按这句生成整份计划，已有内容时只改相关字段（POST /api/strategy-plans/design-jobs，带 previousPlan）；改到的字段高亮，不直接保存",
       "title": "Ask"
      },
+     "choose": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/StrategyEditorChoice"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "点选卡上的几项（不经 AI，改了要存）：提醒模式的 repeat / until / watchlist，策略的 signalAction；快照 state.strategyEditor.fields.reminder 与 fields.signalAction"
+     },
      "close": {
       "anyOf": [
        {
@@ -9340,6 +11279,19 @@
       "description": "打开编辑卡：有没存的草稿就接着改，没有就新建（同 new）",
       "title": "Open"
      },
+     "reminder": {
+      "anyOf": [
+       {
+        "const": true,
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "和 new 一起用：新建提醒（提醒模式，2026-10-25 第 6 批）——只填条件和提醒时段，不填手数和止损；保存为只提醒的策略（plan.reminderOnly），列在提醒面板“我的提醒”、不出现在“我的策略”，“开始提醒”按只提醒上线（不出卡、不下单）",
+      "title": "Reminder"
+     },
      "save": {
       "anyOf": [
        {
@@ -9368,6 +11320,77 @@
      }
     },
     "title": "StrategyEditorChange",
+    "type": "object"
+   },
+   "StrategyEditorChoice": {
+    "additionalProperties": false,
+    "description": "编辑卡上点选的几项 (改版第一步 2026-10-31)：提醒的响几次、到期、整张自选表；策略的“信号来了怎么办”。",
+    "properties": {
+     "repeat": {
+      "anyOf": [
+       {
+        "enum": [
+         "once",
+         "rearm",
+         "bar"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "提醒·响几次：once 只响一次（响过自动停）/ rearm 条件再满足再响 / bar 每根 K 线最多一次",
+      "title": "Repeat"
+     },
+     "signalAction": {
+      "anyOf": [
+       {
+        "enum": [
+         "alert",
+         "confirm",
+         "auto"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "策略·信号来了怎么办：上线运行对话框默认选中的执行方式（alert 只提醒 / confirm 出卡确认 / auto 自动下单，auto 要 设置 → 交易 → AI 自主执行 开着）；上线仍由用户点",
+      "title": "Signalaction"
+     },
+     "until": {
+      "anyOf": [
+       {
+        "enum": [
+         "today",
+         "week",
+         "forever"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "提醒·到期：today 今天收盘 / week 本周 / forever 一直（到期自动停并说一声）",
+      "title": "Until"
+     },
+     "watchlist": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "提醒·盯哪个品种：true 整张自选表（开始提醒时按每个自选品种的主力合约各上线一个，分别判断）/ false 只盯卡上的合约",
+      "title": "Watchlist"
+     }
+    },
+    "title": "StrategyEditorChoice",
     "type": "object"
    },
    "StrategyInstanceChange": {
@@ -9531,7 +11554,7 @@
       "anyOf": [
        {
         "maxLength": 40,
-        "pattern": "^[A-Za-z]+\\.[A-Za-z0-9]+$",
+        "pattern": "^(?:KQD?\\.[A-Za-z]@)?[A-Za-z]+\\.[A-Za-z0-9]+$",
         "type": "string"
        },
        {
@@ -9825,6 +11848,23 @@
       "title": "Questions",
       "type": "array"
      },
+     "reminder": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/ReminderOptions"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "提醒页的提醒的响几次、到期与自选表（只用于 reminderOnly）；null＝原来的做法（条件再满足才再响、一直提醒）。"
+     },
+     "reminderOnly": {
+      "default": false,
+      "description": "只提醒 (2026-10-25 第 6 批)：提醒面板“新建提醒”存的策略——只填条件和时段，手数止损不用；上线只能“信号来了只提醒”，不出卡、不下单，列在“我的提醒”、不出现在“我的策略”。",
+      "title": "Reminderonly",
+      "type": "boolean"
+     },
      "rules": {
       "$ref": "#/components/schemas/StrategyRules"
      },
@@ -9836,6 +11876,23 @@
       "maxItems": 3,
       "title": "Scaleout",
       "type": "array"
+     },
+     "signalAction": {
+      "anyOf": [
+       {
+        "enum": [
+         "alert",
+         "confirm",
+         "auto"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "信号来了怎么办：上线运行对话框默认选中的执行方式（只是默认，上线仍由用户点；自动下单仍要 AI 自主执行开着）。null＝出卡确认。",
+      "title": "Signalaction"
      },
      "sizing": {
       "anyOf": [
@@ -10728,7 +12785,9 @@
          "order",
          "strategy",
          "positions",
-         "news"
+         "news",
+         "debate",
+         "reminders"
         ],
         "type": "string"
        },
@@ -10796,10 +12855,13 @@
          "shortcuts",
          "data",
          "about",
+         "remote-keys",
+         "remote-diagnostics",
          "trade-advanced",
          "voice-advanced",
          "chart-advanced",
          "memory-advanced",
+         "ui-board",
          "feedback",
          "connection",
          "appearance",
@@ -10822,6 +12884,7 @@
       "anyOf": [
        {
         "enum": [
+         "playbooks",
          "library",
          "detail",
          "running",
@@ -11088,6 +13151,23 @@
     "title": "TradeNoteRequest",
     "type": "object"
    },
+   "TradePlaybookRequest": {
+    "additionalProperties": false,
+    "description": "A closed round trip's afterwards 打法 (GET /api/playbooks 的 id).",
+    "properties": {
+     "playbookId": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Playbookid",
+      "type": "string"
+     }
+    },
+    "required": [
+     "playbookId"
+    ],
+    "title": "TradePlaybookRequest",
+    "type": "object"
+   },
    "TradePreferences": {
     "additionalProperties": false,
     "properties": {
@@ -11149,6 +13229,19 @@
        }
       ],
       "title": "Limitprice"
+     },
+     "playbookId": {
+      "anyOf": [
+       {
+        "maxLength": 64,
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Playbookid"
      },
      "positionBucket": {
       "anyOf": [
@@ -11248,8 +13341,19 @@
     "type": "object"
    },
    "TradeProtectionRequest": {
-    "description": "开仓时顺带挂的保护价（至少一个）：确认成交后按实际成交量自动挂上，撤单/未成交不挂。",
+    "description": "开仓时顺带挂的保护价（至少一个）：确认成交后按实际成交量自动挂上，撤单/未成交不挂。trailing 让止损按最新价\n只收紧地追踪；breakevenAtR 浮盈到 1R（开仓价到止损的距离）后把止损移到开仓价。两者都要有止损价。",
     "properties": {
+     "breakevenAtR": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Breakevenatr"
+     },
      "stopLossPrice": {
       "anyOf": [
        {
@@ -11273,6 +13377,16 @@
        }
       ],
       "title": "Takeprofitprice"
+     },
+     "trailing": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/ProtectionTrailing"
+       },
+       {
+        "type": "null"
+       }
+      ]
      }
     },
     "title": "TradeProtectionRequest",
@@ -11322,7 +13436,7 @@
    },
    "UiChanges": {
     "additionalProperties": false,
-    "description": "每条命令仅含一个字段。多项外观或布局放在 presentation 中一次提交；settingsPage 自动打开设置（account 账户 / ai AI 与对话 / memory 记忆（画像与“我的流程”：列表 GET /api/routines，删的二次确认是 disclosure: routine-delete，id=流程 id）/ voice 语音 / chart 图表 / trade 交易 / notify 提醒（每类提醒一个开关，管对话、桌面通知、语音与锁屏推送，开关是 preference 命令；急停总是提醒）/ ui 界面 / shortcuts 快捷键 / data 数据与隐私 / about 关于，二级页 trade-advanced 高级交易设置 / voice-advanced 判停与确认时限 / chart-advanced 指标参数与均线 / memory-advanced 约定、经验与最近变动 / feedback 问题与建议（关于下的二级页，游客也可打开；填写、复制和打开邮件草稿由用户操作，草稿不代表发送）；旧值 connection→account、appearance→ui、simulation→trade、fees→trade-advanced 仍接受）；后台管理是独立网页 qilinshuzhi.com/trader/admin，不在交易工作区窗口里，没有对应界面命令；dialog 打开/关闭对话框与抽屉（quick-order-confirm、abandon-order、proposal-confirm（只在 1.8.0 桌面客户端，网页无此框）只能关闭；update-dialog 是新版本更新窗，仅开关窗口，下载安装仍是用户受保护操作）；disclosure 展开/收起折叠段与开关（设置 → 账户：档位的每日额度与今日用量是 plan-quota；实盘开关是 live-trading——暂无期货公司接入，open: true 被拒并说明原因，快照 state.liveTrading＝{state: off, disabledReason}）；reviewSelect、selectPosition 传 null 表示取消选择；reviewDay 打开复盘（电脑是复盘页、手机是复盘摘要页）并把“今日复盘”块切到那个交易日（只能是 GET /api/account/daily-review 的 days 里的一天，否则 rejected；快照 state.review.dailyReview）；“今日复盘”块的“怎么算的”折叠是 disclosure: review-how；重新生成、记住、不对是业务接口 POST /api/account/daily-review/regenerate 与 /observation；highlight 高亮一个界面目标并配说明气泡，chartAnnotations 在主图画 AI 标注（set/add/clear），chartFocus 把图表滚到某时间段（null 回到最新）；selectedPrice 设置/清除候选价（图上左键选价已移除，只有下单面板的五档和这一命令能设）；panel 打开右侧栏面板（ai 对话 / strategy 策略 / news 新闻 / order 下单：五档 + 下单票 + 本合约持仓 / positions 持仓，null 收起）；旧值 depth（原价格阶梯，已并入下单面板）仍接受，按 order 打开并按 order 回报；chartMarks:\"clear\" 清空当前合约图上标记（AI 标注、回测买卖点一并清除，并把成交标记的清除时间记为现在，此前的成交标记不再显示、新成交仍显示）；画线（2026-10-09 第二版，K 线与分时）：disclosure chart-drawing-toolbar 显示/收起画线工具栏（平时隐藏，浮在图表左侧；选了工具会自己出来，回十字光标就收起；手机单图上是 ✎ 底部面板；旧名 chart-drawing-tools 同义），chart-drawing-group {id: lines|levels|fib|shapes|notes|measure} 显示工具栏并展开一组工具，chart-drawing-tool {id: 工具名如 trendline/hline/fib} open 开始画（在图上点）、false 回十字光标，chart-drawing-magnet / chart-drawing-lock-all / chart-drawings-hidden 是磁吸、全部锁定、全部隐藏三个开关，chart-drawing-clear 打开“全部删除”的二次确认（这些也在主图右键“画线 ▸”里），chart-drawing-style {id: 线 id} 选中一条线并出浮动样式条（手机单图上是图下的条，mobile-drawing-style-row {id: color|width|dash} 展开其中一排颜色 / 粗细 / 线型，要先选中线），chart-drawing-settings {id: 线 id} 打开精确设置，chart-context-menu {id: main | drawing:<线 id> | pane:<kd|macd|rsi|oi>，可加 /draw、/period、/indicator、/add-pane、/style、/swap 打开子菜单} 打开三种右键菜单（只服务图表，不含下单）；画、改、删本身走 /api/market/drawings（快照 state.chartDrawings：工具栏、选中、各开关、打开的菜单与本合约的线 items）；presentation.reset 恢复默认布局；tour 启动/推进/结束分步引导（start 带 steps，每步先 focus 再 highlight）；preference 从设置页改一项账号偏好（key 点分路径 + value；agent 直接用 update_preferences 更省事；trade.aiAutonomy 与 trade.voiceOrderConfirm 不经界面命令改，只用 update_preferences）；tradingAccount 把当前会话换到目录里的另一个账户（PUT /api/sessions/{id}/account，观察见 runtime.status.account 与 UiState.tradingAccount）；strategyTab 打开策略面板并切到 library 我的策略（“新建策略”按钮 + 每个策略一张卡）/ running 正在运行 / detail 选中策略的结果页（从卡片打开；旧值 lab＝原实验室，打开结果页的“试几组参数比一比”，回报 detail）；positionsTab 的 fills 是持仓面板与底栏的「成交」页（旧值 trades 仍接受），fillsSource 按来源筛选成交（all 全部 / manual 手动 / card AI 建议（对话里 AI 出卡、你确认的）/ ai AI 自主 / strategy 策略 / stop 止损）；aiFilter 已退役（对话面板只放对话），仍接受但只打开对话面板；strategyLaunch 填上线对话框的合约与执行方式（先 dialog: strategy-launch 打开；验证并上线由用户点）；strategyInstance 已退役：运行中实例的执行方式（alert / confirm / auto）只用 start_strategy_monitoring 改，快照 state.strategyInstances 照常；strategy-actions / strategy-delete-confirm 开关已有策略的更多操作 / 删除确认，id=library:<策略id> 或 replay:<策略id>，不执行删除；strategyEditor 操作策略编辑卡（新建或修改策略都用它，电脑放在策略面板里，手机布局是盖住底部标签的整屏页（disclosure strategy-editor-section {id: basics|entry|exit|sizing|flow} 切四段与策略流程、strategy-editor-condition {id: 组:第几条，如 entryLong:1} 开合某条条件的底部面板，strategy-editor-trades 展开预填依据）；电脑上打开时策略面板约占窗口四分之三，右栏是策略流程图与回测；disclosure strategy-editor-picker {id: 组:第几条:left|right，如 entryLong:1:left} 打开某条条件一侧的指标选择器（全部指标分类可搜索，手机打开该条的底部面板并停在那一侧），strategy-editor-sizing-more 展开④的更多，help-tip {id: 说明的 key} 打开一个“?”说明；只设计不下单）：new:true 新建（起点默认按我的习惯：近 20 个交易日已平仓成交至少 5 笔时程序按成交预填合约、方向、止损跳数、收盘前平仓、开仓时段、每次手数，带 AI 标记与依据，不够就空白；合约默认当前图表合约），edit:\"<strategyId>\" 修改已有策略（卡片表达不了的规则原样保留，存为新版本、原版本保留），open:true 打开（有没存的草稿接着改），start 换起点（blank / habits / template:<模板id>），ask:\"一句话\" 补一句（表单空时生成整份计划，已有内容时只改相关字段，改到的字段高亮、不直接保存），answers {问题 id: 回答} 回答 AI 追问，focus 把表单定位到流程图的某一块（同点方块：basics/entry/exit/sizing 或 trigger/entryLong/entryShort/action/stop/take/trailing/breakeven/scaleOut/timeTakeProfit/maxHold/closeBeforeEnd/exitRules/limits），save:true 存为草稿（开仓条件和止损填好才能存，存好电脑打开结果页、手机回到我的策略，都自动回测），close:true 关闭并放弃没存的改动；上线运行仍由用户在卡里点（打开上线对话框）。改动后约 1.5 秒自动用已收盘 K 线回测最近 60 个交易日（默认在本机浏览器算，算不了自动转云端；快照 state.strategyEditor：各字段、aiFields、prefill、backtest 四格、flow 流程图结构（触发、开多 / 开空条件组与每条满足次数、开仓、各平仓方式与回测里实际触发次数、冷却与每天次数；次数只取当前表单的预览回测，拿不到不写）、focus、canSave、missing、questions；backtest.source browser/server 与 fallbackReason、engine 本机引擎状态只供排障）；strategyBacktest 操作选中策略结果页的回测（界面只有这一种回测：规则回测，默认最近 6 个月、扣手续费；默认在本机浏览器算，算不了自动转云端，存为策略后的那次由服务端重跑）：tradingDays / slippageTicks 改参数，run:true 按当前参数回测，mark 把开平仓点画到图上或清除，trades 展开逐笔清单，applyAdvice:\"<建议 id>\" 按回测体检的这条建议改好、存为新版本并重跑回测（快照 state.strategyBacktest，verdict 是“AI 怎么看”：程序算的事实句与模型写的那句；source browser/server 是这次在哪算的、fallbackReason 是为何转云端、browserCheck 是服务端按同一份输入复核本机结果是否一致、engine 是本机引擎状态，只供排障，界面不显示）；strategyTemplate {restore:true} 让结果页里来自模板的策略恢复模板默认（快照 state.strategyTemplate）；模板画廊已并入策略编辑卡的“从模板”（strategyEditor start template:<id>）。strategyLab 操作结果页的“试几组参数比一比”（原实验室页签已去掉）：open 打开选中策略的结果页并停在比较，run:true 对它最关键的一个参数跑当前值和上下各一组（默认本机算、算不了转云端，前 70% 挑、后 30% 单独检验），labId 打开那次比较所属策略的结果页，choose:\"<变体 id>\" 把这组存为我的策略、服务端先重跑权威回测；useServer 旧字段照收（快照 state.strategyLab：每组赚 / 最多亏 / 胜率、当前组、line＝“后 X 个月单独检验：…”、where＝browser/server、fallbackReason）。停止并平仓：运行中卡的“停止并平仓”＝ POST /api/strategies/{id}/monitor/stop {closePositions:true}——停止后这个策略还有持仓就在对话里出平仓卡等用户确认，从不直接下单（自动下单的实例也一样）。help 操作使用说明卡（没开时先打开）：topic 打开主题（旧 id 仍可用），group 打开分组的第一个主题，query 搜索，detail 展开 / 收起“完整说明”，faq:{index,open} 展开 / 收起一个常见问题，retry:true 在说明读取失败后重新读取（快照 state.help，含 loadStatus loading/ready/error/offline、loadError、canRetry）；dialog: help 仍可开关卡片。view 切到 board 打开报价总表（全部品种主力合约一张表）；boardExchange 换总表的交易所筛选（all 或 watchlist 自选＝只看星标品种，FOREIGN 外盘＝海外主连报价，点一行打开它的图表（同合约选择的海外主连），快照 state.boardExchange、state.boardWatchlistCount 是自选数），boardSort 换总表排序 {key, order}（快照 state.boardSort）——筛选与排序由账号偏好 marketBoard 记住，自选品种清单是偏好 watchlist.products（“交易所.品种”如 SHFE.rb，增删先读再整段写，经 preference 或 update_preferences），列显示哪些用 disclosure: board-columns 打开“列”浮层（快照 disclosures.board-columns），增删调序经 preference: marketBoard.columns 或 update_preferences；contractProduct 展开合约抽屉里某个品种的月份列表（“<交易所>.<品种>”如 SHFE.rb，需抽屉已打开，null 收起全部，快照 state.contractProduct）；contractCatalogRetry: true 等价抽屉里的“重试”，目录读取失败或读到空目录后重新读取（需抽屉已打开、快照 state.contractCatalog.canRetry 为 true；正在读取、已读到、应用服务未连接或游客会话失效时 rejected（命令回执只有状态，原因读快照 state.contractCatalog.status））。duration 切 K 线周期（60/180/300/900/1800/3600/86400/604800 秒 = 1/3/5/15/30 分、1 小时、日线、周线），任何周期都会回到 K 线视图；chartView 切图表形态：timeshare 打开分时图（当交易日分钟收盘折线＋当日均价＋昨结虚线，数据周期钉在 60 秒，无 MA/副图指标）、kline 回 K 线（快照 state.chartView）。mobileTab 切手机版底部标签（只对手机布局的窗口有效，电脑布局 rejected）：ai AI 首页（今天概况、待确认置顶、带筛选的时间线）、chat AI 对话（与 panel: ai 同一状态）、research 调研、market 看盘、strategy 策略（正在运行 / 我的策略两个分页 + 底部“跟 AI 说……”输入框；分页用 mobileStrategyTab；我的策略顶上“新建策略”、每条“编辑 / 回测 / 上线…”，新建与编辑用 strategyEditor）、me 我的；旧值 notify（原通知标签，已并进 AI 首页）仍接受，打开 AI 首页并保持当前筛选，快照回报 mobileTab ai（快照 state.mobileLayout、state.mobileTab；手机布局下打开侧边面板的命令 rejected；没登录的游客窗口也是手机布局，默认 market，只能看盘和调研，ai / strategy / me 显示“登录后使用”页，chat 不可用）。mobilePage 打开手机版的全屏子页（只对手机布局有效）：order 下单页（当前合约，确认后才下单）、positions 持仓与委托、review 复盘摘要、briefs AI 简报推送（推送开关与订阅品种，增删调序走 PUT /api/app/brief-subscriptions）、install 安装到桌面引导（按浏览器给步骤、安卓一键安装按钮或微信等 App 内的换浏览器遮罩；快照 state.installEnvironment 是识别出的环境 installed / in-app-ios / in-app-android / ios-safari-26 / ios-safari-legacy / ios-chrome-edge / ios-other / android-prompt / android-vendor / desktop；安装本身由用户在浏览器里完成）、reminders 提醒（提醒中心的手机页，同 reminderCenter: {open: true}）、push 锁屏提醒（这台设备的开关与“发一条试试”、已开锁屏提醒的设备；提醒哪些事与锁屏上显示金额和手数在 settingsPage notify；快照 state.pushSupport＝supported / needs-install（iPhone 要先放到主屏幕）/ unsupported（安卓与 Chrome 走谷歌推送，国内收不到），state.pushSubscribed＝这台设备是否已开；打开必须用户在页面上点，AI 只能用 GET /api/app/push 查、POST /api/app/push/test 发一条试试）、lab 回测结果页（策略 → 最近的回测里最新一次；几组参数的净值、样本内 / 样本外与过拟合风险，选用一组走 POST /api/strategy-labs/{labId}/choose，“上线运行”与电脑同一校验、执行方式固定出卡确认；要看指定的一次用 mobileLab）、accounts 设置·账户（交易账户切换）、memory 设置·记忆（AI 与记忆，含我的流程）、appearance 设置·界面（外观与字号）、help 使用说明卡，null 关闭（快照 state.mobilePage）；手机布局下 positionsTab / fillsSource / ordersHistory 落到持仓与委托页、ticketMode / selectPosition 落到下单页、reviewExpand / reviewFilter / reviewSelect 落到复盘摘要页；看盘的合约选择是 dialog: contract-drawer，周期与合约用 duration / chartView / symbol。mobileNotifyFilter 切 AI 首页时间线的筛选（原通知页）并打开 AI 标签、滚到时间线：all 全部、fill 成交、brief AI 简报；旧值 reminder 打开提醒页（快照 state.mobileNotifyFilter；state.mobileUnread 是提醒中心的未读条数，与 state.reminderCenter.unread 相同）。reminderCenter {open?, filter?, more?} 打开/关闭提醒中心——电脑是 K 线工具条铃铛的浮层，手机是 AI 首页铃铛进的整屏提醒页（同一份数据）：filter unread 只看未读、all 当天全部（只给 filter 也会打开）；more: true＝“继续加载当天提醒”，当天一次最多读 500 条，快照 state.reminderCenter.moreToday 为 true 时读下一批（同时打开提醒中心）：下一批读到才回 applied（moreDone 追上 moreAsked 且 moreError 为空），没有更多、刚刷新过要再点或读取失败回 rejected，原因在 state.reminderCenter.moreError；内容是到价提醒·生效中（新建表单是 disclosure: reminder-alert-new，增删走 /api/market/alerts）和当前交易日的提醒按日盘上午 / 下午 / 夜盘分组倒序，“查看更早”与已读走业务接口 GET /api/reminders?scope=earlier、POST /api/reminders/read（快照 state.reminderCenter {open, filter, unread, today, moreToday, moreAsked, moreDone, moreError, earlier}，today 是已读出的当天条数）；点一条提醒去它的卡（对话）、委托、复盘、调研或新闻；保本提醒的“移到成本 / 不用”是 POST /api/ai-execution/breakeven/{id}/{move|decline}。mobileNotifyProduct 在 AI 首页时间线的 AI 简报下只看一个品种（“<交易所>.<品种>”如 SHFE.rb，须是订阅品种（推送范围内）或时间线里出现的品种，否则 rejected；null 看全部品种；同时切到 AI 简报筛选与 AI 标签，快照 state.mobileNotifyProduct）。mobileLab {labId} 打开手机版回测结果页看指定的一次比较（labId 来自 GET /api/strategy-labs；快照 state.mobilePage lab、state.mobileLab {labId, chosen}——chosen 是已选用的变体，未选为 null）。mobileStrategyTab 切手机版策略页的分页（running 正在运行：暂停 / 继续 / 停止并平仓；mine 我的策略：顶上“新建策略”，每个策略一张卡带“编辑 / 回测 / 上线…”，一条没有时是三种开始方式与常用模板），先切到策略标签（快照 state.mobileStrategyTab）。mobileMarket 改手机版看盘（只对手机布局有效，先切到看盘标签；一次一项）：view quotes 报价列表 / multi 多图 / single 单图；board 报价板块 watchlist 自选 / main 主力 / SHFE 上期所 / DCE 大商所 / CZCE 郑商所 / CFFEX 中金所 / GFEX 广期所 / INE 能源中心 / FOREIGN 外盘（点一行打开它的单图；切到报价）；columns 报价的数值列 1–4 个（last 最新 / changePercent 涨跌幅 / change 涨跌 / openInterest 持仓量 / bid 买价 / ask 卖价 / volume 成交量 / openInterestChange 日增仓）；layout 多图布局 four 4 合约 / periods 同合约 4 周期 / six 6 图（切到多图）；cell {index, symbol?, duration?} 改多图当前布局的一格（symbol null＝自动补位；同合约 4 周期里 symbol 切当前合约）；subPane 单图下面显示哪个副图（kd / macd / rsi / oi 持仓量 / cci / volume 成交量，未选的替换正在显示的那个）；subPanes true/false 开关副图设置面板（选 0–3 个副图、主图指标 均线 / 布林 / SAR、各指标参数，快照 disclosures.mobile-subpanes）。都记在账号偏好 ui.mobileMarket 与 chart.subPaneList，快照 state.preferences。researchDebate 操作“多 AI 研讨”子视图（电脑在新闻面板里，面板展开到半个窗口；手机是调研页上的整屏子页；一次一项）：start 发起或打开研讨——start: \"desk\" 等于今日判断旁的“让 AI 们辩一轮”（今日议题），start: \"event\" 研讨当前品种最新一条重要快讯，start: <事件 id>（快讯接口 events[].id）等于快讯行的“研讨”；同一事件同一品种当天只辩一次、今日议题资料没变时直接打开已有结果；open: <研讨 id> 打开一次研讨；rerun: true 是结果页的“再辩一轮”（新跑一次，计入当日次数）；close: true 返回。研讨本身走 POST /api/research/debates（多方、空方并行两轮再由裁判匿名裁决，约 40 秒），写进今日判断走 POST /api/research/debates/{id}/adopt，取消走 POST /api/research/debates/{id}/cancel（快照 state.researchDebate：id、status queued/running/done/review 需复核/failed/cancelled、step、topic、stance、confidence、canAdopt、adopted、request）。游客不能发起。",
+    "description": "remoteSettings 操作本机遥控器：enabled 布尔、bindings 按键到动作对象、resetBindings 布尔、diagnostic 布尔、disconnect 布尔；按住说话仅语音键，连接必须用户点击选择硬件；诊断只在测试与诊断页开始，离开自动停止，不保存或上传录音。quickVolume 设置本机快捷手数 1 / 2 / 5（快照 state.quickVolume），不下单；快捷买多、卖空、平仓、平今、平一半、撤本合约挂单、反手仅人工操作，AI 使用候选卡。每条命令仅含一个字段。多项外观或布局放在 presentation 中一次提交；settingsPage 自动打开设置（account 账户 / ai AI 与对话 / memory 记忆（画像与“我的流程”：列表 GET /api/routines，删的二次确认是 disclosure: routine-delete，id=流程 id）/ voice 语音 / chart 图表 / trade 交易 / notify 提醒（每类提醒一个开关，管对话、桌面通知、语音与锁屏推送，开关是 preference 命令；急停总是提醒）/ ui 界面 / shortcuts 快捷键 / data 数据与隐私 / about 关于，二级页 trade-advanced 高级交易设置 / voice-advanced 判停与确认时限 / remote-keys 遥控器按键设置 / remote-diagnostics 遥控器测试与诊断 / chart-advanced 指标参数与均线 / memory-advanced 约定、经验与最近变动 / feedback 问题与建议（关于下的二级页，游客也可打开；填写、复制和打开邮件草稿由用户操作，草稿不代表发送）；旧值 connection→account、appearance→ui、simulation→trade、fees→trade-advanced 仍接受）；后台管理是独立网页 qilinshuzhi.com/trader/admin，不在交易工作区窗口里，没有对应界面命令；dialog 打开/关闭对话框与抽屉（quick-order-confirm、abandon-order、protection-reprice-confirm（图上拖线改价的确认卡）、proposal-confirm（只在 1.8.0 桌面客户端，网页无此框）只能关闭；update-dialog 是新版本更新窗，仅开关窗口，下载安装仍是用户受保护操作；change-password 是设置 → 账户的修改密码框（先 settingsPage: account），只开关，密码由用户本人输入和提交，快照不含输入内容）；disclosure 展开/收起折叠段与开关（设置 → 账户：档位的每日额度与今日用量是 plan-quota；实盘开关是 live-trading——暂无期货公司接入，open: true 被拒并说明原因，快照 state.liveTrading＝{state: off, disabledReason}）；reviewSelect、selectPosition 传 null 表示取消选择；reviewDay 打开复盘（电脑是复盘页、手机是复盘摘要页）并把“今日复盘”块切到那个交易日（只能是 GET /api/account/daily-review 的 days 里的一天，否则 rejected；快照 state.review.dailyReview）；“今日复盘”块的“怎么算的”折叠是 disclosure: review-how；“习惯对照”块（实际 vs 只做计划内，GET /api/account/habits）的“怎么算的”折叠是 disclosure: habits-how，快照 state.review.habits（status、actual、planned、gap、picks 的成交 id，选中一笔用 review select）；重新生成、记住“本周最该改的一件事”是业务接口 POST /api/account/daily-review/regenerate 与 /observation；reviewCurrency CNY / USD 把账户复盘切到人民币账或外盘美元账（本站模拟合成一个账户：外盘合约在美元子账户撮合记账，顶栏权益、成交与账户明细都两边一起显示；只有有美元子账户时能切 USD，快照 state.review.currency / currencies）；highlight 高亮一个界面目标并配说明气泡，chartAnnotations 在主图画 AI 标注（set/add/clear），chartFocus 把图表滚到某时间段（null 回到最新）；selectedPrice 设置候选价并打开下单台、填入手动价格且切到限价（只填价，不改方向、不下单；快照 ticketPrice / ticketPriceMode），null 只清除候选价标记（图上左键选价已移除，五档和此命令共用入口）；panel 打开右侧栏面板（ai 对话 / strategy 策略 / news 调研（2026-10-25 前叫新闻；页签 sheet 今天（今日作战表，第一页：自选品种按优先级一行一个，关键价位、消息、可能用上的交易笔记、今日判断那一句，快照 state.news.sheet 回报 status / rows / high / mid / low / top；GET /api/research/sheet）/ desk 品种 / flash 快讯；news 相关报道（原资讯）、debate 辩论是“品种”下的子页（2026-10-31 改版第一步）；data 研究数据不再列在品种页“更多”里（基本面已含其内容），仍可直接用 tab 打开）/ debate 辩论：打开调研面板的辩论页签（原右侧栏单独的辩论页），按 panel news、news.tab debate 回报 / reminders 提醒（2026-10-25 新增；页签用 reminders {tab: mine 我的提醒 | general 通用提醒（原设置 → 提醒）| history 提醒记录（原提醒中心）}）/ order 下单：五档 + 下单票 + 本合约持仓 / positions 持仓，null 收起）；旧值 depth（原价格阶梯，已并入下单面板）仍接受，按 order 打开并按 order 回报；chartMarks:\"clear\" 清空当前合约图上标记（AI 标注、回测买卖点一并清除，并把成交标记的清除时间记为现在，此前的成交标记不再显示、新成交仍显示）；画线（2026-10-09 第二版，K 线与分时）：disclosure chart-drawing-toolbar 显示/收起画线工具栏（平时隐藏，浮在图表左侧；选了工具会自己出来，回十字光标就收起；手机单图上是 ✎ 底部面板；旧名 chart-drawing-tools 同义），chart-drawing-group {id: lines|levels|fib|shapes|notes|measure} 显示工具栏并展开一组工具，chart-drawing-tool {id: 工具名如 trendline/hline/fib} open 开始画（在图上点）、false 回十字光标，chart-drawing-magnet / chart-drawing-lock-all / chart-drawings-hidden 是磁吸、全部锁定、全部隐藏三个开关，chart-drawing-clear 打开“全部删除”的二次确认（这些也在主图右键“画线 ▸”里），chart-drawing-style {id: 线 id} 选中一条线并出浮动样式条（手机单图上是图下的条，mobile-drawing-style-row {id: color|width|dash} 展开其中一排颜色 / 粗细 / 线型，要先选中线），chart-drawing-settings {id: 线 id} 打开精确设置，chart-context-menu {id: main | drawing:<线 id> | pane:<kd|macd|rsi|oi>，可加 /draw、/period、/indicator、/add-pane、/style、/swap 打开子菜单} 打开三种右键菜单（只服务图表，不含下单）；画、改、删本身走 /api/market/drawings（快照 state.chartDrawings：工具栏、选中、各开关、打开的菜单与本合约的线 items）；presentation.reset 恢复默认布局；tour 启动/推进/结束分步引导（start 带 steps，每步先 focus 再 highlight）；preference 从设置页改一项账号偏好（key 点分路径 + value；agent 直接用 update_preferences 更省事；trade.aiAutonomy 与 trade.voiceOrderConfirm 不经界面命令改，只用 update_preferences）；tradingAccount 把当前会话换到目录里的另一个账户（PUT /api/sessions/{id}/account，观察见 runtime.status.account 与 UiState.tradingAccount）；strategyTab 打开策略面板并切到 library 我的策略（策略面板只有我的策略 / 正在运行两页；旧值 playbooks＝原打法页，2026-10-31 起打法改名交易笔记、搬到复盘页，按 playbooks 打开复盘页并按 view: review 回报，新建 / 改的表单是 disclosure: playbook-editor，增删改走 /api/playbooks）/ library 我的策略（“新建策略”按钮 + 每个策略一张卡）/ running 正在运行 / detail 选中策略的结果页（从卡片打开；旧值 lab＝原实验室，打开结果页的“试几组参数比一比”，回报 detail）；positionsTab 的 fills 是持仓面板与底栏的「成交」页（旧值 trades 仍接受），fillsSource 按来源筛选成交（all 全部 / manual 手动 / card AI 建议（对话里 AI 出卡、你确认的）/ ai AI 自主 / strategy 策略 / stop 止损）；aiFilter 已退役（对话面板只放对话），仍接受但只打开对话面板；strategyLaunch 填上线对话框的合约与执行方式（先 dialog: strategy-launch 打开；验证并上线由用户点）；strategyInstance 已退役：运行中实例的执行方式（alert / confirm / auto）只用 start_strategy_monitoring 改，快照 state.strategyInstances 照常；strategy-actions / strategy-delete-confirm 开关已有策略的更多操作 / 删除确认，id=library:<策略id> 或 replay:<策略id>，不执行删除；strategyEditor 操作策略编辑卡（新建或修改策略都用它，电脑放在策略面板里，手机布局是盖住底部标签的整屏页（disclosure strategy-editor-section {id: basics|entry|exit|sizing|flow} 切四段与策略流程、strategy-editor-condition {id: 组:第几条，如 entryLong:1} 开合某条条件的底部面板，strategy-editor-trades 展开预填依据）；电脑上打开时策略面板约占窗口四分之三，右栏是策略流程图与回测；disclosure strategy-editor-picker {id: 组:第几条:left|right，如 entryLong:1:left} 打开某条条件一侧的指标选择器（全部指标分类可搜索，手机打开该条的底部面板并停在那一侧），strategy-editor-sizing-more 展开④的更多，help-tip {id: 说明的 key} 打开一个“?”说明；只设计不下单）：new:true 新建（起点默认按我的习惯：近 20 个交易日已平仓成交至少 5 笔时程序按成交预填合约、方向、止损跳数、收盘前平仓、开仓时段、每次手数，带 AI 标记与依据，不够就空白；合约默认当前图表合约），edit:\"<strategyId>\" 修改已有策略（卡片表达不了的规则原样保留，存为新版本、原版本保留），open:true 打开（有没存的草稿接着改），start 换起点（blank / habits / template:<模板id>），ask:\"一句话\" 补一句（表单空时生成整份计划，已有内容时只改相关字段，原话点名一个合约时卡换成该合约，改到的字段高亮、不直接保存），answers {问题 id: 回答} 回答 AI 追问，focus 把表单定位到流程图的某一块（同点方块：basics/entry/exit/sizing 或 trigger/entryLong/entryShort/action/stop/take/trailing/breakeven/scaleOut/timeTakeProfit/maxHold/closeBeforeEnd/exitRules/limits），choose 点选卡上的几项（提醒模式 repeat once 只响一次 / rearm 条件再满足再响 / bar 每根 K 线最多一次、until today / week / forever 到期、watchlist 整张自选表；策略 signalAction＝信号来了怎么办，上线对话框默认选中的执行方式，auto 要 AI 自主执行开着；快照 fields.reminder / fields.signalAction），save:true 存为草稿（开仓条件和止损填好才能存，存好电脑打开结果页、手机回到我的策略，都自动回测），close:true 关闭并放弃没存的改动；上线运行仍由用户在卡里点（打开上线对话框）。改动后约 1.5 秒自动用已收盘 K 线回测最近 60 个交易日（默认在本机浏览器算，算不了自动转云端；快照 state.strategyEditor：各字段、aiFields、prefill、backtest 四格、flow 流程图结构（触发、开多 / 开空条件组与每条满足次数、开仓、各平仓方式与回测里实际触发次数、冷却与每天次数；次数只取当前表单的预览回测，拿不到不写）、focus、canSave、missing、questions；backtest.source browser/server 与 fallbackReason、engine 本机引擎状态只供排障）；strategyBacktest 操作选中策略结果页的回测（界面只有这一种回测：规则回测，默认最近 6 个月、扣手续费；默认在本机浏览器算，算不了自动转云端，存为策略后的那次由服务端重跑）：tradingDays / slippageTicks 改参数，run:true 按当前参数回测，mark 把开平仓点画到图上或清除，trades 展开逐笔清单，applyAdvice:\"<建议 id>\" 按回测体检的这条建议改好、存为新版本并重跑回测（快照 state.strategyBacktest，verdict 是“AI 怎么看”：程序算的事实句与模型写的那句；source browser/server 是这次在哪算的、fallbackReason 是为何转云端、browserCheck 是服务端按同一份输入复核本机结果是否一致、engine 是本机引擎状态，只供排障，界面不显示）；strategyTemplate {restore:true} 让结果页里来自模板的策略恢复模板默认（快照 state.strategyTemplate）；模板画廊已并入策略编辑卡的“从模板”（strategyEditor start template:<id>）。strategyLab 操作结果页的“试几组参数比一比”（原实验室页签已去掉）：open 打开选中策略的结果页并停在比较，run:true 对它最关键的一个参数跑当前值和上下各一组（默认本机算、算不了转云端，前 70% 挑、后 30% 单独检验），labId 打开那次比较所属策略的结果页，choose:\"<变体 id>\" 把这组存为我的策略、服务端先重跑权威回测；useServer 旧字段照收（快照 state.strategyLab：每组赚 / 最多亏 / 胜率、当前组、line＝“后 X 个月单独检验：…”、where＝browser/server、fallbackReason）。停止并平仓：运行中卡的“停止并平仓”＝ POST /api/strategies/{id}/monitor/stop {closePositions:true}——停止后这个策略还有持仓就在对话里出平仓卡等用户确认，从不直接下单（自动下单的实例也一样）。help 操作使用说明卡（没开时先打开）：topic 打开主题（旧 id 仍可用），group 打开分组的第一个主题，query 搜索，detail 展开 / 收起“完整说明”，faq:{index,open} 展开 / 收起一个常见问题，retry:true 在说明读取失败后重新读取（快照 state.help，含 loadStatus loading/ready/error/offline、loadError、canRetry）；dialog: help 仍可开关卡片。view 切到 board 打开报价总表（全部品种主力合约一张表）；boardExchange 换总表的交易所筛选（all 或 watchlist 自选＝只看星标品种，FOREIGN 外盘＝海外主连报价，点一行打开它的图表（同合约选择的海外主连），快照 state.boardExchange、state.boardWatchlistCount 是自选数），boardSort 换总表排序 {key, order}（快照 state.boardSort）——筛选与排序由账号偏好 marketBoard 记住，自选品种清单是偏好 watchlist.products（“交易所.品种”如 SHFE.rb，增删先读再整段写，经 preference 或 update_preferences），列显示哪些用 disclosure: board-columns 打开“列”浮层（快照 disclosures.board-columns），增删调序经 preference: marketBoard.columns 或 update_preferences；contractProduct 展开合约抽屉里某个品种的月份列表（“<交易所>.<品种>”如 SHFE.rb，海外主连用外盘品种键如 COMEX.GC，需抽屉已打开，null 收起全部，快照 state.contractProduct）；contractCatalogRetry: true 等价抽屉里的“重试”，目录读取失败或读到空目录后重新读取（需抽屉已打开、快照 state.contractCatalog.canRetry 为 true；正在读取、已读到、应用服务未连接或游客会话失效时 rejected（命令回执只有状态，原因读快照 state.contractCatalog.status））。duration 切 K 线周期（60/180/300/900/1800/3600/86400/604800 秒 = 1/3/5/15/30 分、1 小时、日线、周线），任何周期都会回到 K 线视图；chartView 切图表形态：timeshare 打开分时图（当交易日分钟收盘折线＋当日均价＋昨结虚线，数据周期钉在 60 秒，无 MA/副图指标）、kline 回 K 线（快照 state.chartView）。mobileTab 切手机版底部标签（只对手机布局的窗口有效，电脑布局 rejected）：ai AI 首页（今天概况、待确认置顶、带筛选的时间线）、chat AI 对话（与 panel: ai 同一状态）、research 调研、market 看盘、strategy 策略（正在运行 / 我的策略两个分页 + 底部“跟 AI 说……”输入框；分页用 mobileStrategyTab；我的策略顶上“新建策略”、每条“编辑 / 回测 / 上线…”，新建与编辑用 strategyEditor）、me 我的；旧值 notify（原通知标签，已并进 AI 首页）仍接受，打开 AI 首页并保持当前筛选，快照回报 mobileTab ai（快照 state.mobileLayout、state.mobileTab；手机布局下打开侧边面板的命令 rejected；没登录的游客窗口也是手机布局，默认 market，只能看盘和调研，ai / strategy / me 显示“登录后使用”页，chat 不可用）。mobilePage 打开手机版的全屏子页（只对手机布局有效）：order 下单页（当前合约，确认后才下单）、positions 持仓与委托、review 复盘摘要、briefs AI 简报推送（推送开关与订阅品种，增删调序走 PUT /api/app/brief-subscriptions）、install 安装到桌面引导（按浏览器给步骤、安卓一键安装按钮或微信等 App 内的换浏览器遮罩；快照 state.installEnvironment 是识别出的环境 installed / in-app-ios / in-app-android / ios-safari-26 / ios-safari-legacy / ios-chrome-edge / ios-other / android-prompt / android-vendor / desktop；安装本身由用户在浏览器里完成）、reminders 提醒（提醒中心的手机页，同 reminderCenter: {open: true}）、push 锁屏提醒（这台设备的开关与“发一条试试”、已开锁屏提醒的设备；提醒哪些事与锁屏上显示金额和手数在 settingsPage notify；快照 state.pushSupport＝supported / needs-install（iPhone 要先放到主屏幕）/ unsupported（安卓与 Chrome 走谷歌推送，国内收不到），state.pushSubscribed＝这台设备是否已开；打开必须用户在页面上点，AI 只能用 GET /api/app/push 查、POST /api/app/push/test 发一条试试）、lab 回测结果页（策略 → 最近的回测里最新一次；几组参数的净值、样本内 / 样本外与过拟合风险，选用一组走 POST /api/strategy-labs/{labId}/choose，“上线运行”与电脑同一校验、执行方式固定出卡确认；要看指定的一次用 mobileLab）、accounts 设置·账户（交易账户切换）、memory 设置·记忆（AI 与记忆，含我的流程）、appearance 设置·界面（外观与字号）、help 使用说明卡，null 关闭（快照 state.mobilePage）；手机布局下 positionsTab / fillsSource / ordersHistory 落到持仓与委托页、ticketMode / selectPosition 落到下单页、reviewExpand / reviewFilter / reviewSelect / reviewCurrency 落到复盘摘要页；看盘的合约选择是 dialog: contract-drawer，周期与合约用 duration / chartView / symbol。mobileNotifyFilter 切 AI 首页时间线的筛选（原通知页）并打开 AI 标签、滚到时间线：all 全部、fill 成交、brief AI 简报；旧值 reminder 打开提醒页（快照 state.mobileNotifyFilter；state.mobileUnread 是提醒中心的未读条数，与 state.reminderCenter.unread 相同）。reminders {tab} 打开提醒面板（电脑右侧栏“提醒”）/ 提醒页（手机）并切到该页签：mine 我的提醒（一张表：到某个价、碰到我画的线（到价提醒，增删走 /api/market/alerts，画线的带 drawingId）和按条件（条件提醒：只提醒的策略，快照 state.myReminders {status, items: [{id, name, status monitoring/paused/idle（任一合约在盯即 monitoring）, symbol（在跑的各合约）, runs [{runId, status}]}]}，暂停 / 删除作用于每个实例，改用 strategyEditor {edit: id}，开停删走策略接口 monitor/start {signalAction: alert}、monitor/pause、DELETE /api/strategy-plans/{id}）；“新建提醒”= disclosure: reminder-alert-new（到某个价的表单，当前合约），旁边“按条件…”= strategyEditor {new: true, reminder: true}）、general 通用提醒（每类提醒的开关、桌面通知、锁屏推送；原设置 → 提醒，旧命令 settingsPage: notify 也到这里）、history 提醒记录；快照 state.reminders {tab}（面板或页面开着时）。reminderCenter {open?, filter?, more?} 打开/关闭提醒记录——电脑是提醒面板的“提醒记录”页签（K 线工具条铃铛直达），手机是提醒页的同一页签（同一份数据）：filter unread 只看未读、all 当天全部（只给 filter 也会打开）；more: true＝“继续加载当天提醒”，当天一次最多读 500 条，快照 state.reminderCenter.moreToday 为 true 时读下一批（同时打开提醒中心）：下一批读到才回 applied（moreDone 追上 moreAsked 且 moreError 为空），没有更多、刚刷新过要再点或读取失败回 rejected，原因在 state.reminderCenter.moreError；内容是当前交易日的提醒按日盘上午 / 下午 / 夜盘分组倒序，“查看更早”与已读走业务接口 GET /api/reminders?scope=earlier、POST /api/reminders/read（快照 state.reminderCenter {open, filter, unread, today, moreToday, moreAsked, moreDone, moreError, earlier}，today 是已读出的当天条数）；点一条提醒去它的卡（对话）、委托、复盘、调研或新闻；保本提醒的“移到成本 / 不用”是 POST /api/ai-execution/breakeven/{id}/{move|decline}。mobileNotifyProduct 在 AI 首页时间线的 AI 简报下只看一个品种（“<交易所>.<品种>”如 SHFE.rb，须是订阅品种（推送范围内）或时间线里出现的品种，否则 rejected；null 看全部品种；同时切到 AI 简报筛选与 AI 标签，快照 state.mobileNotifyProduct）。mobileLab {labId} 打开手机版回测结果页看指定的一次比较（labId 来自 GET /api/strategy-labs；快照 state.mobilePage lab、state.mobileLab {labId, chosen}——chosen 是已选用的变体，未选为 null）。mobileStrategyTab 切手机版策略页的分页（running 正在运行：暂停 / 继续 / 停止并平仓；mine 我的策略：顶上“新建策略”，每个策略一张卡带“编辑 / 回测 / 上线…”，一条没有时是三种开始方式与常用模板），先切到策略标签（快照 state.mobileStrategyTab）。mobileMarket 改手机版看盘（只对手机布局有效，先切到看盘标签；一次一项）：view quotes 报价列表 / multi 多图 / single 单图；board 报价板块 watchlist 自选 / main 主力 / SHFE 上期所 / DCE 大商所 / CZCE 郑商所 / CFFEX 中金所 / GFEX 广期所 / INE 能源中心 / FOREIGN 外盘（点一行打开它的单图；切到报价）；columns 报价的数值列 1–4 个（last 最新 / changePercent 涨跌幅 / change 涨跌 / openInterest 持仓量 / bid 买价 / ask 卖价 / volume 成交量 / openInterestChange 日增仓）；layout 多图布局 four 4 合约 / periods 同合约 4 周期 / six 6 图（切到多图）；cell {index, symbol?, duration?} 改多图当前布局的一格（symbol null＝自动补位；同合约 4 周期里 symbol 切当前合约）；subPane 单图下面显示哪个副图（kd / macd / rsi / oi 持仓量 / cci / volume 成交量，未选的替换正在显示的那个）；subPanes true/false 开关副图设置面板（选 0–3 个副图、主图指标 均线 / 布林 / SAR、各指标参数，快照 disclosures.mobile-subpanes）。都记在账号偏好 ui.mobileMarket 与 chart.subPaneList，快照 state.preferences。desktopCharts 改电脑版多图（只对电脑布局有效；几项可一起给，按 preset → layout → cells → active → 开关的顺序生效）：layout single 单图 / two 左右 2 格 / four 2×2 四格；preset periods 同合约 4 周期（四格、同步品种、5 分 / 15 分 / 1 小时 / 日线）；cells [{index 0–3, symbol?, duration?}] 改格子的合约（null＝自动补位）与周期，选中格就是图表本身；active 选中哪一格（它成为当前合约：下单票、合约标签、AI 都跟它）；syncDuration / syncSymbol 所有格跟选中格的周期 / 合约；syncCrosshair 十字线对齐同一时间。记在账号偏好 ui.desktopCharts，快照 state.preferences；格子 data-agent-target=\"chart-cell:<序号>\"。workspaceLayout 管保存的布局（一次一项）：select <id> 切到一个布局（右侧面板和多图都换成它存的样子）；save <名字> 新建一个空白布局并切过去（没有右侧面板、单图、合约与周期不变；最多 11 个）；rename {id, name} 改名；remove <id> 删除（删当前的切到第一个）。默认有 pre 盘前 / live 盘中 / review 复盘；现在这个布局里的改动会自动存进它。列表是账号偏好 ui.workspaceLayouts（快照 state.preferences），下拉在 设置 → 界面 → 布局（先 settingsPage: ui），是 disclosure: workspace-layouts。boards 管看板（view dashboard 打开它；一次一项）：select <id> 切到一个看板；create <名字> 新建空白看板并切过去；rename {id, name}；remove <id>；place {module: chart / positions / order / watch / sheet 作战表 / alert 提醒 / chat 对话, target?, side?: left / right / top / bottom, ratio?: 0.1–0.9} 放到 target 那一块的哪一边、占那一块多少（不给 target 就放在整块看板边上占三分之一，已在看板上的就挪过去）；replace {module, with} 那一块换成别的模块；take <module> 拿掉（旁边的补满）；ratio {module, value: 0.05–0.95} 调那一块在它那一层的占比；lock {module, size: auto / small / medium} 自动选档或锁小 / 锁中；editing true / false 进入 / 退出编辑；undo true 撤销这次编辑里最近一步。看板总是铺满，每块按自己的大小自动选档（规则见帮助 boards）。默认有 pre 盘前 / live 盘中 / review 复盘；列表是账号偏好 ui.boards，快照 state.boards 是编辑状态、模块库和每块的档位 / 锁定 / 占比，顶栏下拉是 disclosure: boards-menu，编辑时的模块库是 disclosure: board-library，每块的 ⋯ 是 disclosure: board-tile-menu（id 是模块）。researchDebate 操作“多 AI 辩论”页（电脑是调研面板“品种”下的辩论子页，同 panel: debate；手机是调研页上的整屏子页；一次一项）：start 发起或打开辩论——start: \"desk\" 等于今日判断旁的“让 AI 们辩一轮”（今日议题），start: \"event\" 辩当前品种最新一条重要快讯，start: <事件 id>（快讯接口 events[].id）等于快讯行的“研讨”；同一事件同一品种当天只辩一次、今日议题资料没变时直接打开已有结果；open: <研讨 id> 打开一次辩论（也是“以前的辩论”里的一格）；rerun: true 是结果页的“再辩一轮”（新跑一次，计入当日次数）；close: true 收起辩论页。辩论本身走 POST /api/research/debates（技术面、供需基本面、资金持仓、新闻宏观四位分析师先同时写报告，再多方开场、空方回应、多方反驳、空方反驳，一句一句流式出现，最后裁判匿名裁决，约 2 到 3 分钟；写完的报告卡片用 disclosure: debate-analyst-technical / supply / flow / news 展开收起），写进今日判断走 POST /api/research/debates/{id}/adopt，停止走 POST /api/research/debates/{id}/cancel（快照 state.researchDebate：id、status queued/running/done/review 需复核/failed/cancelled、step（collect / analysts / turn1…turn4 / judge）、analysts（四份报告写完几份，没写成也算）、lesson（上次复盘）、speaking（正在说的一方）、topic、stance、confidence、canAdopt、adopted、request）。游客不能发起。",
     "maxProperties": 1,
     "minProperties": 1,
     "properties": {
@@ -11398,6 +13512,16 @@
       "anyOf": [
        {
         "$ref": "#/components/schemas/BoardSortChange"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "boards": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/BoardsChange"
        },
        {
         "type": "null"
@@ -11497,7 +13621,7 @@
       "anyOf": [
        {
         "maxLength": 40,
-        "pattern": "^[A-Za-z]+\\.[A-Za-z]{1,4}$",
+        "pattern": "^[A-Z]{2,6}\\.[A-Za-z0-9]{1,10}$",
         "type": "string"
        },
        {
@@ -11521,6 +13645,16 @@
        }
       ],
       "title": "Density"
+     },
+     "desktopCharts": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/DesktopChartsChange"
+       },
+       {
+        "type": "null"
+       }
+      ]
      },
      "dialog": {
       "anyOf": [
@@ -11600,7 +13734,8 @@
          "card",
          "ai",
          "strategy",
-         "stop"
+         "stop",
+         "liquidation"
         ],
         "type": "string"
        },
@@ -11796,7 +13931,9 @@
          "order",
          "strategy",
          "positions",
-         "news"
+         "news",
+         "debate",
+         "reminders"
         ],
         "type": "string"
        },
@@ -11879,10 +14016,46 @@
       ],
       "title": "Quickorderconfirm"
      },
+     "quickVolume": {
+      "anyOf": [
+       {
+        "enum": [
+         1,
+         2,
+         5
+        ],
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Quickvolume"
+     },
      "reminderCenter": {
       "anyOf": [
        {
         "$ref": "#/components/schemas/ReminderCenterChange"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "reminders": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/RemindersNavigation"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "remoteSettings": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/RemoteSettingsChange"
        },
        {
         "type": "null"
@@ -11898,6 +14071,21 @@
         "type": "null"
        }
       ]
+     },
+     "reviewCurrency": {
+      "anyOf": [
+       {
+        "enum": [
+         "CNY",
+         "USD"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reviewcurrency"
      },
      "reviewDay": {
       "anyOf": [
@@ -11994,10 +14182,13 @@
          "shortcuts",
          "data",
          "about",
+         "remote-keys",
+         "remote-diagnostics",
          "trade-advanced",
          "voice-advanced",
          "chart-advanced",
          "memory-advanced",
+         "ui-board",
          "feedback",
          "connection",
          "appearance",
@@ -12110,6 +14301,7 @@
       "anyOf": [
        {
         "enum": [
+         "playbooks",
          "library",
          "detail",
          "running",
@@ -12137,7 +14329,7 @@
       "anyOf": [
        {
         "maxLength": 40,
-        "pattern": "^[A-Za-z]+\\.[A-Za-z0-9]+$",
+        "pattern": "^(?:KQD?\\.[A-Za-z]@)?[A-Za-z]+\\.[A-Za-z0-9]+$",
         "type": "string"
        },
        {
@@ -12207,7 +14399,8 @@
         "enum": [
          "trade",
          "review",
-         "board"
+         "board",
+         "dashboard"
         ],
         "type": "string"
        },
@@ -12216,6 +14409,16 @@
        }
       ],
       "title": "View"
+     },
+     "workspaceLayout": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/WorkspaceLayoutChange"
+       },
+       {
+        "type": "null"
+       }
+      ]
      }
     },
     "title": "UiChanges",
@@ -12278,6 +14481,17 @@
        }
       ],
       "title": "Observedrevision"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
      },
      "state": {
       "anyOf": [
@@ -12458,6 +14672,12 @@
       "title": "Autohidepositionsbar",
       "type": "boolean"
      },
+     "boards": {
+      "$ref": "#/components/schemas/BoardsPreferences"
+     },
+     "desktopCharts": {
+      "$ref": "#/components/schemas/DesktopChartsPreferences"
+     },
      "mobileMarket": {
       "$ref": "#/components/schemas/MobileMarketPreferences"
      },
@@ -12468,6 +14688,9 @@
       "maxItems": 8,
       "title": "Quickskills",
       "type": "array"
+     },
+     "workspaceLayouts": {
+      "$ref": "#/components/schemas/WorkspaceLayoutsPreferences"
      }
     },
     "title": "UiPreferences",
@@ -12584,6 +14807,18 @@
       "format": "uuid",
       "title": "Commandid",
       "type": "string"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "maxLength": 300,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
      },
      "status": {
       "enum": [
@@ -12743,6 +14978,16 @@
        }
       ],
       "title": "Boardwatchlistcount"
+     },
+     "boards": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/BoardsState"
+       },
+       {
+        "type": "null"
+       }
+      ]
      },
      "chart": {
       "$ref": "#/components/schemas/ChartOptions"
@@ -12930,7 +15175,8 @@
          "card",
          "ai",
          "strategy",
-         "stop"
+         "stop",
+         "liquidation"
         ],
         "type": "string"
        },
@@ -13172,6 +15418,18 @@
       ],
       "title": "Monitorcards"
      },
+     "myReminders": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Myreminders"
+     },
      "news": {
       "anyOf": [
        {
@@ -13204,7 +15462,9 @@
          "order",
          "strategy",
          "positions",
-         "news"
+         "news",
+         "debate",
+         "reminders"
         ],
         "type": "string"
        },
@@ -13322,6 +15582,22 @@
       ],
       "title": "Quickorderconfirm"
      },
+     "quickVolume": {
+      "anyOf": [
+       {
+        "enum": [
+         1,
+         2,
+         5
+        ],
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Quickvolume"
+     },
      "reminderCenter": {
       "anyOf": [
        {
@@ -13331,6 +15607,30 @@
         "type": "null"
        }
       ]
+     },
+     "reminders": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reminders"
+     },
+     "remoteSettings": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Remotesettings"
      },
      "replay": {
       "title": "Replay",
@@ -13408,10 +15708,13 @@
          "shortcuts",
          "data",
          "about",
+         "remote-keys",
+         "remote-diagnostics",
          "trade-advanced",
          "voice-advanced",
          "chart-advanced",
          "memory-advanced",
+         "ui-board",
          "feedback",
          "connection",
          "appearance",
@@ -13555,6 +15858,7 @@
       "anyOf": [
        {
         "enum": [
+         "playbooks",
          "library",
          "detail",
          "running",
@@ -13617,6 +15921,33 @@
       ],
       "title": "Ticketmode"
      },
+     "ticketPrice": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ticketprice"
+     },
+     "ticketPriceMode": {
+      "anyOf": [
+       {
+        "enum": [
+         "limit",
+         "opponent",
+         "last"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ticketpricemode"
+     },
      "tour": {
       "anyOf": [
        {
@@ -13645,7 +15976,8 @@
        "trade",
        "review",
        "admin",
-       "board"
+       "board",
+       "dashboard"
       ],
       "title": "View",
       "type": "string"
@@ -14087,6 +16419,140 @@
     "title": "WorkspaceFocusContext",
     "type": "object"
    },
+   "WorkspaceLayout": {
+    "additionalProperties": false,
+    "properties": {
+     "charts": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/DesktopChartsPreferences"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "dock": {
+      "$ref": "#/components/schemas/DockLayout"
+     },
+     "id": {
+      "pattern": "^[a-z0-9-]{1,24}$",
+      "title": "Id",
+      "type": "string"
+     },
+     "name": {
+      "maxLength": 12,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "name"
+    ],
+    "title": "WorkspaceLayout",
+    "type": "object"
+   },
+   "WorkspaceLayoutChange": {
+    "additionalProperties": false,
+    "description": "自由布局 (2026-11-02), one key per command: select 切到一个布局（侧边面板与多图都换成它存的样子）, save 新建一个空白布局\n（没有侧边面板、单图、合约周期不变）并切过去, rename {id, name}, remove 删除一个布局（删当前的会切到第一个）. The list is the account\npreference ui.workspaceLayouts; the dropdown (设置 → 界面 → 布局, needs settingsPage ui) is disclosure:\nworkspace-layouts.",
+    "properties": {
+     "remove": {
+      "anyOf": [
+       {
+        "pattern": "^[a-z0-9-]{1,24}$",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Remove"
+     },
+     "rename": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/WorkspaceLayoutRename"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "save": {
+      "anyOf": [
+       {
+        "maxLength": 12,
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Save"
+     },
+     "select": {
+      "anyOf": [
+       {
+        "pattern": "^[a-z0-9-]{1,24}$",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Select"
+     }
+    },
+    "title": "WorkspaceLayoutChange",
+    "type": "object"
+   },
+   "WorkspaceLayoutRename": {
+    "additionalProperties": false,
+    "properties": {
+     "id": {
+      "pattern": "^[a-z0-9-]{1,24}$",
+      "title": "Id",
+      "type": "string"
+     },
+     "name": {
+      "maxLength": 12,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "name"
+    ],
+    "title": "WorkspaceLayoutRename",
+    "type": "object"
+   },
+   "WorkspaceLayoutsPreferences": {
+    "additionalProperties": false,
+    "properties": {
+     "current": {
+      "default": "live",
+      "pattern": "^[a-z0-9-]{1,24}$",
+      "title": "Current",
+      "type": "string"
+     },
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/WorkspaceLayout"
+      },
+      "maxItems": 11,
+      "minItems": 1,
+      "title": "Items",
+      "type": "array"
+     }
+    },
+    "title": "WorkspaceLayoutsPreferences",
+    "type": "object"
+   },
    "WorkspaceOrderContext": {
     "additionalProperties": false,
     "properties": {
@@ -14465,7 +16931,8 @@
          "watch",
          "trade",
          "review",
-         "board"
+         "board",
+         "dashboard"
         ],
         "type": "string"
        },
@@ -14572,10 +17039,10 @@
  "info": {
   "description": "TqKq 模拟盘默认不设平台手数或次数上限，也不逐单请求授权；每次动作仍重新校验行情、账户、持仓和可配置风险规则。实盘始终关闭。",
   "title": "Sente Runtime",
-  "version": "1.8.1",
+  "version": "1.9.0",
   "x-ai-trader": {
-   "commit": "2e38285123c7dd99e5a07355ddef65a30aea0b0a",
-   "version": "1.8.1"
+   "commit": "5515fe70b74b40acb3454aa946c92b2669ffeee3",
+   "version": "1.9.0"
   }
  },
  "openapi": "3.1.0",
@@ -14602,7 +17069,7 @@
   },
   "/api/account/daily-review": {
    "get": {
-    "description": "今日复盘：这个账户某个交易日（省略＝最近一份）的复盘——每笔成交（时间、动作、来源、理由、标签 计划内 /\n提醒后 / 临时、平仓盈亏）、四格统计、总结、可选的一条习惯观察（status pending / remembered / dismissed）和\n标签规则原话；`days` 是有复盘的交易日（新到旧）。每个交易日 15:15 有成交才生成，没有时 review 为 null。只读。",
+    "description": "今日复盘（交易验尸）：这个账户某个交易日（省略＝最近一份）的复盘——每笔成交（时间、动作、来源、理由、标签\n计划内 / 提醒后 / 临时、平仓盈亏），每笔程序查出的问题 checks（code：early_exit 提前离场、after_losses 连亏后再开、\nuntagged 没标交易笔记、stop_beyond 亏过止损、no_stop 没设止损、entry_miss 不合入场规则）、开仓笔的交易笔记 playbookName\n与入场判断 entryFit（basis strategy 按关联策略的规则算 / model 由模型按打法文字判断）、这笔所属的平仓记录\nroundId 和要回答的一句 question（回答写进 PUT /api/account/trade-notes/{roundId} 的补充）；四格统计、总结和\n标签规则原话；一周最后一个交易日的 observation 是“本周最该改的一件事”（kind weekly、code、count、status\npending / remembered / dismissed），其他日子为 null；`days` 是有复盘的交易日（新到旧）。每个交易日 15:15 有成交才生成，没有时 review 为 null。\n美元子账户（外盘，账户头 paperusd:）按 CME 交易日：美东 17:15（收盘后一刻钟，北京时间次日 05:15 / 冬令时 06:15）\n生成那个 CME 交易日的复盘，金额是美元（currency USD），`generateAt` 是这个时点的北京时间。只读。",
     "operationId": "get_daily_review_api_account_daily_review_get",
     "parameters": [
      {
@@ -14652,7 +17119,7 @@
   },
   "/api/account/daily-review/observation": {
    "post": {
-    "description": "复盘里的习惯观察：remember 记住——写进私人记忆的经验层（来源记这份复盘的交易日与成交 id），像授权的话\n422 不记；dismiss 不对——记下否决，以后不再提同一条。必须带回答的那一版观察的 observationKey 与 revision\n（GET 返回的 observation.key / observation.revision）：观察已重新生成、不是这一版时 409 observation_stale\n（重读当前复盘再答）。AI 代用户记住只在用户明确说“记住这条”时，并且必须带 quote（用户原话，服务端核对，\n对不上 422；记忆关闭 409）。观察已答过 409。记忆与审计、否决记录、复盘状态在同一事务里写，要么都写要么都不写。",
+    "description": "复盘里的“本周最该改的一件事”（一周最后一个交易日的 observation）：remember 记住——写进私人记忆的经验层\n（来源记这份复盘的交易日与成交 id），像授权的话 422 不记；dismiss 不对——记下否决。必须带回答的那一版观察的 observationKey 与 revision\n（GET 返回的 observation.key / observation.revision）：观察已重新生成、不是这一版时 409 observation_stale\n（重读当前复盘再答）。AI 代用户记住只在用户明确说“记住这条”时，并且必须带 quote（用户原话，服务端核对，\n对不上 422；记忆关闭 409）。观察已答过 409。记忆与审计、否决记录、复盘状态在同一事务里写，要么都写要么都不写。",
     "operationId": "answer_observation_api_account_daily_review_observation_post",
     "requestBody": {
      "content": {
@@ -14693,7 +17160,7 @@
   },
   "/api/account/daily-review/regenerate": {
    "post": {
-    "description": "重新生成：按现在的成交重算这个交易日（省略＝今天）的复盘并覆盖，不推送。同一用户 30 秒一次（429）；这天没有\n成交 409 no_fills。总结用你的模型和额度，额度用完或模型不可用时写确定性的一句。",
+    "description": "重新生成：按现在的成交重算这个交易日（省略＝今天；美元子账户是当前的 CME 交易日）的复盘并覆盖，不推送。同一用户 30 秒一次（429）；这天没有\n成交 409 no_fills。总结用你的模型和额度，额度用完或模型不可用时写确定性的一句。",
     "operationId": "regenerate_daily_review_api_account_daily_review_regenerate_post",
     "requestBody": {
      "content": {
@@ -14732,9 +17199,62 @@
     "summary": "Regenerate Daily Review"
    }
   },
+  "/api/account/habits": {
+   "get": {
+    "description": "习惯对照: the last 90 days' closed round trips against only the 计划内 ones (opened by a strategy, a stop,\nthe AI's own order, or a confirmed AI card with no reminder before it). The gap is split exactly by the\n计划外 trades' open tag (提醒后 / 临时); `holding` holds two estimates not added to it (losers held past the\nlongest 计划内 loser, winners closed before the shortest 计划内 winner); `picks` the five trades that move\nthe comparison most. Fewer than 5 计划内 trades: status insufficient. currency picks the CNY/USD review\nledger without switching the chat's trading account. Read-only.",
+    "operationId": "get_habit_compare_api_account_habits_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "currency",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "CNY",
+          "USD"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Currency"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Habit Compare Api Account Habits Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Habit Compare"
+   }
+  },
   "/api/account/journal": {
    "get": {
-    "description": "交易日志: the account's closed round trips, newest first, each with who placed it (来源), why\n(the AI card's or AI order's reason, the strategy's name), the user's 补充 and what the research\ndesk said about the product when it was opened. Read-only.",
+    "description": "交易日志: the account's closed round trips, newest first, each with who placed it (来源), why\n(the AI card's or AI order's reason, the strategy's name), the user's 补充 and what the research\ndesk said about the product when it was opened. currency selects this account's CNY/USD\nreview ledger without changing the chat's trading account; omitted preserves the request's\naccount. days bounds history (366 matches the review page), not today's activity. Same-time\ntrades use id ascending before limit is applied. Read-only.",
     "operationId": "get_trade_journal_api_account_journal_get",
     "parameters": [
      {
@@ -14777,6 +17297,26 @@
        "title": "Limit",
        "type": "integer"
       }
+     },
+     {
+      "in": "query",
+      "name": "currency",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "CNY",
+          "USD"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Currency"
+      }
      }
     ],
     "responses": {
@@ -14808,6 +17348,7 @@
   },
   "/api/account/pnl": {
    "get": {
+    "description": "账户复盘的近366天历史与权益；currency可选人民币/美元账本，不切交易账户。\n\ntrades按平仓时间倒序、同时间id升序，与复盘页一致；选择记录用其真实id。\n当日activity为空不能据此断言本历史为空。",
     "operationId": "get_account_pnl_api_account_pnl_get",
     "parameters": [
      {
@@ -14820,6 +17361,26 @@
        "minimum": 1,
        "title": "Months",
        "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "currency",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "CNY",
+          "USD"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Currency"
       }
      }
     ],
@@ -15009,6 +17570,98 @@
     "summary": "Put Trade Note"
    }
   },
+  "/api/account/trade-playbooks/{round_id}": {
+   "delete": {
+    "description": "Remove a round trip's afterwards tag (the card's own setup, if any, shows again).",
+    "operationId": "delete_trade_playbook_api_account_trade_playbooks__round_id__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "round_id",
+      "required": true,
+      "schema": {
+       "title": "Round Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Delete Trade Playbook Api Account Trade Playbooks  Round Id  Delete",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Delete Trade Playbook"
+   },
+   "put": {
+    "description": "打法本 (2026-10-25): tag a closed round trip with one of the user's setups afterwards; it overrides the\nsetup the opening card carried, in the review, its 分组 table and the memory statistics.",
+    "operationId": "put_trade_playbook_api_account_trade_playbooks__round_id__put",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "round_id",
+      "required": true,
+      "schema": {
+       "title": "Round Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TradePlaybookRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Put Trade Playbook Api Account Trade Playbooks  Round Id  Put",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Put Trade Playbook"
+   }
+  },
   "/api/accounts": {
    "get": {
     "description": "The accounts this user may act on — default first, then by id — and\nthe account this very request resolved to. Assembled accounts are listed\nfrom the registry; a bound pool account is listed from its store row\neven while its child is down (its status says where it is). A disabled\naccount keeps its rows but disappears from the directory.",
@@ -15032,27 +17685,31 @@
   },
   "/api/accounts/bind-tqkq": {
    "post": {
-    "description": "Bind this user's own TqKq simulation account: verify the credentials\nagainst the pool, store the password sealed, create (or refresh) the\naccount row with this user as owner, and assemble it right away — the\nuser just showed up. The password is never logged or echoed.",
-    "operationId": "bind_tqkq_api_accounts_bind_tqkq_post",
+    "deprecated": true,
+    "operationId": "retired_bind_tqkq_api_accounts_bind_tqkq_post",
     "requestBody": {
      "content": {
       "application/json": {
        "schema": {
-        "$ref": "#/components/schemas/BindTqkqRequest"
+        "anyOf": [
+         {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Body"
        }
       }
-     },
-     "required": true
+     }
     },
     "responses": {
      "200": {
       "content": {
        "application/json": {
-        "schema": {
-         "additionalProperties": true,
-         "title": "Response Bind Tqkq Api Accounts Bind Tqkq Post",
-         "type": "object"
-        }
+        "schema": {}
        }
       },
       "description": "Successful Response"
@@ -15068,12 +17725,12 @@
       "description": "Validation Error"
      }
     },
-    "summary": "Bind Tqkq"
+    "summary": "Retired Bind Tqkq"
    }
   },
   "/api/accounts/open-paper": {
    "post": {
-    "description": "开通本站模拟账户 (2026-10-03): any signed-in user — the owner included —\nopens their one site-hosted paper account (initial 1,000,000), or gets the\nexisting one back. The default account changes only when they had none, so\na TqKq user keeps trading 快期 and switches in the account selector.",
+    "description": "开通本站模拟账户 (2026-10-03): any signed-in user — the owner included —\nopens their one site-hosted paper account (initial 1,000,000), or gets the\nexisting one back. The default account changes only when they had none; the\naccount selector switches to it.",
     "operationId": "open_paper_account_api_accounts_open_paper_post",
     "responses": {
      "200": {
@@ -15094,23 +17751,47 @@
   },
   "/api/accounts/unbind-tqkq": {
    "post": {
-    "description": "Unbind this user's TqKq account: release the child, drop the sealed\npassword and the grants, and disable the account row. History — orders,\nfills, sessions — stays untouched for audit. A user with a paper account\nfalls back onto it (2026-10-03) and stays logged in; without one the\nsession ends with the binding (M1b): an unbound user owns no trading\naccount, so the client returns to the login page instead of acting on\nthe owner's account. ``signedOut`` says which of the two happened; the\nclient clears its saved connection only when it is true.",
-    "operationId": "unbind_tqkq_api_accounts_unbind_tqkq_post",
+    "deprecated": true,
+    "operationId": "retired_unbind_tqkq_api_accounts_unbind_tqkq_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "anyOf": [
+         {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Body"
+       }
+      }
+     }
+    },
     "responses": {
      "200": {
       "content": {
        "application/json": {
-        "schema": {
-         "additionalProperties": true,
-         "title": "Response Unbind Tqkq Api Accounts Unbind Tqkq Post",
-         "type": "object"
-        }
+        "schema": {}
        }
       },
       "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
      }
     },
-    "summary": "Unbind Tqkq"
+    "summary": "Retired Unbind Tqkq"
    }
   },
   "/api/admin/accounts": {
@@ -15196,7 +17877,7 @@
   },
   "/api/admin/market-sources/tqkq": {
    "post": {
-    "description": "添加快期行情账号 (2026-10-12): the owner types a TqKq login that is not\nanyone's trading account; the pool verifies it (the bind-tqkq check), the\npassword is sealed through the same storage as a binding, under a system\nowner of its own (`market-source:<account id>` — in nobody's account\ndirectory, no session can act or order on it), and the account joins the\nend of the source list, effective at once. Refused before anything is\nwritten: a wrong password (409 tqkq_bind_failed), a login that already is\na source or someone's account, or a pool whose child limit cannot carry\none more source (409 market_source_pool_full with max/running — raise\nAI_TRADER_TQKQ_POOL_MAX). Human-only: never in the agent catalog. The\npassword reaches no log line, error or response.",
+    "description": "添加快期行情账号 (2026-10-12): the owner types a TqKq login that is not\nanyone's trading account; the pool verifies it (the TqKq login's check), the\npassword is sealed through the same storage as a binding, under a system\nowner of its own (`market-source:<account id>` — in nobody's account\ndirectory, no session can act or order on it), and the account joins the\nend of the source list, effective at once. Refused before anything is\nwritten: a wrong password (409 tqkq_bind_failed), a login that already is\na source or someone's account, or a pool whose child limit cannot carry\none more source (409 market_source_pool_full with max/running — raise\nAI_TRADER_TQKQ_POOL_MAX). Human-only: never in the agent catalog. The\npassword reaches no log line, error or response.",
     "operationId": "admin_add_market_source_account_api_admin_market_sources_tqkq_post",
     "requestBody": {
      "content": {
@@ -15275,6 +17956,172 @@
      }
     },
     "summary": "Admin Remove Market Source Account"
+   }
+  },
+  "/api/admin/memory": {
+   "get": {
+    "description": "后台内存诊断 (2026-10-26): off by default. While tracing, the allocations alive now that were not at the\nbaseline, grouped by call stack, largest first; `types=true` adds the live object count per type.",
+    "operationId": "admin_memory_api_admin_memory_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 25,
+       "title": "Limit",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "types",
+      "required": false,
+      "schema": {
+       "default": false,
+       "title": "Types",
+       "type": "boolean"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Admin Memory Api Admin Memory Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Admin Memory"
+   }
+  },
+  "/api/admin/memory/trace": {
+   "delete": {
+    "operationId": "admin_memory_untrace_api_admin_memory_trace_delete",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Admin Memory Untrace Api Admin Memory Trace Delete",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Admin Memory Untrace"
+   },
+   "post": {
+    "description": "Start tracing with a baseline at now (again while tracing: move the baseline to now).",
+    "operationId": "admin_memory_trace_api_admin_memory_trace_post",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "frames",
+      "required": false,
+      "schema": {
+       "default": 10,
+       "title": "Frames",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Admin Memory Trace Api Admin Memory Trace Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Admin Memory Trace"
+   }
+  },
+  "/api/admin/paper-accounts/{account_id}/reset": {
+   "post": {
+    "description": "重置本站模拟账户 (#1204, owner decision 2026-10-30): owner-only, not offered to users. The engine\ncancels the account's live orders, clears its positions and sets equity back to the initial balance;\ntrades stay in the history. The body repeats the id (409 confirm_mismatch otherwise).",
+    "operationId": "admin_reset_paper_account_api_admin_paper_accounts__account_id__reset_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "account_id",
+      "required": true,
+      "schema": {
+       "title": "Account Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AdminPaperResetRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Admin Reset Paper Account Api Admin Paper Accounts  Account Id  Reset Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Admin Reset Paper Account"
    }
   },
   "/api/admin/plans": {
@@ -15692,6 +18539,58 @@
     "summary": "Admin Update User"
    }
   },
+  "/api/admin/users/{username}/password": {
+   "post": {
+    "description": "管理员重置一个本站账号的登录密码（后台 → 成员，2026-10-21）；那个成员所有设备随即退出登录。",
+    "operationId": "admin_reset_password_api_admin_users__username__password_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "username",
+      "required": true,
+      "schema": {
+       "title": "Username",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AdminPasswordResetRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Admin Reset Password Api Admin Users  Username  Password Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Admin Reset Password"
+   }
+  },
   "/api/agent/account": {
    "get": {
     "operationId": "agent_account_api_agent_account_get",
@@ -15710,6 +18609,45 @@
      }
     },
     "summary": "Agent Account"
+   }
+  },
+  "/api/agent/board-arrangement": {
+   "post": {
+    "description": "看板 · 让 AI 帮我摆（owner 2026-11-05）：一句话 → 一套看板摆法（分割树、锁档和一句说明），只供看板编辑时预览；\n模型没有任何工具，不会下单或改设置，什么都不保存，用户点“用这套”才经 boards 存下。没有模型 503、额度用完 429、\n模型没给出能用的摆法 502；游客 403。不进能力目录（界面辅助：agent 直接用 boards 界面命令摆）。",
+    "operationId": "board_arrangement_api_agent_board_arrangement_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ArrangeRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ArrangeResult"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Board Arrangement"
    }
   },
   "/api/agent/call": {
@@ -15794,7 +18732,7 @@
   },
   "/api/agent/skills": {
    "get": {
-    "description": "The whole registry for the current user: every skill with its\navailability and, when unavailable, the machine-readable reason\n(disabled / not_in_plan / owner_only) the UI and external agents read.",
+    "description": "The whole registry for the current user: every skill with its\navailability and, when unavailable, the machine-readable reason\n(disabled / not_in_plan / owner_only) the UI and external agents read; `helpTopics` are the help\ntopics (GET /api/app/help) the skill answers for.",
     "operationId": "agent_skills_list_api_agent_skills_get",
     "responses": {
      "200": {
@@ -16109,6 +19047,47 @@
     "summary": "Update Ai Execution Limits"
    }
   },
+  "/api/ai-execution/resume": {
+   "post": {
+    "description": "界面“恢复执行”按钮（用户本人点的）：同 resume_simulation_execution 的恢复，再解除美元子账户被一并停下的\n停止（#932，所有者 10-30）。AI 自己发起的恢复仍走工具，不替美元子账户解除。",
+    "operationId": "resume_ai_execution_api_ai_execution_resume_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AiExecutionResumeRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Resume Ai Execution Api Ai Execution Resume Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Resume Ai Execution"
+   }
+  },
   "/api/ai-execution/start": {
    "post": {
     "operationId": "start_ai_execution_api_ai_execution_start_post",
@@ -16288,6 +19267,58 @@
     "summary": "Cancel Ai Stop"
    }
   },
+  "/api/ai-execution/stops/{stop_id}/reprice": {
+   "post": {
+    "description": "图上拖线改价 (2026-10-24): the user's own stop / take moved in place after the chart's confirm card.",
+    "operationId": "reprice_ai_stop_api_ai_execution_stops__stop_id__reprice_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "stop_id",
+      "required": true,
+      "schema": {
+       "title": "Stop Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AiStopRepriceRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Reprice Ai Stop Api Ai Execution Stops  Stop Id  Reprice Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Reprice Ai Stop"
+   }
+  },
   "/api/app/activity": {
    "get": {
     "operationId": "app_activity_api_app_activity_get",
@@ -16384,7 +19415,7 @@
        "anyOf": [
         {
          "maxLength": 40,
-         "pattern": "^[A-Za-z]+\\.[A-Za-z0-9]+$",
+         "pattern": "^(?:KQD?\\.[A-Za-z]@)?[A-Za-z]+\\.[A-Za-z0-9]+$",
          "type": "string"
         },
         {
@@ -16470,7 +19501,7 @@
        "anyOf": [
         {
          "maxLength": 40,
-         "pattern": "^[A-Za-z]+\\.[A-Za-z0-9]+$",
+         "pattern": "^(?:KQD?\\.[A-Za-z]@)?[A-Za-z]+\\.[A-Za-z0-9]+$",
          "type": "string"
         },
         {
@@ -17540,6 +20571,47 @@
     "summary": "Owner Logout"
    }
   },
+  "/api/auth/owner/password": {
+   "post": {
+    "description": "本人改登录密码（设置 → 账户，2026-10-21）。受保护的人工操作：AI 与外部 Agent 不经能力目录代办。",
+    "operationId": "owner_change_password_api_auth_owner_password_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/OwnerPasswordChangeRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Owner Change Password Api Auth Owner Password Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Owner Change Password"
+   }
+  },
   "/api/auth/owner/register": {
    "post": {
     "operationId": "owner_register_api_auth_owner_register_post",
@@ -17602,7 +20674,7 @@
   },
   "/api/auth/tqkq": {
    "post": {
-    "description": "Log in with the user's own TqKq account (M1b): the pool verifies the\ncredentials, the first login consumes an invite code, and the sealed\npassword lands on the pool account the session then acts on — except\nthat a paper-configured deployment gives newcomers only the site\nsimulation account (owner 2026-10-05, see `bind` below). All auth\nsemantics (rate limits, the main-account guard, user creation, the\nsession) live in `OwnerAuth.login_tqkq`.",
+    "description": "Log in with the user's own TqKq account (M1b): the pool verifies the\ncredentials, the first login consumes an invite code, and the sealed\npassword lands on the pool account the session then acts on — except\nthat a paper-configured deployment binds no TqKq trading account at all\nand lands every user on the site simulation account (see `bind` below). All auth\nsemantics (rate limits, the main-account guard, user creation, the\nsession) live in `OwnerAuth.login_tqkq`.",
     "operationId": "tqkq_login_api_auth_tqkq_post",
     "requestBody": {
      "content": {
@@ -19142,6 +22214,154 @@
     "summary": "Set Model Preference"
    }
   },
+  "/api/playbooks": {
+   "get": {
+    "operationId": "list_playbooks_api_playbooks_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response List Playbooks Api Playbooks Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "List Playbooks"
+   },
+   "post": {
+    "operationId": "create_playbook_api_playbooks_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PlaybookRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Create Playbook Api Playbooks Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Create Playbook"
+   }
+  },
+  "/api/playbooks/{playbook_id}": {
+   "delete": {
+    "operationId": "delete_playbook_api_playbooks__playbook_id__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "playbook_id",
+      "required": true,
+      "schema": {
+       "title": "Playbook Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Delete Playbook Api Playbooks  Playbook Id  Delete",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Delete Playbook"
+   },
+   "put": {
+    "operationId": "update_playbook_api_playbooks__playbook_id__put",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "playbook_id",
+      "required": true,
+      "schema": {
+       "title": "Playbook Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PlaybookRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Update Playbook Api Playbooks  Playbook Id  Put",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Update Playbook"
+   }
+  },
   "/api/positions": {
    "get": {
     "operationId": "get_positions_api_positions_get",
@@ -19239,6 +22459,52 @@
      }
     },
     "summary": "Update User Preferences"
+   }
+  },
+  "/api/proposals": {
+   "get": {
+    "description": "Several cards' records in one read (历史卡的结局: the conversation's old waiting cards settle from one\nrequest instead of one each). Only the caller's own; an id not listed is not theirs or does not exist.",
+    "operationId": "get_proposals_api_proposals_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "ids",
+      "required": true,
+      "schema": {
+       "items": {
+        "type": "string"
+       },
+       "maxItems": 100,
+       "title": "Ids",
+       "type": "array"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Proposals Api Proposals Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Proposals"
    }
   },
   "/api/proposals/{proposal_id}": {
@@ -20324,6 +23590,27 @@
     "summary": "Research News"
    }
   },
+  "/api/research/sheet": {
+   "get": {
+    "description": "今日作战表：自选品种每个一行，按优先级排好（关键价位、消息强弱、可能用上的交易笔记、今日判断那一句）。\n纯读取：程序从行情和已采集的快讯算，不调模型、不读账户；rows[].judgment 是该品种今天已有的今日判断\n{headline, generatedAt}，今天还没有时为 null。窗口开着时同一份经推送流 feed.sheet 变了才下发。",
+    "operationId": "research_sheet_api_research_sheet_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Research Sheet Api Research Sheet Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Research Sheet"
+   }
+  },
   "/api/research/summary": {
    "get": {
     "operationId": "research_summary_api_research_summary_get",
@@ -21056,7 +24343,7 @@
   },
   "/api/sessions/{session_id}/feed/view": {
    "put": {
-    "description": "What this session's window shows (2026-10-12): page visibility and the 报价总表 rows on\nscreen. The push sends the board (feed.board, then feed.board-patch) only to a visible\nwindow that shows it, and pauses the chart market while the page is hidden; every call\nstarts the board over with one full frame, and a page coming back gets a full chart too.",
+    "description": "What this session's window shows (2026-10-12): page visibility and the 报价总表 rows on\nscreen. The push sends the board (feed.board, then feed.board-patch) only to a visible\nwindow that shows it, and pauses the chart market while the page is hidden; every call\nstarts the board over with one full frame, and a page coming back gets a full chart too.\n\n`reports` (通用报告推送, 2026-11-03): the cloud reports on screen, each as a name plus its GET's\nquery: sheet-row ?product= (one domestic 自选品种's row of /api/research/sheet, shared by everyone;\nthe device ranks the rows and names its 打法 itself), desk / news / summary ?symbol=\n(/api/research/desk — one read for everyone showing it —, news, summary), flash ?product|products|tag, hours, limit (/api/research/flash, the full feed),\ncalendar ?days, region, product, briefs (/api/app/briefs), and the session account's\nhabits ?account= and daily-review ?account=&tradingDay= (/api/account/habits, daily-review).\nEach one goes out as feed.report {key, status, report} — that GET's answer — once now and then\nonly when it changed, read once per key (per user where the answer is the user's) on its own\ncadence. A key the Runtime does not serve (another account's, an unknown name) gets one\nfeed.report with status unavailable; the window reads it itself. Guests get no reports.",
     "operationId": "set_feed_view_api_sessions__session_id__feed_view_put",
     "parameters": [
      {
@@ -21477,7 +24764,7 @@
   },
   "/api/simulation/target-position/proposals": {
    "post": {
-    "description": "目标持仓（下单台第三模式）：按当前持仓算差额，只出第一段的确认卡；反向目标的第二段\n在第一段成交后自动来卡，仍然是确认后才发单。走与工具同一个规划器（就绪门禁/挂单/平今昨）。",
+    "description": "目标持仓（下单台第三模式、快捷区反手）：按当前持仓算差额，只出第一段的确认卡；反向目标（反手）\n确认一次——第一段全部成交后接力用这次确认自动发第二段（发单时照常复查行情、跳价、涨跌停与持仓），\n部分成交或失败就不开仓。走与工具同一个规划器（就绪门禁/挂单/平今昨）。",
     "operationId": "create_target_position_proposal_api_simulation_target_position_proposals_post",
     "requestBody": {
      "content": {
