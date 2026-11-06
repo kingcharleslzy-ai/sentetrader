@@ -37,6 +37,17 @@
 .account-equity-axis > span > span { white-space: nowrap; }
 
 .account-pnl-closed > .account-pnl-months { padding: var(--space-3) var(--space-3) var(--space-1); }
+/* 平仓记录 rows never run out of the card: the 平仓 sum keeps its whole figure; in a narrow card (the review page's side
+   column, large type) a month's count and win rate move to a second line, and a trade's prices and times wrap at their spaces. */
+.account-pnl-closed { container-type: inline-size; }
+.account-pnl-months > li > button span, .account-pnl-days > li > button span { min-width: 0; }
+.account-pnl-months > li > button b, .account-pnl-days > li > button b { flex: none; white-space: nowrap; }
+.account-pnl-trades .strategy-review-trade small { white-space: normal; }
+@container (max-width: 400px) {
+  .account-pnl-months > li > button { flex-wrap: wrap; }
+  .account-pnl-months > li > button > b { order: 1; margin-left: auto; }
+  .account-pnl-months > li > button > span { order: 2; flex-basis: 100%; }
+}
 .account-pnl-months > li > button b small { margin-right: var(--space-1); color: var(--muted); font-size: var(--font-md); font-weight: 400; }
 
 /* 本站模拟合成一个账户 (2026-10-21): the 人民币 / 美元 switch in the header, the two 总盈亏 side by side and the

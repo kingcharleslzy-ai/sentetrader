@@ -17,7 +17,10 @@
 .account-pnl .daily-review-step:disabled { opacity: .35; cursor: default; }
 .account-pnl .daily-review-regenerate { padding: var(--space-1) var(--space-3); font-size: var(--font-md); background: var(--panel); }
 .daily-review-body { gap: var(--space-3); }
-/* Four figures in a 360 px side panel: one line each, the label may shorten, the value never breaks. */
+/* Four figures a row where their names fit whole; a narrower card (the review page's side column, large type) shows two
+   a row, as the phone does — a shortened name ("当日净盈…") leaves a figure nobody can read. The value never breaks. */
+.account-pnl .daily-review { container-type: inline-size; }
+@container (max-width: 440px) { .account-pnl .daily-review .stat-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .account-pnl .daily-review .stat-tile { padding: var(--space-2) var(--space-3); }
 .account-pnl .daily-review .stat-tile dt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .account-pnl .daily-review .stat-tile dd { font-size: var(--font-lg); white-space: nowrap; overflow-wrap: normal; }
