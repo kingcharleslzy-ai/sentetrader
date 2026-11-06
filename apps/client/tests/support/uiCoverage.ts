@@ -272,6 +272,8 @@ export const COMMANDABLE: Rule[] = [
   { match: control => (control.group ?? "").startsWith("board-chart-pick:"), via: "boards: {chart: {block, symbol?, duration?}}（选合约就不联动；“跟顶栏合约”在第一块图表上是 boards: {link: {module: chart, color: blue}}）" },
   { match: control => control.group === "board-library" && /^(把.+放进看板|.+已在看板上|再放一块图表)$/.test(control.label), via: "boards: {place: {module, target?, side?, ratio?}}（拖到某一块的边上，或点一下放到整块看板的右边）" },
   { match: control => control.group === "board-library" && control.label === "收起模块库", via: "disclosure: board-library" },
+  { match: control => control.group === "board-canvas" && /^拿掉.+（旁边的补满）$/.test(control.label), via: "boards: {take: 块}（不在编辑时鼠标移到块的上沿浮出的 ×；拿掉后底部可撤销）" },
+  { match: control => control.group === "board-taken" && control.label === "撤销", via: "boards: {undo: true}（“已拿掉 X · 撤销”）" },
   { match: control => control.group === "board-canvas" && /的菜单$/.test(control.label), via: "disclosure: board-tile-menu（id 是模块；编辑时每块右上角的 ⋯）" },
   { match: control => (control.group ?? "").startsWith("board-tile-menu:") && /^换成/.test(control.label), via: "boards: {replace: {module, with}}" },
   { match: control => (control.group ?? "").startsWith("board-tile-menu:") && control.role === "radio", via: "boards: {lock: {module, size: auto | small | medium}}（档位：自动 / 锁小 / 锁中）" },
@@ -534,6 +536,10 @@ export const COMMANDABLE: Rule[] = [
     via: "preference 步进器 ±：voice.endpointStallSeconds / confirmWindowSeconds, chart.kdParams.*, chart.macdParams.*, chart.aiAnnotationsAutoClearMinutes, trade.defaultVolume, data.sessionRetentionDays" },
   // 图表指标可配置 (2026-10-02): the chart labels open in-place popovers (disclosures), and the same
   // editor components sit on 设置 → 图表 → 指标参数与均线.
+  // 看板 · 图表块的副图 (2026-11-06): the same label buttons, as the block's own surfaces.
+  { match: control => /^board-tile:chart(-\d)?$/.test(control.group ?? "") && /^均线/.test(control.label), via: "disclosure: {name: board-chart-ma-editor, id: 图表那一块}（均线设置与交易台共用）" },
+  { match: control => /^board-tile:chart(-\d)?$/.test(control.group ?? "") && /^(KD \d+,\d+,\d+|MACD \d+,\d+,\d+|RSI \d+|CCI \d+|持仓量|成交量)$/.test(control.label), via: "disclosure: {name: board-chart-pane-editor, id: <图表那一块>:<副图>}（参数与交易台共用，移除改这一块自己的副图）" },
+  { match: control => /^board-tile:chart(-\d)?$/.test(control.group ?? "") && control.label === "添加副图", via: "disclosure: {name: board-chart-pane-add, id: 图表那一块}；直接改是 boards: {chart: {block, panes}}（跟顶栏的那块是交易台的 preference chart.subPaneList）" },
   { match: /^均线( \d+( · \d+)*)?( · 布林 \d+(\.\d+)?,\d+(\.\d+)?)?( · SAR [\d.]+,[\d.]+)?$/, via: "disclosure: chart-ma-editor（价格行标签按钮，就地打开均线与布林带编辑；全部关闭时显示 均线未启用）" },
   { match: control => control.group !== "chart:context-menu" && /^(KD \d+,\d+,\d+|MACD \d+,\d+,\d+|RSI \d+|CCI \d+|持仓量|成交量)$/.test(control.label), via: "disclosure: {name: chart-pane-editor, id: 副图类型}（该格标签按钮，就地打开副图编辑）" },
   { match: /^添加副图$/, via: "disclosure: chart-pane-add（最后一行标签旁的 ＋ 副图，满 3 格时不渲染）" },

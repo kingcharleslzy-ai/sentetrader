@@ -57,7 +57,22 @@
 .board-view.editing .board-mosaic .mosaic-split:hover .mosaic-split-line, .board-mosaic .mosaic-split.-preview .mosaic-split-line { background: var(--accent); }
 .board-view.editing .board-mosaic .mosaic-split.-row .mosaic-split-line { left: 3px; right: 3px; }
 .board-view.editing .board-mosaic .mosaic-split.-column .mosaic-split-line { top: 3px; bottom: 3px; }
-.board-view:not(.editing) .board-mosaic .mosaic-window-toolbar { display: none; }
+/* 不在编辑时 (owner 2026-11-06): the bar floats over the block's top, hidden until the pointer comes near the top edge
+   (.board-hover-edge) or the bar itself is hovered, focused or has its ⋯ open; the block then shows its border. */
+.board-view:not(.editing) .board-mosaic .mosaic-window-toolbar { position: absolute; z-index: 6; top: 0; left: 0; right: 0; opacity: 0; pointer-events: none;
+  border-radius: var(--radius-card) var(--radius-card) 0 0; box-shadow: var(--shadow-1); transition: opacity var(--dur-1); }
+.board-view.previewing .board-mosaic .mosaic-window-toolbar { display: none; }
+.board-view:not(.editing) .board-mosaic .mosaic-window:has(.board-hover-edge:hover) .mosaic-window-toolbar,
+.board-view:not(.editing) .board-mosaic .mosaic-window-toolbar:hover, .board-view:not(.editing) .board-mosaic .mosaic-window-toolbar:focus-within,
+.board-view:not(.editing) .board-mosaic .mosaic-window-toolbar:has([aria-expanded="true"]) { opacity: 1; pointer-events: auto; }
+.board-view:not(.editing) .board-mosaic .mosaic-window:has(.board-hover-edge:hover) .board-tile,
+.board-view:not(.editing) .board-mosaic .mosaic-window:has(.mosaic-window-toolbar:hover) .board-tile { outline: 1px solid var(--accent); outline-offset: -1px; }
+.board-hover-edge { position: absolute; z-index: 5; top: 0; left: 0; right: 0; height: 12px; }
+.board-remove svg { width: 15px; height: 15px; }
+/* 拿掉 outside editing: a line under the board with 撤销 for a few seconds. */
+.board-taken { position: absolute; z-index: 32; bottom: var(--space-3); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: var(--space-3);
+  margin: 0; padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-card);
+  background: var(--panel); color: var(--ink); box-shadow: var(--shadow-2); font-size: var(--font-md); }
 .board-mosaic .mosaic-window .mosaic-window-toolbar { height: 32px; background: var(--soft); box-shadow: none; border: 1px solid var(--line); border-bottom: 0; border-radius: var(--radius-card) var(--radius-card) 0 0; }
 .board-view.editing .board-mosaic .board-tile { border-top-left-radius: 0; border-top-right-radius: 0; }
 .board-view.editing .board-tile-content { opacity: .6; }

@@ -21,6 +21,7 @@ from .ui_surfaces import surface_aliases, surface_ids, surface_labels, surfaces_
 from .user_preferences import (
     BOARD_BLOCK,
     BOARD_CHART_DURATIONS,
+    BOARD_CHART_PANES,
     BOARD_ID,
     BOARD_LINK_COLORS,
     BOARD_MODULES,
@@ -462,9 +463,10 @@ class BoardLink(BaseModel):
 class BoardChartChange(BaseModel):
     model_config = ConfigDict(extra="forbid")
     block: BOARD_BLOCK
-    # null: back to the app's own contract / period.
+    # null: back to the app's own contract / period / the trade chart's 副图.
     symbol: str | None = Field(default=None, pattern=SYMBOL_PATTERN)
     duration: BOARD_CHART_DURATIONS | None = None
+    panes: list[BOARD_CHART_PANES] | None = Field(default=None, max_length=3)
 
 
 class BoardFlash(BaseModel):
@@ -508,7 +510,7 @@ class BoardsChange(BaseModel):
     默认 0.5）；不给 target 就放在整块看板的 side 边、占三分之一；已在看板上的那一块挪过去。块的名字就是模块名，图表可以放
     多块（chart、chart-2 … chart-9）：module chart 不给 block 且已有图表时再放一块，给 block 就是挪那一块；图表可同时给
     symbol、duration（它自己的合约和周期，再放的图表默认不联动、用自己的合约）, chart {block, symbol?, duration?} 给某一块
-    图表设自己的合约 / 周期（null 回到顶栏的）, replace {module: 块, with: 模块} 那一块换成另一个模块,
+    图表设自己的合约 / 周期 / 副图（panes: kd / macd / rsi / oi / cci / volume 最多 3 个；null 回到顶栏的）, replace {module: 块, with: 模块} 那一块换成另一个模块,
     take <块> 拿掉一块（旁边的补满）, ratio {module: 块, value} 拖分隔线：那一块占它所在那一层的 value（0.05–0.95）,
     lock {module, size: auto / small / medium} 档位跟着地方大小自动选或锁小 / 锁中, editing 进入（并打开看板）/ 退出编辑,
     undo 撤销这次编辑里最近一步, link {module: 块, color} 联动色（图表 / 下单 / 自选 / 作战表的块各一个颜色 blue / purple /
@@ -2195,7 +2197,7 @@ def _boards_matches(state, value) -> bool:
 
     def chart_holds(block, wanted) -> bool:
         chart = charts.get(block) if isinstance(charts.get(block), dict) else {}
-        return all(chart.get(key) == wanted[key] for key in ("symbol", "duration") if key in wanted)
+        return all(chart.get(key) == wanted[key] for key in ("symbol", "duration", "panes") if key in wanted)
 
     if "chart" in value:
         return value["chart"]["block"] in leaves and chart_holds(value["chart"]["block"], value["chart"])

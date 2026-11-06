@@ -1866,15 +1866,25 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
       const linkedName = contractLabel(read.market.quote.symbol, props.instruments);
       const openLinked = () => { selectContract(chartSymbol); selectDuration(chartDuration); selectView("trade"); };
       if (size === "small") return <ChartSmall market={read.market} name={linkedName} onOpen={openLinked} />;
+      // 副图 (owner 2026-11-06): this block's own list (default: the trade chart's); a pane's settings stay the shared ones.
+      const ownPanes = boards.board.charts[block]?.panes;
       return <ChartMedium market={read.market} name={linkedName} onOpen={openLinked}
-        chart={{ settings: chartSettings, onSettingsChange: setChartSettings, preferences: chartPreferences, resolvedTheme, timeZone: "Asia/Shanghai" }} />;
+        chart={{ settings: chartSettings, onSettingsChange: setChartSettings, resolvedTheme, timeZone: "Asia/Shanghai", surfaceScope: block,
+          preferences: ownPanes ? { ...chartPreferences, subPaneList: ownPanes } : chartPreferences,
+          onIndicatorsChange: chartIndicatorsChange ? patch => {
+            const { subPaneList, ...shared } = patch;
+            if (subPaneList) { try { boards.apply({ chart: { block, panes: subPaneList } }); } catch (error) { setAccessNotice(error instanceof Error ? error.message : "副图没改成"); } }
+            if (Object.keys(shared).length) chartIndicatorsChange(shared);
+          } : undefined }} />;
     }
     if (!market) return <p className="board-empty" role="status">{props.marketError || "行情连接后显示"}</p>;
     const name = contractLabel(market.quote.symbol, props.instruments);
     if (module === "chart") {
       if (size === "small") return <ChartSmall market={market} name={name} onOpen={() => selectView("trade")} />;
+      // The block on the app's own contract is the trade chart: its 副图 are the trade chart's.
       if (size === "medium") return <ChartMedium market={market} name={name} onOpen={() => selectView("trade")}
-        chart={{ settings: chartSettings, onSettingsChange: setChartSettings, preferences: chartPreferences, resolvedTheme, timeZone: "Asia/Shanghai" }} />;
+        chart={{ settings: chartSettings, onSettingsChange: setChartSettings, preferences: chartPreferences, resolvedTheme, timeZone: "Asia/Shanghai",
+          surfaceScope: block, onIndicatorsChange: chartIndicatorsChange }} />;
       return <div className="board-chart-large">{marketCommand(true)}<div className="fdw-chart-area">{chartStage}</div></div>;
     }
     if (compact) return <OrderCompact market={market} name={name} positions={currentPositions} quick={quick} medium={size === "medium"}

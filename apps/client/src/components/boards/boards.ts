@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { createRemoveUpdate, getLeaves, getNodeAtPath, getParentPath, isSplitNode, updateTree, type MosaicNode, type MosaicPath } from "react-mosaic-component";
 import type { PreferencesDocument } from "../../userPreferences";
+import { SUB_PANES_MAX, type SubPaneType } from "../chartIndicators";
 
 /**
  * 看板 · 铺满版 (owner 2026-11-05, “按新稿做”): the canvas is always filled. A board is a split tree (react-mosaic's
@@ -32,8 +33,11 @@ export type LinkColor = "blue" | "purple" | "orange";
 export type LinkSetting = LinkColor | "none";
 export const LINK_MODULES: readonly LinkModule[] = ["chart", "order", "watch", "sheet"];
 export const LINK_COLORS: { id: LinkColor; label: string }[] = [{ id: "blue", label: "蓝" }, { id: "purple", label: "紫" }, { id: "orange", label: "橙" }];
-/** A chart block's own contract and period (absent: the app's own). */
-export interface ChartChoice { symbol?: string; duration?: number }
+/** A chart block's own contract, period and 副图 (absent: the app's own; 副图 default to the trade chart's). */
+export interface ChartChoice { symbol?: string; duration?: number; panes?: SubPaneType[] }
+const PANE_TYPES: readonly SubPaneType[] = ["kd", "macd", "rsi", "oi", "cci", "volume"];
+const cleanPanes = (panes: unknown): SubPaneType[] | undefined => Array.isArray(panes)
+  ? [...new Set(panes.filter((pane): pane is SubPaneType => PANE_TYPES.includes(pane as SubPaneType)))].slice(0, SUB_PANES_MAX) : undefined;
 export const CHART_DURATIONS = [60, 180, 300, 900, 1800, 3600, 86400, 604800] as const;
 export interface Board { id: string; name: string; layout: BoardNode | null; locks: Partial<Record<BoardBlock, BoardLock>>;
   /** 联动色 per block; a block not named here is blue, except a further chart, which follows its own contract. */
@@ -217,11 +221,13 @@ function cleanSettings(layout: BoardNode | null, raw: { locks?: unknown; links?:
   const charts: Board["charts"] = {};
   entries(raw.charts).forEach(([block, choice]) => {
     if (moduleOf(block) !== "chart" || !choice || typeof choice !== "object") return;
-    const { symbol, duration } = choice as ChartChoice;
+    const { symbol, duration, panes } = choice as ChartChoice;
     const clean: ChartChoice = {};
     if (typeof symbol === "string" && SYMBOL.test(symbol)) clean.symbol = symbol;
     if ((CHART_DURATIONS as readonly number[]).includes(duration as number)) clean.duration = duration;
-    if (clean.symbol || clean.duration) charts[block] = clean;
+    const ownPanes = cleanPanes(panes);
+    if (ownPanes) clean.panes = ownPanes;
+    if (clean.symbol || clean.duration || clean.panes) charts[block] = clean;
   });
   return { locks, links, charts };
 }
@@ -299,8 +305,8 @@ export interface BoardsChange {
   layout?: BoardNode | null;
   /** 联动色: the block follows the contract of that colour (a chart also 不联动, its own contract). */
   link?: { module: BoardBlock; color: LinkSetting };
-  /** A chart block's own contract and period (null: back to the app's own). */
-  chart?: { block: BoardBlock; symbol?: string | null; duration?: number | null };
+  /** A chart block's own contract, period and 副图 (null: back to the app's own / the trade chart's 副图). */
+  chart?: { block: BoardBlock; symbol?: string | null; duration?: number | null; panes?: SubPaneType[] | null };
   /** 用这套: an AI arrangement's layout, locks and charts in one step. */
   arrange?: { layout: BoardNode; locks: Partial<Record<BoardBlock, BoardLock>>; charts?: Partial<Record<BoardBlock, ChartChoice>> };
 }
@@ -325,7 +331,7 @@ export function planBoardsChange(change: BoardsChange, boards: Boards): Boards {
   }) });
   const known = (module: BoardModule) => { if (!MODULE_IDS.has(module)) throw new Error(`没有“${module}”这个模块`); };
   const onBoard = (block: BoardBlock) => { if (!leavesOf(current.layout).includes(block)) throw new Error(`这个看板上没有${isBlock(block) ? blockLabel(block) : `“${block}”`}`); };
-  const chartChoice = (block: BoardBlock, symbol?: string | null, duration?: number | null) => {
+  const chartChoice = (block: BoardBlock, symbol?: string | null, duration?: number | null, panes?: SubPaneType[] | null) => {
     const old = current.charts[block] ?? {};
     const next: ChartChoice = { ...old };
     if (symbol !== undefined) { if (symbol === null) delete next.symbol; else if (SYMBOL.test(symbol)) next.symbol = symbol; else throw new Error("合约代码不对，比如 SHFE.rb2601"); }
@@ -334,8 +340,12 @@ export function planBoardsChange(change: BoardsChange, boards: Boards): Boards {
       else if ((CHART_DURATIONS as readonly number[]).includes(duration)) next.duration = duration;
       else throw new Error("周期是 60 / 180 / 300 / 900 / 1800 / 3600 / 86400 / 604800 秒");
     }
+    if (panes !== undefined) {
+      if (panes === null) delete next.panes;
+      else { const clean = cleanPanes(panes); if (!clean || clean.length !== new Set(panes).size) throw new Error(`副图最多 ${SUB_PANES_MAX} 个，可选 kd / macd / rsi / oi / cci / volume`); next.panes = clean; }
+    }
     const charts = { ...current.charts };
-    if (next.symbol || next.duration) charts[block] = next; else delete charts[block];
+    if (next.symbol || next.duration || next.panes) charts[block] = next; else delete charts[block];
     return charts;
   };
   // Picking a chart's own contract makes it 不联动 unless it was given a colour on purpose.
@@ -379,11 +389,11 @@ export function planBoardsChange(change: BoardsChange, boards: Boards): Boards {
     return withCurrent({ links: { ...current.links, [block]: color } });
   }
   if (change.chart !== undefined) {
-    const { block, symbol, duration } = change.chart;
+    const { block, symbol, duration, panes } = change.chart;
     onBoard(block);
     if (moduleOf(block) !== "chart") throw new Error(`${blockLabel(block)}不是图表`);
     const links = symbol && linkOf(current, block) !== "none" ? { ...current.links, [block]: "none" as const } : current.links;
-    return withCurrent({ charts: chartChoice(block, symbol, duration), links });
+    return withCurrent({ charts: chartChoice(block, symbol, duration, panes), links });
   }
   if (change.take !== undefined) {
     onBoard(change.take);

@@ -96,6 +96,10 @@ interface TradingChartsProps {
   bars: MarketKlineBar[];
   settings: TradingChartSettings;
   preferences?: ChartPreferences;
+  /** 看板 (owner 2026-11-06): the board block this chart is (chart, chart-2 …). Its 均线 / 副图 editors are then the
+   *  block's own surfaces (board-chart-ma-editor / board-chart-pane-add with that id, board-chart-pane-editor with
+   *  `<block>:<pane>`), so several charts on one screen are each commandable. */
+  surfaceScope?: string;
   resolvedTheme?: "light" | "dark";
   timeZone?: string;
   selectedPrice?: number;
@@ -371,7 +375,8 @@ export function TradingCharts({
   drawingFinish = 0,
   onPaneContext,
   durationSeconds = 60,
-  preferences = DEFAULT_CHART_PREFERENCES
+  preferences = DEFAULT_CHART_PREFERENCES,
+  surfaceScope
 }: TradingChartsProps) {
   const chartBars = useMemo<ChartBar[]>(() => bars.map((bar) => ({
     time: Math.floor(bar.datetime / 1_000_000_000) as UTCTimestamp,
@@ -969,16 +974,18 @@ export function TradingCharts({
     if (rect) setPopover({ open, rect });
   };
   const closePopover = () => setPopover(undefined);
-  useDisclosureSurface("chart-ma-editor", { state: popover?.open.kind === "ma", available: editable, apply: open => (open ? openPopover({ kind: "ma" }) : closePopover()) });
-  useDisclosureSurface("chart-pane-add", { state: popover?.open.kind === "add", available: editable, apply: open => (open ? openPopover({ kind: "add" }) : closePopover()) });
+  const scoped = (name: string) => surfaceScope ? `board-${name}` : name;
+  const paneId = (type: SubPaneType) => surfaceScope ? `${surfaceScope}:${type}` : type;
+  useDisclosureSurface(scoped("chart-ma-editor"), { id: surfaceScope, state: popover?.open.kind === "ma", available: editable, apply: open => (open ? openPopover({ kind: "ma" }) : closePopover()) });
+  useDisclosureSurface(scoped("chart-pane-add"), { id: surfaceScope, state: popover?.open.kind === "add", available: editable, apply: open => (open ? openPopover({ kind: "add" }) : closePopover()) });
   // Four fixed registrations (hook order must not follow the pane list): a pane type not
   // currently shown registers nothing, so its command fails with 该界面当前不可用 — the truth.
-  useDisclosureSurface("chart-pane-editor", { id: "kd", available: editable && paneTypes.includes("kd"), state: popover?.open.kind === "pane" && popover.open.type === "kd", apply: open => (open ? openPopover({ kind: "pane", type: "kd" }) : closePopover()) });
-  useDisclosureSurface("chart-pane-editor", { id: "macd", available: editable && paneTypes.includes("macd"), state: popover?.open.kind === "pane" && popover.open.type === "macd", apply: open => (open ? openPopover({ kind: "pane", type: "macd" }) : closePopover()) });
-  useDisclosureSurface("chart-pane-editor", { id: "rsi", available: editable && paneTypes.includes("rsi"), state: popover?.open.kind === "pane" && popover.open.type === "rsi", apply: open => (open ? openPopover({ kind: "pane", type: "rsi" }) : closePopover()) });
-  useDisclosureSurface("chart-pane-editor", { id: "oi", available: editable && paneTypes.includes("oi"), state: popover?.open.kind === "pane" && popover.open.type === "oi", apply: open => (open ? openPopover({ kind: "pane", type: "oi" }) : closePopover()) });
-  useDisclosureSurface("chart-pane-editor", { id: "cci", available: editable && paneTypes.includes("cci"), state: popover?.open.kind === "pane" && popover.open.type === "cci", apply: open => (open ? openPopover({ kind: "pane", type: "cci" }) : closePopover()) });
-  useDisclosureSurface("chart-pane-editor", { id: "volume", available: editable && paneTypes.includes("volume"), state: popover?.open.kind === "pane" && popover.open.type === "volume", apply: open => (open ? openPopover({ kind: "pane", type: "volume" }) : closePopover()) });
+  useDisclosureSurface(scoped("chart-pane-editor"), { id: paneId("kd"), available: editable && paneTypes.includes("kd"), state: popover?.open.kind === "pane" && popover.open.type === "kd", apply: open => (open ? openPopover({ kind: "pane", type: "kd" }) : closePopover()) });
+  useDisclosureSurface(scoped("chart-pane-editor"), { id: paneId("macd"), available: editable && paneTypes.includes("macd"), state: popover?.open.kind === "pane" && popover.open.type === "macd", apply: open => (open ? openPopover({ kind: "pane", type: "macd" }) : closePopover()) });
+  useDisclosureSurface(scoped("chart-pane-editor"), { id: paneId("rsi"), available: editable && paneTypes.includes("rsi"), state: popover?.open.kind === "pane" && popover.open.type === "rsi", apply: open => (open ? openPopover({ kind: "pane", type: "rsi" }) : closePopover()) });
+  useDisclosureSurface(scoped("chart-pane-editor"), { id: paneId("oi"), available: editable && paneTypes.includes("oi"), state: popover?.open.kind === "pane" && popover.open.type === "oi", apply: open => (open ? openPopover({ kind: "pane", type: "oi" }) : closePopover()) });
+  useDisclosureSurface(scoped("chart-pane-editor"), { id: paneId("cci"), available: editable && paneTypes.includes("cci"), state: popover?.open.kind === "pane" && popover.open.type === "cci", apply: open => (open ? openPopover({ kind: "pane", type: "cci" }) : closePopover()) });
+  useDisclosureSurface(scoped("chart-pane-editor"), { id: paneId("volume"), available: editable && paneTypes.includes("volume"), state: popover?.open.kind === "pane" && popover.open.type === "volume", apply: open => (open ? openPopover({ kind: "pane", type: "volume" }) : closePopover()) });
   const addPane = (type: SubPaneType) => {
     if (paneTypes.length >= SUB_PANES_MAX || paneTypes.includes(type)) return;
     changeIndicators({ subPaneList: [...paneTypes, type] });

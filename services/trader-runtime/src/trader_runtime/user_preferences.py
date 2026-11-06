@@ -454,6 +454,7 @@ BOARD_BLOCK_PATTERN = r"^(chart|positions|order|watch|sheet|alert|chat|account|o
 BOARD_BLOCK = Annotated[str, Field(pattern=BOARD_BLOCK_PATTERN)]
 BOARD_BLOCKS_MAX = BOARD_MODULE_COUNT + 8
 BOARD_CHART_DURATIONS = Literal[60, 180, 300, 900, 1800, 3600, 86400, 604800]
+BOARD_CHART_PANES = Literal["kd", "macd", "rsi", "oi", "cci", "volume"]
 
 
 def board_module(block: str) -> str:
@@ -464,6 +465,14 @@ class BoardChart(BaseModel):
     model_config = ConfigDict(extra="forbid")
     symbol: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_.@-]{3,40}$")
     duration: BOARD_CHART_DURATIONS | None = None
+    # 看板 · 副图 (owner 2026-11-06): this chart block's own 副图 list (absent: the trade chart's subPaneList).
+    panes: list[BOARD_CHART_PANES] | None = Field(default=None, max_length=3)
+
+    @model_validator(mode="after")
+    def distinct_panes(self):
+        if self.panes is not None and len(set(self.panes)) != len(self.panes):
+            raise ValueError("副图不能重复")
+        return self
 
 
 class BoardSplit(BaseModel):

@@ -3,7 +3,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { Check, ChevronDown, GripVertical, LayoutDashboard, MoreHorizontal, Pencil, Plus, Sparkles, Trash2, Undo2, X } from "lucide-react";
 import { DndProvider, useDrag } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
-import { MosaicDragType, MosaicWindow, MosaicWithoutDragDropContext, type MosaicDropData, type MosaicPath } from "react-mosaic-component";
+import { MosaicDragType, MosaicWindow, MosaicWithoutDragDropContext, useMosaic, useMosaicWindow, type MosaicChangeMeta, type MosaicDropData,
+  type MosaicPath } from "react-mosaic-component";
 import "react-mosaic-component/react-mosaic-component.css";
 import { useDisclosureSurface, useUiSurface } from "../../uiSurfaces";
 import { HelpTip } from "../Blocks";
@@ -76,6 +77,9 @@ export interface BoardsControl {
   fit: (layout: BoardNode | null) => BoardNode | null;
   /** The smallest room a block gets (dragging a divider stops there; some modules need more, see `of`). */
   minimum: BlockMinimum;
+  /** 拿掉 outside editing (the hover bar's ×): what was taken, shown with 撤销 for a few seconds. */
+  taken: BoardBlock | null;
+  setTaken: (block: BoardBlock | null) => void;
   /** 快讯 on the board: its own filter and sort (the 调研 panel's 快讯 keeps its own). */
   flash: { filter: BoardFlashFilter; sort: BoardFlashSort };
   setFlash: (patch: Partial<{ filter: BoardFlashFilter; sort: BoardFlashSort }>) => void;
@@ -103,6 +107,8 @@ export function useBoardsControl(handle: BoardsHandle, show: () => void, availab
   }, []);
   const minimum = useMemo(() => blockMin(fontScale), [fontScale]);
   const fit = useCallback((layout: BoardNode | null) => fitLayout(layout, canvasBox.w, canvasBox.h, minimum), [canvasBox, minimum]);
+  const [taken, setTaken] = useState<BoardBlock | null>(null);
+  useEffect(() => { if (!taken) return; const timer = setTimeout(() => setTaken(null), 6000); return () => clearTimeout(timer); }, [taken]);
   const [flash, setFlashState] = useState<{ filter: BoardFlashFilter; sort: BoardFlashSort }>({ filter: "watch", sort: "time" });
   const setFlash = useCallback((patch: Partial<{ filter: BoardFlashFilter; sort: BoardFlashSort }>) => setFlashState(current => ({ ...current, ...patch })), []);
   const [library, setLibraryState] = useState(false);
@@ -214,7 +220,7 @@ export function useBoardsControl(handle: BoardsHandle, show: () => void, availab
     if (change.select !== undefined || change.create !== undefined) open();
   } }, [editing, library, JSON.stringify(tiles), main, JSON.stringify(groups), JSON.stringify(shownPreview), arranging, hasFlash, flash.filter, flash.sort], available);
   return { handle, editing, setEditing, library, setLibrary, show, notice, notify, sizes, reportTile, linkSymbol, followLink,
-    preview, adopt, discard, asking, setAsking, arranging, ask, canvas, setCanvas, fit, minimum, flash, setFlash };
+    preview, adopt, discard, asking, setAsking, arranging, ask, canvas, setCanvas, fit, minimum, taken, setTaken, flash, setFlash };
 }
 
 /**
@@ -313,6 +319,8 @@ function TileBody({ block, lock, link, scale, editing, reportTile, renderTile }:
   useEffect(() => () => reportTile({ block, gone: true }), [reportTile, block]);
   return <div ref={ref} className={`board-tile size-${size ?? "pending"}`} data-agent-target={`board-tile:${block}`} data-state={size ?? undefined}
     role="group" aria-label={`${blockLabel(block)}${size ? ` · ${SIZE_LABELS[size]}` : ""}`}>
+    {/* Outside editing, the pointer near the top edge brings up the block's bar (× and ⋯). */}
+    {editing ? null : <span className="board-hover-edge" aria-hidden="true" />}
     <div className="board-tile-content" inert={editing || undefined}>{size ? renderTile(block, size) : null}</div>
     {link && link !== "none" ? <span className="board-link-dot" data-link={link} role="img" aria-label={`联动：${LINK_COLORS.find(item => item.id === link)?.label}`} /> : null}
   </div>;
@@ -419,6 +427,24 @@ function ChartPick({ block, choice, link, contracts, run }: { block: BoardBlock;
       </div>
     </ChartPopover>, document.body) : null}</Presence>
   </span>;
+}
+
+/**
+ * 不在编辑时 (owner 2026-11-06): the block's bar shows when the pointer comes near its top edge — its name, × (react-mosaic's
+ * own remove action, as its RemoveButton does; the board turns it into boards {take}) and ⋯.
+ */
+function HoverBar({ block, size, layout, locked, link, run }: { block: BoardBlock; size: BoardSize | undefined; locked?: BoardLock; link?: LinkSetting;
+  layout: BoardNode | null; run: (change: BoardsChange) => boolean }) {
+  const { mosaicActions } = useMosaic<BoardBlock>();
+  const { mosaicWindowActions } = useMosaicWindow();
+  const label = blockLabel(block);
+  return <div className="board-tile-bar board-hover-bar">
+    <strong>{label}</strong><small>{size ? SIZE_LABELS[size] : ""}</small>
+    <span className="board-grow" />
+    <button type="button" className="board-tile-menu-button board-remove" aria-label={`拿掉${label}（旁边的补满）`} title={`拿掉${label}`}
+      onMouseDown={event => event.stopPropagation()} onClick={() => mosaicActions.remove(mosaicWindowActions.getPath())}><X /></button>
+    <TileMenu block={block} size={size} layout={layout} locked={locked} link={link} run={run} />
+  </div>;
 }
 
 /** Editing: the block's name bar (react-mosaic makes its native host the drag handle) — its size, share and ⋯ menu. */
@@ -533,7 +559,9 @@ export function BoardsView({ control, renderTile, scale, contracts }: {
   const tile = (block: BoardBlock, path: MosaicPath) => <MosaicWindow<BoardBlock> path={path} title={blockLabel(block)} draggable={shaping}
     renderToolbar={() => <div className="board-tile-bar-host">{shaping ? <TileBar block={block} size={sizes[block]} locked={board.locks[block]}
       link={isLinkBlock(block) ? linkOf(board, block) : undefined} layout={shownLayout} run={run} contracts={contracts}
-      chart={moduleOf(block) === "chart" ? board.charts[block] ?? {} : undefined} /> : null}</div>}>
+      chart={moduleOf(block) === "chart" ? board.charts[block] ?? {} : undefined} />
+      : preview ? null : <HoverBar block={block} size={sizes[block]} locked={board.locks[block]} link={isLinkBlock(block) ? linkOf(board, block) : undefined}
+        layout={shownLayout} run={run} />}</div>}>
     <TileBody block={block} lock={shown.locks[block]} link={showDots && !shaping && isLinkBlock(block) ? linkOf(board, block) : undefined}
       scale={scale} editing={editing} reportTile={reportTile} renderTile={renderTile} />
   </MosaicWindow>;
@@ -550,12 +578,19 @@ export function BoardsView({ control, renderTile, scale, contracts }: {
     <DndProvider backend={HTML5Backend}>
       <div className="board-canvas" data-agent-target="board-canvas" ref={canvasRef}>
         <MosaicWithoutDragDropContext<BoardBlock> mosaicId={MOSAIC_ID} className="board-mosaic" value={shown.layout}
-          onChange={next => { if (!preview) handle.preview(next); }} onRelease={next => { if (!preview) run({ layout: next }); }}
+          onChange={next => { if (!preview) handle.preview(next); }} onRelease={(next, meta?: MosaicChangeMeta<BoardBlock>) => {
+            if (preview) return;
+            // A block's × (react-mosaic's remove): the board's own 拿掉, undoable, with 撤销 under the board outside editing.
+            if (meta?.type === "remove" && typeof meta.node === "string") { if (run({ take: meta.node }) && !editing) control.setTaken(meta.node); return; }
+            run({ layout: next });
+          }}
           resize={shaping ? { minimumPaneSizePercentage: 1, minimumPaneSizePx: { row: minimum.w, column: minimum.h } } : "DISABLED"} renderTile={tile}
           zeroStateView={<p className="board-empty-prompt">{editing ? "这一套还空着：点顶栏“＋ 模块”，把模块拖进来，或“让 AI 帮我摆”" : "这一套还空着：点顶栏“看板”旁的箭头，选“编辑”放模块进来"}</p>} />
       </div>
       {preview ? null : <Library control={control} layout={board.layout} run={run} />}
     </DndProvider>
+    {control.taken ? <p className="board-taken" role="status" data-agent-target="board-taken">已拿掉{blockLabel(control.taken)}
+      <button type="button" className="app-button" disabled={!handle.undo} onClick={() => { handle.undo?.(); control.setTaken(null); }}>撤销</button></p> : null}
   </section>;
 }
 
