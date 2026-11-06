@@ -46,15 +46,13 @@ export type PassiveChartProps = Omit<ComponentProps<typeof TradingCharts>, "bars
 
 /**
  * How many 副图 a passive chart shows (owner 11-06: rather one fewer than labels over each other): each 副图 at its
- * share of the body (less the time axis and splitters) must hold its label row and some plot — two label rows on a
- * narrow chart, where the values wrap.
+ * share of the body (less the time axis and splitters) must hold its one-line name row and some plot.
  */
-const panesThatFit = (width: number, height: number, sizes: PaneSizes | undefined, count: number) => {
-  const need = width < 440 ? 80 : 56;
+const panesThatFit = (height: number, sizes: PaneSizes | undefined, count: number) => {
   for (let shown = count; shown > 0; shown -= 1) {
     const { main, panes } = normalizePaneSizes(sizes, shown);
     const each = (height - 26 - 5 * shown) / (main + panes.reduce((sum, share) => sum + share, 0));
-    if (panes.every(share => share * each >= need)) return shown;
+    if (panes.every(share => share * each >= 56)) return shown;
   }
   return 0;
 };
@@ -78,11 +76,11 @@ export function ChartMedium({ market, name, chart, onOpen, menuActions }: { mark
     const rect = body.current?.getBoundingClientRect();
     setMenu(open ? { target: { area: "main", price: Number(market.quote.lastPrice) || 0 }, x: (rect?.left ?? 200) + (rect?.width ?? 300) / 2, y: (rect?.top ?? 120) + 40, sub: null } : undefined);
   } });
-  const [box, setBox] = useState({ width: 0, height: 0 });
+  const [box, setBox] = useState({ height: 0 });
   useLayoutEffect(() => {
     const node = body.current;
     if (!node) return;
-    const read = () => setBox({ width: node.clientWidth, height: node.clientHeight });
+    const read = () => setBox({ height: node.clientHeight });
     read();
     const observer = new ResizeObserver(read);
     observer.observe(node);
@@ -90,7 +88,7 @@ export function ChartMedium({ market, name, chart, onOpen, menuActions }: { mark
   }, []);
   // (A stored entry may still be the older {type} form.)
   const list = chart.preferences?.subPaneList?.map(pane => typeof pane === "string" ? pane : pane.type);
-  const room = box.height ? panesThatFit(box.width, box.height, chart.settings.paneSizes, list?.length ?? 0) : list?.length ?? 0;
+  const room = box.height ? panesThatFit(box.height, chart.settings.paneSizes, list?.length ?? 0) : list?.length ?? 0;
   // The latest 副图 show (one just added is seen at once); the older ones give way to the height.
   const hidden = list && list.length > room ? list.slice(0, list.length - room) : [];
   const shown: PassiveChartProps = hidden.length && list ? {

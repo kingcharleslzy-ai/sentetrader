@@ -1083,7 +1083,7 @@ export function TradingCharts({
           aria-label={index === 0 ? `调整价格图和${SUB_PANE_NAMES[type]}副图高度` : `调整${SUB_PANE_NAMES[paneTypes[index - 1]]}副图和${SUB_PANE_NAMES[type]}副图高度`}
           onPointerDown={(event) => resizePane(index, event)} />
         <section className="fdw-chart-pane" data-region={passive ? undefined : `chart.${type}`}>
-          <div className="fdw-chart-pane-label">
+          <div className="fdw-chart-pane-label fdw-sub-pane-label">
             {editable
               ? <button type="button" className="fdw-ind-label" ref={(element) => { if (element) paneLabelRefs.current.set(type, element); else paneLabelRefs.current.delete(type); }}
                   onClick={() => popover?.open.kind === "pane" && popover.open.type === type ? closePopover() : openPopover({ kind: "pane", type })}>{subPaneLabel(type, indicators)}</button>

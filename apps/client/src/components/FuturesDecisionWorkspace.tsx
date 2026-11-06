@@ -1885,7 +1885,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
       const menuActions: ChartMenuActions = {
         chartView: "kline", duration: chartDuration, decimals: decimalsForTick(tick), tick,
         indicators: changePassive ? indicators : null,
-        drawingsAvailable: false, drawingsBlocked: "画线在交易台：点图表的名字切过去",
+        drawingsAvailable: false, drawingsBlocked: "在交易台画：点图表的名字过去",
         hiddenAll: false, hiddenCount: 0, locked: false, magnet: false, drawingCount: 0, hasChartMarks: false,
         onAlert: alerts.available ? price => { void alerts.create(chartSymbol, price); } : undefined,
         onTool: () => undefined, onGroup: () => undefined,

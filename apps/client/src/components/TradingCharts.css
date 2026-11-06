@@ -55,6 +55,12 @@
   opacity: 1;
 }
 
+/* A 副图's name row is one line, never wrapped over its plot or the time axis: the values give way (ellipsis) before the
+   name and ＋ 副图. */
+.fdw-sub-pane-label { flex-wrap: nowrap; }
+.fdw-sub-pane-label > * { flex: none; }
+.fdw-sub-pane-label > span { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* #734: a guest's 最近 N 个交易日 basis gets its own line; 数据不足 replaces a pane's values. */
 .fdw-chart-pane-label .fdw-history-note { flex-basis: 100%; color: var(--fdw-muted); }
 .fdw-chart-pane-label .fdw-pane-short { color: var(--fdw-muted); }

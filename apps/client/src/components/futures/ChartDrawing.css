@@ -332,13 +332,15 @@
 }
 
 /* ── Right-click menu (样稿 ③) ── */
-.fdw-context-menu { width: 236px; }
+/* Its rows are its width: a long note in a row gives way (ellipsis, the whole of it in the title) before the row's
+   name, instead of widening the rows past the menu's background. */
+.fdw-context-menu { width: 236px; grid-template-columns: minmax(0, 1fr); }
 /* The chart menu's submenus fly out beside it: the root must not clip them (the shared menu scrolls). */
 .fdw-context-menu.fdw-chart-menu { max-width: none; max-height: none; overflow: visible; }
 .fdw-context-menu hr { margin: var(--space-1) 0; border: 0; border-top: 1px solid var(--line); }
 .fdw-context-menu button { width: 100%; }
 .fdw-context-menu button > span { flex: 1 1 auto; min-width: 0; }
-.fdw-context-menu button > small { color: var(--muted); font-size: var(--font-md); white-space: nowrap; }
+.fdw-context-menu button > small { flex: 0 100 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--muted); font-size: var(--font-md); white-space: nowrap; }
 .fdw-context-menu button > svg:last-child:not(:first-child) { color: var(--muted); }
 .fdw-context-menu button[aria-expanded="true"] { color: var(--accent); background: var(--accent-soft); }
 .fdw-context-menu button:is([role="menuitemradio"], [role="menuitemcheckbox"])[aria-checked="true"]::after { content: "✓"; margin-left: auto; color: var(--accent); }
