@@ -386,9 +386,12 @@ export function ChatCompact({ turns, busy, blockedReason, onSend, onOpen, medium
     <input value={text} onChange={event => setText(event.target.value)} placeholder={blockedReason || "问 AI，或说一句要做的事"} aria-label="给 AI 发消息" disabled={Boolean(blockedReason)} />
     <button type="submit" className="app-button primary" disabled={!text.trim() || busy || Boolean(blockedReason)}>{busy ? "回答中" : "发送"}</button>
   </form>;
-  if (!medium) return <div className="board-chat-bar">{input}</div>;
+  // The name bar, as every block has one: a block of only an input box looked broken (visual review 2026-11-07).
+  const head = <button type="button" className="board-tile-head board-tile-link" aria-label="对话，打开对话面板" onClick={onOpen}><strong>对话</strong>
+    {reply ? <small>AI · {reply.at}</small> : medium ? null : <small>还没有对话：在下面问一句</small>}</button>;
+  if (!medium) return <div className="board-chat-bar">{head}{input}</div>;
   return <div className="board-chat-medium">
-    <button type="button" className="board-tile-head board-tile-link" aria-label="对话，打开对话面板" onClick={onOpen}><strong>对话</strong>{reply ? <small>AI · {reply.at}</small> : null}</button>
+    {head}
     {turns.length ? <ol className="board-turns board-read" aria-label="最近的对话">{[...turns].reverse().map(turn => <li key={turn.key} data-role={turn.role}>
       <p>{turn.text}</p></li>)}</ol> : <p className="board-reply">还没有对话：在下面问一句</p>}
     {input}

@@ -188,7 +188,8 @@
 .board-latest { margin-top: auto; display: flex; flex-direction: column; gap: 2px; padding: var(--space-1) var(--space-2); border-radius: var(--radius-control); background: var(--price-alert-soft); }
 .board-latest small { color: var(--price-alert); font-size: var(--font-xs); }
 .board-latest strong { font-size: var(--font-md); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.board-chat-bar { display: flex; align-items: center; height: 100%; padding: 0 var(--space-3); }
+.board-chat-bar { display: flex; flex-direction: column; height: 100%; }
+.board-chat-bar > .board-chat-input { margin: auto 0; padding: var(--space-2) var(--space-3); }
 .board-chat-input { flex: none; display: flex; align-items: center; gap: var(--space-2); width: 100%; }
 .board-chat-medium .board-chat-input { padding: var(--space-2) var(--space-3); border-top: 1px solid var(--line); }
 .board-chat-input input { flex: 1; min-width: 0; height: 36px; padding: 0 var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-control); background: var(--soft); color: var(--ink); font-size: var(--font-md); }
