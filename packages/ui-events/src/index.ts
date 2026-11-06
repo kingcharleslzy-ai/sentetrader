@@ -368,6 +368,8 @@ export interface TargetPositionPlan {
 export interface OrderEstimate {
   schemaVersion: 1;
   symbol: string;
+  accountId?: string;
+  currency?: "CNY" | "USD";
   side: "buy" | "sell";
   offset: "open" | "close";
   volume: number;

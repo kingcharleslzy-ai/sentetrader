@@ -11,7 +11,7 @@ from fastapi import FastAPI, HTTPException, Query, Request, status
 
 from ..autonomy import AutonomyError
 from ..execution_stop import lift_companion_stop, stop_execution
-from ..instruments import foreign_product_of, is_foreign_paper
+from ..instruments import account_currency, foreign_product_of, is_foreign_paper
 from ..order_intent import from_close_batch as intent_from_close_batch
 from ..order_intent import from_target_position as intent_from_target_position
 from ..order_intent import from_trade_order as intent_from_trade_order
@@ -143,7 +143,7 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
         """下单前的“钱”估算（只读，不做校验或拦截）：开仓给保证金约/手续费约/可开手数，
         平仓给释放保证金约与今昨拆分的手续费（`positionBucket` 省略 = all，按账户平今平昨
         偏好拆；`position_bucket` 下划线写法兼容旧调用方，两写法同值只算一个，冲突返回 422）。
-        缺数据的字段为 null 并带 `missing` 原因码。"""
+        缺数据的字段为 null 并带 `missing` 原因码；symbol、accountId、currency 为实际下单合约、账户和币种。"""
         # The wire name is positionBucket (the tool and the docs say so); the
         # snake_case spelling stays accepted for older callers. Divergent values
         # are an explicit 422 — never a silent pick of one of them.
@@ -155,6 +155,7 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
         context = await ctx.account_context(request, user_id)
         provider = context.account.provider
         foreign = foreign_product_of(symbol)
+        estimate_account = context.account
         if foreign is not None and foreign.mt5 and is_foreign_paper(context.account.account_id) \
                 and symbol.upper().startswith("KQD."):
             # 已在美元子账户、窗口开着外盘图表：估的是该品种主力月份那一单（与出卡同一换法）。
@@ -168,6 +169,7 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
             if account is None:
                 raise HTTPException(status_code=503, detail={
                     "code": "estimate_unavailable", "reason": "foreign_account_unavailable"})
+            estimate_account = account
             provider = account.provider
             if symbol.upper().startswith("KQD."):
                 main = await asyncio.to_thread(foreign_main_symbol, provider, foreign)
@@ -176,11 +178,13 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
                         "code": "estimate_unavailable", "reason": "foreign_main_unavailable"})
                 symbol = main
         try:
-            return proposals.order_estimate(
+            estimate = proposals.order_estimate(
                 user_id=user_id, symbol=symbol, side=side, offset=offset,
                 volume=volume, price=price, provider=provider,
                 position_bucket=position_bucket,
             )
+            return {**estimate, "accountId": estimate_account.account_id,
+                    "currency": account_currency(estimate_account.account_id)}
         except KeyError as error:
             raise HTTPException(status_code=404, detail="symbol_not_found") from error
         except RuntimeError as error:

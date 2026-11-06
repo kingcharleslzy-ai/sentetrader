@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { knownAccountRevision } from "../../accountRevision";
-import type { MarketQuoteSnapshot, SimulationOrder } from "../../api";
+import { getOrderEstimate, type MarketQuoteSnapshot, type SimulationOrder } from "../../api";
 import type { ManualSimulationRequest } from "./support";
 import { manualOrderReceipt, type ManualOrderOutcome } from "../../hooks/useSimulationOrders";
 
 /** A quick order waiting for the user's confirmation. */
-export type PendingQuickOrder = { symbol: string; contextKey?: string } & (
+export type PendingQuickOrder = { symbol: string; contextKey?: string; execution?: { symbol: string; accountId: string; currency: "USD" } } & (
   { kind: "orders"; requests: ManualSimulationRequest[] } | { kind: "cancel"; orders: SimulationOrder[] }
   /** 反手: the 目标持仓 route at −net, its card confirmed once here; the Runtime sends the opening leg after the close fills. */
   | { kind: "reverse"; targetNet: number; summary: string }
@@ -97,13 +97,13 @@ export function useQuickOrders({ quote, runtimeBaseUrl, tradeBusy, simulationEna
         }
         if (current(order)) setQuickMessage("撤单请求已逐笔处理，请查看委托回报。");
       } else if (order.kind === "reverse") {
-        const confirmed = await submitTargetPosition?.({ symbol: order.symbol, targetNet: order.targetNet, priceIntent: "aggressive", confirm: true });
+        const confirmed = await submitTargetPosition?.({ symbol: order.execution?.symbol ?? order.symbol, targetNet: order.targetNet, priceIntent: "aggressive", confirm: true });
         if (current(order)) setQuickMessage(confirmed ? `反手已确认：${order.summary}，平仓全部成交后自动开仓，进度见对话。` : "反手未提交，原因见提示。");
       } else {
         const receipts: string[] = [];
         for (const request of order.requests) {
           if (!current(order)) break;
-          const result = await submitManualOrder(request);
+          const result = await submitManualOrder(order.execution ? { ...request, symbol: request.symbol ?? order.execution.symbol } : request);
           receipts.push(manualOrderReceipt(result));
           if (!result?.accepted) break;
         }
@@ -118,10 +118,34 @@ export function useQuickOrders({ quote, runtimeBaseUrl, tradeBusy, simulationEna
     | Omit<Extract<PendingQuickOrder, {kind: "reverse"}>, "symbol" | "contextKey">, options: { confirm?: boolean } = {}) => {
     if (!quote) return;
     if (quickInFlight.current || pending || tradeBusy) return;
-    const order = { symbol: quote.symbol, contextKey: currentContext, ...action };
-    if (skipConfirm && !options.confirm) void submitQuick(order); else setPending(order);
+    const order: PendingQuickOrder = { symbol: quote.symbol, contextKey: currentContext, ...action };
+    const offer = () => { if (skipConfirm && !options.confirm) void submitQuick(order); else setPending(order); };
+    if (order.kind !== "cancel" && (!skipConfirm || options.confirm) && /^(KQD|CME)\./i.test(order.symbol)) {
+      if (!runtimeBaseUrl) return;
+      quickInFlight.current = true; setQuickBusy(true); setQuickMessage("正在核对实际下单合约与账户…");
+      void (async () => {
+        try {
+          const request = order.kind === "orders" ? order.requests[0] : undefined;
+          const target = order.kind === "reverse" ? order.targetNet : 0;
+          const estimate = await getOrderEstimate(runtimeBaseUrl, {
+            symbol: request?.symbol ?? order.symbol, side: request ? request.side.startsWith("buy") ? "buy" : "sell" : target > 0 ? "buy" : "sell",
+            offset: request?.side.endsWith("_close") ? "close" : "open", volume: request?.volume ?? Math.abs(target),
+            price: request?.limitPrice, positionBucket: request?.positionBucket,
+          });
+          if (!current(order)) return;
+          if (!estimate.accountId || estimate.currency !== "USD" || !/^CME\./i.test(estimate.symbol)) throw new Error("unresolved_contract");
+          order.execution = { symbol: estimate.symbol, accountId: estimate.accountId, currency: estimate.currency };
+          setQuickMessage("");
+        } catch {
+          if (current(order)) setQuickMessage("无法确认实际下单合约与美元账户，请稍后重试。");
+          return;
+        } finally { quickInFlight.current = false; setQuickBusy(false); }
+        offer();
+      })();
+      return;
+    }
+    offer();
   };
   return { pending, setPending, quickBusy, quickMessage, requestAction,
     submitQuick };
 }
-

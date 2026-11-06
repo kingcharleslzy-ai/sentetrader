@@ -70,19 +70,36 @@ describe("quick closes use the existing manual request", () => {
     expect(Boolean(screen.queryByRole("button", { name: "一键平今" }))).toBe(visible);
   });
 });
-test("keyboard and click use the same confirmation; input and Cancel Enter never confirm; confirmation button submits once", async () => {
-  render(<Harness />);
+test.each([quote.symbol, "KQD.m@COMEX.MGC"])("keyboard and click use the same confirmation; input and Cancel Enter never confirm; confirmation button submits once (%s)", async symbol => {
+  const foreign = symbol.startsWith("KQD.");
+  const read = foreign ? vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
+    symbol: "CME.MGCZ26", accountId: "paperusd:test", currency: "USD",
+  }), { status: 200 })) : undefined;
+  render(<Harness symbol={symbol} />);
   fireEvent.keyDown(screen.getByLabelText("typing"), { key: "1", code: "Digit1", altKey: true });
   expect(screen.getByTestId("quick-order-dialog")).not.toHaveAttribute("open");
   fireEvent.click(screen.getByRole("button", { name: "快捷手数 5" }));
   fireEvent.keyDown(window, { key: "¡", code: "Digit1", altKey: true });
   expect(submit).not.toHaveBeenCalled();
-  expect(screen.getByTestId("quick-order-dialog")).toHaveTextContent("5 手");
+  await waitFor(() => expect(screen.getByTestId("quick-order-dialog")).toHaveTextContent("5 手"));
+  if (foreign) {
+    expect(screen.getByTestId("quick-order-dialog")).toHaveTextContent("CME.MGCZ26");
+    expect(screen.getByTestId("quick-order-dialog")).toHaveTextContent("美元账户 · USD · paperusd:test");
+    expect(screen.getByTestId("quick-order-dialog")).not.toHaveTextContent(symbol);
+  }
   fireEvent.keyDown(screen.getByRole("button", { name: "取消" }), { key: "Enter" });
   expect(submit).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "确认提交" }));
   await waitFor(() => expect(submit).toHaveBeenCalledTimes(1));
-  expect(submit).toHaveBeenCalledWith({ side: "buy_open", volume: 5, priceIntent: "aggressive", source: "three-key" });
+  expect(submit).toHaveBeenCalledWith({ side: "buy_open", volume: 5, priceIntent: "aggressive", source: "three-key", ...(foreign ? { symbol: "CME.MGCZ26" } : {}) });
+  if (read) {
+    read.mockResolvedValueOnce(new Response("{}", { status: 503 }));
+    fireEvent.click(screen.getByRole("button", { name: "一键买多" }));
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("无法确认实际下单合约与美元账户"));
+    expect(screen.getByTestId("quick-order-dialog")).not.toHaveAttribute("open");
+    expect(submit).toHaveBeenCalledTimes(1);
+    read.mockRestore();
+  }
 });
 test("skip-confirm submits directly; stored quick volume independent of the manual ticket", async () => {
   localStorage.setItem(QUICK_VOLUME_KEY, "2");

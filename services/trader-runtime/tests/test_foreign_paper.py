@@ -171,6 +171,7 @@ async def test_a_ticket_on_a_foreign_chart_in_a_cny_conversation_cards_the_usd_m
                 "symbol": "KQD.m@COMEX.GC", "side": "buy", "offset": "open", "volume": 1})
             assert estimate.status_code == 200, estimate.text[:300]
             assert estimate.json()["units"]["margin"].startswith("美元")
+            assert (estimate.json()["symbol"], estimate.json()["accountId"], estimate.json()["currency"]) == (MAIN, usd_id, "USD")
             response = await friend.post("/api/simulation/proposals", headers=header, json={
                 "sessionId": session_id, "symbol": "KQD.m@COMEX.GC", "side": "buy_open", "volume": 1,
                 "priceIntent": "aggressive", "reason": "外盘图表下单票"})
