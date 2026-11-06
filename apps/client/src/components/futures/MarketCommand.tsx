@@ -23,7 +23,7 @@ const FOLD_PERIODS = 4;
 const FOLD_TOOLS = 5;
 /** The tool cells that shrink and scroll instead of pushing the row: their overflow counts too. OHLC (dl) is
  *  not probed: it already drops whole items by itself as the tools take its room. */
-const MARKET_WHOLE_CELLS = [".fdw-chart-tools", ".fdw-chart-tools > [role='group']", ".fdw-chart-layout"];
+const MARKET_WHOLE_CELLS = [".fdw-market-head", ".fdw-chart-tools", ".fdw-chart-tools > [role='group']", ".fdw-chart-layout"];
 const marketBarOverflows = (bar: HTMLElement) => rowContentOverflows(bar, MARKET_WHOLE_CELLS, "dl");
 
 /** The last tick's direction and a counter that remounts the price so its flash restarts. */
@@ -111,6 +111,7 @@ export function MarketCommand({ workspace, market: shownMarket, headerCurrentCon
   return (
     <section ref={barRef} className={`fdw-market-command${inHeader ? " fdw-current-contract-in-header" : ""} ${fitClasses(MARKET_FIT_CLASSES, fit)}`}
       data-fit={fit} data-agent-target="market:command">
+        <div className="fdw-market-row">
           <div className="fdw-market-head">
             <div className="fdw-contract-head">
               {/* The name is split for the ellipsis; the label keeps it whole: "沪金2612 SHFE.au2612". */}
@@ -149,6 +150,7 @@ export function MarketCommand({ workspace, market: shownMarket, headerCurrentCon
               <MarketSessionCard key={`${workspace.runtimeBaseUrl}:${quote?.symbol}:${workspace.replayActive}`} market={market} replayActive={workspace.replayActive}/>
             </div>
           </div>
+        </div>
           {watchlistStatus && <small role="status">{watchlistStatus}</small>}
           {alerts?.notice && <small role="status" data-testid="price-alert-notice">{alerts.notice}</small>}
           {drawings?.notice && <small role="status" data-testid="user-drawing-notice">{drawings.notice}</small>}

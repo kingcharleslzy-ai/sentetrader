@@ -4,16 +4,19 @@
   min-height: var(--fdw-command);
   flex: 0 0 auto;
   display: grid;
-  /* The head never shrinks below its min-content (contract button + last price; OHLC is a
-     0-min column), and the tools column gives way instead — its period group scrolls. */
-  grid-template-columns: minmax(min-content, 1fr) minmax(0, auto);
+  grid-template-columns: minmax(0, 1fr);
   overflow: hidden;
   border-bottom: 1px solid var(--fdw-line);
   background: var(--fdw-surface);
 }
+/* The head never shrinks below its min-content (contract button + last price; OHLC is a 0-min
+   column), and the tools give way instead — its period group scrolls. A flex row, not a
+   minmax(min-content, 1fr) grid track: WebKit (the desktop app) kept that track at its old width
+   when the price grew a digit or a side panel opened, and the periods covered the price's last digit. */
+.fdw-market-row { min-width: 0; display: flex; overflow: hidden; }
 /* The contract column keeps room for a short product part plus the month (and the badge and ⓘ
    beside it) at every width; the chart tools give way instead (see the fit levels). */
-.fdw-market-head { width: 100%; height: var(--fdw-command); min-width: 0; display: grid; grid-template-columns: minmax(13em, max-content) max-content minmax(0, 1fr); align-items: center; gap: var(--space-3); padding: 0 var(--space-3); overflow: hidden; }
+.fdw-market-head { flex: 1 0 0%; height: var(--fdw-command); min-width: min-content; display: grid; grid-template-columns: minmax(13em, max-content) max-content minmax(0, 1fr); align-items: center; gap: var(--space-3); padding: 0 var(--space-3); overflow: hidden; }
 
 /* 合约信息卡 (2026-10-02): the first column is the contract button plus its ⓘ / delivery badge
    (.fdw-contract-marks, ContractInfoControl.css). When the head runs tight the button yields
@@ -64,7 +67,7 @@
 .fdw-market-head > div > span.fdw-replay-omitted, .fdw-market-head dd.fdw-replay-omitted { padding: 0; color: var(--fdw-muted); font-family: inherit; font-size: var(--font-md); font-weight: 400; }
 
 /* Right side: periods (segmented), session, tools. */
-.fdw-chart-tools { min-height: var(--fdw-command); min-width: 0; display: flex; align-items: center; gap: var(--space-1) var(--space-2); padding: var(--space-1) var(--space-3) var(--space-1) var(--space-1); overflow: hidden; }
+.fdw-chart-tools { flex: 0 1 auto; min-height: var(--fdw-command); min-width: 0; display: flex; align-items: center; gap: var(--space-1) var(--space-2); padding: var(--space-1) var(--space-3) var(--space-1) var(--space-1); overflow: hidden; }
 .fdw-chart-tools > div { display: flex; align-items: center; gap: var(--space-0); }
 /* The period group may shrink below its content (the fit pass counts that as overflow and folds
    periods into 更多; scrolling is the last resort below that), so it never overlaps the price. */
@@ -114,8 +117,9 @@
 .fdw-fit-compact-contract.fdw-current-contract-in-header .fdw-instrument-button > span { display: none; }
 .fdw-fit-compact-contract .fdw-delivery-badge, .fdw-fit-compact-contract .fdw-contract-head .fdw-watch-star { display: none; }
 @media (max-width: 760px) {
-  .fdw-market-command { height: auto; min-height: 0; flex-basis: auto; grid-template-columns: minmax(0, 1fr); }
-  .fdw-market-head { height: 44px; gap: var(--space-2); padding: 0 var(--space-2); }
+  .fdw-market-command { height: auto; min-height: 0; flex-basis: auto; }
+  .fdw-market-row { flex-direction: column; }
+  .fdw-market-head { flex: none; min-width: 0; height: 44px; gap: var(--space-2); padding: 0 var(--space-2); }
   .fdw-chart-tools { min-height: 40px; border-top: 1px solid var(--fdw-line); }
   .fdw-instrument-button small { display: none; }
   .fdw-market-head > div > strong { font-size: var(--font-xl); }
