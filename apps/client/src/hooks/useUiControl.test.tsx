@@ -55,6 +55,13 @@ test("the heartbeat keeps beating while a native capture is stuck", async () => 
   await vi.advanceTimersByTimeAsync(3000);
   expect(pulses).toBeGreaterThanOrEqual(5);
   expect(captureNativeWindow).toHaveBeenCalledTimes(1);
+  // A background timer can be suspended; returning to the page must wake the same registration.
+  const before = pulses;
+  for (const event of ["focus", "online", "pageshow"]) {
+    window.dispatchEvent(new Event(event));
+    await vi.advanceTimersByTimeAsync(1);
+  }
+  expect(pulses).toBeGreaterThanOrEqual(before + 3);
   view.unmount();
 });
 
@@ -108,6 +115,18 @@ test("a state change pulses after it settles instead of waiting for the idle hea
   view.rerender({ current: { ...state, positionsBar: "collapsed" } as unknown as UiState });
   await vi.advanceTimersByTimeAsync(300);
   expect(revisions).toEqual([0, 1]);
+  // A retired registration must not permanently stop an otherwise authenticated workspace.
+  const bodies: Array<Record<string, unknown>> = [];
+  vi.mocked(requestJson).mockImplementation(async (_url, init) => {
+    bodies.push(JSON.parse(String(init?.body ?? "{}")));
+    if (bodies.length === 1) throw Object.assign(new Error("窗口已关闭"), { status: 410 });
+    return { command: null };
+  });
+  window.dispatchEvent(new Event("online"));
+  await vi.advanceTimersByTimeAsync(600);
+  expect(bodies.length).toBeGreaterThanOrEqual(2);
+  expect(bodies[1].windowId).not.toBe(bodies[0].windowId);
+  expect(bodies[1].revision).toBe(1);
   view.unmount();
 });
 

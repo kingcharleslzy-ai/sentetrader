@@ -47,7 +47,7 @@ export function useUiControl(baseUrl: string | undefined, workspace: string | un
   });
   useEffect(() => {
     if (baseUrl === undefined || !workspace) return;
-    const windowId = crypto.randomUUID();
+    let windowId = crypto.randomUUID();
     const observation = createUiObserver();
     let stopped = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -68,16 +68,17 @@ export function useUiControl(baseUrl: string | undefined, workspace: string | un
       const receipt: Receipt | undefined = pending && { commandId: pending.command.commandId, status: pending.rejected ? "rejected" : "applied",
         ...(pending.rejected && pending.reason ? { reason: pending.reason.slice(0, 300) } : {}) };
       controller = new AbortController();
-      const timeout = setTimeout(() => controller?.abort(), 3000);
+      let succeeded = false;
       try {
         const result = await requestJson<{ command: Command | null }>(`${baseUrl}/api/ui/pulse`, {
-          method: "POST", signal: controller.signal,
+          method: "POST", signal: controller.signal, timeoutMs: 3000,
           // visible (锁屏推送, 2026-10-06): a device whose page is in front gets no lock-screen push.
           body: JSON.stringify({ windowId, revision: latest.current.revision, state: latest.current.state, receipt,
             device, captureReceipt, observation: observation.read(latest.current.context),
             visible: typeof document === "undefined" || document.visibilityState === "visible" })
         });
         if (!current()) return;
+        succeeded = true;
         if (rejected >= 3) setUiControlHealth({ registered: true, detail: "" });
         rejected = 0;
         registerAgentWindow(baseUrl, windowId);
@@ -97,14 +98,21 @@ export function useUiControl(baseUrl: string | undefined, workspace: string | un
           // The capture runs beside the heartbeat, never inside it: an occluded
           // WebView may not paint for a long time, and the window must stay
           // registered meanwhile. The receipt rides on a later pulse.
+          const captureWindowId = windowId;
           capturing = captureNativeWindow(capture, () => latest.current.revision, () => latest.current.context)
-            .then(receiptValue => { captureReceipt = receiptValue; }, () => undefined)
+            .then(receiptValue => { if (captureWindowId === windowId) captureReceipt = receiptValue; }, () => undefined)
             .finally(() => { capturing = undefined; wake(); });
         }
       } catch (error) {
         const status = (error as { status?: number }).status;
-        // Older clients/servers are supported without repeated failing requests.
-        if (status === 401 || status === 403 || status === 404 || status === 410) stopped = true;
+        if (status === 401 || status === 403) stopped = true;
+        if (status === 410) {
+          // The registry retired this document; register afresh without replaying its old command or capture.
+          forgetAgentWindow(windowId);
+          windowId = crypto.randomUUID();
+          pending = undefined;
+          captureReceipt = undefined;
+        }
         // A Runtime that does not know a receipt field rejects the whole heartbeat; drop the
         // receipt rather than repeat the same 422 (the capture then expires server-side).
         if (status === 422) {
@@ -119,13 +127,12 @@ export function useUiControl(baseUrl: string | undefined, workspace: string | un
           }
         } else rejected = 0;
       } finally {
-        clearTimeout(timeout);
         inFlight = false;
         // While the Runtime feed is live it nudges us (feed.ui) as soon as a command or
         // capture waits, so the idle heartbeat only has to keep the window registered.
         const soon = pending || captureReceipt || dirty;
         dirty = false;
-        if (current()) timer = setTimeout(() => void pulse(), soon ? 16 : feedLiveNow() ? IDLE_PULSE_MS : 500);
+        if (current()) timer = setTimeout(() => void pulse(), soon ? 16 : !succeeded || !feedLiveNow() ? 500 : IDLE_PULSE_MS);
       }
     };
     let dirty = false;
@@ -164,7 +171,11 @@ export function useUiControl(baseUrl: string | undefined, workspace: string | un
     // back by a stale "visible" for the 30-second idle heartbeat.
     const visibility = () => wake();
     document.addEventListener("visibilitychange", visibility);
+    window.addEventListener("focus", wake);
+    window.addEventListener("online", wake);
+    window.addEventListener("pageshow", wake);
     return () => { window.removeEventListener("pagehide", pagehide); document.removeEventListener("visibilitychange", visibility);
+      window.removeEventListener("focus", wake); window.removeEventListener("online", wake); window.removeEventListener("pageshow", wake);
       clearTimeout(settleTimer.current); wakeRef.current = () => undefined; stopNudge(); stop(); };
   }, [baseUrl, workspace, fence]);
 }
