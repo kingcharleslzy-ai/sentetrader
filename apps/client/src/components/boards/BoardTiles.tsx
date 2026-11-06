@@ -1,4 +1,4 @@
-import { useState, type ComponentProps } from "react";
+import { useState, type ComponentProps, type ReactNode } from "react";
 import { foreignQuoteOnly, sameContract, type AccountPosition, type AccountSnapshot, type InstrumentCatalog, type MarketBoardRow, type MarketWorkbenchSnapshot, type RemoteTradeSnapshot,
   type SimulationOrder } from "../../api";
 import { TradingCharts } from "../TradingCharts";
@@ -433,4 +433,73 @@ export function PnlSmall({ pnl, error, onOpen }: { pnl?: { today: number | null;
       <span key={name}><small>{name}</small><strong className={value === null ? undefined : signClass(value)}>{signed(value)}</strong></span>)}
       <span><small>胜率</small><strong>{pnl.winRate === null ? "—" : `${Math.round(pnl.winRate * 100)}%`}</strong></span></span>
   </button>;
+}
+
+const clockOf = (at?: string | null) => at ? new Date(at).toLocaleTimeString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false, hour: "2-digit", minute: "2-digit" }) : "";
+const dayOf = (at?: string | null) => at ? new Date(at).toLocaleDateString("zh-CN", { timeZone: "Asia/Shanghai", month: "2-digit", day: "2-digit" }).replace("/", "-") : "";
+
+/** One debate as the board shows it: the product's latest (summary), and its reports and verdict (the medium size). */
+export interface BoardDebate {
+  id: string; name: string; status: string; finishedAt: string | null; createdAt: string; stance: string | null; confidence: string | null;
+  headline?: string; reports?: { title: string; text: string }[];
+}
+/** 多 AI 辩论 · 小 (当前品种最近一次的结论和时间) / 中 (加四位分析师的要点和裁判结论); 大 is the 调研 panel's 辩论 page. */
+export function DebateCompact({ debate, name, loading, onOpen, medium }: { debate?: BoardDebate | null; name: string; loading: boolean;
+  onOpen: () => void; medium?: boolean }) {
+  const when = debate ? `${dayOf(debate.finishedAt ?? debate.createdAt)} ${clockOf(debate.finishedAt ?? debate.createdAt)}` : "";
+  const verdict = debate ? debate.status === "done" || debate.status === "review" ? `${debate.stance ?? "看不清"}${debate.confidence ? ` · 信心${debate.confidence}` : ""}`
+    : debate.status === "running" || debate.status === "queued" ? "正在辩" : "这次没辩完" : "";
+  const head = <span className="board-tile-head"><strong>多 AI 辩论</strong><small>{name}{when ? ` · ${when}` : ""}</small></span>;
+  if (!medium) return <button type="button" className="board-tile-open board-debate-small" aria-label={`${name}的多 AI 辩论，打开辩论页`} onClick={onOpen}>
+    {head}
+    {debate ? <><strong className="board-sentence">{verdict}</strong>{debate.headline ? <span className="board-ellipsis">{debate.headline}</span> : null}</>
+      : <span className="board-empty">{loading ? "正在读取" : "这个品种还没辩过：点开发起一场"}</span>}
+  </button>;
+  return <div className="board-debate-medium">
+    <button type="button" className="board-tile-head board-tile-link" aria-label={`${name}的多 AI 辩论，打开辩论页`} onClick={onOpen}>
+      <strong>多 AI 辩论</strong><small>{name}{when ? ` · ${when}` : ""}</small></button>
+    {debate ? <div className="board-debate-body">
+      <p className="board-debate-verdict"><strong>{verdict}</strong>{debate.headline ? ` ${debate.headline}` : ""}</p>
+      {debate.reports?.length ? <span className="board-more-rows" aria-hidden="true">{debate.reports.map(report => <span key={report.title}>
+        <small>{report.title}</small><span className="board-ellipsis">{report.text}</span></span>)}</span> : null}
+    </div> : <p className="board-empty">{loading ? "正在读取" : "这个品种还没辩过：点开辩论页发起一场"}</p>}
+  </div>;
+}
+
+/** 交易笔记 · 小 (几条、最近一条的名字) / 中 (每条一行); 大 is the 复盘 page's 交易笔记 itself. */
+export function NotesCompact({ items, loaded, onOpen, medium }: { items: { id: string; name: string; entryRules: string; updatedAt: string }[]; loaded: boolean;
+  onOpen: () => void; medium?: boolean }) {
+  const latest = [...items].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  if (!medium) return <button type="button" className="board-tile-open board-notes-small" aria-label={`交易笔记 ${items.length} 条，打开交易笔记`} onClick={onOpen}>
+    <span className="board-tile-head"><strong>交易笔记</strong></span>
+    <span className="board-count"><strong className="board-figure">{items.length}</strong><small>条</small></span>
+    {latest[0] ? <span className="board-ellipsis">最近：{latest[0].name}</span> : <span className="board-empty">{loaded ? "还没有交易笔记：点开新建" : "正在读取"}</span>}
+    <span className="board-more-rows" aria-hidden="true">{latest.slice(1).map(item => <span key={item.id}><span className="board-ellipsis">{item.name}</span></span>)}</span>
+  </button>;
+  return <div className="board-notes-medium">
+    <button type="button" className="board-tile-head board-tile-link" aria-label="交易笔记，打开交易笔记" onClick={onOpen}><strong>交易笔记</strong><small>{items.length} 条</small></button>
+    {latest.length ? <ul className="board-rows">{latest.map(item => <li key={item.id}>
+      <button type="button" aria-label={`${item.name}，打开交易笔记`} onClick={onOpen}><strong>{item.name}</strong>
+        <span className="board-ellipsis">{item.entryRules}</span><small>{dayOf(item.updatedAt)}</small></button></li>)}</ul>
+      : <p className="board-empty">{loaded ? "还没有交易笔记：点开复盘的交易笔记新建" : "正在读取"}</p>}
+  </div>;
+}
+
+/** AI 简报 · 小 (订阅了几个品种、最近一条的时间和标题) / 中 (最近几条) / 大 (加“生成简讯”开关, the 设置 → 通知 one). */
+export function BriefsCompact({ products, items, onOpen, medium, toggle }: { products?: number; items?: { id: string; text: string; publishedAt: string; productName?: string | null }[];
+  onOpen: () => void; medium?: boolean; toggle?: ReactNode }) {
+  const latest = items?.[0];
+  if (!medium) return <button type="button" className="board-tile-open board-briefs-small" aria-label={`AI 简报，订阅 ${products ?? 0} 个品种，打开通知设置`} onClick={onOpen}>
+    <span className="board-tile-head"><strong>AI 简报</strong><small>{products === undefined ? "" : products ? `订阅了 ${products} 个品种` : "还没订阅"}</small></span>
+    {latest ? <><small className="board-caption">{latest.productName ? `${latest.productName} · ` : ""}{dayOf(latest.publishedAt)} {clockOf(latest.publishedAt)}</small>
+      <span className="board-sentence">{latest.text}</span></> : <span className="board-empty">{items ? "还没有简报" : "正在读取"}</span>}
+  </button>;
+  return <div className="board-briefs-medium">
+    <button type="button" className="board-tile-head board-tile-link" aria-label="AI 简报，打开通知设置" onClick={onOpen}><strong>AI 简报</strong>
+      <small>{products === undefined ? "" : products ? `订阅了 ${products} 个品种` : "还没订阅"}</small></button>
+    {toggle ? <div className="board-briefs-toggle">{toggle}</div> : null}
+    {items?.length ? <ul className="board-rows">{items.map(item => <li key={item.id}><button type="button" aria-label={`${item.productName ?? ""}简报：${item.text.slice(0, 40)}，打开通知设置`} onClick={onOpen}>
+      <small>{clockOf(item.publishedAt)}</small>{item.productName ? <strong>{item.productName}</strong> : null}<span className="board-ellipsis">{item.text}</span>
+    </button></li>)}</ul> : <p className="board-empty">{items ? "还没有简报：订阅品种后，AI 会按时写简讯" : "正在读取"}</p>}
+  </div>;
 }

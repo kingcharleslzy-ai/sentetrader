@@ -18,7 +18,7 @@ export const BOARDS_MAX = 11;
 const NAME_MAX = 12;
 export const CHARTS_MAX = 9;
 
-export type BoardModule = "chart" | "positions" | "order" | "watch" | "sheet" | "alert" | "chat" | "account" | "orders" | "strategies" | "flash" | "pnl";
+export type BoardModule = "chart" | "positions" | "order" | "watch" | "sheet" | "alert" | "chat" | "account" | "orders" | "strategies" | "flash" | "pnl" | "debate" | "notes" | "briefs";
 /** A block on a board: its module's name, or `chart-2` … `chart-9` for the further charts. */
 export type BoardBlock = string;
 export type BoardSize = "small" | "medium" | "large" | "xlarge" | "bar";
@@ -59,6 +59,10 @@ export const MODULES: { id: BoardModule; label: string; sizes: BoardSize[]; many
   { id: "strategies", label: "运行中的策略", sizes: ["small", "medium", "large"] },
   { id: "flash", label: "快讯", sizes: ["small", "medium", "large"] },
   { id: "pnl", label: "复盘盈亏", sizes: ["small", "medium", "large"] },
+  // 所有者 11-06 再加三样: 多 AI 辩论、交易笔记、AI 简报订阅.
+  { id: "debate", label: "多 AI 辩论", sizes: ["small", "medium", "large"] },
+  { id: "notes", label: "交易笔记", sizes: ["small", "medium", "large"] },
+  { id: "briefs", label: "AI 简报", sizes: ["small", "medium", "large"] },
 ];
 const MODULE_IDS = new Set(MODULES.map(item => item.id));
 const CHART_BLOCK = /^chart-[2-9]$/;

@@ -170,7 +170,7 @@ const bodyOf = (item: Pick<FlashItem, "text" | "origTitle">) =>
   item.origTitle && item.text.trim() === item.origTitle.trim() ? "" : item.text;
 const figure = (value: number | null) => value === null || value === undefined ? "—" : String(value);
 
-export function FlashFeed({ baseUrl, symbol, visible, filter, onFilterChange, sort = "time", onSortChange, watchProducts, instruments, onSelectSymbol, onState, debate }: {
+export function FlashFeed({ baseUrl, symbol, visible, filter, onFilterChange, sort = "time", onSortChange, watchProducts, instruments, onSelectSymbol, onState, debate, calendarSurface = "flash-calendar" }: {
   baseUrl: string | undefined;
   /** The panel's reading contract (the chart's, unless pinned): 当前品种 filters on its product. */
   symbol: string | undefined;
@@ -187,6 +187,8 @@ export function FlashFeed({ baseUrl, symbol, visible, filter, onFilterChange, so
   onState: (state: FlashState) => void;
   /** 多 AI 研讨: start one on a 重要 event, open a debated one. Absent: no 研讨 buttons (guests). */
   debate?: { onStart: (event: NewsEvent, symbol?: string) => void; onOpen: (id: string) => void };
+  /** The 本周重要数据 展开全部 disclosure's name: a second feed on screen (the 看板's) has its own, so a command lands on it. */
+  calendarSurface?: string;
 }) {
   const product = symbol ? productOfSymbol(symbol) : undefined;
   const watchIds = useMemo(() => [...new Set(watchProducts.map(productId))].sort(), [watchProducts]);
@@ -285,7 +287,7 @@ export function FlashFeed({ baseUrl, symbol, visible, filter, onFilterChange, so
   const current = feed?.key === key ? feed : undefined;
   const unavailable = current?.status === "unavailable";
   const calendarEvents = calendar?.status === "ok" || calendar?.status === "stale" ? calendar.items : [];
-  const [calendarOpen, setCalendarOpen] = useDisclosureSurface("flash-calendar");
+  const [calendarOpen, setCalendarOpen] = useDisclosureSurface(calendarSurface);
   const flashStatus: FlashState["status"] = error && !current ? "error" : unavailable ? "unavailable" : current ? "ok" : "loading";
   const calendarStatus: FlashState["calendarStatus"] = calendarError && !calendar ? "error" : calendar?.status ?? null;
   const latest = useRef(onState);

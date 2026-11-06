@@ -1,5 +1,5 @@
 {
-  "about": "看板 · 铺满版（11-05）：顶栏看板进“盘中”（默认摆法铺满，每块按自己的大小选档）；下拉里有“新建空白看板”和这套看板的编辑、改名、删除；新建“回读看板”后进入编辑、开模块库，按“放在哪块的哪一边 / 比例”一块块放满七个模块，调比例、锁档、拿掉再撤销，再放一块图表（1 小时、再改成日线）后拿掉，放账户权益和快讯（快讯切到宏观）后拿掉，图表换成紫色联动，让 AI 帮我摆一套复盘（真走模型，看到预览），用这套再撤销，打开一块的 ⋯，完成后小档下单露出买多 / 卖空（点了先弹确认，回读不点）。回读窗口固定 1440×900（工具只有这一种电脑尺寸），1280×800 和 2560×1440 在浏览器里另看。只改测试账号自己的看板偏好，最后回到“盘中”、删掉“回读看板”、回交易台。",
+  "about": "看板 · 铺满版（11-05）：顶栏看板进“盘中”（默认摆法铺满，每块按自己的大小选档）；下拉里有“新建空白看板”和这套看板的编辑、改名、删除；新建“回读看板”后进入编辑、开模块库，按“放在哪块的哪一边 / 比例”一块块放满七个模块，调比例、锁档、拿掉再撤销，再放一块图表（1 小时、再改成日线）后拿掉，放账户权益和快讯（快讯切到宏观）、多 AI 辩论、交易笔记、AI 简报后拿掉，图表换成紫色联动，让 AI 帮我摆一套复盘（真走模型，看到预览），用这套再撤销，打开一块的 ⋯，完成后小档下单露出买多 / 卖空（点了先弹确认，回读不点）。回读窗口固定 1440×900（工具只有这一种电脑尺寸），1280×800 和 2560×1440 在浏览器里另看。只改测试账号自己的看板偏好，最后回到“盘中”、删掉“回读看板”、回交易台。",
   "steps": [
     {"ui": {"view": "trade"}, "expect": {"view": "trade"}},
     {"ui": {"view": "dashboard"}, "expect": {"view": "dashboard", "preferences.ui.boards.current": {"exists": true}}},
@@ -33,6 +33,13 @@
     {"ui": {"boards": {"place": {"module": "flash", "target": "sheet", "side": "bottom"}}}, "expect": {"boards.tiles": {"includes": "\"flash\""}}},
     {"ui": {"boards": {"flash": {"filter": "macro"}}}, "expect": {"boards.flash.filter": "macro"}},
     {"screenshot": "23b-more-modules"},
+    {"ui": {"boards": {"place": {"module": "debate", "target": "account", "side": "right"}}}, "expect": {"boards.tiles": {"includes": "\"debate\""}}},
+    {"ui": {"boards": {"place": {"module": "notes", "target": "flash", "side": "right"}}}, "expect": {"boards.tiles": {"includes": "\"notes\""}}},
+    {"ui": {"boards": {"place": {"module": "briefs", "target": "notes", "side": "bottom"}}}, "expect": {"boards.tiles": {"includes": "\"briefs\""}}},
+    {"screenshot": "23c-debate-notes-briefs"},
+    {"ui": {"boards": {"take": "debate"}}},
+    {"ui": {"boards": {"take": "notes"}}},
+    {"ui": {"boards": {"take": "briefs"}}},
     {"ui": {"boards": {"take": "account"}}},
     {"ui": {"boards": {"take": "flash"}}},
     {"ui": {"boards": {"link": {"module": "chart", "color": "purple"}}}, "expect": {"boards.tiles": {"includes": "\"link\":\"purple\""}}},

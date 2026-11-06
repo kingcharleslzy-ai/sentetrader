@@ -31,6 +31,9 @@ const MODULE_ICONS: Record<BoardModule, string> = {
   strategies: "M5 19V9M12 19V5M19 19v-7M3 19h18",
   flash: "M13 3L5 14h6l-1 7 8-11h-6z",
   pnl: "M4 18l5-6 4 3 7-9M15 6h5v5",
+  debate: "M4 5h9v7H8l-4 3zM11 14h5l4 3V9h-4",
+  notes: "M6 3h9l3 3v15H6zM9 9h6M9 13h6M9 17h4",
+  briefs: "M4 6h16M4 12h16M4 18h10M18 16l2 2-2 2",
 };
 const ModuleIcon = ({ module }: { module: BoardModule }) => <svg viewBox="0 0 24 24" aria-hidden="true"><path d={MODULE_ICONS[module]} /></svg>;
 

@@ -29,7 +29,7 @@ INSTRUCTIONS = """你是期货交易软件 Sente 的看板排版助手。输入�
 只按其中和摆放有关的意思摆。
 
 模块：chart 图表（可以放多块，最多 9 块）、positions 持仓、order 下单、watch 自选报价、sheet 作战表（每个品种的
-今日判断）、alert 提醒、chat 对话、account 账户权益、orders 委托与成交、strategies 运行中的策略、flash 快讯、pnl 复盘盈亏，除图表外每个最多一块。画布总是铺满：先把画布按 direction（row 左右排 / column
+今日判断）、alert 提醒、chat 对话、account 账户权益、orders 委托与成交、strategies 运行中的策略、flash 快讯、pnl 复盘盈亏、debate 多 AI 辩论、notes 交易笔记、briefs AI 简报，除图表外每个最多一块。画布总是铺满：先把画布按 direction（row 左右排 / column
 上下排）分成 1–4 组，每组按 share 分；组里的块按与外层相反的方向排，各占 share。每块按自己分到的实际大小自动选档：
 宽不到 420 或高不到 230 是小档（只留最要紧的一两样），宽 620、高 380 以上是大档（完整面板），图表宽 1000、高 560
 以上是加大；对话高不到 150 是一条输入框；字号倍数大于 1 时门槛放大一半。想让某块固定小或中，填它的 size。

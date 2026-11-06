@@ -300,3 +300,13 @@
 .fdw-chart-tools.board-chart-pick > [role="group"] > .fdw-period-more { display: flex; max-width: 220px; height: 22px; font-size: var(--font-sm); }
 .board-chart-pick-list { flex-wrap: wrap; max-height: 240px; overflow: auto; margin-bottom: var(--space-2); }
 .board-chart-pick-list button { flex: 1 1 30%; min-width: 0; padding: 0 var(--space-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 多 AI 辩论 / 交易笔记 / AI 简报 (owner 2026-11-06). */
+.board-debate-medium, .board-notes-medium, .board-briefs-medium { display: flex; flex-direction: column; min-height: 0; }
+.board-debate-body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: var(--space-2) var(--space-3); }
+.board-debate-verdict { margin: 0 0 var(--space-1); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.board-debate-body .board-more-rows > span > small { flex: none; width: 4.5em; color: var(--muted); }
+.board-notes-medium .board-rows, .board-briefs-medium .board-rows { overflow: auto; }
+.board-briefs-toggle { flex: none; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--line); }
+.board-debate-medium .board-empty, .board-notes-medium .board-empty, .board-briefs-medium .board-empty,
+.board-strategies-medium .board-empty { margin: var(--space-3); white-space: normal; text-align: left; line-height: 1.5; }
+.board-briefs-toggle { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); font-size: var(--font-md); }

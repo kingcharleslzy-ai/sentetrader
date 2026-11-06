@@ -1226,7 +1226,7 @@ export interface components {
              * Module
              * @enum {string}
              */
-            module: "chart" | "positions" | "order" | "watch" | "sheet" | "alert" | "chat" | "account" | "orders" | "strategies" | "flash" | "pnl";
+            module: "chart" | "positions" | "order" | "watch" | "sheet" | "alert" | "chat" | "account" | "orders" | "strategies" | "flash" | "pnl" | "debate" | "notes" | "briefs";
             /** Block */
             block?: string | null;
             /** Target */
@@ -1292,7 +1292,7 @@ export interface components {
              * With
              * @enum {string}
              */
-            with: "chart" | "positions" | "order" | "watch" | "sheet" | "alert" | "chat" | "account" | "orders" | "strategies" | "flash" | "pnl";
+            with: "chart" | "positions" | "order" | "watch" | "sheet" | "alert" | "chat" | "account" | "orders" | "strategies" | "flash" | "pnl" | "debate" | "notes" | "briefs";
         };
         /**
          * BoardSortChange
@@ -1318,7 +1318,7 @@ export interface components {
              * Module
              * @enum {string}
              */
-            module: "chart" | "positions" | "order" | "watch" | "sheet" | "alert" | "chat" | "account" | "orders" | "strategies" | "flash" | "pnl";
+            module: "chart" | "positions" | "order" | "watch" | "sheet" | "alert" | "chat" | "account" | "orders" | "strategies" | "flash" | "pnl" | "debate" | "notes" | "briefs";
             /** Size */
             size?: ("small" | "medium" | "large" | "xlarge" | "bar") | null;
             /** Locked */
@@ -1989,7 +1989,7 @@ export interface components {
              * Name
              * @enum {string}
              */
-            name: "feedback-diagnostics" | "activity-more" | "activity-history" | "timeline-history" | "timeline-expanded" | "attempt-history" | "designer-expanded" | "replay-fees" | "replay-design" | "protection-status" | "strategy-idea" | "fee-overrides" | "progress-steps" | "advice-sources" | "tool-card" | "diff-card" | "card-details" | "voice-call" | "voice-mute" | "voice-menu" | "voice-playback" | "voice-review" | "unlinked-notes" | "review-how" | "habits-how" | "chat-history" | "ai-command-result" | "activity-clear" | "strategy-guide" | "strategy-new" | "strategy-run-log" | "strategy-ask-ai" | "strategy-editor-trades" | "strategy-editor-more" | "strategy-editor-advanced" | "strategy-editor-backtest" | "strategy-editor-section" | "strategy-editor-condition" | "strategy-editor-picker" | "strategy-editor-sizing-more" | "help-tip" | "strategy-signal-action" | "strategy-stop-confirm" | "ai-menu" | "strategy-actions" | "strategy-delete-confirm" | "strategy-backtest-trades" | "strategy-param-help" | "strategy-template-details" | "strategy-advanced" | "strategy-full-rules" | "chart-ma-editor" | "chart-pane-editor" | "chart-pane-add" | "board-columns" | "price-alerts" | "reminder-alert-new" | "playbook-editor" | "price-alerts-others" | "position-protection" | "contract-info" | "flash-calendar" | "flash-dropped" | "news-dropped" | "flash-minor" | "news-minor" | "flash-event" | "news-event" | "flash-orig" | "news-orig" | "desk-fundamental" | "desk-macro" | "desk-reports" | "desk-sources" | "chart-drawing-tools" | "chart-drawing-toolbar" | "chart-drawing-group" | "chart-drawing-tool" | "chart-drawing-magnet" | "chart-drawing-lock-all" | "chart-drawings-hidden" | "chart-drawing-clear" | "chart-drawing-style" | "chart-drawing-settings" | "chart-context-menu" | "workspace-layouts" | "boards-menu" | "board-more" | "board-library" | "board-arrange" | "board-tile-menu" | "chart-periods-more" | "order-depth" | "ticket-protection" | "brief-subscriptions" | "brief-add" | "push-devices" | "routine-delete" | "plan-quota" | "live-trading" | "mobile-subpanes" | "mobile-subpanes-overlays" | "mobile-quote-columns" | "mobile-execution-stop" | "mobile-chart-cell" | "row-actions" | "mobile-drawing-style-row" | "debate-sheets" | "debate-sources" | "debate-stats" | "debate-log" | "debate-judge" | "debate-analyst-technical" | "debate-analyst-supply" | "debate-analyst-flow" | "debate-analyst-news";
+            name: "feedback-diagnostics" | "activity-more" | "activity-history" | "timeline-history" | "timeline-expanded" | "attempt-history" | "designer-expanded" | "replay-fees" | "replay-design" | "protection-status" | "strategy-idea" | "fee-overrides" | "progress-steps" | "advice-sources" | "tool-card" | "diff-card" | "card-details" | "voice-call" | "voice-mute" | "voice-menu" | "voice-playback" | "voice-review" | "unlinked-notes" | "review-how" | "habits-how" | "chat-history" | "ai-command-result" | "activity-clear" | "strategy-guide" | "strategy-new" | "strategy-run-log" | "strategy-ask-ai" | "strategy-editor-trades" | "strategy-editor-more" | "strategy-editor-advanced" | "strategy-editor-backtest" | "strategy-editor-section" | "strategy-editor-condition" | "strategy-editor-picker" | "strategy-editor-sizing-more" | "help-tip" | "strategy-signal-action" | "strategy-stop-confirm" | "ai-menu" | "strategy-actions" | "strategy-delete-confirm" | "strategy-backtest-trades" | "strategy-param-help" | "strategy-template-details" | "strategy-advanced" | "strategy-full-rules" | "chart-ma-editor" | "chart-pane-editor" | "chart-pane-add" | "board-columns" | "price-alerts" | "reminder-alert-new" | "playbook-editor" | "price-alerts-others" | "position-protection" | "contract-info" | "flash-calendar" | "flash-dropped" | "news-dropped" | "flash-minor" | "news-minor" | "flash-event" | "news-event" | "flash-orig" | "news-orig" | "desk-fundamental" | "desk-macro" | "desk-reports" | "desk-sources" | "chart-drawing-tools" | "chart-drawing-toolbar" | "chart-drawing-group" | "chart-drawing-tool" | "chart-drawing-magnet" | "chart-drawing-lock-all" | "chart-drawings-hidden" | "chart-drawing-clear" | "chart-drawing-style" | "chart-drawing-settings" | "chart-context-menu" | "workspace-layouts" | "boards-menu" | "board-more" | "board-library" | "board-arrange" | "board-flash-calendar" | "board-chart-pick" | "board-tile-menu" | "chart-periods-more" | "order-depth" | "ticket-protection" | "brief-subscriptions" | "brief-add" | "push-devices" | "routine-delete" | "plan-quota" | "live-trading" | "mobile-subpanes" | "mobile-subpanes-overlays" | "mobile-quote-columns" | "mobile-execution-stop" | "mobile-chart-cell" | "row-actions" | "mobile-drawing-style-row" | "debate-sheets" | "debate-sources" | "debate-stats" | "debate-log" | "debate-judge" | "debate-analyst-technical" | "debate-analyst-supply" | "debate-analyst-flow" | "debate-analyst-news";
             /** Open */
             open: boolean;
             /** Id */

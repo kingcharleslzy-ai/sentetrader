@@ -289,6 +289,12 @@ export const COMMANDABLE: Rule[] = [
   { match: control => control.group === "board-tile:flash" && /^(按时间|按影响)$/.test(control.label), via: "boards: {flash: {sort: time|impact}}（快照 state.boards.flash.sort）" },
   { match: control => control.group === "board-tile:flash" && /^切到 .+ 主力合约$/.test(control.label), via: "symbol（快讯品种标签：该品种的主力合约）" },
   { match: control => control.group === "board-tile:pnl" && control.label === "复盘盈亏，打开复盘", via: "view: review" },
+  { match: control => control.group === "board-tile:flash" && /^(展开全部 \d+ 条|收起)$/.test(control.label), via: "disclosure: board-flash-calendar（看板快讯的本周重要数据展开全部；调研面板那份是 flash-calendar）" },
+  // 多 AI 辩论 / 交易笔记 / AI 简报 (2026-11-06): small and medium open the full page; the large ones are the 辩论 page, the
+  // 复盘 交易笔记 and the 简报 list with the 生成简讯 switch (their own rules).
+  { match: control => control.group === "board-tile:debate" && /的多 AI 辩论，打开辩论页$/.test(control.label), via: "panel: news + news: {tab: debate}（最近一场在时打开那一场）" },
+  { match: control => control.group === "board-tile:notes" && /打开交易笔记$/.test(control.label), via: "view: review（复盘页的交易笔记）" },
+  { match: control => control.group === "board-tile:briefs" && /打开通知设置$/.test(control.label), via: "settingsPage: notify（设置 → 通知：AI 简讯的订阅品种和开关）" },
   { match: control => control.group === "board-tile:positions" && control.label === "平仓", via: "panel: order + 平仓意图（大档持仓一行的平仓，与持仓面板同一步：打开下单面板的平仓）" },
   { match: control => control.group === "board-tile:positions" && control.label === "撤单", via: "交易意图：撤单走 POST /api/simulation/orders/{id}/cancel（与持仓面板委托的撤单同一步）" },
   { match: control => /^board-tile:chart(-\d)?$/.test(control.group ?? "") && /，打开(完整)?图表$|走势，打开图表$/.test(control.label), via: "view: trade（小 / 中档图表点开交易台的图表）" },

@@ -44,7 +44,10 @@ import { AiDock } from "./futures/AiDock";
 import { AiCommandBar } from "./futures/AiCommandBar";
 import { AiCommandBubble, useAiCommand } from "./futures/useAiCommand";
 import { NewsPanel, type NewsTab } from "./NewsPanel";
-import { useDebateHost } from "./ResearchDebate";
+import { DebateTab, useDebateHost } from "./ResearchDebate";
+import { getDebate, listDebates, useDebateVersion } from "../researchDebate";
+import { PlaybookPage, usePlaybooks } from "./playbooks/PlaybookPage";
+import { Switch } from "./settings/controls";
 import { FlashFeed, productOfSymbol, type FlashFeedResponse } from "./FlashFeed";
 import { StrategyDock } from "./futures/StrategyDock";
 import { applyUiSurface, uiSurface, uiSurfaceStates, useUiSurface } from "../uiSurfaces";
@@ -66,7 +69,7 @@ import { useQuickOrderSkipConfirm, useQuickOrders } from "./futures/useQuickOrde
 import { QuickActions, quickCloseRequests, useTicketQuickActions } from "./futures/QuickActions";
 import { leavesOf, linkOf, mainLink, moduleOf, useBoards, type BoardBlock, type BoardSize, type LinkColor } from "./boards/boards";
 import { BoardsMenu, BoardsView, useBoardsControl } from "./boards/BoardsView";
-import { AccountCompact, FlashSmall, OrdersCompact, PnlSmall, StrategiesCompact, AlertCompact, ChartSmall, ChartMedium, ChatCompact, OrderCompact, PositionsSmall, PositionsMedium, PositionsLarge, SheetCompact, WatchCompact, watchRows } from "./boards/BoardTiles";
+import { AccountCompact, BriefsCompact, DebateCompact, NotesCompact, FlashSmall, type BoardDebate, OrdersCompact, PnlSmall, StrategiesCompact, AlertCompact, ChartSmall, ChartMedium, ChatCompact, OrderCompact, PositionsSmall, PositionsMedium, PositionsLarge, SheetCompact, WatchCompact, watchRows } from "./boards/BoardTiles";
 import { BattleSheet, useBattleSheet } from "./BattleSheet";
 import { QuickOrderDialog } from "./futures/QuickOrderDialog";
 import { useTradeReview } from "../hooks/useTradeReview";
@@ -916,6 +919,29 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   useEffect(() => () => voiceReply.stop(), []);
   // The flow's 简讯 entries read the same cached briefs query the floating orb owns.
   const flowBriefs = useBriefs(connectedRuntimeUrl, appWorkbench.config.showMarketBriefs, Boolean(props.replayActive), false);
+  // 看板 · 多 AI 辩论 / 交易笔记 / AI 简报 (owner 2026-11-06): the small and medium sizes read what the 调研 辩论 page, the 复盘
+  // 交易笔记 and the 简报 already read (the same requests and caches); the large ones are those pages themselves.
+  const boardDebateWanted = boardModules.includes("debate") && boardsControl.sizes.debate !== "large" && !isGuest && !props.replayActive;
+  const debateVersion = useDebateVersion();
+  const [boardDebate, setBoardDebate] = useState<{ key: string; value: BoardDebate | null }>();
+  const boardDebateKey = `${connectedRuntimeUrl}|${quote?.symbol}`;
+  useEffect(() => {
+    if (!boardDebateWanted || !connectedRuntimeUrl || !quote?.symbol) return;
+    let active = true;
+    const key = boardDebateKey;
+    void listDebates(connectedRuntimeUrl, { product: quote.symbol, limit: 1 }).then(async result => {
+      const summary = result.items[0];
+      if (!summary) { if (active) setBoardDebate({ key, value: null }); return; }
+      const detail = await getDebate(connectedRuntimeUrl, summary.id).catch(() => undefined);
+      if (!active) return;
+      setBoardDebate({ key, value: { id: summary.id, name: summary.name, status: summary.status, finishedAt: summary.finishedAt, createdAt: summary.createdAt,
+        stance: summary.stance, confidence: summary.confidence, headline: detail?.verdict?.headline,
+        reports: (detail?.analysts ?? []).flatMap(report => report.conclusion?.text ? [{ title: report.title, text: report.conclusion.text }] : []) } });
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, [boardDebateWanted, connectedRuntimeUrl, quote?.symbol, boardDebateKey, debateVersion]);
+  const boardNotes = usePlaybooks(boardModules.includes("notes") && !isGuest ? connectedRuntimeUrl : undefined);
+  const boardBriefSubs = useBriefSubscriptions(connectedRuntimeUrl, boardModules.includes("briefs") && !isGuest);
   // 手机版 AI 动态: the same briefs as the conversation's 快讯/异动 cards, and why a card's button did nothing.
   const mobileBriefs = useMemo(() => buildFlowItems({ briefs: flowBriefs.items, symbol: quote?.symbol, symbolName: quoteEntry?.instrumentName || quote?.name }),
     [flowBriefs.items, quote?.symbol, quoteEntry?.instrumentName, quote?.name]);
@@ -1750,8 +1776,25 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
       if (!roomy) return <FlashSmall items={boardFlash?.items} onOpen={openFlash} />;
       return <div className="board-flash">
         <FlashFeed baseUrl={connectedRuntimeUrl} symbol={quote?.symbol} visible filter={boardsControl.flash.filter} onFilterChange={filter => boardsControl.setFlash({ filter })}
-          sort={boardsControl.flash.sort} onSortChange={sort => boardsControl.setFlash({ sort })} watchProducts={flashWatchProducts} instruments={props.instruments?.items} onSelectSymbol={selectContract} onState={NO_FLASH_STATE} />
+          sort={boardsControl.flash.sort} onSortChange={sort => boardsControl.setFlash({ sort })} watchProducts={flashWatchProducts} instruments={props.instruments?.items} onSelectSymbol={selectContract} onState={NO_FLASH_STATE} calendarSurface="board-flash-calendar" />
       </div>;
+    }
+    if (module === "debate") {
+      if (isGuest) return <p className="board-empty" role="status">登录后可看多 AI 辩论</p>;
+      if (size === "large") return <DebateTab host={debate} />;
+      const shown = boardDebate?.key === boardDebateKey ? boardDebate.value : undefined;
+      return <DebateCompact debate={shown} loading={shown === undefined} name={quote ? contractLabel(quote.symbol, props.instruments) : "当前合约"} medium={roomy}
+        onOpen={() => { if (shown) debate.openDebate(shown.id, "desk"); else openDebatePage(); }} />;
+    }
+    if (module === "notes") {
+      if (size === "large") return connectedRuntimeUrl ? <PlaybookPage baseUrl={connectedRuntimeUrl} /> : <p className="board-empty" role="status">连接后可看交易笔记</p>;
+      return <NotesCompact items={boardNotes.items} loaded={boardNotes.loaded} medium={roomy} onOpen={() => selectView("review")} />;
+    }
+    if (module === "briefs") {
+      const openNotify = () => { setSettingsPage(normalizeSettingsPage("notify")); setSettingsOpen(true); };
+      const toggle = size === "large" ? <><span>生成简讯</span><Switch label="生成简讯" checked={appWorkbench.config.showMarketBriefs} disabled={!connectedRuntimeUrl}
+        onChange={value => { if (accessRef.current?.require("market-briefs") ?? true) void appWorkbench.updateConfig({ showMarketBriefs: value }).catch(() => setAccessNotice("简讯设置未保存，请重试")); }} /></> : undefined;
+      return <BriefsCompact products={boardBriefSubs.data?.products.length} items={appWorkbench.config.showMarketBriefs ? flowBriefs.items : []} medium={roomy} toggle={toggle} onOpen={openNotify} />;
     }
     if (module === "pnl") {
       if (!roomy) return <PnlSmall pnl={boardPnl.pnl} error={boardPnl.error} onOpen={() => selectView("review")} />;
