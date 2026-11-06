@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ComponentProps, type CSSProperties, type ReactNode } from "react";
 import { normalizePaneSizes, SUB_PANES_MAX, type PaneSizes } from "../chartIndicators";
 import { foreignQuoteOnly, sameContract, type AccountPosition, type AccountSnapshot, type InstrumentCatalog, type MarketBoardRow, type MarketWorkbenchSnapshot, type RemoteTradeSnapshot,
   type SimulationOrder } from "../../api";
@@ -144,7 +144,7 @@ export function PositionsSmall({ positions, instruments, account, onOpen }: { po
     <span className="board-tile-head"><strong>持仓</strong><small>{positions.length} 个</small></span>
     {positions.length ? <>
       <small className="board-caption">浮动盈亏</small>
-      <strong className={`board-figure ${signClass(total)}`}>{formatSigned(total, 0)}</strong>
+      <BoardMoney className={signClass(total)} text={formatSigned(total, 0)} />
       <span className="board-split"><span className="positive">{winning} 个赚</span><span className="negative">{losing} 个亏</span></span>
       <AccountFigures account={account} />
       {/* A tall block lists the positions below, as many as the height holds (the rest is cut, never squeezed). */}
@@ -395,13 +395,18 @@ export function ChatCompact({ turns, busy, blockedReason, onSend, onOpen, medium
   </div>;
 }
 
+/** A block's big money figure, sized to fit whole (see .board-figure). */
+function BoardMoney({ text, className = "" }: { text: string; className?: string }) {
+  return <strong className={`board-figure ${className}`.trim()} style={{ "--chars": text.length } as CSSProperties}>{text}</strong>;
+}
+
 /** 账户权益 · 小 (权益和今日) / 中 · 大 (账户的几个数，美元子账户另一行): opens 账户明细. */
 export function AccountCompact({ account, foreign, onOpen, medium }: { account?: AccountSnapshot; foreign?: AccountSnapshot; onOpen: () => void; medium?: boolean }) {
   if (!account) return <p className="board-empty" role="status">账户读取中</p>;
   const today = account.todayNetPnl ?? account.todayPnl;
   if (!medium) return <button type="button" className="board-tile-open board-account-small" aria-label={`权益 ${formatNumber(account.equity, 0)}，打开账户明细`} onClick={onOpen}>
     <span className="board-tile-head"><strong>账户权益</strong><small>{account.accountName}</small></span>
-    <strong className="board-figure">{formatNumber(account.equity, 0)}</strong>
+    <BoardMoney text={formatNumber(account.equity, 0)} />
     <span className="board-split"><small>今日</small><span className={signClass(today)}>{formatSigned(today, 0)}</span></span>
     <AccountFigures account={account} secondary />
   </button>;
