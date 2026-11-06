@@ -33,7 +33,7 @@ def item(item_id: str, published: str, *, label: str | None = None, direction: s
     reading = {"event": "价格", "direction": direction, "strength": strength, "reason": "r", "transmission": "t",
                "eventLabel": label, "product": product} if ai else None
     return {"id": item_id, "source": (sources or ["新浪"])[0], "sources": sources or ["新浪"], "publishedAt": published,
-            "title": f"标题{item_id}", "text": f"正文{item_id}", "link": f"https://example.com/{item_id}", "ai": reading,
+            "title": f"标题{item_id}", "text": label or f"正文{item_id}", "link": f"https://example.com/{item_id}", "ai": reading,
             "direct": True, **extra}
 
 
@@ -249,6 +249,45 @@ def test_a_truncated_title_never_merges_two_different_stories():
     assert by_label["美国非农不及预期"]["ai"]["direction"] == "偏多"
 
 
+def test_same_label_needs_report_content_and_a_shared_headline_cannot_bridge_topics():
+    label = "市场加大对美联储12月加息押注"
+    titles = [
+        "市场加大对美联储12月加息押注",
+        "美国非农数据公布后，交易员加大对美联储12月加息的押注。",
+        "交易员加大了对美联储12月加息的押注。",
+        "美国短期利率期货在非农就业数据公布后下跌，交易员加大了对美联储12月加息的押注",
+        "市场加大对美联储12月加息押注",
+        "美国短期利率期货在非农就业数据公布后下跌，交易员加大了对美联储12月加息的押注。",
+    ]
+    reports = [item(f"fed-{index}", "2026-11-06T21:31:00+08:00", label=label, title=title, text=title)
+               for index, title in enumerate(titles)]
+    opening = "美股开盘：道指跌1%，纳斯达克100指数涨1.5%，半导体指数涨5.4%"
+    wrong_label = item("stock-a", "2026-11-06T22:31:00+08:00", label=label, title=opening, text=opening)
+    events = build_events([wrong_label, *reports], hide_pending=True)
+    fed = next(event for event in events if len(event["items"]) == 6)
+    assert {report["id"] for report in fed["items"]} == {report["id"] for report in reports}
+    assert fed["id"] == build_events(reports, hide_pending=True)[0]["id"]
+    newer = {**reports[0], "id": "a-new-report", "publishedAt": "2026-11-06T22:32:00+08:00"}
+    assert build_events([newer, *reports], hide_pending=True)[0]["id"] == fed["id"]
+    assert len(events) == 2 and len({event["id"] for event in events}) == 2
+    assert {event["id"] for event in events} == {
+        event["id"] for event in build_events(list(reversed([wrong_label, *reports])), hide_pending=True)}
+    more_stock = [{**wrong_label, "id": f"stock-{index}"} for index in range(5)]
+    reversed_counts = build_events([reports[0], wrong_label, *more_stock], hide_pending=True)
+    assert next(event for event in reversed_counts if len(event["items"]) == 1)["id"] == fed["id"]
+    assert next(event for event in reversed_counts if len(event["items"]) > 1)["id"] != fed["id"]
+
+    # A second mislabeled group shares the stock headline, not its unrelated Treasury story.
+    duplicate = item("stock-b", "2026-11-06T22:30:00+08:00", label="美债收益率上升", title=opening, text=opening)
+    bonds = item("bond", "2026-11-06T22:29:00+08:00", label="美债收益率上升",
+                 title="美国10年期国债收益率升至4.8%", text="美国10年期国债收益率升至4.8%")
+    events = build_events([wrong_label, *reports, duplicate, bonds], hide_pending=True)
+    assert {frozenset(report["id"] for report in event["items"]) for event in events} == {
+        frozenset(report["id"] for report in reports), frozenset({"stock-a", "stock-b"}), frozenset({"bond"})}
+    assert {event["id"] for event in events} == {
+        event["id"] for event in build_events(list(reversed([wrong_label, *reports, duplicate, bonds])), hide_pending=True)}
+
+
 def test_a_truncated_title_cannot_carry_yesterdays_story_into_today():
     """#618 的跨日反例: 昨晚的旧新闻与今天的新闻共用同一个截断标题时，旧事件不得并进今天的事件
     （24 小时窗口内 product_events 读到的、也就是新闻要点的输入），今天的事件保持自己的方向。"""
@@ -294,7 +333,8 @@ def test_a_round_up_post_never_titles_an_event_and_one_headline_under_two_names_
     """保护：综述帖不当事件标题；同一标题被起了两个名字也合成一条（10-07 线上重判后）。"""
     items = [
         item("roundup", "2026-10-07T20:40:00+08:00", label="现货黄金日内下跌",
-             title="美股盘前要闻一览：AMD称对HBM4“非常满意”；谷歌与英伟达合作扩大，现货黄金跌超2%"),
+             title="美股盘前要闻一览：AMD称对HBM4“非常满意”；谷歌与英伟达合作扩大，现货黄金跌超2%",
+             text="现货黄金失守4080美元/盎司，日内跌2.01%。"),
         item("gold", "2026-10-07T20:30:00+08:00", label="现货黄金日内下跌", title="现货黄金失守4080美元/盎司，日内跌2.01%。"),
         item("house1", "2026-10-07T19:00:00+08:00", label="国庆新房认购量上涨", title="机构：国庆假期全国重点50城新房认购量同比上涨超15%"),
         item("house2", "2026-10-07T18:00:00+08:00", label="假期楼市回暖", title="机构：国庆假期全国重点50城新房认购量同比上涨超15%",
@@ -568,5 +608,14 @@ def test_an_event_id_resolves_to_its_own_product_without_any_view_being_open(tmp
     gold = next(event for event in events if event["eventLabel"] == "现货黄金日内下跌")
     assert svc.event_products(gold["id"]) == ["au"]
     assert svc.event_products("e000000000000") == []
+    # A cached wrong label splits the Treasury story; its new id must still open the right product.
+    with svc.connection:
+        svc.connection.execute("UPDATE news_screen SET event_label = ? WHERE event_label = ?",
+                               ("现货黄金日内下跌", "美债收益率创新高"))
+    _, split_events = svc.product_events("SHFE.au")
+    split = next(event for event in split_events if event["id"] != gold["id"])
+    assert len(split_events) == 2 and "国债收益率" in split["text"]
+    assert svc.event_products(split["id"]) == ["au"]
     svc.now = lambda: NOW + timedelta(hours=30)  # out of the 24-hour window
     assert svc.event_products(gold["id"]) == []
+    assert svc.event_products(split["id"]) == []

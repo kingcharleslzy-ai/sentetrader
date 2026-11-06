@@ -320,16 +320,17 @@ class NewsScreener:
 
     def event_products(self, event_id: str, since: str) -> list[str]:
         """The products whose judgments could make this event id (judged items published at or after `since`):
-        a named event's id hashes (product, research day, name) — the same key `build_events` groups on — and
-        an unnamed one is its item's own id. Candidates only; the caller confirms against the product's events."""
+        a named event's id hashes (product, research day, name, report anchor); the legacy form omits
+        the anchor. An unnamed one is its item's own id. Candidates only; the caller confirms the current events."""
         with self.lock:
             rows = self.connection.execute(
                 "SELECT DISTINCT item_id, product, event_label, published_at FROM news_screen"
                 " WHERE relevant = 1 AND published_at >= ?", (since,)).fetchall()
         found: list[str] = []
         for item_id, product, label, published in rows:
-            made = _event_id(product, research_day(published), label) if label else item_id
-            if made == event_id and product not in found:
+            made = (_event_id(product, research_day(published), label),
+                    _event_id(product, research_day(published), label, item_id)) if label else (item_id,)
+            if event_id in made and product not in found:
                 found.append(product)
         return found
 
@@ -862,14 +863,28 @@ def _headline(members: list[dict[str, Any]], label: str | None = None) -> dict[s
 
 def build_events(items: list[dict[str, Any]], *, hide_pending: bool) -> list[dict[str, Any]]:
     """Kept items (newest first) merged into events: one product's items of one research day that the
-    model named the same (`eventLabel`) are one event. The event shows its newest report's time, the
-    most informative title (`_headline`), the strongest reading (direction 分歧 when its reports point
-    both ways), how many outlets
+    model named the same (`eventLabel`) merge only with matching report content. The event shows
+    its newest report's time, the most informative title (`_headline`), the strongest reading (direction
+    分歧 when its reports point both ways), how many outlets
     ran it and every report with its own link; `tier` is 重要 (major: 中/强), 其他 (other: 弱 with a
     direction) or 次要 (minor: 弱 and 中性). An item without a label (judged before labels existed) is
     its own event. `hide_pending`: items the model has not judged yet stay out (ai mode); items on
     keywords only (failed twice, or no model) are their own `unscreened` events."""
     groups: dict[tuple[str, ...], list[dict[str, Any]]] = {}
+    topics: dict[str, list[set[str]]] = {}
+
+    def same_topic(left: dict[str, Any], right: dict[str, Any]) -> bool:
+        # A label is only a candidate: reports must also share actual wording, even as figures update.
+        return any(len(a & b) >= max(3, min(len(a), len(b)) / 2)
+                   for a in topics[left["id"]] for b in topics[right["id"]])
+
+    for item in items:
+        # A translated headline may match Chinese reports while its body still carries the original.
+        texts = (_merge_key(item), str(item.get("title") or "") + str(item.get("text") or ""))
+        topics[item["id"]] = []
+        for text in texts:
+            plain = _title_key(re.sub(r"\d+(?:\.\d+)?", "", text)).lower()
+            topics[item["id"]].append({plain[index:index + 2] for index in range(len(plain) - 1)})
     for item in items:
         ai = item.get("ai")
         if ai is None and hide_pending and item.get("unjudged") == "pending":
@@ -878,16 +893,32 @@ def build_events(items: list[dict[str, Any]], *, hide_pending: bool) -> list[dic
         label = (ai or {}).get("eventLabel")
         key: tuple[str, ...] = (str((ai or {}).get("product") or ""), day, label) if label else ("item", item["id"])
         groups.setdefault(key, []).append(item)
-    # The same headline under two names (the model labelled one story twice) is one event.
+    for key, members in list(groups.items()):
+        if key[0] == "item":
+            continue
+        clusters: list[list[dict[str, Any]]] = []
+        for member in sorted(members, key=lambda member: (member.get("publishedAt") or "", member["id"])):
+            # Complete-link grouping: one round-up or shared template cannot bridge unrelated reports.
+            cluster = next((part for part in clusters if all(same_topic(member, peer) for peer in part)), None)
+            if cluster is None:
+                clusters.append([member])
+            else:
+                cluster.append(member)
+        del groups[key]
+        for cluster in clusters:
+            # Each topic owns its report anchor: source-count changes must never lend its id to another topic.
+            groups[(*key, cluster[0]["id"])] = cluster
+    # The same full headline under two names (or across 08:30) can still identify one story.
     owner: dict[str, tuple[str, ...]] = {}
-    for group_key in list(groups):
+    for group_key in sorted(groups, key=lambda key: (max(member.get("publishedAt") or "" for member in groups[key]), key),
+                            reverse=True):
         members = groups[group_key]
         titled = [_merge_key(member) for member in members]
         target = next((owner[title] for title in titled if title and owner.get(title) not in (None, group_key)
-                       and owner[title] in groups), None)
-        # Word for word the same report is one story even across the 08:30 turn (同花顺 filed it at
-        # 08:10, the rest after); a recurring name alone ("现货黄金日内下跌") stays per research day.
-        if target is not None and target[0] != "item" and group_key[0] != "item":
+                       and owner[title] in groups and owner[title][0] == group_key[0]
+                       and group_key[0] != "item"
+                       and all(same_topic(member, peer) for member in members for peer in groups[owner[title]])), None)
+        if target is not None:
             groups[target].extend(members)
             del groups[group_key]
             group_key = target
