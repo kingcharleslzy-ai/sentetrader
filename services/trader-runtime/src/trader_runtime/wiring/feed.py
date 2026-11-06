@@ -191,11 +191,18 @@ def build_feed(ctx: RuntimeContext) -> RuntimeFeed:
                                        user=user_id, symbol=symbol)
 
     async def _feed_execution(account_id: str | None, user_id: str) -> dict[str, Any] | None:
-        autonomy = _granted_account(account_id, user_id).autonomy
+        account = _granted_account(account_id, user_id)
+        autonomy = account.autonomy
+        stops = autonomy.list_stops(user_id=user_id)
+        foreign_of = accounts.foreign_account_of
+        foreign_id = foreign_of(account.account_id) if foreign_of is not None and account.account_id.startswith("paper:") else None
+        if foreign_id:
+            companion = _granted_account(foreign_id, user_id)
+            stops = [*stops, *({**stop, "accountId": foreign_id} for stop in companion.autonomy.list_stops(user_id=user_id))]
         return {
             "authorization": autonomy.current(user_id=user_id),
             "controls": autonomy.controls(user_id=user_id),
-            "stops": autonomy.list_stops(user_id=user_id),
+            "stops": stops,
             "simulationOnly": True,
             "liveTrading": "disabled",
         }

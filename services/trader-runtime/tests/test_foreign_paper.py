@@ -859,6 +859,13 @@ async def test_usd_position_protection_is_set_listed_and_cancelled_from_the_rmb_
             assert created.status_code == 201 and calls == [("create", MAIN)], created.text[:300]
             listed = (await friend.get("/api/ai-execution", headers=rmb)).json()["stops"]
             assert [(row["stopId"], row.get("accountId")) for row in listed] == [("usd-stop-1", usd_id)]
+            pushed = await application.state.runtime_feed._execution(paper_id, friend_id)
+            assert pushed["stops"] == listed
+            monkeypatch.setattr(usd, "list_stops", lambda *, user_id: [{**stop, "triggerPrice": 710.0}])
+            repriced = await application.state.runtime_feed._execution(paper_id, friend_id)
+            assert repriced["stops"][0]["triggerPrice"] == 710.0
+            monkeypatch.setattr(usd, "list_stops", lambda *, user_id: [])
+            assert (await application.state.runtime_feed._execution(paper_id, friend_id))["stops"] == []
             # 国内合约的保护仍在人民币账（不经美元那本）
             rmb_create = await friend.post("/api/ai-execution/stops", headers=rmb, json={
                 "sessionId": session_id, "symbol": "SHFE.rb2701", "positionDirection": "long", "positionBucket": "all",
