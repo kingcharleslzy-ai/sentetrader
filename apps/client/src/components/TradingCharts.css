@@ -55,6 +55,12 @@
   opacity: 1;
 }
 
+/* The price pane's name row stays one line on a narrow chart too (a board's second chart): the 均线 list and the
+   extensions start from no width and grow to their text, so they give way (ellipsis) instead of wrapping onto the
+   candles. The 最近 N 个交易日 basis and the crosshair readout keep their own lines. */
+.fdw-chart-pane-label:not(.fdw-sub-pane-label) > :is(.fdw-ind-label, span:not(.fdw-history-note, .fdw-bar-readout)) {
+  flex: 1 1 0; max-width: max-content; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 /* A 副图's name row is one line, never wrapped over its plot or the time axis: the values give way (ellipsis) before the
    name and ＋ 副图. */
 .fdw-sub-pane-label { flex-wrap: nowrap; }
