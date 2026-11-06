@@ -161,6 +161,14 @@ function PositionProtection({ position, quote, priceTick, stops, busy, onCreate,
   // replaces it with what is submitted (never a second stop on the same lot).
   const own = (choice: typeof bucket) => stops.find(stop => stop.source === "manual" && stop.status === "ARMED" && stop.positionBucket === choice);
   const current = own(bucket);
+  const record = JSON.stringify([current?.stopId, current?.triggerPrice, current?.takeProfitPrice, current?.trailing, current?.breakeven]);
+  const [editingRecord, setEditingRecord] = useState(record);
+  if (editingRecord !== record) {
+    setEditingRecord(record);
+    setStopInput(current?.triggerPrice != null ? String(current.triggerPrice) : "");
+    setTakeInput(current?.takeProfitPrice != null ? String(current.takeProfitPrice) : "");
+    setStopMotion({ trailing: current?.trailing ?? undefined, breakevenAtR: current?.breakeven || undefined });
+  }
   const pick = (choice: typeof bucket) => {
     const existing = own(choice);
     setBucket(choice);

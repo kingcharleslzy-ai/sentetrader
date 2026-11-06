@@ -131,13 +131,21 @@ describe("持仓行的保护（下单顺带保护 · 持仓补挂）", () => {
   });
 
   test("已挂自己的保护时按钮是“改保护”，表单带着原价位打开 (#932 11-02)", () => {
-    rows([stop({ positionBucket: "historical", triggerPrice: 823.5, takeProfitPrice: 826 })]);
+    const { rerender } = rows([stop({ positionBucket: "historical", triggerPrice: 823.5, takeProfitPrice: 826 })]);
     const toggle = screen.getByTestId("row-protect-toggle");
     expect(toggle).toHaveTextContent("改保护");
     fireEvent.click(toggle);
     expect(screen.getByTestId("row-stop-input")).toHaveValue(823.5);
     expect(screen.getByTestId("row-take-input")).toHaveValue(826);
     expect(screen.getByTestId("position-protect-form")).toHaveTextContent("替换原来的保护");
+    const props = { positions: [position], quote, busy: false, limit: 10, onClosePosition: () => undefined,
+      onCreateStop: () => Promise.resolve(true), onCancelStop: () => Promise.resolve(true) };
+    fireEvent.change(screen.getByTestId("row-take-input"), { target: { value: "827" } });
+    rerender(<PositionRows {...props} stops={[stop({ positionBucket: "historical", triggerPrice: 823.5, takeProfitPrice: 826 })]} />);
+    expect(screen.getByTestId("row-take-input")).toHaveValue(827);
+    rerender(<PositionRows {...props} stops={[stop({ positionBucket: "historical", triggerPrice: 823.5, takeProfitPrice: 825 })]} />);
+    expect(screen.getByTestId("row-take-input")).toHaveValue(825);
+    expect(screen.getByTestId("row-stop-input")).toHaveValue(823.5);
   });
 
   test("上期所/能源中心今昨仓都有时不提供“全部”（Runtime 拒绝 close_bucket_required），默认昨仓", async () => {
