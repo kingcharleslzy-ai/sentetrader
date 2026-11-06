@@ -177,6 +177,7 @@ async def test_a_ticket_on_a_foreign_chart_in_a_cny_conversation_cards_the_usd_m
             assert response.status_code == 201, response.text[:300]
             card = response.json()
             assert card["symbol"] == MAIN and card["currency"] == "USD"
+            assert card["accountId"] == usd_id
             assert card["name"] == "COMEX黄金2612"  # the catalog's name, not the MT5 description
             assert str(store.get(card["proposalId"])["tradingAccountId"]) == usd_id
         finally:

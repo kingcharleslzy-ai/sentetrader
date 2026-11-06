@@ -244,11 +244,11 @@ def awaiting_confirmation(record: dict[str, Any], now: datetime | None = None) -
 def card_account_fields(order_service: Any) -> dict[str, Any]:
     """一张卡写着下到哪类账户、按什么币种记账（外盘二期：美元子账户的卡金额是美元）。"""
     provider = order_service.data_provider
-    account_id = getattr(provider, "account_id", None)
+    account_id = order_service.account_id
     if provider.mode != "paper":
-        return {"accountLabel": "快期模拟账户", "currency": "CNY"}
+        return {"accountId": account_id, "accountLabel": "快期模拟账户", "currency": "CNY"}
     # 美元子账户同是本站模拟账户（卡上“以本站模拟查询为准”照旧）；它的名字由卡上的账户编号从账户目录读。
-    return {"accountLabel": "本站模拟账户", "currency": "USD" if is_foreign_paper(account_id) else "CNY"}
+    return {"accountId": account_id, "accountLabel": "本站模拟账户", "currency": "USD" if is_foreign_paper(account_id) else "CNY"}
 
 
 class ProposalService:
