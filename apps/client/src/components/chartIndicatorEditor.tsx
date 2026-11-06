@@ -1,4 +1,6 @@
 import { useEffect, useRef, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { menuHost, useMenuPlace } from "./futures/ChartContextMenu";
 import { Stepper, Switch, Select } from "./settings/controls";
 import type { DrawingDefaults } from "../chartDrawingModel";
 import {
@@ -156,14 +158,14 @@ export function ChartPopover({ title, anchorRect, onClose, children, width = 340
     document.addEventListener("keydown", onKey);
     return () => { document.removeEventListener("pointerdown", outside, true); document.removeEventListener("keydown", onKey); };
   }, [onClose]);
-  // `.fdw-ind-popover` has min-width: min(360px, 100vw - 16px); clamp with the width it really renders at.
-  const rendered = Math.max(width, Math.min(360, window.innerWidth - 16));
-  const left = Math.max(8, Math.min(anchorRect.left, window.innerWidth - rendered - 8));
-  const top = Math.min(anchorRect.bottom + 6, Math.max(8, window.innerHeight - 240));
-  return (
-    <div className="fdw-ind-popover" role="dialog" aria-label={title} style={{ position: "fixed", left, top, width }} ref={ref} data-closing={closing || undefined}>
+  // Under its control, kept inside the window by its real size (the menus' placement), at the shell's root so no panel
+  // or board block covers it.
+  const place = useMenuPlace(ref, anchorRect.left, anchorRect.bottom + 6, anchorRect);
+  return createPortal(
+    <div className="fdw-ind-popover" role="dialog" aria-label={title} style={{ position: "fixed", left: place.left, top: place.top, width }} ref={ref} data-closing={closing || undefined}>
       <div className="fdw-ind-popover-title"><strong>{title}</strong><button type="button" aria-label="关闭" onClick={onClose}>×</button></div>
       <div className="fdw-ind-popover-body">{children}</div>
-    </div>
+    </div>,
+    menuHost()
   );
 }

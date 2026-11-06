@@ -274,7 +274,8 @@ test("every user-operable control is commandable or reachable, and visible to th
       { boards: { place: { module: "chart", target: "chart", side: "right", duration: 3600 } } }, { disclosure: { name: "board-tile-menu", id: "chart-2", open: true } }], true],
     ["board-chart-pick", [{ disclosure: { name: "board-tile-menu", id: "chart-2", open: false } }, { disclosure: { name: "board-chart-pick", id: "chart-2", open: true } }], true],
     ["board-chart-pane-add", [{ disclosure: { name: "board-chart-pick", id: "chart-2", open: false } }, { boards: { editing: false } }, { disclosure: { name: "board-chart-pane-add", id: "chart-2", open: true } }], true],
-    ["", [{ disclosure: { name: "board-chart-pane-add", id: "chart-2", open: false } }, { boards: { editing: true } }, { disclosure: { name: "board-chart-pick", id: "chart-2", open: true } }], false],
+    ["board-chart-menu", [{ disclosure: { name: "board-chart-pane-add", id: "chart-2", open: false } }, { disclosure: { name: "board-chart-menu", id: "chart-2", open: true } }], true],
+    ["", [{ disclosure: { name: "board-chart-menu", id: "chart-2", open: false } }, { boards: { editing: true } }, { disclosure: { name: "board-chart-pick", id: "chart-2", open: true } }], false],
     ["", [{ disclosure: { name: "board-chart-pick", id: "chart-2", open: false } }, { disclosure: { name: "board-tile-menu", id: "chart-2", open: true } }], false],
     // 模块补全 (2026-11-06): 账户权益、委托与成交、运行中的策略、快讯、复盘盈亏 on the board, then off again.
     ["board-more-modules", [{ disclosure: { name: "board-tile-menu", id: "chart-2", open: false } }, { boards: { take: "chart-2" } },

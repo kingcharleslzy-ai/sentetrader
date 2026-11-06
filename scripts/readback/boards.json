@@ -1,5 +1,5 @@
 {
-  "about": "看板 · 铺满版（11-05）：顶栏看板进“盘中”（默认摆法铺满，每块按自己的大小选档）；下拉里有“新建空白看板”和这套看板的编辑、改名、删除；新建“回读看板”后进入编辑、开模块库，按“放在哪块的哪一边 / 比例”一块块放满七个模块，调比例、锁档、拿掉再撤销，再放一块图表（1 小时、再改成日线、副图换成 RSI）后拿掉，再放一块跟顶栏的图表、只给它换副图（CCI、持仓量），核对交易台图表的副图没跟着变，再拿掉，放账户权益和快讯（快讯切到宏观）、多 AI 辩论、交易笔记、AI 简报后拿掉，图表换成紫色联动，让 AI 帮我摆一套复盘（真走模型，看到预览），用这套再撤销，打开一块的 ⋯（换成别的模块、档位），完成后小档下单露出买多 / 卖空（点了先弹确认，回读不点），看板右键菜单（编辑看板等），拿掉提醒再撤销。回读窗口固定 1440×900（工具只有这一种电脑尺寸），1280×800 和 2560×1440 在浏览器里另看。只改测试账号自己的看板偏好，最后回到“盘中”、删掉“回读看板”、回交易台。",
+  "about": "看板 · 铺满版（11-05）：顶栏看板进“盘中”（默认摆法铺满，每块按自己的大小选档）；下拉里有“新建空白看板”和这套看板的编辑、改名、删除；新建“回读看板”后进入编辑、开模块库，按“放在哪块的哪一边 / 比例”一块块放满七个模块，调比例、锁档、拿掉再撤销，再放一块图表（1 小时、再改成日线、副图换成 RSI）后拿掉，再放一块跟顶栏的图表、只给它换副图（CCI、持仓量），核对交易台图表的副图没跟着变，打开这块的右键菜单（和交易台图表同一个菜单，末尾编辑看板），再拿掉，放账户权益和快讯（快讯切到宏观）、多 AI 辩论、交易笔记、AI 简报后拿掉，图表换成紫色联动，让 AI 帮我摆一套复盘（真走模型，看到预览），用这套再撤销，打开一块的 ⋯（换成别的模块、档位），完成后小档下单露出买多 / 卖空（点了先弹确认，回读不点），看板右键菜单（编辑看板等），拿掉提醒再撤销。回读窗口固定 1440×900（工具只有这一种电脑尺寸），1280×800 和 2560×1440 在浏览器里另看。只改测试账号自己的看板偏好，最后回到“盘中”、删掉“回读看板”、回交易台。",
   "steps": [
     {"ui": {"view": "trade"}, "expect": {"view": "trade"}},
     {"ui": {"view": "dashboard"}, "expect": {"view": "dashboard", "preferences.ui.boards.current": {"exists": true}}},
@@ -35,6 +35,9 @@
     {"ui": {"boards": {"chart": {"block": "chart-2", "panes": ["cci", "oi"]}}}, "expect": {"preferences.ui.boards.items": {"includes": "\"panes\":[\"cci\",\"oi\"]"}, "observation.text": {"includes": "CCI"}}},
     {"api": "GET /api/preferences", "expect": {"body.preferences.chart.subPaneList": {"includes": "{{mainPanes}}"}}},
     {"screenshot": "23b-follow-chart-panes"},
+    {"ui": {"disclosure": {"name": "board-chart-menu", "id": "chart-2", "open": true}}, "expect": {"observation.controls": {"includes": "编辑看板"}}},
+    {"screenshot": "23c-passive-chart-menu"},
+    {"ui": {"disclosure": {"name": "board-chart-menu", "id": "chart-2", "open": false}}},
     {"ui": {"boards": {"take": "chart-2"}}},
     {"ui": {"boards": {"place": {"module": "account", "target": "order", "side": "bottom"}}}, "expect": {"boards.tiles": {"includes": "\"account\""}}},
     {"ui": {"boards": {"place": {"module": "flash", "target": "sheet", "side": "bottom"}}}, "expect": {"boards.tiles": {"includes": "\"flash\""}}},

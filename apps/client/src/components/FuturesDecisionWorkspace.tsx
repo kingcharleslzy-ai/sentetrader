@@ -55,6 +55,7 @@ import type { AiFocus } from "./AiMenu";
 import { PositionsDock } from "./futures/PositionsDock";
 import { MarketCommand } from "./futures/MarketCommand";
 import { ChartStage } from "./futures/ChartStage";
+import type { ChartMenuActions } from "./futures/ChartContextMenu";
 import { ChartGrid, ChartLayoutControls } from "./futures/ChartGrid";
 import { useDesktopCharts } from "./futures/desktopCharts";
 import { useWorkspaceLayouts } from "./futures/workspaceLayouts";
@@ -102,7 +103,7 @@ import { useDeskJudgment, useDeskJudgments } from "./mobile/MobileFeed";
 import { MobileHome, type HomeQuote, type WatchInfo } from "./mobile/MobileHome";
 import { quoteRows } from "./mobile/MobileQuotes";
 import { useMultiChartReads } from "./mobile/MobileMultiChart";
-import type { ResolvedCell } from "./mobile/mobileMarketPrefs";
+import { durationLabel, type ResolvedCell } from "./mobile/mobileMarketPrefs";
 import { MobileStrategy, useMobileStrategies } from "./mobile/MobileStrategy";
 import { MobileStrategyEditor, useMobileStrategyEditor } from "./mobile/MobileStrategyEditor";
 import { StrategyStarts } from "./StrategyStarts";
@@ -1869,14 +1870,54 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
       // 副图: this block's own list (default: the trade chart's); a pane's settings stay the shared ones. The large size is the
       // same passive chart with more room — no 画线, no 下单.
       const ownPanes = boards.board.charts[block]?.panes;
-      return <ChartMedium market={read.market} name={linkedName} onOpen={openLinked}
+      const passivePreferences = ownPanes ? { ...chartPreferences, subPaneList: ownPanes } : chartPreferences;
+      const changePassive = chartIndicatorsChange ? (patch: ChartIndicatorPatch) => {
+        const { subPaneList, ...shared } = patch;
+        if (subPaneList) { try { boards.apply({ chart: { block, panes: subPaneList } }); } catch (error) { setAccessNotice(error instanceof Error ? error.message : "副图没改成"); } }
+        if (Object.keys(shared).length) chartIndicatorsChange(shared);
+      } : undefined;
+      // 右键 (owner 2026-11-06): the trade chart's own menu, acting on this block — its 周期, 副图 and the shared 主图指标;
+      // 提醒 and the AI questions are on its contract; 画线 is the trade chart's (greyed with where it is); 编辑看板 last.
+      const indicators = normalizeChartIndicators(passivePreferences);
+      const panes = indicators.subPaneList;
+      const tick = read.market.quote.priceTick;
+      const openSurface = (key: string) => { try { uiSurface(key)?.apply?.(true); } catch { /* The popover reports its own state. */ } };
+      const menuActions: ChartMenuActions = {
+        chartView: "kline", duration: chartDuration, decimals: decimalsForTick(tick), tick,
+        indicators: changePassive ? indicators : null,
+        drawingsAvailable: false, drawingsBlocked: "画线在交易台：点图表的名字切过去",
+        hiddenAll: false, hiddenCount: 0, locked: false, magnet: false, drawingCount: 0, hasChartMarks: false,
+        onAlert: alerts.available ? price => { void alerts.create(chartSymbol, price); } : undefined,
+        onTool: () => undefined, onGroup: () => undefined,
+        onPeriod: value => {
+          if (value === "timeshare") { selectContract(chartSymbol); selectChartView("timeshare"); selectView("trade"); return; }
+          try { boards.apply({ chart: { block, duration: value } }); } catch (error) { setAccessNotice(error instanceof Error ? error.message : "周期没改成"); }
+        },
+        onIndicatorToggle: which => changePassive?.(which === "ma"
+          ? { maLines: indicators.maLines.map(line => ({ ...line, enabled: !indicators.maLines.some(item => item.enabled) })) }
+          : { boll: { ...indicators.boll, enabled: !indicators.boll.enabled } }),
+        onIndicatorSettings: () => openSurface(`disclosure:board-chart-ma-editor:${block}`),
+        onAddPane: type => { if (!panes.includes(type)) changePassive?.({ subPaneList: [...panes, type] }); },
+        onChartSettings: () => window.dispatchEvent(new CustomEvent("ai-trader-open-settings", { detail: "chart" })),
+        onAskPrice: price => { openChat(); setPrompt(`分析 ${linkedName} 价格 ${formatNumber(price, decimalsForTick(tick))} 附近的机会与风险，不创建订单。`); },
+        onAskSpan: () => { openChat(); setPrompt(`讲讲 ${linkedName} ${durationLabel(chartDuration)} 图上最近这段走势：先在图上画出关键位置再解释，不创建订单。`); },
+        onDrawingSwitch: () => undefined, onShowHidden: () => undefined, onClearDrawings: () => undefined, onClearMarks: () => undefined,
+        onPatch: () => undefined, onSettings: () => undefined, onLineAlert: () => undefined, onDuplicate: () => undefined, onDelete: () => undefined,
+        onSwapPane: (from, to) => changePassive?.({ subPaneList: panes.map(item => item === from ? to : item) }),
+        onPaneSettings: type => openSurface(`disclosure:board-chart-pane-editor:${block}:${type}`),
+        onMovePane: (type, direction) => {
+          const list = [...panes];
+          const at = list.indexOf(type), to = at + direction;
+          if (at < 0 || to < 0 || to >= list.length) return;
+          [list[at], list[to]] = [list[to], list[at]];
+          changePassive?.({ subPaneList: list });
+        },
+        onClosePane: type => changePassive?.({ subPaneList: panes.filter(item => item !== type) }),
+        onEditBoard: boardsAvailable ? () => boardsControl.setEditing(true) : undefined,
+      };
+      return <ChartMedium market={read.market} name={linkedName} onOpen={openLinked} menuActions={menuActions}
         chart={{ settings: chartSettings, onSettingsChange: setChartSettings, resolvedTheme, timeZone: "Asia/Shanghai", surfaceScope: block,
-          preferences: ownPanes ? { ...chartPreferences, subPaneList: ownPanes } : chartPreferences,
-          onIndicatorsChange: chartIndicatorsChange ? patch => {
-            const { subPaneList, ...shared } = patch;
-            if (subPaneList) { try { boards.apply({ chart: { block, panes: subPaneList } }); } catch (error) { setAccessNotice(error instanceof Error ? error.message : "副图没改成"); } }
-            if (Object.keys(shared).length) chartIndicatorsChange(shared);
-          } : undefined }} />;
+          preferences: passivePreferences, onIndicatorsChange: changePassive }} />;
     }
     if (!market) return <p className="board-empty" role="status">{props.marketError || "行情连接后显示"}</p>;
     const name = contractLabel(market.quote.symbol, props.instruments);

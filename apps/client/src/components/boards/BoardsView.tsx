@@ -9,7 +9,7 @@ import "react-mosaic-component/react-mosaic-component.css";
 import { useDisclosureSurface, useUiSurface } from "../../uiSurfaces";
 import { HelpTip } from "../Blocks";
 import { ChartPopover } from "../chartIndicatorEditor";
-import { useMenuPlace } from "../futures/ChartContextMenu";
+import { menuHost, useMenuPlace } from "../futures/ChartContextMenu";
 import { openAppHelp } from "../AppHelp";
 import { Presence } from "../motion";
 import { arrangeBoard } from "../../api";
@@ -369,9 +369,6 @@ function TileMenu({ block, size, run, layout, locked }: { block: BoardBlock; siz
  * A 看板 menu in the chart's right-click look (fdw-context-menu), placed by useMenuPlace; Esc, a click elsewhere and the
  * arrow keys behave as the chart's menu does. `render` gets the submenu flip side and the open submenu.
  */
-// Inside the app shell, where the shared button reset (`:where(.fdw-shell) button`) styles the menu's items as the chart menu's.
-const menuHost = () => document.querySelector(".fdw-shell") ?? document.body;
-
 function BoardMenu({ label, target, x, y, onClose, render }: { label: string; target: string; x: number; y: number; onClose: () => void;
   render: (flip: boolean, sub: string | null, setSub: (sub: string | null) => void) => ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -422,7 +419,7 @@ function ChartPick({ block, choice, link, contracts, run }: { block: BoardBlock;
         aria-label={`${label}的合约和周期：${contractText} · ${periodText}`} onClick={() => setOpen(rect === undefined)}>
         <span className="board-ellipsis">{contractText} · {periodText}</span><ChevronDown aria-hidden="true" /></button>
     </div>
-    <Presence>{rect ? createPortal(<ChartPopover title={`${label}的合约和周期`} anchorRect={rect} onClose={() => setOpen(false)} width={300}>
+    <Presence>{rect ? <ChartPopover title={`${label}的合约和周期`} anchorRect={rect} onClose={() => setOpen(false)} width={300}>
       <div data-agent-target={`board-chart-pick:${block}`}>
         <small className="board-menu-caption">合约</small>
         <div className="fdw-period-more-list board-chart-pick-list">
@@ -438,7 +435,7 @@ function ChartPick({ block, choice, link, contracts, run }: { block: BoardBlock;
             aria-pressed={choice.duration === duration} onClick={() => pick({ chart: { block, duration } })}>{durationLabel(duration)}</button>)}
         </div>
       </div>
-    </ChartPopover>, document.body) : null}</Presence>
+    </ChartPopover> : null}</Presence>
   </span>;
 }
 

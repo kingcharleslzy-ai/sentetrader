@@ -39,7 +39,6 @@
 .board-mosaic .mosaic-tile { margin: 4px; }
 .board-mosaic .mosaic-window { overflow: visible; box-shadow: none; border-radius: var(--radius-card); background: transparent; }
 .board-mosaic .mosaic-window .mosaic-window-body { background: transparent; overflow: visible; }
-.board-mosaic .mosaic-tile:has([role="menu"]) { z-index: 20; }
 .board-mosaic .mosaic-split { background: transparent; }
 .board-mosaic .mosaic-split.-row { margin-left: -4px; width: 8px; }
 .board-mosaic .mosaic-split.-column { margin-top: -4px; height: 8px; }

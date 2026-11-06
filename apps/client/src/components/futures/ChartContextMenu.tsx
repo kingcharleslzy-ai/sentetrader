@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { createPortal } from "react-dom";
 import { Bell, Bot, ChevronRight, LayoutDashboard, Copy, Eraser, Eye, EyeOff, Lock, LockOpen, Magnet, Ruler, Settings2, Trash2, X } from "lucide-react";
 import {
   ALERTABLE_KINDS, DRAWING_GROUPS, QUICK_DRAWING_TOOLS, QUICK_TOOL_LABELS, drawingTitle, resolveStyle, toolSpec,
@@ -95,6 +96,13 @@ export interface ChartMenuActions {
  * Where a right-click style menu sits: at the pointer, kept inside the window (moved up when it would run off the
  * bottom), with `flip` when a submenu would run off the right edge. Shared by the chart's menu and the 看板's.
  */
+/**
+ * Where a menu or card that opens over the page mounts: the app shell's root, above every panel and board block (a
+ * board block is a layer of its own, so one drawn inside it sits under its neighbours) and still under the shell's
+ * shared button reset and theme.
+ */
+export const menuHost = () => document.querySelector(".fdw-shell") ?? document.body;
+
 export function useMenuPlace(ref: RefObject<HTMLElement | null>, x: number, y: number, key?: unknown) {
   const [place, setPlace] = useState({ left: x, top: y, flip: false });
   useLayoutEffect(() => {
@@ -185,7 +193,8 @@ export function ChartContextMenu({ menu, actions, onSub, onClose }: { menu: Char
           </div>
         ) : null}
       </div> : null}
-      {actions.drawingsAvailable ? <Item onClick={() => run(() => actions.onTool("measure"))}><Ruler aria-hidden="true" /><span>测量区间</span></Item> : null}
+      {actions.drawingsAvailable ? <Item onClick={() => run(() => actions.onTool("measure"))}><Ruler aria-hidden="true" /><span>测量区间</span></Item>
+        : actions.drawingsBlocked ? <Item disabled title={actions.drawingsBlocked} onClick={() => undefined}><Ruler aria-hidden="true" /><span>测量区间</span></Item> : null}
       <hr />
       <div className="fdw-cm-wrap">
         <button type="button" role="menuitem" {...subToggle("period")}><span>周期</span><small>{actions.chartView === "timeshare" ? "分时" : PERIODS.find(item => item.value === actions.duration)?.label}</small><ChevronRight aria-hidden="true" /></button>
@@ -266,7 +275,7 @@ export function ChartContextMenu({ menu, actions, onSub, onClose }: { menu: Char
       <Item danger onClick={() => run(() => actions.onClosePane(type))}><X aria-hidden="true" /><span>关闭这个副图</span></Item>
     </>;
   }
-  return (
+  return createPortal(
     <div className="fdw-context-menu fdw-chart-menu" role="menu" aria-label="图表菜单" data-agent-target="chart:context-menu" ref={ref} style={{ position: "fixed", left: place.left, top: place.top }}
       onKeyDown={event => {
         if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
@@ -278,7 +287,8 @@ export function ChartContextMenu({ menu, actions, onSub, onClose }: { menu: Char
       <strong>{header}</strong>
       {body}
       {actions.onEditBoard ? <><hr /><Item onClick={() => run(actions.onEditBoard!)}><LayoutDashboard aria-hidden="true" /><span>编辑看板</span></Item></> : null}
-    </div>
+    </div>,
+    menuHost()
   );
 }
 

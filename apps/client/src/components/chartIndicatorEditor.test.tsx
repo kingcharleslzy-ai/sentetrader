@@ -109,12 +109,13 @@ test("the add chooser lists every type, says where a used one lives and stops at
 test("the popover sits at a fixed position and closes on Esc or an outside pointer press", () => {
   const onClose = vi.fn();
   const anchorRect = { left: 100, top: 40, bottom: 60 } as DOMRect;
-  const { container } = render(<ChartPopover title="均线与布林带" anchorRect={anchorRect} onClose={onClose}>
+  render(<ChartPopover title="均线与布林带" anchorRect={anchorRect} onClose={onClose}>
     <button type="button" onClick={() => undefined}>一条均线</button>
   </ChartPopover>);
   const popover = screen.getByRole("dialog", { name: "均线与布林带" });
   expect(popover).toHaveStyle({ position: "fixed" });
-  expect(container.querySelector(".fdw-ind-popover-title")).toHaveTextContent("均线与布林带");
+  // It mounts at the page's root (outside the rendering container), so no board block or panel covers it.
+  expect(popover.querySelector(".fdw-ind-popover-title")).toHaveTextContent("均线与布林带");
   fireEvent.pointerDown(screen.getByRole("button", { name: "一条均线" }));
   expect(onClose).not.toHaveBeenCalled();
   fireEvent.pointerDown(document.body);

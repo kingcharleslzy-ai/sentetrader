@@ -1,8 +1,10 @@
-import { useLayoutEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
 import { normalizePaneSizes, SUB_PANES_MAX, type PaneSizes } from "../chartIndicators";
 import { foreignQuoteOnly, sameContract, type AccountPosition, type AccountSnapshot, type InstrumentCatalog, type MarketBoardRow, type MarketWorkbenchSnapshot, type RemoteTradeSnapshot,
   type SimulationOrder } from "../../api";
 import { TradingCharts } from "../TradingCharts";
+import { ChartContextMenu, type ChartMenuActions, type ChartMenuState } from "../futures/ChartContextMenu";
+import { useDisclosureSurface } from "../../uiSurfaces";
 import { durationLabel } from "../mobile/mobileMarketPrefs";
 import { chartDayQuote, contractLabel, dayQuote, decimalsForTick, formatBoardPrice, formatNumber, formatSigned, signClass, FALLBACK_PRICE_TITLE, type ManualSimulationRequest } from "../futures/support";
 import type { useQuickOrders } from "../futures/useQuickOrders";
@@ -48,7 +50,7 @@ export type PassiveChartProps = Omit<ComponentProps<typeof TradingCharts>, "bars
  * narrow chart, where the values wrap.
  */
 const panesThatFit = (width: number, height: number, sizes: PaneSizes | undefined, count: number) => {
-  const need = width < 560 ? 80 : 60;
+  const need = width < 440 ? 80 : 56;
   for (let shown = count; shown > 0; shown -= 1) {
     const { main, panes } = normalizePaneSizes(sizes, shown);
     const each = (height - 26 - 5 * shown) / (main + panes.reduce((sum, share) => sum + share, 0));
@@ -58,8 +60,24 @@ const panesThatFit = (width: number, height: number, sizes: PaneSizes | undefine
 };
 
 /** 图表 · 中: 干净的 K 线，没有工具栏，只标周期; 副图 as many as its height holds (the rest come back when it grows). */
-export function ChartMedium({ market, name, chart, onOpen }: { market: MarketWorkbenchSnapshot; name: string; chart: PassiveChartProps; onOpen: () => void }) {
+export function ChartMedium({ market, name, chart, onOpen, menuActions }: { market: MarketWorkbenchSnapshot; name: string; chart: PassiveChartProps; onOpen: () => void;
+  /** A passive chart's right-click menu (the trade chart's own, acting on this block); absent: no menu of its own. */
+  menuActions?: ChartMenuActions }) {
   const body = useRef<HTMLDivElement>(null);
+  const [menu, setMenu] = useState<ChartMenuState>();
+  useEffect(() => {
+    if (!menu) return;
+    const outside = (event: PointerEvent) => { if (!(event.target as Element).closest?.(".fdw-context-menu")) setMenu(undefined); };
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") setMenu(undefined); };
+    document.addEventListener("pointerdown", outside);
+    document.addEventListener("keydown", escape);
+    return () => { document.removeEventListener("pointerdown", outside); document.removeEventListener("keydown", escape); };
+  }, [menu]);
+  // As a UI command: the main menu, opened over the middle of this chart.
+  useDisclosureSurface("board-chart-menu", { id: chart.surfaceScope, available: Boolean(menuActions && chart.surfaceScope), state: Boolean(menu), apply: open => {
+    const rect = body.current?.getBoundingClientRect();
+    setMenu(open ? { target: { area: "main", price: Number(market.quote.lastPrice) || 0 }, x: (rect?.left ?? 200) + (rect?.width ?? 300) / 2, y: (rect?.top ?? 120) + 40, sub: null } : undefined);
+  } });
   const [box, setBox] = useState({ width: 0, height: 0 });
   useLayoutEffect(() => {
     const node = body.current;
@@ -73,12 +91,13 @@ export function ChartMedium({ market, name, chart, onOpen }: { market: MarketWor
   // (A stored entry may still be the older {type} form.)
   const list = chart.preferences?.subPaneList?.map(pane => typeof pane === "string" ? pane : pane.type);
   const room = box.height ? panesThatFit(box.width, box.height, chart.settings.paneSizes, list?.length ?? 0) : list?.length ?? 0;
-  const hidden = list && list.length > room ? list.slice(room) : [];
+  // The latest 副图 show (one just added is seen at once); the older ones give way to the height.
+  const hidden = list && list.length > room ? list.slice(0, list.length - room) : [];
   const shown: PassiveChartProps = hidden.length && list ? {
-    ...chart, preferences: { ...chart.preferences!, subPaneList: list.slice(0, room) },
+    ...chart, preferences: { ...chart.preferences!, subPaneList: list.slice(list.length - room) },
     // An edit on the shown 副图 keeps the ones this height hides.
     onIndicatorsChange: chart.onIndicatorsChange ? patch => chart.onIndicatorsChange!(patch.subPaneList
-      ? { ...patch, subPaneList: [...patch.subPaneList, ...hidden.filter(pane => !patch.subPaneList!.includes(pane))].slice(0, SUB_PANES_MAX) } : patch) : undefined,
+      ? { ...patch, subPaneList: [...hidden.filter(pane => !patch.subPaneList!.includes(pane)), ...patch.subPaneList].slice(-SUB_PANES_MAX) } : patch) : undefined,
   } : chart;
   return <div className="board-chart-medium">
     <button type="button" className="board-tile-head board-tile-link" aria-label={`${name}，打开完整图表`} onClick={onOpen}>
@@ -86,8 +105,12 @@ export function ChartMedium({ market, name, chart, onOpen }: { market: MarketWor
     </button>
     <div className="board-chart-body" ref={body}>
       <TradingCharts passive helpAvailable={false} {...shown} bars={market.bars} symbol={market.quote.symbol}
-        priceTick={market.quote.priceTick} durationSeconds={market.durationSeconds} />
+        priceTick={market.quote.priceTick} durationSeconds={market.durationSeconds}
+        onPriceContext={menuActions ? (price, x, y) => setMenu({ target: { area: "main", price }, x, y, sub: null }) : undefined}
+        onPaneContext={menuActions ? (pane, x, y) => setMenu({ target: { area: "pane", pane }, x, y, sub: null }) : undefined} />
     </div>
+    {menu && menuActions ? <ChartContextMenu menu={menu} actions={menuActions} onSub={sub => setMenu(current => current ? { ...current, sub } : current)}
+      onClose={() => setMenu(undefined)} /> : null}
   </div>;
 }
 

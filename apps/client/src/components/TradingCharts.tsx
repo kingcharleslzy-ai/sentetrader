@@ -608,6 +608,8 @@ export function TradingCharts({
     interactionRef.current = interaction;
     const detachInteraction = interaction.attach();
     const handleContext = (event: MouseEvent) => {
+      // Without a menu of its own here the right-click goes on to the page (a board's menu).
+      if (!onPriceContextRef.current) return;
       event.preventDefault();
       event.stopPropagation();
       const rect = container.getBoundingClientRect();
