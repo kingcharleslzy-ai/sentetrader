@@ -2102,15 +2102,16 @@
 .fdw-strategy-banner > button svg { width: 14px; height: 14px; }
 
 /* 持仓面板: KPI row and the tabs it shares with the bottom bar. */
-/* Six cells — 权益/今日/浮动盈亏/可用/保证金占用/风险度 — three across the default dock (two rows a ledger, so the
-   positions show without scrolling), two only in a narrow one or at large type; an account number must never break
-   mid-digit-group (1,026,5 / 80), so each cell keeps one line. */
+/* Six cells — 权益/今日/浮动盈亏/可用/保证金占用/风险度 — three across the default dock at every type size (two short
+   rows a ledger, so with both ledgers the positions still show without scrolling), two only in a narrow one; an account
+   number must never break mid-digit-group (1,026,5 / 80), so each cell keeps one line. The column minimum is the width
+   of a seven-digit amount, with room for the scroll bar: 5.5em at 特大 fell to two columns once the bar showed (11-07). */
 .fdw-positions-kpi {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(calc(var(--font-lg) * 5.5 + 2 * var(--space-3)), 1fr));
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(calc(var(--font-lg) * 5 + 2 * var(--space-3)), 1fr));
   /* A 1px gap draws the table cell divider. */
   gap: 1px; margin: 0; padding: 0; border-bottom: 1px solid var(--line); background: var(--line);
 }
-.fdw-positions-kpi > div { min-width: 0; display: grid; gap: var(--space-0); padding: var(--space-2) var(--space-3); background: var(--panel); }
+.fdw-positions-kpi > div { min-width: 0; display: grid; gap: var(--space-0); padding: var(--space-1) var(--space-3); background: var(--panel); }
 .fdw-positions-kpi dt { color: var(--fdw-faint); font-size: var(--font-md); white-space: nowrap; }
 .fdw-positions-kpi dd {
   margin: 0; min-width: 0; font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: var(--font-lg); font-weight: 600;
