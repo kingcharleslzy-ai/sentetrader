@@ -1,13 +1,19 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { useState } from "react";
 import { Segmented, Stepper, Switch } from "./controls";
 import { normalizeSettingsPage } from "../futures/WorkspaceSettings";
 
 test("the five settings controls expose their state through roles the snapshot records", () => {
   const onSwitch = vi.fn(); const onSegment = vi.fn(); const onStep = vi.fn();
+  function ConfirmWindow() {
+    const [value, setValue] = useState<number | null>(15);
+    return <Stepper label="口头确认时限" value={value} min={5} max={60} step={5} onChange={setValue} />;
+  }
   render(<>
     <Switch label="平台上限" checked={false} on="已启用" off="未启用" onChange={onSwitch} />
     <Segmented label="界面主题" value="dark" options={[{ value: "dark", label: "深色" }, { value: "light", label: "浅色" }]} onChange={onSegment} />
     <Stepper label="单笔最多手数" value={1} min={1} max={3} unit="手" onChange={onStep} />
+    <ConfirmWindow />
   </>);
   const toggle = screen.getByRole("switch", { name: "平台上限" });
   expect(toggle).toHaveAttribute("aria-checked", "false");
@@ -18,15 +24,29 @@ test("the five settings controls expose their state through roles the snapshot r
   expect(screen.getByRole("radio", { name: "深色" })).toHaveAttribute("aria-checked", "true");
   fireEvent.click(screen.getByRole("radio", { name: "浅色" }));
   expect(onSegment).toHaveBeenCalledWith("light");
-  // The stepper clamps to its range and disables the button at the edge.
+  // Buttons stay bounded; typed drafts keep their text and only valid values are saved.
   expect(screen.getByRole("button", { name: "单笔最多手数减少" })).toBeDisabled();
   fireEvent.click(screen.getByRole("button", { name: "单笔最多手数增加" }));
   expect(onStep).toHaveBeenCalledWith(2);
   fireEvent.change(screen.getByRole("spinbutton", { name: "单笔最多手数" }), { target: { value: "9" } });
-  expect(onStep).toHaveBeenLastCalledWith(3);
+  expect(screen.getByRole("spinbutton", { name: "单笔最多手数" })).toHaveValue(9);
+  expect(screen.getByRole("spinbutton", { name: "单笔最多手数" })).toHaveAttribute("aria-invalid", "true");
+  expect(onStep).toHaveBeenLastCalledWith(2);
   fireEvent.change(screen.getByRole("spinbutton", { name: "单笔最多手数" }), { target: { value: "" } });
   expect(onStep).toHaveBeenLastCalledWith(null);
   expect(screen.getByText("手")).toBeInTheDocument();
+  const seconds = screen.getByRole("spinbutton", { name: "口头确认时限" });
+  fireEvent.change(seconds, { target: { value: "1" } });
+  expect(seconds).toHaveValue(1);
+  fireEvent.change(seconds, { target: { value: "15" } });
+  expect(seconds).toHaveValue(15);
+  fireEvent.change(seconds, { target: { value: "40" } });
+  expect(seconds).toHaveValue(40);
+  fireEvent.change(seconds, { target: { value: "" } });
+  expect(seconds).toHaveValue(null);
+  fireEvent.change(seconds, { target: { value: "20" } });
+  fireEvent.blur(seconds);
+  expect(seconds).toHaveValue(20);
 });
 
 test("1.6.5 settings page names map onto the split pages", () => {

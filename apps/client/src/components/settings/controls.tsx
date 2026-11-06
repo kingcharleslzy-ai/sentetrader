@@ -1,4 +1,5 @@
 import type { ReactNode, Ref } from "react";
+import { useNumberText } from "../../numberField";
 // The controls own their styles: a surface outside the settings drawer (the
 // standalone /trader/admin page) that imports these components gets the same look
 // without importing SettingsPanel itself.
@@ -56,16 +57,12 @@ export function Stepper({ label, value, onChange, min, max, step = 1, unit, plac
   min?: number; max?: number; step?: number; unit?: string; placeholder?: string; disabled?: boolean;
 }) {
   const clamp = (next: number) => Math.min(max ?? Number.POSITIVE_INFINITY, Math.max(min ?? Number.NEGATIVE_INFINITY, next));
-  const nudge = (direction: 1 | -1) => onChange(clamp((value ?? min ?? 0) + direction * step));
+  const field = useNumberText(value, { label, min, max, integer: Number.isInteger(step), optional: true }, onChange);
+  const nudge = (direction: 1 | -1) => field.replace(clamp((field.value ?? value ?? min ?? 0) + direction * step));
   return <span className="app-stepper">
     <button type="button" aria-label={`${label}减少`} disabled={disabled || (value != null && min != null && value <= min)} onClick={() => nudge(-1)}>−</button>
     <input type="number" aria-label={label} inputMode="decimal" min={min} max={max} step={step} placeholder={placeholder} disabled={disabled}
-      value={value ?? ""} onChange={event => {
-        const raw = event.target.value;
-        if (raw === "") { onChange(null); return; }
-        const next = Number(raw);
-        if (Number.isFinite(next)) onChange(clamp(next));
-      }} />
+      value={field.text} onChange={field.onChange} onBlur={field.onBlur} aria-invalid={field.problem ? true : undefined} title={field.problem ?? undefined} />
     <button type="button" aria-label={`${label}增加`} disabled={disabled || (value != null && max != null && value >= max)} onClick={() => nudge(1)}>+</button>
     {unit ? <span className="app-stepper-unit">{unit}</span> : null}
   </span>;

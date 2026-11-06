@@ -119,6 +119,7 @@
 .app-stepper button { width: 32px; min-height: 32px; padding: 0; border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--panel); color: var(--ink); font-size: var(--font-lg); line-height: 1; }
 .app-stepper input { width: 88px; min-height: 32px; padding: var(--space-1) var(--space-2); border: 1px solid var(--line-strong, var(--line)); border-radius: var(--radius-control); color: var(--ink); background: var(--panel); text-align: right; font: inherit; font-variant-numeric: tabular-nums; -moz-appearance: textfield; appearance: textfield; }
 .app-stepper input::-webkit-outer-spin-button, .app-stepper input::-webkit-inner-spin-button { appearance: none; margin: 0; }
+.app-stepper input[aria-invalid="true"] { outline: 1px solid var(--danger); }
 .app-stepper-unit { color: var(--muted); font-size: var(--font-sm); white-space: nowrap; }
 
 .app-settings-dialog kbd { padding: var(--space-0) var(--space-1); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: var(--radius-sm); color: var(--ink); background: var(--panel); font: inherit; font-size: var(--font-md); }
