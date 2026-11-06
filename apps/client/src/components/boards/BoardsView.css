@@ -285,9 +285,11 @@
 .board-strategies-medium .board-rows { overflow: auto; }
 .board-orders-small .board-split, .board-account-small .board-split { align-items: baseline; gap: var(--space-3); }
 /* 图表块名字栏的合约 · 周期: the chart bar's 更多周期 control, sized for the name bar. */
-.board-chart-pick { flex: 0 1 auto; min-width: 0; }
+/* In a narrow bar the block's name comes first: the 合约 · 周期 face gives way before it, down to its chevron. */
+.board-chart-pick { flex: 0 1000 auto; min-width: 28px; }
+.board-tile-bar:has(.board-chart-pick) > strong { flex-shrink: 0; }
 .board-chart-pick > [role="group"] { min-width: 0; padding: 0; }
-.fdw-chart-tools.board-chart-pick > [role="group"] > .fdw-period-more { display: flex; max-width: 220px; height: 22px; font-size: var(--font-sm); }
+.fdw-chart-tools.board-chart-pick > [role="group"] > .fdw-period-more { display: flex; min-width: 0; max-width: 220px; height: 22px; font-size: var(--font-sm); }
 .board-chart-pick-list { flex-wrap: wrap; max-height: 240px; overflow: auto; margin-bottom: var(--space-2); }
 .board-chart-pick-list button { flex: 1 1 30%; min-width: 0; padding: 0 var(--space-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* 多 AI 辩论 / 交易笔记 / AI 简报 (owner 2026-11-06). */

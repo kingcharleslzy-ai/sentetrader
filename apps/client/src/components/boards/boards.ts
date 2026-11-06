@@ -100,12 +100,12 @@ export function nextChartBlock(layout: BoardNode | null): BoardBlock | null {
 /**
  * 由大往小试 (owner 2026-11-06, after a wide 780 × 200 chart came out as a line): every size of a module says the least
  * room it needs, at 100 % type (growing half as fast as the font). A block takes the fullest size its room holds; the
- * smallest is what is left. A lock caps it at 小 or 中. The chart draws its K 线 (with as many 副图 as fit) from 320 × 160;
- * only a really small block gets the line. A `small` entry is that size's own least room, where it is more than every
+ * smallest is what is left. A lock caps it at 小 or 中. The chart draws its K 线 (with as many 副图 as fit) from 160 × 120
+ * — narrow or flat, it shows fewer bars, never a line (owner 2026-11-06); only a really small block gets the line. A `small` entry is that size's own least room, where it is more than every
  * block's minimum (下单's buttons; see blockMin).
  */
 export const SIZE_NEEDS: Record<BoardModule, Partial<Record<BoardSize, { w: number; h: number }>>> = {
-  chart: { xlarge: { w: 900, h: 480 }, large: { w: 480, h: 300 }, medium: { w: 320, h: 160 } },
+  chart: { xlarge: { w: 900, h: 480 }, large: { w: 480, h: 300 }, medium: { w: 160, h: 120 } },
   positions: { large: { w: 560, h: 300 }, medium: { w: 340, h: 150 } },
   order: { large: { w: 420, h: 420 }, medium: { w: 460, h: 200 }, small: { w: 200, h: 128 } },
   watch: { large: { w: 520, h: 320 }, medium: { w: 340, h: 150 } },
