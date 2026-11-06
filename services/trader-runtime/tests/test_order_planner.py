@@ -335,7 +335,23 @@ def test_the_models_slots_must_rest_on_the_users_words_or_the_context():
     closed = OrderIntent(act="close", symbol="SHFE.ag2702", dir="long", vol=1, bucket="today")
     assert ground(closed, route.said, products=("沪银", "沪金"), chart=None,
                   positions=[{"symbol": "SHFE.ag2702", "direction": "long", "volume": 1}], items=silver) == closed
+    gold = {"symbol": "SHFE.au2612", "instrumentName": "沪金2612", "productId": "au"}
+    catalogs = [*silver, gold]
+    closing = OrderIntent(act="close", symbol="SHFE.ag2702", vol=1)
+    first = "把刚才新开的沪银2702一手平掉，别动沪金。先给我确认卡。"
+    assert ground(closing, first, products=("沪银", "沪金"), chart="SHFE.au2612", positions=[], items=catalogs) == closing
+    opening = OrderIntent(act="open", symbol="SHFE.ag2702", dir="long", vol=1, price=Price(mode="counter"))
+    assert ground(opening, "1107复测：沪银2702开多一手，对手价，只给确认卡，不要自动下单。不要动沪金。",
+                  products=("沪银", "沪金"), chart="SHFE.au2612", positions=[], items=catalogs) == opening
+    for said, intent in (("全部平仓，别动沪金", OrderIntent(act="close_all")),
+                         ("平掉沪金一手，别动沪金", OrderIntent(act="close", symbol="SHFE.au2612", vol=1)),
+                         ("平掉沪银一手，别动ag2702", closing),
+                         ("平掉沪银2702一手，别动沪金，也别动这个合约", closing),
+                         ("平掉沪银2702一手，别动沪金和这个合约", closing)):
+        assert isinstance(ground(intent, said, products=("沪银", "沪金"), chart="SHFE.ag2702", positions=[], items=catalogs), Ask)
     context = ParseContext(products=("沪银",))
+    assert mentions(first, ParseContext(products=("沪银", "沪金"))).acts == {"close"}
+    assert mentions("把刚才新开多的沪银2702一手平掉", context).held == {"long"}
     assert mentions("卖出平今沪银2702一手", context).acts == {"close"}
     assert parse("买入平昨沪银2702一手", context) == OrderIntent(
         act="close", symbol="沪银2702", product="沪银", dir="short", vol=1, bucket="yesterday")

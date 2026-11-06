@@ -551,6 +551,14 @@ def ground(intent: OrderIntent, said: str, *, products: tuple[str, ...], chart: 
     if intent.act in {"close", "close_all"} and intent.bucket == "auto" and len(words.buckets) == 1:
         intent = replace(intent, bucket=next(iter(words.buckets)))  # type: ignore[arg-type]  # 原话说的那一侧，不落偏好
     named = _said_contracts(words, context, catalog)
+    excluded_words = [mentions(scope, context) for scope in words.exclusions]
+    excluded = [_said_contracts(scope, context, catalog) for scope in excluded_words]
+    if words.exclusions and (not named or any(scope.pointing for scope in excluded_words)
+                            or any(not group for group in excluded) or any(
+            skip.matches(candidate.symbol or f"{candidate.name or candidate.product}{candidate.month or ''}", context, catalog)
+            or candidate.matches(skip.symbol or f"{skip.name or skip.product}{skip.month or ''}", context, catalog)
+            for group in excluded for skip in group for candidate in named)):
+        return Ask("product", "要操作哪个合约？请把要操作的和不要动的分开说清楚", tuple(held))
     if words.filtered and (intent.act == "close_all" or (intent.act == "close" and not named)):
         # “平掉盈利的单子”“把亏的都平了”：按盈亏挑持仓意图里没有这个槽位，模型读成全平会多平（#932 A12，所有者
         # 2026-10-19）：问清平哪些，不出卡。前一分句说“亏钱了”只是原因（Mentions.filtered 只看平仓那一分句）。

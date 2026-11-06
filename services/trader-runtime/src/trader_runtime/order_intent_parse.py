@@ -165,6 +165,7 @@ class Mentions:
     # Only 买 / 卖 said, no 开 / 平 / 多 / 空 (“卖一手白银”): with the opposite side held it may mean 平 (#1006, owner
     # 2026-10-19: ask 平多还是开空 — never guess either way).
     bare_side: bool = False
+    exclusions: tuple[str, ...] = ()  # “别动沪金” names a scope to leave alone, never an order candidate.
 
 
 _CODE = re.compile(r"(?<![A-Za-z])[A-Za-z]{1,2}\d{3,4}(?!\d)")
@@ -198,10 +199,18 @@ def _guards(norm: str) -> dict[str, Guard]:
     return found
 
 
+_EXCLUDED_SCOPE = re.compile(r"(?:^|，)(?:先|也|千万)?(?:别|不要|不用|不必|甭)(?:再)?动([^，]+)")
+_OPENED_POSITION = re.compile(r"新?开(?:仓|([多空]))?过?的")
+
+
 def mentions(text: str, ctx: ParseContext | None = None) -> Mentions:
     """The words of `text` the order slots can rest on. Pure."""
     ctx = ctx or ParseContext()
     norm = _normalize(re.sub(r"(?<=[A-Za-z\d])\s+(?=\d)", "，", text or ""))  # “ag2612 1 手”: code and count stay apart
+    exclusions = tuple(_EXCLUDED_SCOPE.findall(norm))
+    # A past opening describes the position; a negated scope excludes a contract from this action.
+    norm = _OPENED_POSITION.sub(lambda hit: {"多": "多单", "空": "空单"}.get(hit[1], ""),
+                                _EXCLUDED_SCOPE.sub("，", norm))
     tokens = _tokens(_CODE.sub("，", norm), ctx, skim=True)  # a contract code's digits are its month, not a number
     assert isinstance(tokens, list)
     kinds = [token.kind for token in tokens]
@@ -219,7 +228,7 @@ def mentions(text: str, ctx: ParseContext | None = None) -> Mentions:
     ordered: set[str] = set().union(*(clause for clause in clauses if clause & _VERBS))
     return Mentions(
         products=frozenset(str(token.value) for token in tokens if token.kind == "product"),
-        codes=frozenset(code.lower() for code in _CODE.findall(unicodedata.normalize("NFKC", text or ""))),
+        codes=frozenset(code.lower() for code in _CODE.findall(norm)),
         months=frozenset((str(token.value), str(tokens[index + 1].value)) for index, token in enumerate(tokens[:-1])
                          if token.kind == "product" and tokens[index + 1].kind == "num"
                          and _month(str(tokens[index + 1].value))),
@@ -243,7 +252,7 @@ def mentions(text: str, ctx: ParseContext | None = None) -> Mentions:
             index + 1 < len(tokens) and tokens[index + 1].kind == "num" and _month(str(tokens[index + 1].value)))),
         bare_side="side" in ordered and not ({"open", "close", "close_all", "close_bucket", "dirn", "held", "shut", "reverse",
                                                "swap", "target", "keep", "zero"} & ordered),
-        cond=_said_condition(norm), lots_said=bool(lots_at), filtered=any(
+        exclusions=exclusions, cond=_said_condition(norm), lots_said=bool(lots_at), filtered=any(
             _POSITION_FILTER.search(clause) and _CLOSE_VERB.search(clause) for clause in norm.split("，")))
 
 
