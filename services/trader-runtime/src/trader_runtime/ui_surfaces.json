@@ -78,7 +78,7 @@
     "install": {"guest": true},
     "push": {},
     "lab": {},
-    "reminders": {},
+    "reminders": {"desc": "手机提醒页的返回按钮按当前主页面命名：我的为返回我的，今天为返回今天，其他页面为返回；关闭后留在原主页面。"},
     "accounts": {},
     "memory": {},
     "appearance": {},

@@ -96,7 +96,7 @@ export const COMMANDABLE: Rule[] = [
   { match: /^关闭提醒面板$/, via: "panel: null" },
   { match: control => REMINDER_GROUPS.has(control.group ?? "") && control.role === "tab" && /^(我的提醒|通用提醒|提醒记录)$/.test(control.label),
     via: "reminders: {tab: mine | general | history}（快照 state.reminders.tab）" },
-  { match: control => REMINDER_GROUPS.has(control.group ?? "") && control.label === "返回今天", via: "reminderCenter: {open: false}（手机提醒页也可 mobilePage: null）" },
+  { match: control => REMINDER_GROUPS.has(control.group ?? "") && /^返回(今天|我的)?$/.test(control.label), via: "reminderCenter: {open: false}（手机提醒页也可 mobilePage: null，返回当前主页面）" },
   { match: control => REMINDER_GROUPS.has(control.group ?? "") && control.role === "radio" && /^(未读|全部) ?\d+$/.test(control.label),
     via: "reminderCenter: {filter: unread | all}（快照 state.reminderCenter.filter / unread / today）" },
   { match: control => REMINDER_GROUPS.has(control.group ?? "") && /^看今天全部 \d+ 条$/.test(control.label), via: "reminderCenter: {filter: all}" },

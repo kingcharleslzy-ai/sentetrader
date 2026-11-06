@@ -1579,7 +1579,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     ) : mobileSub === "push" ? (
       <MobilePush push={push} offline={!connectedRuntimeUrl} onOpenSettings={openReminderSettings} onOpenInstall={() => setMobileSub("install")} onClose={() => setMobileSub(null)} />
     ) : mobileSub === "reminders" ? (
-      <MobileReminders onClose={() => setMobileSub(null)} onRefresh={() => { reminders.refresh(); alerts.refresh(); }} tabs={<RemindersTabs tab={remindersTab} onTab={setRemindersTab} />}><RemindersTabBody tab={remindersTab} center={reminderCenter} settings={reminderSettings} mine={myReminders} mobile /></MobileReminders>
+      <MobileReminders backLabel={mobileTab === "me" ? "返回我的" : mobileTab === "ai" ? "返回今天" : "返回"} onClose={() => setMobileSub(null)} onRefresh={() => { reminders.refresh(); alerts.refresh(); }} tabs={<RemindersTabs tab={remindersTab} onTab={setRemindersTab} />}><RemindersTabBody tab={remindersTab} center={reminderCenter} settings={reminderSettings} mine={myReminders} mobile /></MobileReminders>
     ) : mobileSub === "lab" ? (
       <MobileLab rootUrl={connectedRuntimeUrl ? props.rootBaseUrl ?? connectedRuntimeUrl : undefined} baseUrl={connectedRuntimeUrl} labId={mobileLabId}
         instruments={props.instruments} chartTimeframe={props.duration} sessionId={props.chatSessionId}

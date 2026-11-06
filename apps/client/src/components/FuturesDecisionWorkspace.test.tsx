@@ -3368,6 +3368,13 @@ test("手机版提醒（统一提醒 #932）：AI 标签与铃铛带服务端的
     expect(state()).toMatchObject({ mobilePage: null, reminderCenter: { open: false } });
     apply({ reminderCenter: { filter: "unread" } });
     expect(state()).toMatchObject({ mobilePage: "reminders", reminderCenter: { open: true, filter: "unread" } });
+    fireEvent.click(within(screen.getByTestId("mobile-reminders")).getByRole("button", { name: "返回今天" }));
+    expect(home()).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "我的" }));
+    fireEvent.click(within(screen.getByTestId("mobile-me")).getByRole("button", { name: /^提醒设置/ }));
+    fireEvent.click(within(screen.getByTestId("mobile-reminders")).getByRole("button", { name: "返回我的" }));
+    expect(screen.queryByTestId("mobile-reminders")).toBeNull();
+    expect(screen.getByTestId("mobile-me")).toBeVisible();
   } finally {
     view.unmount(); control.mockRestore(); vi.unstubAllGlobals();
   }

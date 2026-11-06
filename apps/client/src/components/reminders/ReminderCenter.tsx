@@ -142,11 +142,11 @@ export function ReminderBell({ open, onOpenChange, unread }: { open: boolean; on
 }
 
 /** 提醒 (手机): the full-screen page the AI tab's bell opens — the same three tabs as the computer's 提醒 panel. */
-export function MobileReminders({ onClose, tabs, children, onRefresh }: { onClose: () => void; tabs: ReactNode; children: ReactNode; onRefresh?: () => unknown }) {
+export function MobileReminders({ onClose, tabs, children, onRefresh, backLabel = "返回今天" }: { onClose: () => void; tabs: ReactNode; children: ReactNode; onRefresh?: () => unknown; backLabel?: string }) {
   const pull = usePullToRefresh(onRefresh ?? (() => undefined), Boolean(onRefresh));
   return <section className="fdm-overlay fdm-page rc-mobile reminders-panel" aria-label="提醒" data-testid="mobile-reminders" data-agent-target="mobile-reminders">
     <header className="fdm-head">
-      <button type="button" className="fdm-back" aria-label="返回今天" onClick={onClose}><ChevronLeft /></button>
+      <button type="button" className="fdm-back" aria-label={backLabel} onClick={onClose}><ChevronLeft /></button>
       <strong>提醒</strong>
     </header>
     {tabs}
