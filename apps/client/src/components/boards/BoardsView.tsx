@@ -1,6 +1,6 @@
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MutableRefObject, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { Check, ChevronDown, GripVertical, LayoutDashboard, MoreHorizontal, Pencil, Plus, Sparkles, Trash2, Undo2, X } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, HelpCircle, PencilLine, GripVertical, LayoutDashboard, MoreHorizontal, Pencil, Plus, Sparkles, Trash2, Undo2, X } from "lucide-react";
 import { DndProvider, useDrag } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { MosaicDragType, MosaicWindow, MosaicWithoutDragDropContext, useMosaic, useMosaicWindow, type MosaicChangeMeta, type MosaicDropData,
@@ -9,6 +9,8 @@ import "react-mosaic-component/react-mosaic-component.css";
 import { useDisclosureSurface, useUiSurface } from "../../uiSurfaces";
 import { HelpTip } from "../Blocks";
 import { ChartPopover } from "../chartIndicatorEditor";
+import { useMenuPlace } from "../futures/ChartContextMenu";
+import { openAppHelp } from "../AppHelp";
 import { Presence } from "../motion";
 import { arrangeBoard } from "../../api";
 import { CHART_DURATIONS, LINK_COLORS, MODULES, blockMin, fitLayout, SIZE_LABELS, blockLabel, insertAt, isLinkBlock, leavesOf, linkOf, mainLink, moduleInfo, moduleOf, nextChartBlock,
@@ -233,7 +235,8 @@ export function BoardsMenu({ control, active, onError }: { control: BoardsContro
   const { boards, board } = control.handle;
   const [name, setName] = useState(board.name);
   const [confirming, setConfirming] = useState(false);
-  useEffect(() => { setName(board.name); setConfirming(false); }, [board.id, board.name, open]);
+  const [renaming, setRenaming] = useState(false);
+  useEffect(() => { setName(board.name); setConfirming(false); setRenaming(false); }, [board.id, board.name, open]);
   useEffect(() => {
     if (!open) return;
     const close = (event: PointerEvent) => { if (!ref.current?.contains(event.target as Node)) setOpen(false); };
@@ -268,27 +271,27 @@ export function BoardsMenu({ control, active, onError }: { control: BoardsContro
       <button type="button" className="board-entry-tool" aria-label="撤销" disabled={!control.handle.undo} onClick={() => control.handle.undo?.()}><Undo2 /></button>
       <button type="button" className="app-button primary board-entry-done" onClick={() => control.setEditing(false)}><Check /><span>完成</span></button>
     </span> : null}
+    {/* The header's own menu (fdw-tab-menu, as 更多合约): the boards (the current one marked), 新建, then this board's
+        actions, each group opened by the menu's separator; 改名 opens its field in place of the item. */}
     <Presence>{open ? <div className="fdw-tab-menu board-entry-menu" role="menu" aria-label="选择看板" data-agent-target="boards-menu">
       {boards.items.map(item => <div key={item.id} role="none">
-        <button type="button" role="menuitem" aria-current={item.id === boards.current || undefined} onClick={() => run({ select: item.id })}>
-          <span>{item.name}</span>{item.id === boards.current ? <small>{active ? "正在看" : "上次用的"}</small> : null}
-        </button>
+        <button type="button" role="menuitem" aria-current={item.id === boards.current || undefined} title={item.id === boards.current ? active ? "正在看" : "上次用的" : undefined}
+          onClick={() => run({ select: item.id })}>{item.name}</button>
       </div>)}
       <div role="none"><button type="button" role="menuitem" className="fdw-tab-menu-add" onClick={createBlank}><Plus />新建空白看板</button></div>
       {active ? <>
-        <i className="board-menu-divider" aria-hidden="true" />
-        <div role="none"><button type="button" role="menuitem" onClick={() => { control.setEditing(!control.editing); setOpen(false); }}>
+        <div role="none"><button type="button" role="menuitem" className="fdw-tab-menu-add" onClick={() => { control.setEditing(!control.editing); setOpen(false); }}>
           {control.editing ? <><Check />完成编辑</> : <><Pencil />编辑“{board.name}”</>}</button></div>
         {editing ? <>
           <div role="none"><button type="button" role="menuitem" disabled={!control.handle.undo} onClick={() => { control.handle.undo?.(); setOpen(false); }}><Undo2 />撤销</button></div>
           <div role="none"><button type="button" role="menuitem" onClick={() => { control.setLibrary(true); setOpen(false); }}><Plus />模块库</button></div>
           <div role="none"><button type="button" role="menuitem" onClick={() => { control.setAsking(true); setOpen(false); }}><Sparkles />让 AI 帮我摆</button></div>
         </> : null}
-        <form className="board-menu-rename" onSubmit={event => { event.preventDefault(); run({ rename: { id: board.id, name } }, true); }}>
-          <label>名字<input value={name} maxLength={12} onChange={event => setName(event.target.value)} /></label>
-          <button type="submit" className="app-button" disabled={!name.trim() || name.trim() === board.name}>改名</button>
-        </form>
-        <div role="none"><button type="button" role="menuitem" className="board-danger" disabled={boards.items.length === 1}
+        {renaming ? <form className="board-menu-rename" onSubmit={event => { event.preventDefault(); if (run({ rename: { id: board.id, name } }, true)) setRenaming(false); }}>
+          <input value={name} maxLength={12} aria-label="名字" autoFocus onChange={event => setName(event.target.value)} />
+          <button type="submit" className="app-button primary" disabled={!name.trim() || name.trim() === board.name}>改名</button>
+        </form> : <div role="none"><button type="button" role="menuitem" onClick={() => setRenaming(true)}><PencilLine />改名…</button></div>}
+        <div role="none"><button type="button" role="menuitem" className="board-menu-danger" disabled={boards.items.length === 1}
           title={boards.items.length === 1 ? "至少留一个看板" : undefined}
           onClick={() => confirming ? run({ remove: board.id }) : setConfirming(true)}>
           <Trash2 />{confirming ? `确认删除“${board.name}”` : "删除这套看板"}
@@ -319,69 +322,79 @@ function TileBody({ block, lock, link, scale, editing, reportTile, renderTile }:
   useEffect(() => () => reportTile({ block, gone: true }), [reportTile, block]);
   return <div ref={ref} className={`board-tile size-${size ?? "pending"}`} data-agent-target={`board-tile:${block}`} data-state={size ?? undefined}
     role="group" aria-label={`${blockLabel(block)}${size ? ` · ${SIZE_LABELS[size]}` : ""}`}>
-    {/* Outside editing, the pointer near the top edge brings up the block's bar (× and ⋯). */}
-    {editing ? null : <span className="board-hover-edge" aria-hidden="true" />}
     <div className="board-tile-content" inert={editing || undefined}>{size ? renderTile(block, size) : null}</div>
     {link && link !== "none" ? <span className="board-link-dot" data-link={link} role="img" aria-label={`联动：${LINK_COLORS.find(item => item.id === link)?.label}`} /> : null}
   </div>;
 }
 
-/** The block's ⋯ menu: 换成别的模块 / 档位 / 联动色 / 再分一块 / 拿掉 (one at a time, a disclosure per block). */
-function TileMenu({ block, size, run, layout, locked, link }: { block: BoardBlock; size: BoardSize | undefined; layout: BoardNode | null; locked?: BoardLock;
-  link?: LinkSetting; run: (change: BoardsChange) => boolean }) {
-  const [open, setOpen] = useDisclosureSurface("board-tile-menu", { id: block });
-  const [split, setSplit] = useState<"right" | "bottom" | null>(null);
-  const ref = useRef<HTMLSpanElement>(null);
-  const [up, setUp] = useState(false);
-  useEffect(() => { if (!open) setSplit(null); }, [open]);
-  // A block low on the screen opens its menu upwards.
-  useLayoutEffect(() => { if (open && ref.current) setUp(ref.current.getBoundingClientRect().bottom + 320 > window.innerHeight); }, [open]);
-  useEffect(() => {
-    if (!open) return;
-    const close = (event: PointerEvent) => { if (!ref.current?.contains(event.target as Node)) setOpen(false); };
-    window.addEventListener("pointerdown", close);
-    return () => window.removeEventListener("pointerdown", close);
-  }, [open, setOpen]);
+/**
+ * The block's ⋯ menu (owner 2026-11-06: only what is used most): 换成别的模块 ▸ and 档位 (自动 / 锁小 / 锁中). 分 is dragging to an
+ * edge, 拿掉 is the bar's ×, 联动色 is the bar's dot. The chart's right-click menu, its look and its placement (useMenuPlace:
+ * kept inside the window, moved up near the bottom); one disclosure per block.
+ */
+function TileMenu({ block, size, run, layout, locked }: { block: BoardBlock; size: BoardSize | undefined; layout: BoardNode | null; locked?: BoardLock;
+  run: (change: BoardsChange) => boolean }) {
+  const button = useRef<HTMLButtonElement>(null);
+  const [anchor, setAnchor] = useState<{ x: number; y: number }>();
+  const setOpen = (open: boolean) => { const rect = button.current?.getBoundingClientRect();
+    setAnchor(open && rect ? { x: rect.right - 236, y: rect.bottom + 2 } : open ? { x: 200, y: 120 } : undefined); };
+  useDisclosureSurface("board-tile-menu", { id: block, state: anchor !== undefined, apply: setOpen });
   const label = blockLabel(block);
   const module = moduleOf(block);
-  // 图表 can always come once more (up to nine); the others while they are not on the board.
-  const free = MODULES.filter(item => item.many ? nextChartBlock(layout) !== null : !leavesOf(layout).includes(item.id));
+  const free = MODULES.filter(item => item.id !== module && (item.many ? nextChartBlock(layout) !== null : !leavesOf(layout).includes(item.id)));
   const act = (change: BoardsChange) => { if (run(change)) setOpen(false); };
-  return <span className="board-tile-menu" ref={ref} onMouseDown={event => event.stopPropagation()}>
-    <button type="button" className="board-tile-menu-button" aria-label={`${label}的菜单`} aria-expanded={open} aria-haspopup="menu" onClick={() => setOpen(!open)}><MoreHorizontal /></button>
-    {open ? <div className={`fdw-tab-menu board-tile-menu-list${up ? " up" : ""}`} role="menu" aria-label={`${label}的菜单`} data-agent-target={`board-tile-menu:${block}`}>
-      {split ? <>
-        <small className="board-menu-caption">{split === "right" ? "左右分：右边放" : "上下分：下边放"}</small>
-        {free.map(item => <div role="none" key={item.id}><button type="button" role="menuitem" onClick={() => act({ place: { module: item.id, target: block, side: split } })}>
-          {item.many ? `再放一块${item.label}` : item.label}</button></div>)}
-      </> : <>
-        {free.some(item => item.id !== module) ? <><small className="board-menu-caption">换成别的模块</small>
-          {free.filter(item => item.id !== module).map(item => <div role="none" key={item.id}><button type="button" role="menuitem"
-            onClick={() => act({ replace: { module: block, with: item.id } })}>换成{item.label}</button></div>)}</> : null}
-        <small className="board-menu-caption">档位{size ? ` · 现在${SIZE_LABELS[size]}` : ""}</small>
-        <div className="board-segment" role="radiogroup" aria-label={`${label}的档位`}>
-          <button type="button" role="radio" aria-checked={!locked} onClick={() => act({ lock: { module: block, size: "auto" } })}>自动</button>
-          <button type="button" role="radio" aria-checked={locked === "small"} onClick={() => act({ lock: { module: block, size: "small" } })}>{module === "chat" ? "锁一条" : "锁小"}</button>
-          <button type="button" role="radio" aria-checked={locked === "medium"} onClick={() => act({ lock: { module: block, size: "medium" } })}>锁中</button>
-        </div>
-        {link ? <>
-          <small className="board-menu-caption">联动色（同色的跟同一个合约）</small>
-          <div className="board-segment" role="radiogroup" aria-label={`${label}的联动色`}>
-            {LINK_COLORS.map(item => <button key={item.id} type="button" role="radio" aria-checked={link === item.id} aria-label={`联动${item.label}色`}
-              onClick={() => act({ link: { module: block, color: item.id } })}><span className="board-link-dot inline" data-link={item.id} aria-hidden="true" />{item.label}</button>)}
-            {module === "chart" ? <button type="button" role="radio" aria-checked={link === "none"} aria-label="不联动"
-              onClick={() => act({ link: { module: block, color: "none" } })}>不联动</button> : null}
-          </div>
-        </> : null}
-        {free.length ? <div className="board-menu-row">
-          <button type="button" className="app-button" onClick={() => setSplit("right")}>左右分</button>
-          <button type="button" className="app-button" onClick={() => setSplit("bottom")}>上下分</button>
+  return <span className="board-tile-menu" onMouseDown={event => event.stopPropagation()}>
+    <button type="button" ref={button} className="board-tile-menu-button" aria-label={`${label}的菜单`} aria-expanded={anchor !== undefined} aria-haspopup="menu"
+      onClick={() => setOpen(anchor === undefined)}><MoreHorizontal /></button>
+    <Presence>{anchor ? createPortal(<BoardMenu label={`${label}的菜单`} target={`board-tile-menu:${block}`} x={anchor.x} y={anchor.y} onClose={() => setOpen(false)}
+      render={(flip, sub, setSub) => <>
+        <strong>{label}{size ? ` · 现在${SIZE_LABELS[size]}${locked ? "（锁定）" : ""}` : ""}</strong>
+        {free.length ? <div className="fdw-cm-wrap">
+          <button type="button" role="menuitem" aria-haspopup="menu" aria-expanded={sub === "replace"} onClick={() => setSub("replace")} onPointerEnter={() => setSub("replace")}>
+            <span>换成别的模块</span><ChevronRight aria-hidden="true" /></button>
+          {sub === "replace" ? <div className="fdw-context-menu fdw-cm-sub" data-flip={flip} role="menu" aria-label="换成别的模块">
+            {free.map(item => <button type="button" role="menuitem" key={item.id} onClick={() => act({ replace: { module: block, with: item.id } })}>{item.label}</button>)}
+          </div> : null}
         </div> : null}
-        <i className="board-menu-divider" aria-hidden="true" />
-        <div role="none"><button type="button" role="menuitem" className="board-danger" onClick={() => act({ take: block })}><Trash2 />拿掉（旁边的补满）</button></div>
-      </>}
-    </div> : null}
+        <div className="fdw-cm-row" role="group" aria-label={`${label}的档位`}>
+          <button type="button" role="menuitemradio" aria-checked={!locked} onClick={() => act({ lock: { module: block, size: "auto" } })}>自动</button>
+          <button type="button" role="menuitemradio" aria-checked={locked === "small"} onClick={() => act({ lock: { module: block, size: "small" } })}>{module === "chat" ? "锁一条" : "锁小"}</button>
+          <button type="button" role="menuitemradio" aria-checked={locked === "medium"} onClick={() => act({ lock: { module: block, size: "medium" } })}>锁中</button>
+        </div>
+      </>} />, menuHost()) : null}</Presence>
   </span>;
+}
+
+/**
+ * A 看板 menu in the chart's right-click look (fdw-context-menu), placed by useMenuPlace; Esc, a click elsewhere and the
+ * arrow keys behave as the chart's menu does. `render` gets the submenu flip side and the open submenu.
+ */
+// Inside the app shell, where the shared button reset (`:where(.fdw-shell) button`) styles the menu's items as the chart menu's.
+const menuHost = () => document.querySelector(".fdw-shell") ?? document.body;
+
+function BoardMenu({ label, target, x, y, onClose, render }: { label: string; target: string; x: number; y: number; onClose: () => void;
+  render: (flip: boolean, sub: string | null, setSub: (sub: string | null) => void) => ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [sub, setSub] = useState<string | null>(null);
+  const place = useMenuPlace(ref, x, y);
+  useEffect(() => {
+    const outside = (event: PointerEvent) => { if (!ref.current?.contains(event.target as Node)) onClose(); };
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
+    window.addEventListener("pointerdown", outside, true);
+    window.addEventListener("keydown", escape);
+    return () => { window.removeEventListener("pointerdown", outside, true); window.removeEventListener("keydown", escape); };
+  }, [onClose]);
+  // Focus the menu itself so Esc and the arrow keys work at once, without a focus ring on the first item for a mouse open.
+  useEffect(() => { ref.current?.focus(); }, []);
+  return <div className="fdw-context-menu fdw-chart-menu board-menu" role="menu" aria-label={label} data-agent-target={target} ref={ref} tabIndex={-1}
+    style={{ position: "fixed", left: place.left, top: place.top }}
+    onKeyDown={event => {
+      if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+      event.preventDefault();
+      const items = [...(ref.current?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)") ?? [])];
+      const at = items.indexOf(document.activeElement as HTMLButtonElement);
+      items[(at + (event.key === "ArrowDown" ? 1 : -1) + items.length) % items.length]?.focus();
+    }}>{render(place.flip, sub, setSub)}</div>;
 }
 
 /**
@@ -430,35 +443,34 @@ function ChartPick({ block, choice, link, contracts, run }: { block: BoardBlock;
 }
 
 /**
- * 不在编辑时 (owner 2026-11-06): the block's bar shows when the pointer comes near its top edge — its name, × (react-mosaic's
- * own remove action, as its RemoveButton does; the board turns it into boards {take}) and ⋯.
+ * Editing: the block's name bar (react-mosaic makes its native host the drag handle) — its 联动 dot (a click takes the next
+ * colour), name, size and share, the chart's 合约 · 周期, × (react-mosaic's own remove, as its RemoveButton does; the board
+ * turns it into boards {take}) and ⋯.
  */
-function HoverBar({ block, size, layout, locked, link, run }: { block: BoardBlock; size: BoardSize | undefined; locked?: BoardLock; link?: LinkSetting;
-  layout: BoardNode | null; run: (change: BoardsChange) => boolean }) {
-  const { mosaicActions } = useMosaic<BoardBlock>();
-  const { mosaicWindowActions } = useMosaicWindow();
-  const label = blockLabel(block);
-  return <div className="board-tile-bar board-hover-bar">
-    <strong>{label}</strong><small>{size ? SIZE_LABELS[size] : ""}</small>
-    <span className="board-grow" />
-    <button type="button" className="board-tile-menu-button board-remove" aria-label={`拿掉${label}（旁边的补满）`} title={`拿掉${label}`}
-      onMouseDown={event => event.stopPropagation()} onClick={() => mosaicActions.remove(mosaicWindowActions.getPath())}><X /></button>
-    <TileMenu block={block} size={size} layout={layout} locked={locked} link={link} run={run} />
-  </div>;
-}
-
-/** Editing: the block's name bar (react-mosaic makes its native host the drag handle) — its size, share and ⋯ menu. */
 function TileBar({ block, size, layout, locked, link, chart, contracts, run }: { block: BoardBlock; size: BoardSize | undefined; locked?: BoardLock;
   link?: LinkSetting; layout: BoardNode | null; chart?: { symbol?: string; duration?: number }; contracts: readonly { symbol: string; name: string }[];
   run: (change: BoardsChange) => boolean }) {
+  const { mosaicActions } = useMosaic<BoardBlock>();
+  const { mosaicWindowActions } = useMosaicWindow();
   const share = shareOf(layout, block);
-  return <div className="board-tile-bar" title={`拖动${blockLabel(block)}，放到别的模块边上`}>
-    <GripVertical aria-hidden="true" />{link && link !== "none" ? <span className="board-link-dot inline" data-link={link} role="img"
-      aria-label={`联动：${LINK_COLORS.find(item => item.id === link)?.label}`} /> : null}<strong>{blockLabel(block)}</strong>
+  const label = blockLabel(block);
+  // The dot's colours in turn; a chart also 不联动 (its own contract).
+  const colours: LinkSetting[] = [...LINK_COLORS.map(item => item.id), ...(moduleOf(block) === "chart" ? ["none" as const] : [])];
+  const colourName = (value: LinkSetting) => value === "none" ? "不联动" : `${LINK_COLORS.find(item => item.id === value)?.label}色`;
+  const nextColour = link ? colours[(colours.indexOf(link) + 1) % colours.length] : undefined;
+  return <div className="board-tile-bar" title={`拖动${label}，放到别的模块边上`}>
+    <GripVertical aria-hidden="true" />
+    {link && nextColour ? <button type="button" className="board-link-button" aria-label={`联动：${colourName(link)}，点一下换成${colourName(nextColour)}`}
+      title={`联动：${colourName(link)}（点一下换成${colourName(nextColour)}）`} onMouseDown={event => event.stopPropagation()}
+      onClick={() => run({ link: { module: block, color: nextColour } })}>
+      <span className="board-link-dot inline" data-link={link === "none" ? undefined : link} data-none={link === "none" || undefined} aria-hidden="true" /></button> : null}
+    <strong>{label}</strong>
     <small>{size ? `${SIZE_LABELS[size]}${locked ? " · 锁定" : ""}` : ""}{share ? ` · ${Math.round(share.share)}%` : ""}</small>
     {chart ? <ChartPick block={block} choice={chart} link={link} contracts={contracts} run={run} /> : null}
     <span className="board-grow" />
-    <TileMenu block={block} size={size} layout={layout} locked={locked} link={link} run={run} />
+    <button type="button" className="board-tile-menu-button board-remove" aria-label={`拿掉${label}（旁边的补满）`} title={`拿掉${label}`}
+      onMouseDown={event => event.stopPropagation()} onClick={() => mosaicActions.remove(mosaicWindowActions.getPath())}><X /></button>
+    <TileMenu block={block} size={size} layout={layout} locked={locked} run={run} />
   </div>;
 }
 
@@ -538,6 +550,15 @@ export function BoardsView({ control, renderTile, scale, contracts }: {
   }, [handle, notify]);
   const canvasRef = useRef<HTMLDivElement>(null);
   const { setCanvas, fit, minimum } = control;
+  // 看板右键菜单 (owner 2026-11-06): a quick way into editing; the command opens it near the board's top left.
+  const [context, setContext] = useState<{ x: number; y: number }>();
+  const closeContext = useCallback(() => setContext(undefined), []);
+  const sectionRef = useRef<HTMLElement>(null);
+  useDisclosureSurface("board-context-menu", { state: context !== undefined, apply: open => {
+    const rect = sectionRef.current?.getBoundingClientRect();
+    setContext(open ? { x: (rect?.left ?? 0) + 24, y: (rect?.top ?? 0) + 24 } : undefined);
+  } });
+  const contextRun = (action: () => void) => { action(); setContext(undefined); };
   useLayoutEffect(() => {
     const node = canvasRef.current;
     if (!node) return;
@@ -559,14 +580,32 @@ export function BoardsView({ control, renderTile, scale, contracts }: {
   const tile = (block: BoardBlock, path: MosaicPath) => <MosaicWindow<BoardBlock> path={path} title={blockLabel(block)} draggable={shaping}
     renderToolbar={() => <div className="board-tile-bar-host">{shaping ? <TileBar block={block} size={sizes[block]} locked={board.locks[block]}
       link={isLinkBlock(block) ? linkOf(board, block) : undefined} layout={shownLayout} run={run} contracts={contracts}
-      chart={moduleOf(block) === "chart" ? board.charts[block] ?? {} : undefined} />
-      : preview ? null : <HoverBar block={block} size={sizes[block]} locked={board.locks[block]} link={isLinkBlock(block) ? linkOf(board, block) : undefined}
-        layout={shownLayout} run={run} />}</div>}>
+      chart={moduleOf(block) === "chart" ? board.charts[block] ?? {} : undefined} /> : null}</div>}>
     <TileBody block={block} lock={shown.locks[block]} link={showDots && !shaping && isLinkBlock(block) ? linkOf(board, block) : undefined}
       scale={scale} editing={editing} reportTile={reportTile} renderTile={renderTile} />
   </MosaicWindow>;
   return <section className={`board-view${shaping ? " editing" : ""}${preview ? " previewing" : ""}`} aria-label={`看板 ${board.name}`} data-agent-target="board-view"
-    data-state={preview ? "preview" : editing ? "editing" : "viewing"}>
+    data-state={preview ? "preview" : editing ? "editing" : "viewing"} ref={sectionRef} onContextMenu={event => {
+      // A chart block's own right-click menu (with 编辑看板 at its end) has already taken the click.
+      if (event.defaultPrevented) return;
+      event.preventDefault();
+      setContext({ x: event.clientX, y: event.clientY });
+    }}>
+    <Presence>{context ? createPortal(<BoardMenu label="看板菜单" target="board-context-menu" x={context.x} y={context.y} onClose={closeContext}
+      render={() => <>
+        <strong>看板 · {board.name}</strong>
+        {editing ? <>
+          <button type="button" role="menuitem" onClick={() => contextRun(() => control.setEditing(false))}><Check aria-hidden="true" /><span>完成</span></button>
+          <button type="button" role="menuitem" disabled={!handle.undo} onClick={() => contextRun(() => handle.undo?.())}><Undo2 aria-hidden="true" /><span>撤销</span></button>
+          <button type="button" role="menuitem" onClick={() => contextRun(() => control.setLibrary(true))}><Plus aria-hidden="true" /><span>模块</span></button>
+        </> : <>
+          <button type="button" role="menuitem" onClick={() => contextRun(() => control.setEditing(true))}><Pencil aria-hidden="true" /><span>编辑看板</span></button>
+          <button type="button" role="menuitem" onClick={() => contextRun(() => { control.setEditing(true); control.setLibrary(true); })}><Plus aria-hidden="true" /><span>模块</span></button>
+          <button type="button" role="menuitem" onClick={() => contextRun(() => { control.setEditing(true); control.setAsking(true); })}><Sparkles aria-hidden="true" /><span>让 AI 帮我摆</span></button>
+          <hr />
+          <button type="button" role="menuitem" onClick={() => contextRun(() => openAppHelp("boards"))}><HelpCircle aria-hidden="true" /><span>查看相关说明</span></button>
+        </>}
+      </>} />, menuHost()) : null}</Presence>
     {control.notice ? <p className="board-notice" role="status">{control.notice}</p> : null}
     {preview ? <div className="board-preview-bar" role="status" data-agent-target="board-preview">
       <Sparkles aria-hidden="true" /><span><strong>AI 摆的这套</strong>{preview.note ? `：${preview.note}` : ""}</span>
@@ -581,7 +620,7 @@ export function BoardsView({ control, renderTile, scale, contracts }: {
           onChange={next => { if (!preview) handle.preview(next); }} onRelease={(next, meta?: MosaicChangeMeta<BoardBlock>) => {
             if (preview) return;
             // A block's × (react-mosaic's remove): the board's own 拿掉, undoable, with 撤销 under the board outside editing.
-            if (meta?.type === "remove" && typeof meta.node === "string") { if (run({ take: meta.node }) && !editing) control.setTaken(meta.node); return; }
+            if (meta?.type === "remove" && typeof meta.node === "string") { if (run({ take: meta.node })) control.setTaken(meta.node); return; }
             run({ layout: next });
           }}
           resize={shaping ? { minimumPaneSizePercentage: 1, minimumPaneSizePx: { row: minimum.w, column: minimum.h } } : "DISABLED"} renderTile={tile}

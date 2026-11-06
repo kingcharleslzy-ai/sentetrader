@@ -1746,7 +1746,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
                 watchlistStar={watchlistHead} onToggleWatchlist={watchlistChange} watchlistStatus={watchlistStatus || undefined}
  /> : null;
   // The workspace's one chart stage: the trade view's chart, or the 看板's 图表 at its large sizes (never both at once).
-  const chartStage = market ? <ChartStage workspace={workspace} market={market} chartView={chartView} decimals={decimals} chartSettings={chartSettings} setChartSettings={setChartSettings}
+  const chartStage = market ? <ChartStage onEditBoard={view === "dashboard" && boardsAvailable ? () => boardsControl.setEditing(true) : undefined} workspace={workspace} market={market} chartView={chartView} decimals={decimals} chartSettings={chartSettings} setChartSettings={setChartSettings}
     chartPreferences={chartPreferences} onChartIndicatorsChange={updateChartPreferences} chartIndicatorStatus={prefs.status}
     annotationsVisible={preferences.chart.aiAnnotationsVisible} resolvedTheme={resolvedTheme} appWorkbench={appWorkbench} focus={focus}
     alerts={alerts.available ? alerts : undefined}

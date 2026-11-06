@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
-import { SUB_PANES_MAX } from "../chartIndicators";
+import { normalizePaneSizes, SUB_PANES_MAX, type PaneSizes } from "../chartIndicators";
 import { foreignQuoteOnly, sameContract, type AccountPosition, type AccountSnapshot, type InstrumentCatalog, type MarketBoardRow, type MarketWorkbenchSnapshot, type RemoteTradeSnapshot,
   type SimulationOrder } from "../../api";
 import { TradingCharts } from "../TradingCharts";
@@ -42,17 +42,29 @@ export function ChartSmall({ market, name, onOpen }: { market: MarketWorkbenchSn
 
 export type PassiveChartProps = Omit<ComponentProps<typeof TradingCharts>, "bars" | "symbol" | "priceTick" | "durationSeconds" | "passive">;
 
-/** How many 副图 a passive chart of this height shows: the price pane keeps about 120 px, each 副图 about 64. */
-const panesThatFit = (height: number) => Math.max(0, Math.floor((height - 120) / 64));
+/**
+ * How many 副图 a passive chart shows (owner 11-06: rather one fewer than labels over each other): each 副图 at its
+ * share of the body (less the time axis and splitters) must hold its label row and some plot — two label rows on a
+ * narrow chart, where the values wrap.
+ */
+const panesThatFit = (width: number, height: number, sizes: PaneSizes | undefined, count: number) => {
+  const need = width < 560 ? 80 : 60;
+  for (let shown = count; shown > 0; shown -= 1) {
+    const { main, panes } = normalizePaneSizes(sizes, shown);
+    const each = (height - 26 - 5 * shown) / (main + panes.reduce((sum, share) => sum + share, 0));
+    if (panes.every(share => share * each >= need)) return shown;
+  }
+  return 0;
+};
 
 /** 图表 · 中: 干净的 K 线，没有工具栏，只标周期; 副图 as many as its height holds (the rest come back when it grows). */
 export function ChartMedium({ market, name, chart, onOpen }: { market: MarketWorkbenchSnapshot; name: string; chart: PassiveChartProps; onOpen: () => void }) {
   const body = useRef<HTMLDivElement>(null);
-  const [height, setHeight] = useState(0);
+  const [box, setBox] = useState({ width: 0, height: 0 });
   useLayoutEffect(() => {
     const node = body.current;
     if (!node) return;
-    const read = () => setHeight(node.clientHeight);
+    const read = () => setBox({ width: node.clientWidth, height: node.clientHeight });
     read();
     const observer = new ResizeObserver(read);
     observer.observe(node);
@@ -60,7 +72,7 @@ export function ChartMedium({ market, name, chart, onOpen }: { market: MarketWor
   }, []);
   // (A stored entry may still be the older {type} form.)
   const list = chart.preferences?.subPaneList?.map(pane => typeof pane === "string" ? pane : pane.type);
-  const room = height ? panesThatFit(height) : list?.length ?? 0;
+  const room = box.height ? panesThatFit(box.width, box.height, chart.settings.paneSizes, list?.length ?? 0) : list?.length ?? 0;
   const hidden = list && list.length > room ? list.slice(room) : [];
   const shown: PassiveChartProps = hidden.length && list ? {
     ...chart, preferences: { ...chart.preferences!, subPaneList: list.slice(0, room) },

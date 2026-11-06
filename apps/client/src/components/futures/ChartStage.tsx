@@ -70,6 +70,8 @@ interface Props {
   setPrompt: (text: string) => void;
   /** 在这里设提醒 ▸ 按打法 / 按条件 (第 6 批): opens the editor card in 提醒模式; absent where it cannot (guest, phone). */
   onReminder?: (playbook: { name: string; entryRules: string } | null) => void;
+  /** The chart is on the 看板: its right-click menu ends with 编辑看板. */
+  onEditBoard?: () => void;
 }
 
 export function ChartStage(props: Props) {
@@ -108,7 +110,7 @@ const STYLE_BAR_WIDTH = 420;
 
 /** The chart, its drawing toolbar (shown only while drawing) and style bar, and the chart-only right-click menu (画线第二版). */
 function ChartStageContent({ workspace, market, chartView, decimals, chartSettings, setChartSettings, chartPreferences, onChartIndicatorsChange, chartIndicatorStatus, annotationsVisible, resolvedTheme, appWorkbench, focus,
-  selectedPrice, setSelectedPrice, onSelectDuration, onSelectChartView, openFills, openChat, setPrompt, onReminder, alerts, drawings, annotations, backtestMarks, alertLines, protectionLines }: Props & { annotations: ReturnType<typeof useChartAnnotations>; backtestMarks: ReturnType<typeof backtestMarksFor>; alertLines: Array<{ id: string; price: number }>; protectionLines: ProtectionLine[] }) {
+  selectedPrice, setSelectedPrice, onSelectDuration, onSelectChartView, openFills, openChat, setPrompt, onReminder, onEditBoard, alerts, drawings, annotations, backtestMarks, alertLines, protectionLines }: Props & { annotations: ReturnType<typeof useChartAnnotations>; backtestMarks: ReturnType<typeof backtestMarksFor>; alertLines: Array<{ id: string; price: number }>; protectionLines: ProtectionLine[] }) {
   const quote = market.quote;
   const tick = quote?.priceTick;
   const { tradeFocus, selectedTrades, setSelectedTrades, setChartFocusMessage, clearChartFocus } = focus;
@@ -244,6 +246,7 @@ function ChartStageContent({ workspace, market, chartView, decimals, chartSettin
       changeChart({ subPaneList: list });
     },
     onClosePane: type => changeChart({ subPaneList: indicators.subPaneList.filter(item => item !== type) }),
+    onEditBoard,
   };
 
   const priceContext = (price: number, x: number, y: number, drawing?: ChartDrawing) => {

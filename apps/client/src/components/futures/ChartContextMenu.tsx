@@ -1,5 +1,5 @@
-import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { Bell, Bot, ChevronRight, Copy, Eraser, Eye, EyeOff, Lock, LockOpen, Magnet, Ruler, Settings2, Trash2, X } from "lucide-react";
+import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { Bell, Bot, ChevronRight, LayoutDashboard, Copy, Eraser, Eye, EyeOff, Lock, LockOpen, Magnet, Ruler, Settings2, Trash2, X } from "lucide-react";
 import {
   ALERTABLE_KINDS, DRAWING_GROUPS, QUICK_DRAWING_TOOLS, QUICK_TOOL_LABELS, drawingTitle, resolveStyle, toolSpec,
   type ChartDrawing, type DrawingGroup, type DrawingKind
@@ -87,6 +87,24 @@ export interface ChartMenuActions {
   onPaneSettings: (type: SubPaneType) => void;
   onMovePane: (type: SubPaneType, direction: -1 | 1) => void;
   onClosePane: (type: SubPaneType) => void;
+  /** 看板 (owner 2026-11-06): the chart is a board block — its menu ends with 编辑看板 (one menu, never two stacked). */
+  onEditBoard?: () => void;
+}
+
+/**
+ * Where a right-click style menu sits: at the pointer, kept inside the window (moved up when it would run off the
+ * bottom), with `flip` when a submenu would run off the right edge. Shared by the chart's menu and the 看板's.
+ */
+export function useMenuPlace(ref: RefObject<HTMLElement | null>, x: number, y: number, key?: unknown) {
+  const [place, setPlace] = useState({ left: x, top: y, flip: false });
+  useLayoutEffect(() => {
+    const height = ref.current?.offsetHeight ?? 320;
+    const menuWidth = ref.current?.offsetWidth ?? 248;
+    const width = window.innerWidth || 1024;
+    const left = Math.max(8, Math.min(x, width - menuWidth - 12));
+    setPlace({ left, top: Math.max(8, Math.min(y, (window.innerHeight || 768) - height - 8)), flip: left + menuWidth + 268 > width });
+  }, [ref, x, y, key]);
+  return place;
 }
 
 function Item({ children, onClick, disabled, danger, title, checked }: { children: ReactNode; onClick: () => void; disabled?: boolean; danger?: boolean; title?: string; checked?: boolean }) {
@@ -104,13 +122,7 @@ function Item({ children, onClick, disabled, danger, title, checked }: { childre
  */
 export function ChartContextMenu({ menu, actions, onSub, onClose }: { menu: ChartMenuState; actions: ChartMenuActions; onSub: (sub: string | null) => void; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [place, setPlace] = useState({ left: menu.x, top: menu.y, flip: false });
-  useLayoutEffect(() => {
-    const height = ref.current?.offsetHeight ?? 320;
-    const width = window.innerWidth || 1024;
-    const left = Math.max(8, Math.min(menu.x, width - 248));
-    setPlace({ left, top: Math.max(8, Math.min(menu.y, (window.innerHeight || 768) - height - 8)), flip: left + 248 + 268 > width });
-  }, [menu.x, menu.y, menu.target]);
+  const place = useMenuPlace(ref, menu.x, menu.y, menu.target);
   const run = (action: () => void) => { action(); onClose(); };
   const target = menu.target;
   // Hover or click opens a submenu. A click never closes it: the pointer has always just hovered the item, so a
@@ -265,6 +277,7 @@ export function ChartContextMenu({ menu, actions, onSub, onClose }: { menu: Char
       }}>
       <strong>{header}</strong>
       {body}
+      {actions.onEditBoard ? <><hr /><Item onClick={() => run(actions.onEditBoard!)}><LayoutDashboard aria-hidden="true" /><span>编辑看板</span></Item></> : null}
     </div>
   );
 }
