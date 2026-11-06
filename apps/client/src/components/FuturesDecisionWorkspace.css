@@ -2102,15 +2102,15 @@
 .fdw-strategy-banner > button svg { width: 14px; height: 14px; }
 
 /* 持仓面板: KPI row and the tabs it shares with the bottom bar. */
-/* Six cells — 权益/今日/浮动盈亏/可用/保证金占用/风险度 — three across a pulled-wide dock, two in
-   a narrow one; an account number must never break mid-digit-group (1,026,5 / 80), so each cell
-   keeps one line and clips instead. */
+/* Six cells — 权益/今日/浮动盈亏/可用/保证金占用/风险度 — three across the default dock (two rows a ledger, so the
+   positions show without scrolling), two only in a narrow one or at large type; an account number must never break
+   mid-digit-group (1,026,5 / 80), so each cell keeps one line. */
 .fdw-positions-kpi {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(calc(var(--font-lg) * 5.5 + 2 * var(--space-3)), 1fr));
   /* A 1px gap draws the table cell divider. */
   gap: 1px; margin: 0; padding: 0; border-bottom: 1px solid var(--line); background: var(--line);
 }
-.fdw-positions-kpi > div { min-width: 0; display: grid; gap: var(--space-0); padding: var(--space-3) var(--space-3); background: var(--panel); }
+.fdw-positions-kpi > div { min-width: 0; display: grid; gap: var(--space-0); padding: var(--space-2) var(--space-3); background: var(--panel); }
 .fdw-positions-kpi dt { color: var(--fdw-faint); font-size: var(--font-md); white-space: nowrap; }
 .fdw-positions-kpi dd {
   margin: 0; min-width: 0; font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: var(--font-lg); font-weight: 600;
@@ -2141,6 +2141,10 @@
 .fdw-positions-tabs > button.fdw-positions-history { align-self: center; min-height: 26px; margin-left: auto; padding: 0 var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-pill); font-weight: 500; }
 .fdw-positions-tabs > button.fdw-positions-history[aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
 .fdw-positions-dock .fdw-dock-rows { padding: 0; }
+/* The ledgers sit in the panel's one scroll region, edge to edge as before, with the tabs and rows below them. */
+.fdw-positions-dock > .fdw-ai-scroll { padding-top: 0; }
+.fdw-positions-dock > .fdw-ai-scroll > :is(.fdw-positions-ledger, .fdw-positions-kpi, .fdw-expiry-settlements, p[role="status"]) { margin-inline: calc(-1 * var(--fdw-panel-pad)); }
+.fdw-positions-dock > .fdw-ai-scroll > .fdw-positions-tabs { margin-top: var(--space-2); }
 .fdw-positions-dock .card { margin-top: var(--space-3); }
 
 /* 成交 (2026-09-25): 来源 chips, trading-day groups with the day's closed P&L, one line per merged fill. */

@@ -97,26 +97,27 @@ export function PositionsDock({ account, instruments, quote, simulationOrders, r
           {onClose ? <button type="button" aria-label="收起持仓" onClick={() => onClose()}><PanelRightClose /></button> : null}
         </div>
       </header>
-      {usd ? <p className="fdw-positions-ledger">人民币 · 国内</p> : null}
-      {account?.positionsStatus?.isCached ? <p role="status">{account.positionsStatus.snapshotAvailable
-        ? "账户数据中断，价格与盈亏沿用最近快照" : "持仓快照尚未就绪，正在等待更新"}</p> : null}
-      <LedgerKpis snapshot={account?.positionsStatus?.snapshotAvailable === false ? undefined : account?.account} positions={ownPositions(positions)} testId="positions-kpi" />
-      {usd ? <>
-        <p className="fdw-positions-ledger">美元 · 外盘</p>
-        {account?.foreign?.positionsStatus?.isCached ? <p role="status">{account.foreign.positionsStatus.snapshotAvailable
-          ? "外盘行情或账户数据中断，价格与盈亏沿用最近快照" : "外盘持仓快照尚未就绪，正在等待更新"}</p> : null}
-        <LedgerKpis snapshot={account?.foreign?.positionsStatus?.snapshotAvailable === false ? undefined : usd} positions={positions.filter(position => position.accountId)} testId="positions-kpi-usd" />
-      </> : null}
-      {expiries.length ? (
-        <ul className="fdw-expiry-settlements" aria-label="到期结算" data-testid="expiry-settlements">
-          {expiries.map(item => (
-            <li key={item.symbol}>{contractName(item.symbol)} 到期结算 · {item.statusLabel}
-              {item.estimate ? ` · 暂估价 ${formatBoardPrice(item.estimate.price)}` : ""}</li>
-          ))}
-        </ul>
-      ) : null}
       <div className="fdw-ai-scroll" ref={pullToRefresh ? pull.ref : undefined}>
         {pullToRefresh ? <PullIndicator phase={pull.phase} /> : null}
+        {/* One scroll region (visual review 2026-11-07): the ledgers scroll with the tabs and rows instead of pinning them under. */}
+        {usd ? <p className="fdw-positions-ledger">人民币 · 国内</p> : null}
+        {account?.positionsStatus?.isCached ? <p role="status">{account.positionsStatus.snapshotAvailable
+          ? "账户数据中断，价格与盈亏沿用最近快照" : "持仓快照尚未就绪，正在等待更新"}</p> : null}
+        <LedgerKpis snapshot={account?.positionsStatus?.snapshotAvailable === false ? undefined : account?.account} positions={ownPositions(positions)} testId="positions-kpi" />
+        {usd ? <>
+          <p className="fdw-positions-ledger">美元 · 外盘</p>
+          {account?.foreign?.positionsStatus?.isCached ? <p role="status">{account.foreign.positionsStatus.snapshotAvailable
+            ? "外盘行情或账户数据中断，价格与盈亏沿用最近快照" : "外盘持仓快照尚未就绪，正在等待更新"}</p> : null}
+          <LedgerKpis snapshot={account?.foreign?.positionsStatus?.snapshotAvailable === false ? undefined : usd} positions={positions.filter(position => position.accountId)} testId="positions-kpi-usd" />
+        </> : null}
+        {expiries.length ? (
+          <ul className="fdw-expiry-settlements" aria-label="到期结算" data-testid="expiry-settlements">
+            {expiries.map(item => (
+              <li key={item.symbol}>{contractName(item.symbol)} 到期结算 · {item.statusLabel}
+                {item.estimate ? ` · 暂估价 ${formatBoardPrice(item.estimate.price)}` : ""}</li>
+            ))}
+          </ul>
+        ) : null}
         <nav className="fdw-positions-tabs" aria-label="持仓数据分类" data-agent-target="positions-tabs">
           <button type="button" className={tab === "positions" ? "active" : ""} onClick={() => onTabChange("positions")}>持仓 ({missingSnapshot ? "—" : positions.length})</button>
           <button type="button" className={tab === "orders" ? "active" : ""} data-unknown={unknownCount > 0 || undefined} onClick={() => onTabChange("orders")}>委托 ({activeOrders.length}{unknownCount ? `，未知 ${unknownCount}` : ""})</button>
