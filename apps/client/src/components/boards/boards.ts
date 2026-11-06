@@ -111,7 +111,9 @@ export const SIZE_NEEDS: Record<BoardModule, Partial<Record<BoardSize, { w: numb
   watch: { large: { w: 520, h: 320 }, medium: { w: 340, h: 150 } },
   sheet: { large: { w: 520, h: 360 }, medium: { w: 340, h: 170 } },
   alert: { medium: { w: 300, h: 150 } },
-  chat: { large: { w: 480, h: 360 }, medium: { w: 200, h: 150 } },
+  // 对话 · 中 reads in any width a block can have (bubbles wrap): height alone decides it, or a narrow, tall block showed
+  // only the input box in a blank column (retest 1.9.1, 11-07).
+  chat: { large: { w: 480, h: 360 }, medium: { w: 160, h: 150 } },
   account: { large: { w: 480, h: 200 }, medium: { w: 300, h: 120 } },
   orders: { large: { w: 600, h: 300 }, medium: { w: 400, h: 180 } },
   strategies: { large: { w: 420, h: 400 }, medium: { w: 300, h: 150 } },
