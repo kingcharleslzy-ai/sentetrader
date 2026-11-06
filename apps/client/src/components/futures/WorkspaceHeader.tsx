@@ -172,7 +172,7 @@ export function WorkspaceHeader({ workspace, view, onSelectView, recoveryButton,
         {!workspace.status.runtimeUsable || workspace.connection !== "connected" ? <span data-testid="runtime-connection" className="warning"><i /><span className="fdw-warning-text">{workspace.connection === "connecting" ? "正在连接" : workspace.connection === "disconnected" ? "连接已断开" : "数据恢复中"}</span></span> : null}
         {!workspace.guest && recoveryButton}
         {/* 点权益打开账户明细（2026-10-22，本站模拟两本账样稿）：切到复盘、明细卡里人民币 / 美元两栏；回放中没有账户明细。 */}
-        {!workspace.guest && <button type="button" className="fdw-account-chip" data-testid="account-equity" aria-label={`${equityText}，查看账户明细`} title={equityText}
+        {!workspace.guest && <button type="button" className="fdw-account-chip" data-testid="account-equity" data-agent-live data-agent-capture-label="查看账户明细" aria-label={`${equityText}，查看账户明细`} title={equityText}
           aria-haspopup="dialog" disabled={replay} onClick={() => {
             if (!allowed("review-summary")) return;
             onSelectView("review");

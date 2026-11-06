@@ -56,7 +56,7 @@ function LedgerKpis({ snapshot, positions, testId }: { snapshot?: AccountSnapsho
   const riskRatio = snapshot?.riskRatio;
   const riskTone = riskRatio === undefined ? "" : riskRatio >= 100 ? "danger" : riskRatio >= 80 ? "warning" : "";
   const today = snapshot?.todayNetPnl ?? snapshot?.todayPnl;
-  return <dl className="fdw-positions-kpi" data-testid={testId}>
+  return <dl className="fdw-positions-kpi" data-testid={testId} data-agent-live>
     <div><dt>权益</dt><dd title={formatNumber(snapshot?.equity, 0)}>{formatNumber(snapshot?.equity, 0)}</dd></div>
     <div><dt>今日</dt><dd className={signClass(today)}>{today === undefined ? "—" : formatSigned(today, 0)}</dd></div>
     <div><dt>浮动盈亏</dt><dd className={signClass(snapshot ? floating : undefined)}>{snapshot ? formatSigned(floating, 0) : "—"}</dd></div>

@@ -47,6 +47,7 @@ test("a feed refresh of the observation context during capture does not reject t
   const result = await captureNativeWindow({ requestId: crypto.randomUUID(), expectedRevision: 0 }, () => 0, () => ({}));
   expect(result.error).toBeUndefined();
   expect(result.image).toEqual({ mimeType: "image/png", data: "pixels" });
+  expect(observeUi).toHaveBeenCalledWith(expect.any(Object), true);
 });
 
 test("visible content changing during capture is rejected and names the changed parts", async () => {

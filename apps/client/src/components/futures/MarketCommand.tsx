@@ -124,19 +124,19 @@ export function MarketCommand({ workspace, market: shownMarket, headerCurrentCon
             </div>
             {preOpen || noTrade
               // 价格口径 (2026-11-03, `dayQuote`): 昨结算 greyed and 盘前 / 未成交, as every list and card shows it.
-              ? <div className="fdw-pre-open" data-testid="quote-pre-open"><strong title={FALLBACK_PRICE_TITLE}>{formatNumber(day.price, decimals)}</strong>
+              ? <div className="fdw-pre-open" data-testid="quote-pre-open"><strong data-agent-live title={FALLBACK_PRICE_TITLE}>{formatNumber(day.price, decimals)}</strong>
                 <span title={noTrade ? "今日暂无成交" : (market.marketSessionStatus ?? quote.marketSessionStatus) === "closed" && !isForeignSymbol(quote.symbol) ? "无夜盘，开盘前无最新行情" : "开盘前无最新行情"}>{day.note}</span></div>
-              : <div className={replay ? undefined : signClass(quote.changePercent)}><strong key={tick.n} data-tick={tick.dir}>{formatNumber(quote?.lastPrice, decimals)}</strong>
+              : <div className={replay ? undefined : signClass(quote.changePercent)}><strong data-agent-live key={tick.n} data-tick={tick.dir}>{formatNumber(quote?.lastPrice, decimals)}</strong>
                 {replay ? <span className="fdw-replay-omitted" data-testid="quote-replay-change">涨跌幅 回放不显示</span>
-                  : <span>{changePositive ? "+" : ""}{quote?.changePercent.toFixed(2)}%</span>}
+                  : <span data-agent-live>{changePositive ? "+" : ""}{quote?.changePercent.toFixed(2)}%</span>}
                 {/* 新浪备用 (2026-10-07): stays beside the price at every width — the session pill hides on narrow bars. */}
                 {market.dataStatus === "backup" ? <small className="fdw-backup-badge" data-testid="quote-backup" title="快期行情暂不可用，这是新浪备用行情，可能延迟几秒；只供看盘，不能下单">备用 · 新浪</small> : null}
                 {foreignSource ? <small className="fdw-backup-badge" data-testid="quote-foreign-source">{foreignSource}</small> : null}</div>}
             <dl>
               {replay
                 ? <div data-testid="quote-replay-stats"><dt>开高低 · 量</dt><dd className="fdw-replay-omitted">回放不显示</dd></div>
-                : dayStats.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
-              <div><dt>持仓</dt><dd>{formatNumber(quote?.openInterest)}</dd></div>
+                : dayStats.map(([label, value]) => <div key={label}><dt>{label}</dt><dd data-agent-live>{value}</dd></div>)}
+              <div><dt>持仓</dt><dd data-agent-live>{formatNumber(quote?.openInterest)}</dd></div>
             </dl>
           </div>
           <div className="fdw-chart-tools">

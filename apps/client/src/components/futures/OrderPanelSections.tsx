@@ -62,6 +62,7 @@ function LadderRows({ quote, selectedPrice, onPriceSelect }: { quote: MarketQuot
           <button
             type="button"
             key={row.key}
+            data-agent-live data-agent-capture-label={row.level}
             className={`${row.side} ${isSelected ? "selected" : ""}`}
             disabled={price === undefined}
             style={{ "--depth": (row.volume ?? 0) / deepest } as CSSProperties}
@@ -94,7 +95,7 @@ export function OrderDepth({ quote: shownQuote, selectedPrice, onPriceSelect }: 
     <section className="fdw-order-section fdw-order-depth" aria-label="五档" data-agent-target="order-depth">
       <div className="fdw-order-topline">
         {([ ["ask", "卖一", quote.askPrice1, quote.askVolume1], ["last", "最新", quote.lastPrice, null], ["bid", "买一", quote.bidPrice1, quote.bidVolume1] ] as const).filter(([, , price]) => price != null).map(([side, label, price, volume]) =>
-          <button type="button" className={side} key={side} onClick={() => price != null && onPriceSelect(price, side)}>
+          <button type="button" className={side} key={side} data-agent-live data-agent-capture-label={label} onClick={() => price != null && onPriceSelect(price, side)}>
             <span>{label}{volume != null ? ` · ${formatNumber(volume)}` : ""}</span><strong>{formatNumber(price, decimals)}</strong>
             {side === "last" && quote.changePercent != null ? <small>{quote.changePercent > 0 ? "+" : ""}{formatNumber(quote.changePercent, 2)}%</small> : null}
           </button>)}

@@ -62,6 +62,8 @@ it("reports a control's title when it adds to the label (a greyed quick-skill ch
     <button disabled title="当前档位未开通「策略信号解读」">策略信号解读</button>
     <button title="发送：帮我复盘一下今天">复盘与日结</button>
     <button title="设置">设置</button>
+    <button data-agent-live data-agent-capture-label="查看账户明细" aria-label="权益 100，查看账户明细" title="权益 100">权益 100</button>
+    <span data-agent-live>3050</span>
   </div></div>`;
   layout({});
   const controls = observeUi({}).controls.map(({ label, disabled, title }) => ({ label, disabled, title }));
@@ -69,7 +71,24 @@ it("reports a control's title when it adds to the label (a greyed quick-skill ch
     { label: "策略信号解读", disabled: true, title: "当前档位未开通「策略信号解读」" },
     { label: "复盘与日结", disabled: false, title: "发送：帮我复盘一下今天" },
     { label: "设置", disabled: false, title: undefined },
+    { label: "权益 100，查看账户明细", disabled: false, title: "权益 100" },
   ]);
+  const before = observeUi({}, true);
+  const account = document.querySelector<HTMLElement>("[data-agent-capture-label]")!;
+  account.textContent = "权益 120";
+  account.setAttribute("aria-label", "权益 120，查看账户明细");
+  account.title = "权益 120";
+  account.style.color = "red";
+  document.querySelector("span[data-agent-live]")!.textContent = "3060";
+  const after = observeUi({}, true);
+  expect(after.text).toBe(before.text);
+  expect(after.controls).toEqual(before.controls);
+  expect(observeUi({}).text).toContain("权益 120");
+  expect(observeUi({}).controls.at(-1)?.label).toContain("120");
+  account.setAttribute("disabled", "");
+  expect(observeUi({}, true).controls).not.toEqual(before.controls);
+  document.querySelector("button")!.textContent = "发送失败";
+  expect(observeUi({}, true).text).not.toBe(before.text);
 });
 
 it("a resizer reports its current width and the range this window allows (对话栏宽度随窗口)", () => {

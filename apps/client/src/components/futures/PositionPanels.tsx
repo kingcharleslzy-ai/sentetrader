@@ -314,13 +314,13 @@ export function PositionRows({ positions, instruments, quote: shownQuote, busy, 
         <span className="fdw-row-meta">
           <span className={position.direction === "long" ? "positive" : "negative"}>{position.direction === "long" ? "买多" : "卖空"} {position.volume} 手</span>
           {openPrice === undefined ? null
-            : <span className="fdw-row-price">{formatNumber(openPrice, decimals)}{last === undefined ? null : <> → {formatNumber(last, decimals)}</>}</span>}
+            : <span className="fdw-row-price">{formatNumber(openPrice, decimals)}{last === undefined ? null : <> → <span data-agent-live>{formatNumber(last, decimals)}</span></>}</span>}
           <span>可用 {available}</span>
           {/* 交割月提醒 (2026-10-02): a text chip beside the row's figures — the head badge's
               wording; plain text, the card's ⓘ stays its only commandable entry. */}
           {item?.deliveryNotice ? <span className="fdw-delivery-chip" data-level={item.deliveryNotice.level}>{deliveryBadgeText(item.deliveryNotice)}</span> : null}
         </span>
-        <b className={signClass(position.unrealizedPnl)}>浮动盈亏 {formatSigned(position.unrealizedPnl, 0)}{usd ? " 美元" : ""}</b>
+        <b data-agent-live className={signClass(position.unrealizedPnl)}>浮动盈亏 {formatSigned(position.unrealizedPnl, 0)}{usd ? " 美元" : ""}</b>
         <span className="fdw-row-actions">
         <button type="button" className="fdw-row-close" disabled={busy || !available} aria-label={`平仓 ${position.symbol} ${position.direction === "long" ? "多" : "空"}仓`} onClick={() => onClosePosition(position)}>平仓</button>
         <AiMenu compact onAsk={onAskAi} focus={focus} items={askItems}/>
@@ -339,7 +339,7 @@ export function PositionRows({ positions, instruments, quote: shownQuote, busy, 
       {foreign.length ? (
         <li className="fdw-dock-group" data-testid="foreign-positions-head">
           <span>外盘 · 美元</span>
-          <b className={signClass(foreignFloating)}>浮动盈亏 {formatSigned(foreignFloating, 0)} 美元</b>
+          <b data-agent-live className={signClass(foreignFloating)}>浮动盈亏 {formatSigned(foreignFloating, 0)} 美元</b>
         </li>
       ) : null}
       {foreign.map(row)}
@@ -614,7 +614,7 @@ export function PositionsBar({
             const name = position.instrumentName || contractLabel(position.symbol, instruments);
             return <li key={positionKey(position)}><button type="button" data-direction={position.direction} aria-label={`查看持仓 ${name} ${position.direction === "long" ? "多" : "空"} ${position.volume} 手`} onClick={onOpenAll}>
               <i aria-hidden="true" />{name}<span>{position.direction === "long" ? "多" : "空"} {position.volume}</span>
-              <b className={signClass(position.unrealizedPnl)}>{formatSigned(position.unrealizedPnl, 0)}{position.currency === "USD" ? " 美元" : ""}</b>
+              <b data-agent-live className={signClass(position.unrealizedPnl)}>{formatSigned(position.unrealizedPnl, 0)}{position.currency === "USD" ? " 美元" : ""}</b>
             </button></li>;
           })}
           {positions.length > 6 ? <li className="fdw-strip-more">+{positions.length - 6}</li> : null}
@@ -622,7 +622,7 @@ export function PositionsBar({
         </ul>
         <i className="fdw-strip-sep" aria-hidden="true" />
         <span className="fdw-strip-stat" data-unknown={unknownCount > 0 || undefined}>委托 <b>{activeOrders.length}</b>{unknownCount ? `（未知 ${unknownCount}）` : ""}</span>
-        {marketValue !== undefined && ownPositions(positions).length ? <span className="fdw-strip-stat" data-testid="positions-market-value">持仓市值 <b>{formatNumber(marketValue, 0)}</b></span> : null}
+        {marketValue !== undefined && ownPositions(positions).length ? <span className="fdw-strip-stat" data-testid="positions-market-value">持仓市值 <b data-agent-live>{formatNumber(marketValue, 0)}</b></span> : null}
         <button type="button" className="fdw-positions-summary" aria-expanded={false} aria-label="展开持仓与委托" onClick={onToggle}><ChevronUp /></button>
       </section>
     );

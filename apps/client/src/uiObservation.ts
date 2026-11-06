@@ -43,7 +43,7 @@ function inViewport(element: Element): boolean {
   const rect = element.getBoundingClientRect();
   return rect.right > 0 && rect.bottom > 0 && rect.left < innerWidth && rect.top < innerHeight;
 }
-const label = (element: Element) => element.getAttribute("aria-label")
+const label = (element: Element, forCapture = false) => (forCapture ? element.getAttribute("data-agent-capture-label") : null) || element.getAttribute("aria-label")
   || (element.getAttribute("aria-labelledby") || "").split(" ").map(id => document.getElementById(id)?.textContent || "").join(" ").trim()
   || element.textContent?.trim().slice(0, 160) || element.tagName.toLowerCase();
 const titleOf = (element: Element) => {
@@ -94,8 +94,8 @@ export function createUiObserver() {
   };
 }
 
-/** Read-only rendered snapshot. No DOM execution, input values, or credential forms. */
-export function observeUi(context: Record<string, unknown>): components["schemas"]["UiObservation"] {
+/** Normal snapshots keep all live reads; capture comparisons omit marked market values, never UI state. */
+export function observeUi(context: Record<string, unknown>, forCapture = false): components["schemas"]["UiObservation"] {
   const dialogs = [...document.querySelectorAll("dialog[open], [role=dialog], [role=alertdialog]")]
     .filter(element => element.getClientRects().length && getComputedStyle(element).visibility !== "hidden");
   // Native modal dialogs render in the browser top layer, regardless of DOM
@@ -119,25 +119,28 @@ export function observeUi(context: Record<string, unknown>): components["schemas
     let node: Node | null;
     while ((node = walker.nextNode()) && visited++ < 1200) {
       const value = node.textContent?.trim();
-      if (value && node.parentElement && visible(node.parentElement)) text.push(value);
+      if (value && node.parentElement && visible(node.parentElement)
+        && !(forCapture && node.parentElement.closest("[data-agent-live]"))) text.push(value);
     }
   }
   const controls = privateDialog ? [] : [...root.querySelectorAll("button, select, summary, [role=tab], [role=separator]")]
     .filter(visible).slice(0, 150).map(element => ({
-      label: label(element), role: element.getAttribute("role") || element.tagName.toLowerCase(),
+      label: label(element, forCapture), role: element.getAttribute("role") || element.tagName.toLowerCase(),
       disabled: element.hasAttribute("disabled") || element.getAttribute("aria-disabled") === "true",
       pressed: element.getAttribute("aria-pressed"), expanded: element.getAttribute("aria-expanded"),
       // Settings switches (role=switch) and segmented options (role=radio) report their state here.
       checked: element.getAttribute("aria-checked"),
       selected: element.getAttribute("aria-selected"),
       // A title the label does not repeat (e.g. a greyed quick-skill chip's reason line).
-      ...titleOf(element),
+      ...(forCapture && element.hasAttribute("data-agent-capture-label") ? {} : titleOf(element)),
       inViewport: inViewport(element),
       ...(element instanceof HTMLSelectElement ? { value: element.selectedOptions[0]?.text ?? "", options: [...element.options].map(option => option.text).slice(0, 50) } : {}),
       // A resizer (e.g. 调整辅助区宽度) reports its width now and the range this window allows.
       ...(element.getAttribute("role") === "separator" && element.hasAttribute("aria-valuenow")
         ? { value: Number(element.getAttribute("aria-valuenow")), min: Number(element.getAttribute("aria-valuemin")), max: Number(element.getAttribute("aria-valuemax")) } : {}),
-      bounds: bounds(element), foreground: getComputedStyle(element).color, background: getComputedStyle(element).backgroundColor
+      ...(forCapture && element.hasAttribute("data-agent-live")
+        ? { bounds: { x: 0, y: 0, width: 0, height: 0 }, foreground: "", background: "" }
+        : { bounds: bounds(element), foreground: getComputedStyle(element).color, background: getComputedStyle(element).backgroundColor })
     }));
   const regions = privateDialog ? [] : [...root.querySelectorAll(".fdw-chart-pane, .strategy-workbench, .app-settings-section, .fdw-position-dock, .fdw-ticket, .fdw-drawer, .fdw-header, [role=dialog]")]
     .filter(visible).slice(0, 30).map(element => ({ name: regionName(element),

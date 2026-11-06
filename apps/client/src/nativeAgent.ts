@@ -78,10 +78,10 @@ export async function captureNativeWindow(request: CaptureRequest, revision: () 
   document.head.append(mask);
   try {
     if (!(await frame()) || !(await frame())) return { ...receipt, error: "capture_unavailable" };
-    const before = captureFingerprint(observeUi(context()));
+    const before = captureFingerprint(observeUi(context(), true));
     if (revision() !== request.expectedRevision) return { ...receipt, error: "page_changed", detail: "revision" };
     const image = await withDeadline(invoke<components["schemas"]["CapturedImage"]>("capture_agent_window"), CAPTURE_NATIVE_DEADLINE_MS);
-    const changed = changedParts(before, captureFingerprint(observeUi(context())));
+    const changed = changedParts(before, captureFingerprint(observeUi(context(), true)));
     if (revision() !== request.expectedRevision) changed.unshift("revision");
     if (changed.length) return { ...receipt, error: "page_changed", detail: changed.join(",") };
     return { ...receipt, observedRevision: revision(), capturedAt: new Date().toISOString(), image };
