@@ -10,6 +10,9 @@ export function useAppearance(setToast: (text?: string, kind?: "info" | "error")
   toast.current = setToast;
   const [fontScale, setFontScale] = useState<FontScale>(() => readFontScale());
   const [interfaceDensity, setInterfaceDensity] = useState<InterfaceDensity>(() => readInterfaceDensity());
+  // Written while rendering, not only in the effect below: the toolbars fit themselves (useFitLevel) in layout effects,
+  // which run before any effect — they measured the old type size and stayed overlapped until the window was resized.
+  if (typeof document !== "undefined") Object.assign(document.documentElement.dataset, { fontScale, interfaceDensity });
   useEffect(() => {
     persistAppearance(fontScale, interfaceDensity);
     void applyAppearance(fontScale, interfaceDensity)
