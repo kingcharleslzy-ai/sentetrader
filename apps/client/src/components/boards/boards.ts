@@ -101,16 +101,17 @@ export function nextChartBlock(layout: BoardNode | null): BoardBlock | null {
  * 由大往小试 (owner 2026-11-06, after a wide 780 × 200 chart came out as a line): every size of a module says the least
  * room it needs, at 100 % type (growing half as fast as the font). A block takes the fullest size its room holds; the
  * smallest is what is left. A lock caps it at 小 or 中. The chart draws its K 线 (with as many 副图 as fit) from 320 × 160;
- * only a really small block gets the line.
+ * only a really small block gets the line. A `small` entry is that size's own least room, where it is more than every
+ * block's minimum (下单's buttons; see blockMin).
  */
 export const SIZE_NEEDS: Record<BoardModule, Partial<Record<BoardSize, { w: number; h: number }>>> = {
   chart: { xlarge: { w: 900, h: 480 }, large: { w: 480, h: 300 }, medium: { w: 320, h: 160 } },
   positions: { large: { w: 560, h: 300 }, medium: { w: 340, h: 150 } },
-  order: { large: { w: 420, h: 420 }, medium: { w: 460, h: 200 } },
+  order: { large: { w: 420, h: 420 }, medium: { w: 460, h: 200 }, small: { w: 200, h: 128 } },
   watch: { large: { w: 520, h: 320 }, medium: { w: 340, h: 150 } },
   sheet: { large: { w: 520, h: 360 }, medium: { w: 340, h: 170 } },
   alert: { medium: { w: 300, h: 150 } },
-  chat: { large: { w: 480, h: 360 }, medium: { w: 300, h: 150 } },
+  chat: { large: { w: 480, h: 360 }, medium: { w: 200, h: 150 } },
   account: { large: { w: 480, h: 200 }, medium: { w: 300, h: 120 } },
   orders: { large: { w: 600, h: 300 }, medium: { w: 400, h: 180 } },
   strategies: { large: { w: 420, h: 400 }, medium: { w: 300, h: 150 } },
@@ -134,20 +135,20 @@ export function pickSize(module: BoardModule, w: number, h: number, fontScale: n
 }
 
 /**
- * 每块的最小地方 (owner 2026-11-06, after a block was split down to ~95 px): a block never gets less room than the small
- * size needs — this wide and tall at 100 % type (growing half as fast as the font, like the size thresholds), the 8 px
- * between blocks included. Dragging a divider stops there (react-mosaic's minimumPaneSizePx) and every layout shown —
- * a place, an AI arrangement, an old board — is fitted to it first.
+ * 每块的最小地方 (owner 2026-11-06): a block never gets less room than a title and a line of its content — this wide and
+ * tall at 100 % type (growing half as fast as the font, like the size thresholds), the 8 px between blocks included;
+ * what reads longer scrolls inside it. A module whose smallest size has buttons (下单) declares that size's need in
+ * SIZE_NEEDS and gets that instead — it does not scroll. Dragging a divider stops there (react-mosaic's
+ * minimumPaneSizePx) and every layout shown — a place, an AI arrangement, an old board — is fitted to it first.
  */
 export const BLOCK_MIN = { w: 168, h: 104 };
-/** 下单's small size is its 手数 row and the 买多 / 卖空 buttons: it needs more height than the others. */
-const MODULE_MIN: Partial<Record<BoardModule, { w: number; h: number }>> = { order: { w: 200, h: 168 } };
 export type BlockMinimum = { w: number; h: number; of: (block: BoardBlock) => { w: number; h: number } };
 export const blockMin = (fontScale: number): BlockMinimum => {
   const g = 1 + (fontScale - 1) / 2;
   const scaled = (min: { w: number; h: number }) => ({ w: Math.round(min.w * g) + 8, h: Math.round(min.h * g) + 8 });
   const base = scaled(BLOCK_MIN);
-  const own = Object.fromEntries(Object.entries(MODULE_MIN).map(([module, min]) => [module, scaled(min)]));
+  const own = Object.fromEntries(Object.entries(SIZE_NEEDS).flatMap(([module, needs]) => needs.small
+    ? [[module, scaled({ w: Math.max(BLOCK_MIN.w, needs.small.w), h: Math.max(BLOCK_MIN.h, needs.small.h) })]] : []));
   return { ...base, of: block => own[moduleOf(block)] ?? base };
 };
 

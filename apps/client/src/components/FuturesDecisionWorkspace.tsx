@@ -1854,19 +1854,20 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
         columns={boardColumns} availableExchanges={boardExchanges} selectedSymbol={watchSelected} onSelect={pickWatch}
         watchlist={watchlist} productNames={boardProductNames} onToggleWatchlist={watchlistChange} watchlistStatus={watchlistStatus || undefined} />;
     }
-    const chartPlan = module === "chart" ? boardChartOf(block) : undefined;
-    // Only one block can be the trade view's own chart; every other chart is a passive one.
-    if (chartPlan?.symbol && block !== boardStageChart) {
-      // A chart on a contract or period of its own: its bars, at the small or a passive chart size (the trade view's own chart
-      // stays with the app's contract); opening it makes that contract and period the app's.
-      const { symbol: chartSymbol, duration: chartDuration } = chartPlan;
+    // One rule (owner 2026-11-06): only boardStageChart is the trade view's own chart. Every other chart — following the
+    // header or on a contract of its own, at any size — is a passive chart on its contract and period (the header's when it
+    // picked none) with its own 副图 (the trade chart's until it sets some); opening it makes that contract and period the app's.
+    if (module === "chart" && block !== boardStageChart) {
+      const { symbol: chartSymbol, duration: chartDuration } = boardChartOf(block);
+      if (!chartSymbol) return <p className="board-empty" role="status">{props.marketError || "行情连接后显示"}</p>;
       const read = sameContract(chartSymbol, quote?.symbol) && chartDuration === props.duration ? { market }
         : boardChartReads.get(`${chartSymbol.toUpperCase()}@${chartDuration}`);
       if (!read?.market) return <p className="board-empty" role="status">{read && "error" in read && read.error ? read.error : `正在读${contractLabel(chartSymbol, props.instruments)}的行情…`}</p>;
       const linkedName = contractLabel(read.market.quote.symbol, props.instruments);
       const openLinked = () => { selectContract(chartSymbol); selectDuration(chartDuration); selectView("trade"); };
       if (size === "small") return <ChartSmall market={read.market} name={linkedName} onOpen={openLinked} />;
-      // 副图 (owner 2026-11-06): this block's own list (default: the trade chart's); a pane's settings stay the shared ones.
+      // 副图: this block's own list (default: the trade chart's); a pane's settings stay the shared ones. The large size is the
+      // same passive chart with more room — no 画线, no 下单.
       const ownPanes = boards.board.charts[block]?.panes;
       return <ChartMedium market={read.market} name={linkedName} onOpen={openLinked}
         chart={{ settings: chartSettings, onSettingsChange: setChartSettings, resolvedTheme, timeZone: "Asia/Shanghai", surfaceScope: block,
@@ -1881,7 +1882,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     const name = contractLabel(market.quote.symbol, props.instruments);
     if (module === "chart") {
       if (size === "small") return <ChartSmall market={market} name={name} onOpen={() => selectView("trade")} />;
-      // The block on the app's own contract is the trade chart: its 副图 are the trade chart's.
+      // The trade view's own chart: its 副图 are the trade chart's.
       if (size === "medium") return <ChartMedium market={market} name={name} onOpen={() => selectView("trade")}
         chart={{ settings: chartSettings, onSettingsChange: setChartSettings, preferences: chartPreferences, resolvedTheme, timeZone: "Asia/Shanghai",
           surfaceScope: block, onIndicatorsChange: chartIndicatorsChange }} />;

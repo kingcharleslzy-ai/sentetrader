@@ -228,6 +228,15 @@ export function OrderCompact({ market, name, positions, quick, enabled, blockedR
   // 对手价 buys at 卖一, 排队价 at 买一 (the other way round for a sell), 最新价 at the last price.
   const price = (side: "buy" | "sell") => formatNumber(shownIntent === "last" ? quote.lastPrice
     : (side === "buy") === (shownIntent === "aggressive") ? quote.askPrice1 : quote.bidPrice1, decimals);
+  // 最新 and this contract's 持仓: beside the controls at the medium size; below the buttons at the small one, once the
+  // block is tall enough for them (the buttons keep a button's height).
+  const extra = <span className={`board-more-rows board-order-extra${medium ? "" : " board-order-more"}`} aria-hidden="true">
+    <span><small>最新</small><strong>{formatNumber(quote.lastPrice, decimals)}</strong></span>
+    {held.length ? held.map(position => <span key={`${position.symbol}:${position.direction}`}>
+      <small>持仓</small><span className="board-ellipsis"><i className={`board-side ${position.direction}`}>{position.direction === "long" ? "多" : "空"}</i>{position.volume}手</span>
+      <strong className={signClass(position.unrealizedPnl)}>{formatSigned(position.unrealizedPnl, 0)}</strong></span>)
+      : <span><small>持仓</small><span className="board-ellipsis">这个合约没有持仓</span></span>}
+  </span>;
   return <div className={`board-order${medium ? " medium" : ""}`} aria-label={`${name} 下单`}>
     <div className="board-order-controls">
       <span className="board-tile-head"><strong>{name}</strong>{medium ? <><small>卖一 {formatNumber(quote.askPrice1, decimals)}</small><small>买一 {formatNumber(quote.bidPrice1, decimals)}</small></> : null}</span>
@@ -239,13 +248,7 @@ export function OrderCompact({ market, name, positions, quick, enabled, blockedR
         <span><strong>{volume}</strong> 手</span>
         <button type="button" aria-label="多一手" disabled={volume >= 99} onClick={() => setVolume(value => Math.min(99, value + 1))}>+</button>
       </div>
-      {medium ? <span className="board-more-rows board-order-extra" aria-hidden="true">
-        <span><small>最新</small><strong>{formatNumber(quote.lastPrice, decimals)}</strong></span>
-        {held.length ? held.map(position => <span key={`${position.symbol}:${position.direction}`}>
-          <small>持仓</small><span className="board-ellipsis"><i className={`board-side ${position.direction}`}>{position.direction === "long" ? "多" : "空"}</i>{position.volume}手</span>
-          <strong className={signClass(position.unrealizedPnl)}>{formatSigned(position.unrealizedPnl, 0)}</strong></span>)
-          : <span><small>持仓</small><span className="board-ellipsis">这个合约没有持仓</span></span>}
-      </span> : null}
+      {medium ? extra : null}
     </div>
     <div className="board-order-buttons">
       <button type="button" className="board-buy" disabled={locked || tooMany} onClick={() => open("buy_open")}><strong>买多</strong><small>{price("buy")}</small></button>
@@ -255,6 +258,7 @@ export function OrderCompact({ market, name, positions, quick, enabled, blockedR
         平仓{held.length ? `（${held.map(position => `${position.direction === "long" ? "多" : "空"} ${position.volume} 手`).join("、")}）` : ""}
       </button> : null}
     </div>
+    {medium ? null : extra}
     {blockedReason || quick.quickMessage ? <small className="board-note" role="status" title={blockedReason || quick.quickMessage}>{blockedReason || quick.quickMessage}</small> : null}
   </div>;
 }
@@ -307,7 +311,7 @@ export function SheetCompact({ rows, status, symbol, name, onOpen, onOpenRow, me
 }) {
   if (!medium) {
     const row = sheetRowFor(rows, symbol);
-    return <button type="button" className="board-tile-open board-sheet-small" aria-label={`${name} 今日判断，打开作战表`} onClick={onOpen}>
+    return <button type="button" className="board-tile-open board-sheet-small board-read" aria-label={`${name} 今日判断，打开作战表`} onClick={onOpen}>
       <span className="board-tile-head"><strong>{row?.name ?? name}</strong><small>今日判断</small><span className="board-grow" />
         {row ? <i className="board-priority" data-priority={row.priority}>{row.priority}</i> : null}</span>
       <span className="board-sentence">{row ? row.judgment?.headline ?? "今天还没有判断" : status || "这个品种不在作战表里（作战表排自选品种）"}</span>
@@ -319,7 +323,7 @@ export function SheetCompact({ rows, status, symbol, name, onOpen, onOpenRow, me
   }
   return <div className="board-sheet-medium">
     <button type="button" className="board-tile-head board-tile-link" aria-label="今日作战表，打开作战表" onClick={onOpen}><strong>今日作战表</strong><small>{rows.length || ""}</small></button>
-    {rows.length ? <ul className="board-rows">{rows.map(row => <li key={row.product}>
+    {rows.length ? <ul className="board-rows board-read">{rows.map(row => <li key={row.product}>
       <button type="button" aria-label={`${row.name}：${row.judgment?.headline ?? "暂无判断"}，看调研`} onClick={() => row.symbol ? onOpenRow(row.symbol) : onOpen()}>
         <strong>{row.name}</strong><i className="board-priority" data-priority={row.priority}>{row.priority}</i>
         <span className="board-wrap">{row.judgment?.headline ?? "暂无判断"}</span><small>{nearestText(row)}</small>
@@ -332,18 +336,18 @@ export interface WaitingAlert { key: string; name: string; text: string }
 export function AlertCompact({ waiting, latest, onOpen, medium }: {
   waiting: WaitingAlert[]; latest?: { title: string; at: string }; onOpen: () => void; medium?: boolean;
 }) {
-  if (!medium) return <button type="button" className="board-tile-open board-alert-small" aria-label={`提醒在等 ${waiting.length} 个，打开提醒面板`} onClick={onOpen}>
+  if (!medium) return <button type="button" className="board-tile-open board-alert-small board-read" aria-label={`提醒在等 ${waiting.length} 个，打开提醒面板`} onClick={onOpen}>
     <span className="board-tile-head"><strong>提醒</strong></span>
     <span className="board-count"><strong className="board-figure">{waiting.length}</strong><small>个在等</small></span>
     {waiting.length ? <span className="board-more-rows" aria-hidden="true">{waiting.map(item => <span key={item.key}>
-      <span className="board-ellipsis"><strong>{item.name}</strong> {item.text}</span></span>)}</span> : null}
+      <span className="board-wrap"><strong>{item.name}</strong> {item.text}</span></span>)}</span> : null}
     {latest ? <span className="board-latest"><small>{latest.at} 响过</small><strong>{latest.title}</strong></span> : <small className="board-caption">今天还没响过</small>}
   </button>;
   return <div className="board-alert-medium">
     <button type="button" className="board-tile-head board-tile-link" aria-label="提醒，打开提醒面板" onClick={onOpen}>
       <strong>提醒</strong><small>{waiting.length} 个在等{latest ? ` · ${latest.at} 响过` : ""}</small></button>
-    {waiting.length ? <ul className="board-rows">{waiting.map(item => <li key={item.key}>
-      <button type="button" aria-label={`${item.name} ${item.text}，打开提醒面板`} onClick={onOpen}><strong>{item.name}</strong><span className="board-ellipsis">{item.text}</span><small>在等</small></button>
+    {waiting.length ? <ul className="board-rows board-read">{waiting.map(item => <li key={item.key}>
+      <button type="button" aria-label={`${item.name} ${item.text}，打开提醒面板`} onClick={onOpen}><strong>{item.name}</strong><span className="board-wrap">{item.text}</span><small>在等</small></button>
     </li>)}</ul> : <p className="board-empty">没有在等的提醒：在图表上设到价提醒，或在提醒面板里新建</p>}
   </div>;
 }
@@ -364,7 +368,7 @@ export function ChatCompact({ turns, busy, blockedReason, onSend, onOpen, medium
   if (!medium) return <div className="board-chat-bar">{input}</div>;
   return <div className="board-chat-medium">
     <button type="button" className="board-tile-head board-tile-link" aria-label="对话，打开对话面板" onClick={onOpen}><strong>对话</strong>{reply ? <small>AI · {reply.at}</small> : null}</button>
-    {turns.length ? <ol className="board-turns" aria-label="最近的对话">{[...turns].reverse().map(turn => <li key={turn.key} data-role={turn.role}>
+    {turns.length ? <ol className="board-turns board-read" aria-label="最近的对话">{[...turns].reverse().map(turn => <li key={turn.key} data-role={turn.role}>
       <p>{turn.text}</p></li>)}</ol> : <p className="board-reply">还没有对话：在下面问一句</p>}
     {input}
   </div>;
@@ -452,10 +456,10 @@ export function StrategiesCompact({ items, onOpen, medium }: { items: RunningStr
 /** 快讯 · 小: 今天几条、最新的几条标题 (the full feed, pushed); 中 / 大 are the 调研 panel's 快讯 itself. */
 export function FlashSmall({ items, onOpen }: { items?: { id: string; title: string; text: string; publishedAt: string }[]; onOpen: () => void }) {
   const time = (at: string) => new Date(at).toLocaleTimeString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false, hour: "2-digit", minute: "2-digit" });
-  return <button type="button" className="board-tile-open board-flash-small" aria-label="快讯，打开调研的快讯" onClick={onOpen}>
+  return <button type="button" className="board-tile-open board-flash-small board-read" aria-label="快讯，打开调研的快讯" onClick={onOpen}>
     <span className="board-tile-head"><strong>快讯</strong><small>{items ? `近 24 小时 ${items.length} 条` : "正在读取"}</small></span>
     {items?.length ? <span className="board-more-rows" aria-hidden="true">{items.map(item => <span key={item.id}><small>{time(item.publishedAt)}</small>
-      <span className="board-ellipsis">{item.title || item.text}</span></span>)}</span> : items ? <span className="board-empty">还没有快讯</span> : null}
+      <span className="board-wrap">{item.title || item.text}</span></span>)}</span> : items ? <span className="board-empty">还没有快讯</span> : null}
   </button>;
 }
 
@@ -487,7 +491,7 @@ export function DebateCompact({ debate, name, loading, onOpen, medium }: { debat
   const verdict = debate ? debate.status === "done" || debate.status === "review" ? `${debate.stance ?? "看不清"}${debate.confidence ? ` · 信心${debate.confidence}` : ""}`
     : debate.status === "running" || debate.status === "queued" ? "正在辩" : "这次没辩完" : "";
   const head = <span className="board-tile-head"><strong>多 AI 辩论</strong><small>{name}{when ? ` · ${when}` : ""}</small></span>;
-  if (!medium) return <button type="button" className="board-tile-open board-debate-small" aria-label={`${name}的多 AI 辩论，打开辩论页`} onClick={onOpen}>
+  if (!medium) return <button type="button" className="board-tile-open board-debate-small board-read" aria-label={`${name}的多 AI 辩论，打开辩论页`} onClick={onOpen}>
     {head}
     {debate ? <><strong className="board-sentence">{verdict}</strong>{debate.headline ? <span className="board-wrap">{debate.headline}</span> : null}</>
       : <span className="board-empty">{loading ? "正在读取" : "这个品种还没辩过：点开发起一场"}</span>}
@@ -495,7 +499,7 @@ export function DebateCompact({ debate, name, loading, onOpen, medium }: { debat
   return <div className="board-debate-medium">
     <button type="button" className="board-tile-head board-tile-link" aria-label={`${name}的多 AI 辩论，打开辩论页`} onClick={onOpen}>
       <strong>多 AI 辩论</strong><small>{name}{when ? ` · ${when}` : ""}</small></button>
-    {debate ? <div className="board-debate-body">
+    {debate ? <div className="board-debate-body board-read">
       <p className="board-debate-verdict"><strong>{verdict}</strong>{debate.headline ? ` ${debate.headline}` : ""}</p>
       {debate.reports?.length ? <span className="board-more-rows" aria-hidden="true">{debate.reports.map(report => <span key={report.title}>
         <small>{report.title}</small><span className="board-wrap">{report.text}</span></span>)}</span> : null}
@@ -507,7 +511,7 @@ export function DebateCompact({ debate, name, loading, onOpen, medium }: { debat
 export function NotesCompact({ items, loaded, onOpen, medium }: { items: { id: string; name: string; entryRules: string; updatedAt: string }[]; loaded: boolean;
   onOpen: () => void; medium?: boolean }) {
   const latest = [...items].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  if (!medium) return <button type="button" className="board-tile-open board-notes-small" aria-label={`交易笔记 ${items.length} 条，打开交易笔记`} onClick={onOpen}>
+  if (!medium) return <button type="button" className="board-tile-open board-notes-small board-read" aria-label={`交易笔记 ${items.length} 条，打开交易笔记`} onClick={onOpen}>
     <span className="board-tile-head"><strong>交易笔记</strong></span>
     <span className="board-count"><strong className="board-figure">{items.length}</strong><small>条</small></span>
     {latest[0] ? <span className="board-ellipsis">最近：{latest[0].name}</span> : <span className="board-empty">{loaded ? "还没有交易笔记：点开新建" : "正在读取"}</span>}
@@ -515,9 +519,9 @@ export function NotesCompact({ items, loaded, onOpen, medium }: { items: { id: s
   </button>;
   return <div className="board-notes-medium">
     <button type="button" className="board-tile-head board-tile-link" aria-label="交易笔记，打开交易笔记" onClick={onOpen}><strong>交易笔记</strong><small>{items.length} 条</small></button>
-    {latest.length ? <ul className="board-rows">{latest.map(item => <li key={item.id}>
+    {latest.length ? <ul className="board-rows board-read">{latest.map(item => <li key={item.id}>
       <button type="button" aria-label={`${item.name}，打开交易笔记`} onClick={onOpen}><strong>{item.name}</strong>
-        <span className="board-ellipsis">{item.entryRules}</span><small>{dayOf(item.updatedAt)}</small></button></li>)}</ul>
+        <span className="board-wrap">{item.entryRules}</span><small>{dayOf(item.updatedAt)}</small></button></li>)}</ul>
       : <p className="board-empty">{loaded ? "还没有交易笔记：点开复盘的交易笔记新建" : "正在读取"}</p>}
   </div>;
 }
@@ -526,7 +530,7 @@ export function NotesCompact({ items, loaded, onOpen, medium }: { items: { id: s
 export function BriefsCompact({ products, items, onOpen, medium, toggle }: { products?: number; items?: { id: string; text: string; publishedAt: string; productName?: string | null }[];
   onOpen: () => void; medium?: boolean; toggle?: ReactNode }) {
   const latest = items?.[0];
-  if (!medium) return <button type="button" className="board-tile-open board-briefs-small" aria-label={`AI 简报，订阅 ${products ?? 0} 个品种，打开通知设置`} onClick={onOpen}>
+  if (!medium) return <button type="button" className="board-tile-open board-briefs-small board-read" aria-label={`AI 简报，订阅 ${products ?? 0} 个品种，打开通知设置`} onClick={onOpen}>
     <span className="board-tile-head"><strong>AI 简报</strong><small>{products === undefined ? "" : products ? `订阅了 ${products} 个品种` : "还没订阅"}</small></span>
     {latest ? <><small className="board-caption">{latest.productName ? `${latest.productName} · ` : ""}{dayOf(latest.publishedAt)} {clockOf(latest.publishedAt)}</small>
       <span className="board-sentence">{latest.text}</span></> : <span className="board-empty">{items ? "还没有简报" : "正在读取"}</span>}
@@ -535,8 +539,8 @@ export function BriefsCompact({ products, items, onOpen, medium, toggle }: { pro
     <button type="button" className="board-tile-head board-tile-link" aria-label="AI 简报，打开通知设置" onClick={onOpen}><strong>AI 简报</strong>
       <small>{products === undefined ? "" : products ? `订阅了 ${products} 个品种` : "还没订阅"}</small></button>
     {toggle ? <div className="board-briefs-toggle">{toggle}</div> : null}
-    {items?.length ? <ul className="board-rows">{items.map(item => <li key={item.id}><button type="button" aria-label={`${item.productName ?? ""}简报：${item.text.slice(0, 40)}，打开通知设置`} onClick={onOpen}>
-      <small>{clockOf(item.publishedAt)}</small>{item.productName ? <strong>{item.productName}</strong> : null}<span className="board-ellipsis">{item.text}</span>
+    {items?.length ? <ul className="board-rows board-read">{items.map(item => <li key={item.id}><button type="button" aria-label={`${item.productName ?? ""}简报：${item.text.slice(0, 40)}，打开通知设置`} onClick={onOpen}>
+      <small>{clockOf(item.publishedAt)}</small>{item.productName ? <strong>{item.productName}</strong> : null}<span className="board-wrap">{item.text}</span>
     </button></li>)}</ul> : <p className="board-empty">{items ? "还没有简报：订阅品种后，AI 会按时写简讯" : "正在读取"}</p>}
   </div>;
 }

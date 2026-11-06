@@ -28,8 +28,8 @@
 //   a UI step's "noReads": "<regex>" fails it when the window itself GETs a matching Runtime path during the step or
 //   in the 4 s after (通用报告推送 2026-11-03: a pushed report is shown without the panel reading it); a read naming
 //   another account than the window's (the USD sub-account) does not count — the push serves the session's own account
-// `{{name}}` anywhere in a step is replaced by a value an earlier step saved (`{{windowId}}` is the run's own web
-// window); expect paths are dotted (array
+// `{{name}}` anywhere in a step is replaced by a value an earlier step saved (an object or list as its JSON, so an
+// "includes" can check it is still there; `{{windowId}}` is the run's own web window); expect paths are dotted (array
 // indexes allowed); an expected value of {"exists": true} only asks that the path be there, {"includes": "x"}
 // that its text (an object's JSON, e.g. `observation.controls` with selects' options) contain x. A plan's
 // "device": "phone" runs the window in the phone layout. A UI step's paths read the window state, plus `observation.text` (the snapshot's
@@ -72,7 +72,8 @@ export function unmet(source, expect = {}) {
 /** `{{name}}` in every string of a step replaced by a saved value. */
 export function fill(step, saved) {
   return JSON.parse(JSON.stringify(step), (_, value) => typeof value === "string"
-    ? value.replace(/\{\{(\w+)\}\}/g, (match, name) => (name in saved ? String(saved[name]) : match)) : value);
+    ? value.replace(/\{\{(\w+)\}\}/g, (match, name) => (!(name in saved) ? match
+      : saved[name] && typeof saved[name] === "object" ? JSON.stringify(saved[name]) : String(saved[name]))) : value);
 }
 
 async function until(read, label, ms = 30_000) {

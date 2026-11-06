@@ -118,7 +118,7 @@
 .board-positions-medium .board-empty, .board-watch-medium .board-empty, .board-alert-medium .board-empty, .board-sheet-medium .board-empty { margin: var(--space-3); }
 .board-view .positive { color: var(--market-up); }
 .board-view .negative { color: var(--market-down); }
-.board-rows { list-style: none; margin: 0; padding: 0; overflow: hidden; }
+.board-rows { list-style: none; margin: 0; padding: 0; }
 .board-rows li { min-width: 0; }
 .board-rows li > button, .board-watch-small .board-rows li { width: 100%; display: flex; align-items: center; gap: var(--space-3); min-height: 36px; padding: 0 var(--space-3); border: 0; border-top: 1px solid var(--line); background: transparent; color: inherit; text-align: left; font: inherit; white-space: nowrap; }
 .board-rows li > button:hover { background: var(--surface-hover); }
@@ -174,14 +174,13 @@
 .board-tile-content > .fdw-board { height: 100%; min-height: 0; max-height: none; border: 0; border-radius: 0; box-shadow: none; overflow: auto; }
 .board-tile-content > .battle-sheet { margin: 0; }
 
-.board-sentence { font-size: var(--font-lg); font-weight: 600; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.board-sentence { font-size: var(--font-lg); font-weight: 600; line-height: 1.45; white-space: normal; overflow-wrap: anywhere; }
 .board-ellipsis { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .board-priority { flex: none; padding: 0 var(--space-1); border-radius: var(--radius-sm); font-style: normal; font-size: var(--font-xs); font-weight: 700; background: var(--soft); color: var(--muted); }
 .board-priority[data-priority="高"] { background: var(--danger-soft); color: var(--danger); }
 .board-priority[data-priority="中"] { background: var(--warning-soft); color: var(--warning); }
 .board-sheet-medium, .board-alert-medium, .board-chat-medium { display: flex; flex-direction: column; min-height: 0; }
 .board-sheet-medium .board-rows li > button > :first-child, .board-alert-medium .board-rows li > button > :first-child { flex: 0 0 auto; max-width: 30%; }
-.board-sheet-medium .board-rows, .board-alert-medium .board-rows { overflow: auto; }
 .board-count { display: flex; align-items: baseline; gap: var(--space-1); }
 .board-count small { color: var(--muted); }
 .board-latest { margin-top: auto; display: flex; flex-direction: column; gap: 2px; padding: var(--space-1) var(--space-2); border-radius: var(--radius-control); background: var(--price-alert-soft); }
@@ -191,7 +190,7 @@
 .board-chat-input { flex: none; display: flex; align-items: center; gap: var(--space-2); width: 100%; }
 .board-chat-medium .board-chat-input { padding: var(--space-2) var(--space-3); border-top: 1px solid var(--line); }
 .board-chat-input input { flex: 1; min-width: 0; height: 36px; padding: 0 var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-control); background: var(--soft); color: var(--ink); font-size: var(--font-md); }
-.board-reply { flex: 1; min-height: 0; margin: 0; padding: var(--space-2) var(--space-3); overflow: hidden; color: var(--ai-bubble-ink); background: var(--ai-bubble); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; }
+.board-reply { flex: 1; min-height: 0; margin: 0; padding: var(--space-2) var(--space-3); color: var(--ai-bubble-ink); background: var(--ai-bubble); line-height: 1.5; }
 .board-sheet-medium .board-empty, .board-alert-medium .board-empty, .board-watch-medium .board-empty, .board-positions-medium .board-empty { white-space: normal; text-align: left; line-height: 1.5; }
 .board-positions-large { display: flex; flex-direction: column; min-height: 0; }
 .board-large-head { flex: none; height: 40px; padding: 0 var(--space-3); border-bottom: 1px solid var(--line); }
@@ -235,14 +234,14 @@
 .board-view.previewing .board-tile { outline: 1px dashed color-mix(in srgb, var(--accent) 50%, transparent); outline-offset: -1px; }
 .board-entry-tool svg { flex: none; }
 
-/* Small sizes in a tall block: the rows below fill the height that is there (cut at the edge, never stretched). */
-.board-more-rows { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; margin-top: var(--space-1); }
+/* Small sizes in a tall block: the rows below fill the height that is there and scroll there (never stretched). */
+.board-more-rows { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain; margin-top: var(--space-1); }
 .board-more-rows > span { flex: none; display: flex; align-items: center; gap: var(--space-2); min-height: 30px; border-top: 1px solid var(--line); font-size: var(--font-sm); white-space: nowrap; }
 .board-more-rows > span > strong { flex: none; margin-left: auto; }
 .board-positions-small .board-caption { margin-top: var(--space-1); }
 .board-alert-small .board-latest { margin-top: var(--space-1); }
 /* 下单 · 小: the 买多 / 卖空 buttons keep their height in a tall block. */
-.board-order:not(.medium) .board-order-buttons { flex: 0 0 auto; grid-auto-rows: minmax(56px, 72px); }
+.board-order:not(.medium) .board-order-buttons { flex: 1 1 auto; min-height: 44px; max-height: 72px; grid-auto-rows: 1fr; }
 /* react-mosaic's drag preview sits under each block with a black border; in the theme it is the block's own card. */
 .board-mosaic .mosaic-window > .mosaic-preview { border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--panel); }
 
@@ -251,37 +250,36 @@
 .board-tile-content { container-type: size; }
 .board-extra { display: none; }
 @container (min-height: 300px) { .board-extra { display: grid; } }
+/* 账户权益 reads: its other figures always show (the block scrolls when it is short). */
+.board-account-small .board-extra { display: grid; }
 .board-figures { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: var(--space-1) var(--space-3); margin: var(--space-1) 0; }
 .board-positions-medium .board-figures { margin: var(--space-2) var(--space-3); }
 .board-figures > span { display: flex; flex-direction: column; min-width: 0; }
 .board-figures small { color: var(--muted); font-size: var(--font-xs); }
 .board-figures strong { font-size: var(--font-md); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.board-watch-small .board-rows, .board-watch-medium .board-rows, .board-positions-medium .board-rows { flex: 1 1 0; min-height: 0; overflow: hidden; }
+.board-watch-small .board-rows, .board-watch-medium .board-rows, .board-positions-medium .board-rows { flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .board-watch-medium .board-rows.two { align-content: start; }
 .board-sheet-small .board-caption { margin-top: var(--space-1); }
 .board-sheet-small .board-more-rows > span > strong { margin-left: 0; }
-/* Newest at the bottom; an older turn that does not fit whole wraps out of the block instead of showing a sliver. */
-.board-turns { flex: 1 1 0; min-height: 0; margin: 0; padding: var(--space-2) var(--space-3); list-style: none; display: flex; flex-direction: column-reverse;
-  flex-wrap: wrap; align-content: flex-start; gap: var(--space-2); overflow: hidden; }
+/* Newest at the bottom; older turns are above it (scroll up). */
+.board-turns { flex: 1 1 0; min-height: 0; margin: 0; padding: var(--space-2) var(--space-3); list-style: none; display: flex; flex-direction: column-reverse; gap: var(--space-2); }
 .board-turns li { flex: none; width: 100%; display: flex; }
 .board-turns li[data-role="user"] { justify-content: flex-end; }
 .board-turns li p { max-width: 85%; margin: 0; padding: var(--space-1) var(--space-2); border-radius: var(--radius-card); line-height: 1.5;
-  display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
+  overflow-wrap: anywhere; }
 .board-turns li[data-role="assistant"] p { background: var(--ai-bubble); color: var(--ai-bubble-ink); }
 .board-turns li[data-role="user"] p { background: var(--me-bubble); color: var(--ink); }
 /* 下单 · 中: the buttons keep a button's height in a big block. */
 .board-order.medium .board-order-buttons { grid-template-rows: minmax(56px, 96px) 36px; align-content: start; }
 .board-order-extra > span { gap: var(--space-2); }
+.board-order-extra { flex: none; overflow: visible; }
+.board-order-more { display: none; margin-top: 0; }
+@container (min-height: 176px) { .board-order-more { display: flex; } }
 .board-order-extra > span > small { flex: none; width: 3em; color: var(--muted); }
-/* A row that does not fit whole is not shown at all: the list wraps into a second column that falls outside the block. */
-/* (作战表 / 提醒 中档 keep scrolling: their lists can be long.) */
-.board-more-rows, .board-watch-small .board-rows, .board-positions-medium .board-rows {
-  display: flex; flex-direction: column; flex-wrap: wrap; align-content: flex-start; overflow: hidden; }
-.board-more-rows > span, .board-watch-small .board-rows > li, .board-positions-medium .board-rows > li { width: 100%; }
 
 /* 模块补全 (owner 2026-11-06): 账户权益 / 委托与成交 / 运行中的策略 / 快讯 / 复盘盈亏 in their small and medium layouts. */
 .board-account-medium, .board-orders-medium, .board-strategies-medium { display: flex; flex-direction: column; min-height: 0; }
-.board-account-rows { flex: 1; min-height: 0; overflow: hidden; padding: var(--space-2) var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); }
+.board-account-rows { flex: 1; min-height: 0; padding: var(--space-2) var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); }
 .board-account-rows .board-figures, .board-pnl-small .board-figures, .board-account-medium .board-figures { display: grid; }
 .board-orders-medium .board-large-pair { flex: 1; min-height: 0; overflow: auto; align-content: start; }
 .board-strategies-medium .board-rows { overflow: auto; }
@@ -295,9 +293,8 @@
 /* 多 AI 辩论 / 交易笔记 / AI 简报 (owner 2026-11-06). */
 .board-debate-medium, .board-notes-medium, .board-briefs-medium { display: flex; flex-direction: column; min-height: 0; }
 .board-debate-body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: var(--space-2) var(--space-3); }
-.board-debate-verdict { margin: 0 0 var(--space-1); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.board-debate-verdict { margin: 0 0 var(--space-1); line-height: 1.5; }
 .board-debate-body .board-more-rows > span > small { flex: none; width: 4.5em; color: var(--muted); }
-.board-notes-medium .board-rows, .board-briefs-medium .board-rows { overflow: auto; }
 .board-briefs-toggle { flex: none; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--line); }
 .board-debate-medium .board-empty, .board-notes-medium .board-empty, .board-briefs-medium .board-empty,
 .board-strategies-medium .board-empty { margin: var(--space-3); white-space: normal; text-align: left; line-height: 1.5; }
@@ -308,20 +305,30 @@
 .board-tile .board-figure, .board-tile .board-tile-head > strong, .board-tile .board-tile-head > small { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* A one-line figure or title keeps its line: in a short block the rows below give way, never these. */
 .board-tile .board-figure, .board-tile .board-tile-head, .board-tile .board-split, .board-tile .board-count { flex: none; }
-.board-tile-open, .board-tile-content > div { min-width: 0; overflow: hidden; }
+/* 每块一个滚动区 (owner 2026-11-06, as dashboards do): a block's content is never cut silently — what is longer than the
+   block scrolls in it (the list under a fixed summary in 持仓 / 委托与成交 / 策略, the whole block otherwise). 下单 has
+   buttons and does not scroll: its minimum is its smallest size's need. A chart fills its block. */
+.board-tile-open, .board-tile-content > div { min-width: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; }
+.board-tile-content > .board-order, .board-tile-content > .board-chart-small, .board-tile-content > .board-chart-medium,
+.board-tile-content > .board-chart-large, .board-tile-content > .board-chat-bar { overflow: visible; }
 /* (The bar itself does not clip: the ⋯ list hangs below it.) */
 .board-tile-bar > strong, .board-tile-bar > small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .board-tile-bar > strong { flex: 0 1 auto; }
 .board-tile-bar > small { flex: 0 10 auto; }
 .board-tile-bar > svg, .board-tile-bar > .board-link-dot, .board-tile-menu { flex: none; }
-/* 长句默认换行 (owner 2026-11-06): a sentence wraps; only what the block's height cannot hold is cut, at a whole line with an
-   ellipsis — more lines the taller the block (container queries on the block's own height). Titles and figures stay one line. */
-.board-tile-open > .board-empty { min-width: 0; white-space: normal; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.board-wrap { flex: 1; min-width: 0; line-height: 1.45; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* 读文字的模块 (owner 2026-11-06, 作战表 / 快讯 / 对话 / 辩论 / 简报 / 提醒 / 交易笔记): every sentence wraps in full — no line
+   counts — and what is longer than the block scrolls in one region (the whole small block, or the list under a medium
+   block's name bar). Only names and figures keep one line with an ellipsis. */
+.board-tile-open > .board-empty { min-width: 0; white-space: normal; }
+.board-wrap { flex: 1; min-width: 0; line-height: 1.45; white-space: normal; overflow-wrap: anywhere; }
 .board-more-rows > span:has(.board-wrap), .board-rows li > button:has(.board-wrap) { align-items: flex-start; padding-top: var(--space-1); padding-bottom: var(--space-1); }
-@container (min-height: 220px) { .board-sentence { -webkit-line-clamp: 5; } .board-wrap { -webkit-line-clamp: 3; } }
-@container (min-height: 320px) { .board-sentence { -webkit-line-clamp: 8; } .board-wrap { -webkit-line-clamp: 4; } }
-@container (min-height: 480px) { .board-sentence { -webkit-line-clamp: 14; } .board-wrap { -webkit-line-clamp: 6; } }
+.board-read { overflow-y: auto; overscroll-behavior: contain; }
+.board-tile-open.board-read { justify-content: flex-start; }
+/* 快讯 / 简报: a new item slides in at the top (the conversation cards' entrance). */
+.board-flash-small .board-more-rows > span, .board-briefs-medium .board-rows > li, .board-briefs-small .board-sentence {
+  animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; --enter-transform: translateY(-6px); }
+.board-read .board-more-rows, .board-read .board-rows { flex: none; flex-wrap: nowrap; overflow: visible; }
+.board-rows.board-read { flex: 1 1 0; min-height: 0; overflow-y: auto; }
 
 /* 看板菜单 (owner 2026-11-06): the board's right-click menu and a block's ⋯ are the chart's right-click menu
    (fdw-context-menu, ChartContextMenu's placement); the header's 看板 list is the header's own menu (fdw-tab-menu). */
