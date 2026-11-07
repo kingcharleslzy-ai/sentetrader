@@ -2212,28 +2212,45 @@ async def test_a_close_all_with_no_positions_at_all_says_so(
         del provider.positions  # back to the class's fixture positions
 
 
+@pytest.mark.parametrize("act,expected,code", [
+    ("close_all", "没有可平的持仓", "no_position_to_close"),
+    ("close", "当前没有螺纹钢2610（SHFE.rb2610）的持仓，平不了", "close_position_not_found"),
+    ("reverse", "当前没有螺纹钢2610（SHFE.rb2610）的持仓，没法反手", "reverse_position_not_found"),
+])
 async def test_a_general_turn_retrying_the_same_card_refusal_ends_on_the_refusal_line(
     native_client: AsyncClient, native_application: FastAPI, responses_server: FakeResponsesServer,
+    monkeypatch, act: str, expected: str, code: str,
 ):
-    """AI 审计 2026-10-13：没走固定路线的回合里，模型对“没有可平的持仓”连调三次全平工具，最后说成
-    “取不到持仓数据”。同一拒绝第二次出现就以拒绝原话收尾；拒绝说明不再是“数据未就绪”；
-    失败步骤在任务事件里带 errorCode，事后可查。"""
+    """通用回合第一次读到无仓拒绝即按原范围收尾；另有沪金持仓时，不能续写成“账户空仓”。"""
     provider = native_application.state.simulation_orders.data_provider
-    provider.positions = lambda: []
-    try:
-        session_id = await create_session(native_client)
-        run_id = await start_run(native_client, session_id, "重复拒绝场景：全部平仓")
-        assert (await wait_for_run(native_application, run_id))["status"] == "completed"
-        assert len(responses_server.requests) == 2  # the second identical refusal ends the turn
-        assert assistant_answers(native_application, session_id)[-1] == "没有可平的持仓"
-        outputs = FakeResponsesServer._tool_outputs(responses_server.requests[-1])
-        assert outputs[0]["payload"]["errorCode"] == "no_position_to_close"
-        assert "数据" not in outputs[0]["payload"]["warning"] or "不要改说成数据取不到" in outputs[0]["payload"]["warning"]
-        completed = [event for event in events_of(native_application, session_id) if event["name"] == "task.completed"]
-        steps = [step for step in completed[-1]["payload"]["steps"] if step.get("tool") == "propose_order"]
-        assert [step.get("errorCode") for step in steps] == ["no_position_to_close", "no_position_to_close"]
-    finally:
-        del provider.positions
+    if act == "close_all":
+        monkeypatch.setattr(provider, "positions", lambda: [])
+    else:
+        monkeypatch.setattr(provider, "positions", lambda: [
+            {"symbol": "SHFE.au2612", "direction": "long", "volume": 1,
+             "todayVolume": 0, "historicalVolume": 1}])
+
+    def scenario(text, outputs, body):
+        if outputs:
+            return responses_server._text_stream("账户里现在是空仓")
+        return responses_server._tool_stream([("propose_order", {
+            "act": act, **({"symbol": "SHFE.rb2610", "vol": 1} if act != "close_all" else {}),
+            "reason": "用户要求平仓或反手"})])
+
+    monkeypatch.setattr(responses_server, "_scenario", scenario)
+    session_id = await create_session(native_client)
+    text = {"close_all": "重复拒绝场景：全部平仓", "close": "重复拒绝场景：把螺纹那一手平了，别动沪金",
+            "reverse": "重复拒绝场景：螺纹反手"}[act]
+    run_id = await start_run(native_client, session_id, text)
+    assert (await wait_for_run(native_application, run_id))["status"] == "completed"
+    assert len(responses_server.requests) == 1
+    assert assistant_answers(native_application, session_id)[-1] == expected
+    assert not [event for event in events_of(native_application, session_id)
+                if event["name"].startswith("proposal.")]
+    assert native_application.state.simulation_orders.list(user_id="local-user") == []
+    completed = [event for event in events_of(native_application, session_id) if event["name"] == "task.completed"]
+    steps = [step for step in completed[-1]["payload"]["steps"] if step.get("tool") == "propose_order"]
+    assert [step.get("errorCode") for step in steps] == [code]
 
 
 @pytest.mark.parametrize("text,expected", [

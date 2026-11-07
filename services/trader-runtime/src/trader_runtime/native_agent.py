@@ -2511,11 +2511,12 @@ class NativeAgentAdapter:
                 if refusal is None and turn.route is not None and turn.route.one_round:
                     refusal = self._route_refusal(output)
                 elif refusal is None and call.name == CARD_TOOL:
-                    # A general turn keeps its toolbox after a card refusal (it may search and retry
-                    # with another contract), but the same refusal again is a retried fact, not progress.
+                    # A missing position is final for the requested scope; a model continuation must not
+                    # turn it into an empty-account claim. Other refusals can still be corrected once.
                     repeated = self._route_refusal(output)
                     if repeated is not None:
-                        if repeated[0] in turn.card_refusals:
+                        if repeated[0] in {"close_position_not_found", "reverse_position_not_found",
+                                           "no_position_to_close"} or repeated[0] in turn.card_refusals:
                             refusal = repeated
                         turn.card_refusals.add(repeated[0])
                 if refusal is None:
