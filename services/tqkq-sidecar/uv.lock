@@ -12,7 +12,7 @@ resolution-markers = [
 
 [[package]]
 name = "ai-trader-tqkq-sidecar"
-version = "1.9.5"
+version = "1.9.6"
 source = { editable = "." }
 
 [package.optional-dependencies]
