@@ -1398,6 +1398,8 @@ export interface StrategyExecutionAttempt {
   volume: number;
   status: "RESERVED" | "SUBMITTED" | "PARTIAL" | "NOT_DISPATCHED" | "REJECTED" | "CANCELLED" | "SKIPPED" | "BLOCKED" | "UNKNOWN" | "FAILED";
   clientOrderId?: string | null;
+  /** Latest readback from the strategy account; submission status remains unchanged. */
+  orderDisplayStatus?: string | null;
   detail?: string | null;
   /** 出卡确认: the cards this attempt issued; SKIPPED with cards = waiting for confirmation. */
   cardProposalIds?: string[];

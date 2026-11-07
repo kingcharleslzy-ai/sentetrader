@@ -483,7 +483,7 @@ async def test_strategy_monitor_api_starts_and_pauses_without_authorization(
 
 
 @pytest.mark.asyncio
-async def test_monitor_payload_counts_todays_opens_like_the_daily_cap(tmp_path: Path) -> None:
+async def test_monitor_payload_counts_todays_opens_like_the_daily_cap(tmp_path: Path, monkeypatch) -> None:
     """opensToday is the count the monitor checks maxOrdersPerDay with: today's dispatched
     opens only, all of them (not just the ten recent attempts the payload lists)."""
     app = create_app(tmp_path / "opens-today.sqlite3", local_token="test-local-token", agent_mode="fake",
@@ -503,12 +503,34 @@ async def test_monitor_payload_counts_todays_opens_like_the_daily_cap(tmp_path: 
         store.connection.execute("""INSERT INTO strategy_execution_attempts (id, strategy_id, user_id, intent_id, signal_bar_time,
             trading_day, action, volume, status, created_at, updated_at) VALUES (?, ?, ?, 'intent-strategy-monitor', ?, ?, ?, 1, ?, ?, ?)""",
             (attempt_id, STRATEGY_ID, USER, bar, day, action, status, now, now))
+    readbacks = dict(zip((f"open-{i}" for i in range(12)),
+                         ["已成交", "部分成交", "结果未知", "已拒绝", "已撤销", "部分成交后已结束"] * 2, strict=True))
+    for identifier in readbacks:
+        store.connection.execute("UPDATE strategy_execution_attempts SET status = 'UNKNOWN', client_order_id = ? WHERE id = ?",
+                                 (identifier, identifier))
+    store.connection.execute("UPDATE strategy_execution_attempts SET client_order_id = 'open-9,missing' WHERE id = 'open-9'")
+
+    def read_order(identifier, *, user_id):
+        assert user_id == USER
+        return {"displayStatus": readbacks[identifier]}
+
+    monkeypatch.setattr(app.state.simulation_orders, "get", read_order)
     store.connection.commit()
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test", headers={"Origin": "http://127.0.0.1:5173"}) as client:
         assert (await client.post("/api/auth/local", headers={"Authorization": "Bearer test-local-token"})).status_code == 200
         payload = (await client.get(f"/api/strategies/{STRATEGY_ID}/monitor")).json()
     assert len(payload["recentAttempts"]) == 10
     assert payload["opensToday"] == 12 == store.count_strategy_attempts_today(strategy_id=STRATEGY_ID, user_id=USER, trading_date=today)
+    for attempt in payload["recentAttempts"]:
+        identifiers = (attempt["clientOrderId"] or "").split(",")
+        if not attempt["clientOrderId"]:
+            assert "orderDisplayStatus" not in attempt
+            continue
+        expected = " / ".join(readbacks.get(identifier, "结果未知") for identifier in identifiers)
+        assert attempt["orderDisplayStatus"] == expected
+        assert attempt["detail"] == "最新委托回读：" + expected
+        assert attempt["status"] == "UNKNOWN"
+    assert store.list_strategy_execution_attempts(strategy_id=STRATEGY_ID, user_id=USER)[0].get("orderDisplayStatus") is None
     store.close()
 
 

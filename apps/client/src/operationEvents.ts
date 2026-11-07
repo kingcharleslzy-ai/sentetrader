@@ -50,14 +50,14 @@ export function operationEvents(activity?: ActivitySnapshot): OperationEvent[] {
       detail:`委托价 ${order.request.limitPrice}`,warning:false,automatic:false});
   }
   for (const strategy of activity.strategies) for (const raw of strategy.recentAttempts) {
-    const attempt = raw as {attemptId:string;clientOrderId?:string;action:string;volume:number;status:string;detail?:string;updatedAt:string};
+    const attempt = raw as {attemptId:string;clientOrderId?:string;action:string;volume:number;status:string;orderDisplayStatus?:string;detail?:string;updatedAt:string};
     if (!attempt.attemptId) continue;
     if (["SUBMITTED","PARTIAL"].includes(attempt.status) && (activity.fills.some(fill=>fill.clientOrderId===attempt.clientOrderId) || activity.orders.some(order=>order.clientOrderId===attempt.clientOrderId))) continue;
     const name = ({open_long:"开多",open_short:"开空",close_long:"平多",close_short:"平空"} as Record<string,string>)[attempt.action] || "动作待确认";
     const failed = ["FAILED","REJECTED","BLOCKED"].includes(attempt.status);
     events.push({key:`attempt:${attempt.attemptId}`,eventType:"attempt",eventId:attempt.attemptId,strategyId:strategy.strategyId,
       symbol:activity.symbol,time:attempt.updatedAt,group:attempt.clientOrderId || attempt.attemptId,
-      title:`${name} · ${attempt.volume} 手 · ${attemptStatusLabel(attempt.status)}`,
+      title:`${name} · ${attempt.volume} 手 · ${attemptStatusLabel(attempt.status, 0, null, attempt.orderDisplayStatus)}`,
       detail:strategyStatusText(attempt.detail || "等待执行回报"),warning:failed,automatic:failed});
   }
   for (const raw of activity.protections || []) {

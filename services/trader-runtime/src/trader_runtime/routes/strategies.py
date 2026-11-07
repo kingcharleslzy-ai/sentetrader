@@ -177,10 +177,11 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
                         readbacks.append(account.simulation_orders.get(
                             identifier, user_id=user_id)["displayStatus"])
                     except KeyError:
-                        pass
+                        readbacks.append("结果未知")
             if readbacks:
                 attempt["submissionDetail"] = attempt.get("detail")
-                attempt["detail"] = "最新委托回读：" + " / ".join(readbacks)
+                attempt["orderDisplayStatus"] = " / ".join(readbacks)
+                attempt["detail"] = "最新委托回读：" + attempt["orderDisplayStatus"]
         monitor_state = store.strategy_monitor_state(strategy_id=strategy_id, user_id=user_id)
         # 今日 (2026-09-25 fix): the state keeps the last trading day the monitor ran on. Its day
         # P&L, loss streak and open count only describe *today* when that day is the account's

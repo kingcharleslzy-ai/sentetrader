@@ -1205,7 +1205,7 @@ function RunningCard({ run, library, baseUrl, scope, instruments, autonomy, busy
   }, [run.strategyId, name, status, signalAction, effective, position?.direction, position?.volume, monitor?.signalsToday, monitor?.researchClash?.text, monitor?.funds, drawdown]);
   const focus = { kind: "strategy_instance" as const, id: run.strategyId, label: name };
   const rows = attempts.slice(0, 3).map(attempt => ({ time: monitorTime(attempt.updatedAt).slice(-8, -3),
-    text: `${actionText(attempt.action, attempt.volume, Boolean(plan?.spread))} · ${attemptStatusLabel(attempt.status, attempt.cardProposalIds?.length, attempt.signalAction)}` }));
+    text: `${actionText(attempt.action, attempt.volume, Boolean(plan?.spread))} · ${attemptStatusLabel(attempt.status, attempt.cardProposalIds?.length, attempt.signalAction, attempt.orderDisplayStatus)}` }));
   return <article className="sh-card strategy-run-card" data-state={running ? "running" : "paused"} data-testid="strategy-run-card" aria-label={name}>
     <span className="sh-card-top"><b>{strategyText(library.name)}</b><em className="sh-state" data-state={unavailable ? "draft" : running ? "running" : "paused"}>
       {unavailable ? "待确认" : running ? "运行中" : "已暂停"}</em><small className="sh-sym">{contract}</small></span>
@@ -1252,7 +1252,7 @@ function AttemptLog({ attempts, storageKey, spread = false }: { attempts: Strate
       <button type="button" className="app-button danger" disabled={!visible.some(failed)} onClick={() => { setHidden(previous => ({...previous, ...Object.fromEntries(attempts.filter(failed).map(attempt => [attempt.attemptId, revision(attempt)]))})); setHistory(false); }}>清空失败记录</button>
       {Object.keys(hidden).length > 0 && <button type="button" onClick={() => setHistory(value => !value)}>{history ? "返回当前记录" : "查看历史记录"}</button>}
     </div>
-    {visible.length ? visible.map(attempt => <p key={attempt.attemptId}><time>{monitorTime(attempt.updatedAt)}</time><br/>{actionText(attempt.action, attempt.volume, spread, " · ")} · {attemptStatusLabel(attempt.status, attempt.cardProposalIds?.length, attempt.signalAction)} · {attempt.detail ? strategyStatusText(attempt.detail) : "等待执行回报"}</p>) : <p>暂无执行记录</p>}
+    {visible.length ? visible.map(attempt => <p key={attempt.attemptId}><time>{monitorTime(attempt.updatedAt)}</time><br/>{actionText(attempt.action, attempt.volume, spread, " · ")} · {attemptStatusLabel(attempt.status, attempt.cardProposalIds?.length, attempt.signalAction, attempt.orderDisplayStatus)} · {attempt.detail ? strategyStatusText(attempt.detail) : "等待执行回报"}</p>) : <p>暂无执行记录</p>}
   </section>;
 }
 

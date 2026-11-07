@@ -30,7 +30,8 @@ export function actionText(action: string, volume: number, spread: boolean, sepa
 
 /** `cards`: how many confirmation cards the attempt issued (出卡确认); SKIPPED with cards = 待确认.
  *  `signalAction` alert: a 只提醒 reminder, never an order. */
-export function attemptStatusLabel(status: string, cards = 0, signalAction?: string | null) {
+export function attemptStatusLabel(status: string, cards = 0, signalAction?: string | null, orderDisplayStatus?: string | null) {
+  if (orderDisplayStatus) return orderDisplayStatus;
   if (status === "SKIPPED" && signalAction === "alert") return "已提醒（未下单）";
   if (status === "SKIPPED" && cards > 0) return "出卡待确认";
   // 放弃 / 超时作废 of the card: the Runtime settles the waiting attempt as CANCELLED.

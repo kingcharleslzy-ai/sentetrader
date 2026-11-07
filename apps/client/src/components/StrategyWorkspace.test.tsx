@@ -503,7 +503,7 @@ test("正在运行 card: 执行方式, signal, today's figures, position, latest
     monitorState:{strategyId:"execution",userId:"u",tradingDate:"2026-09-09",lastTodayPnl:"140",consecutiveLosses:0,updatedAt:"2026-09-09T05:48:42Z"},
     tradingDay:"2026-09-09", today:{tradingDate:"2026-09-09",pnl:"140",consecutiveLosses:0},
     opensToday:13, position:{direction:"long", volume:1}, signalsToday:2,
-    researchClash:{stance:"偏空", direction:"long", text:"今日判断偏空，这个策略今天在做多"}, recentAttempts:[{attemptId:"failed",strategyId:"execution",intentId:"i",signalBarTime:"1",tradingDay:"2026-09-09",status:"FAILED",action:"open_long",volume:3,createdAt:"2026-09-09T05:48:42Z",updatedAt:"2026-09-09T05:48:42Z",detail:"ai_execution_stopped"}]} as any);
+    researchClash:{stance:"偏空", direction:"long", text:"今日判断偏空，这个策略今天在做多"}, recentAttempts:[{attemptId:"filled",strategyId:"execution",status:"UNKNOWN",action:"close_long",volume:1,updatedAt:"2026-09-09T05:49:42Z",orderDisplayStatus:"已成交",detail:"最新委托回读：已成交"},{attemptId:"failed",strategyId:"execution",intentId:"i",signalBarTime:"1",tradingDay:"2026-09-09",status:"FAILED",action:"open_long",volume:3,createdAt:"2026-09-09T05:48:42Z",updatedAt:"2026-09-09T05:48:42Z",detail:"ai_execution_stopped"}]} as any);
   request.mockImplementation(async (url:string) => url.endsWith("/conditions") ? {conditions:[{label:"MA5上穿MA20",status:"passed",detail:"",group:"entryLong"}]} : {items:[saved],executions:[execution]});
   const onAskAi = vi.fn();
   const view = render(<StrategyWorkbench rootUrl="http://runtime" baseUrl="http://runtime" workspaceScope="clear-failed" symbol="SHFE.rb2610" replayActive={false}
@@ -515,6 +515,8 @@ test("正在运行 card: 执行方式, signal, today's figures, position, latest
   expect(card).toHaveTextContent("今天 +140");
   expect(card).toHaveTextContent("持仓 多 1 手");
   expect(card).toHaveTextContent(/开多 3 手 · 执行失败/);
+  expect(card).toHaveTextContent(/平多 1 手 · 已成交/);
+  expect(card).not.toHaveTextContent("结果待确认");
   // 今日判断联动: the yellow line when the strategy goes against the product's judgment.
   expect(within(card).getByTestId("strategy-clash")).toHaveTextContent("今日判断偏空，这个策略今天在做多");
   expect(uiSurface("strategyInstance:execution")!.state).toMatchObject({position:{direction:"long", volume:1}, signalsToday:2,
@@ -526,6 +528,7 @@ test("正在运行 card: 执行方式, signal, today's figures, position, latest
   expect(disclosureStates()["strategy-run-log:execution"]).toBe(true);
   const log = within(card).getByRole("region",{name:"运行日志"});
   expect(within(log).getByText(/执行失败/)).toBeVisible();
+  expect(log).toHaveTextContent(/平多 · 1 手 · 已成交 · 最新委托回读：已成交/);
   fireEvent.click(within(log).getByRole("button",{name:"清空失败记录"}));
   expect(within(log).queryByText(/执行失败/)).toBeNull();
   fireEvent.click(within(log).getByRole("button",{name:"查看历史记录"}));

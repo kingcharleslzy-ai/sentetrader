@@ -1,4 +1,4 @@
-import { monitorDisplay } from "./strategyMonitorDisplay";
+import { attemptStatusLabel, monitorDisplay } from "./strategyMonitorDisplay";
 
 test("stale evaluation cannot claim the monitor is still watching", () => {
   expect(monitorDisplay({status:"monitoring",decision:{status:"waiting",detail:"等待信号",checkedAt:new Date(Date.now()-60_000).toISOString()}}).label).toBe("运行回报已过期");
@@ -19,6 +19,11 @@ test("normal cooldown is waiting rather than a failed trade", () => {
 
 test("every runtime strategy status maps onto one of the four user-facing states", async () => {
   const { strategyState, STRATEGY_STATE_ORDER } = await import("./strategyMonitorDisplay");
+  for (const readback of ["已成交", "部分成交", "部分成交后已结束", "结果未知", "已拒绝", "已撤销", "已成交 / 已撤销", "已成交 / 结果未知"]) {
+    expect(attemptStatusLabel("UNKNOWN", 0, null, readback)).toBe(readback);
+  }
+  expect(attemptStatusLabel("UNKNOWN")).toBe("结果待确认");
+  expect(attemptStatusLabel("SKIPPED", 1, "confirm")).toBe("出卡待确认");
   expect(strategyState("monitoring")).toEqual({ label: "运行中" });
   expect(strategyState("paused")).toEqual({ label: "已暂停" });
   expect(strategyState("ready")).toEqual({ label: "已验证" });

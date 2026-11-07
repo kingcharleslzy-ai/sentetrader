@@ -73,7 +73,7 @@ function runOf(item: SavedStrategy, library: SavedStrategy | undefined, monitor:
     signalAction: monitor?.effectiveSignalAction ?? monitor?.signalAction ?? item.signalAction ?? "auto",
     todayPnl: monitor?.today && monitor.today.pnl != null && Number.isFinite(pnl) ? pnl : null,
     last: attempt ? { time: monitorTime(attempt.updatedAt).slice(-8, -3),
-      text: `${actionText(attempt.action, attempt.volume, Boolean(plan?.spread))} · ${attemptStatusLabel(attempt.status, attempt.cardProposalIds?.length, attempt.signalAction)}` } : null,
+      text: `${actionText(attempt.action, attempt.volume, Boolean(plan?.spread))} · ${attemptStatusLabel(attempt.status, attempt.cardProposalIds?.length, attempt.signalAction, attempt.orderDisplayStatus)}` } : null,
     position: monitor?.position ?? null, clash: monitor?.researchClash?.text ?? null,
     funds: monitor?.funds ?? null, drawdown: monitor?.drawdown ?? null,
   };
