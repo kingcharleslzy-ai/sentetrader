@@ -3654,6 +3654,9 @@ test("有新消息: the orb's dot marks an AI reply the user has not seen and cl
   expect(screen.getByTestId("ai-orb")).not.toHaveAttribute("data-new-message");
   view.rerender(<FuturesDecisionWorkspace {...withTurns([turn("a1", "旧回复"), turn("v1", "念过了", "voice")])} />);
   expect(screen.getByTestId("ai-orb")).not.toHaveAttribute("data-new-message");
+  // Still being written: not new yet, and its answer filling the same turn later is.
+  view.rerender(<FuturesDecisionWorkspace {...withTurns([turn("a1", "旧回复"), { ...turn("a2", ""), completed: false }])} />);
+  expect(screen.getByTestId("ai-orb")).not.toHaveAttribute("data-new-message");
   view.rerender(<FuturesDecisionWorkspace {...withTurns([turn("a1", "旧回复"), turn("a2", "新回复")])} />);
   expect(screen.getByTestId("ai-orb")).toHaveAttribute("data-new-message", "true");
   expect(screen.getByTestId("ai-orb").querySelector(".ai-orb-dot")).not.toBeNull();

@@ -1364,7 +1364,9 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   // 有新消息 (owner 2026-11-07): the orb's blue dot while the conversation has an AI reply or card the user has not
   // seen — the 对话面板 (or a board's chat block) is closed or scrolled up from the bottom. The reply seen last is
   // remembered per chat session; the first one read for a session (its history) counts as seen. Voice replies were heard.
-  const lastAiTurnId = useMemo(() => [...decisionTurns].reverse().find(turn => turn.role !== "user" && turn.origin !== "voice")?.id, [decisionTurns]);
+  // A reply still being written (the 等待模型响应 row, a streaming turn) is not new yet: its answer fills the same turn.
+  const lastAiTurnId = useMemo(() => [...decisionTurns].reverse().find(turn => turn.role !== "user" && turn.origin !== "voice"
+    && turn.completed !== false && !turn.cards.some(card => card.type === "task" && card.payload.status === "running"))?.id, [decisionTurns]);
   const [chatAtLatest, setChatAtLatest] = useState(true);
   const chatLooking = (rightDock === "ai" || boardModules.includes("chat")) && chatAtLatest;
   const [chatSeen, setChatSeen] = useState<{ session: string | undefined; id: string }>();
