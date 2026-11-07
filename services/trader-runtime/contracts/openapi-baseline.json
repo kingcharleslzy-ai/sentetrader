@@ -14659,13 +14659,26 @@
     "additionalProperties": false,
     "properties": {
      "aiAvatar": {
-      "default": "kline",
+      "default": "stone",
       "enum": [
-       "kline",
+       "stone",
+       "ring",
+       "voice",
        "eyes",
-       "pixel"
+       "pixel",
+       "kline"
       ],
       "title": "Aiavatar",
+      "type": "string"
+     },
+     "aiAvatarSize": {
+      "default": "md",
+      "enum": [
+       "sm",
+       "md",
+       "lg"
+      ],
+      "title": "Aiavatarsize",
       "type": "string"
      },
      "autoHidePositionsBar": {
@@ -17040,10 +17053,10 @@
  "info": {
   "description": "TqKq 模拟盘默认不设平台手数或次数上限，也不逐单请求授权；每次动作仍重新校验行情、账户、持仓和可配置风险规则。实盘始终关闭。",
   "title": "Sente Runtime",
-  "version": "1.9.4",
+  "version": "1.9.5",
   "x-ai-trader": {
-   "commit": "1c9da98e22a894523c902ba0da6c2aeef01474fe",
-   "version": "1.9.4"
+   "commit": "a64d50f6d80e25b21259305059abe21e4ddde2f0",
+   "version": "1.9.5"
   }
  },
  "openapi": "3.1.0",
