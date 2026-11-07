@@ -17040,10 +17040,10 @@
  "info": {
   "description": "TqKq 模拟盘默认不设平台手数或次数上限，也不逐单请求授权；每次动作仍重新校验行情、账户、持仓和可配置风险规则。实盘始终关闭。",
   "title": "Sente Runtime",
-  "version": "1.9.2",
+  "version": "1.9.3",
   "x-ai-trader": {
-   "commit": "cf811aa9f40b50fb2d9b9a111a03497327c70828",
-   "version": "1.9.2"
+   "commit": "50f3739021e8426b0c7bfb58d43b4e9e91e91a96",
+   "version": "1.9.3"
   }
  },
  "openapi": "3.1.0",
