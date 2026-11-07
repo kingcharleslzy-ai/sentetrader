@@ -9,6 +9,7 @@ import pytest
 from fastapi import HTTPException
 from httpx import ASGITransport, AsyncClient
 
+from trader_runtime.auth import OwnerIdentity, hash_owner_password
 from trader_runtime.broker import EventBroker
 from trader_runtime.data_providers import SidecarReadOnlyDataProvider, fake_account_summary, fake_market_workbench
 from trader_runtime.main import create_app
@@ -258,16 +259,28 @@ async def test_shutdown_detaches_the_replay_and_the_next_slot_adopts_it_paused(t
     # replay, and slot B must adopt it (paused) from the durable record and the
     # child database — never two processes advancing one replay.
     source = HistoricalSource()
-    slot_a = build_slot(tmp_path / "live-a.sqlite3", source)
-    headers = {"Origin": "http://127.0.0.1:5173", "Authorization": "Bearer test-replay-token"}
+    user_id = OwnerIdentity("replay-test-owner").scoped_user_id
+    auth = {"auth_mode": "owner-password", "owner_username": "replay-test-owner",
+            "owner_password_hash": hash_owner_password("synthetic-replay-password"),
+            "owner_session_secret": "synthetic-replay-session-secret-over-32-bytes",
+            "cors_origins": {"http://127.0.0.1:5173"}}
+    slot_a = build_slot(tmp_path / "live-a.sqlite3", source, **auth)
+    headers = {"Origin": "http://127.0.0.1:5173"}
     old_context = None
     async with slot_a.router.lifespan_context(slot_a):
         async with AsyncClient(transport=ASGITransport(slot_a), base_url="http://runtime", headers=headers) as client:
+            assert (await client.post("/api/auth/owner", json={"username": "replay-test-owner", "password": "synthetic-replay-password"})).status_code == 200
             created = await client.post("/api/replays", json={"symbol": SYMBOL, "tradingDay": "2026-09-04", "initialBalance": 1_000_000})
             assert created.status_code == 201, created.text
             played = await client.post(f"/api/replays/{IDENTIFIER}/control", json={"action": "play"})
             assert played.json()["playing"] is True
         old_context = slot_a.state.replay_router.contexts[IDENTIFIER]
+        child_store = old_context.child.state.store
+        account_id = old_context.child.state.accounts.default.account_id
+        assert child_store.is_execution_owner(account_id=account_id, user_id=user_id)
+        # Simulate the persisted account from before the fix; adoption must repair it, not import config again.
+        with child_store.transaction() as connection:
+            connection.execute("UPDATE trading_accounts SET execution_owner_user_id = 'local-user' WHERE id = ?", (account_id,))
     # Lifespan exit = detach: the sidecar replay stays, the loop is stopped and
     # joined, and the old slot can no longer drive the replay.
     assert source.closes == []
@@ -276,12 +289,13 @@ async def test_shutdown_detaches_the_replay_and_the_next_slot_adopts_it_paused(t
         old_context.require_open("local-user")
     assert (tmp_path / "replays" / IDENTIFIER / "replay.json").exists()
 
-    slot_b = build_slot(tmp_path / "live-b.sqlite3", source)
+    slot_b = build_slot(tmp_path / "live-b.sqlite3", source, **auth)
     async with slot_b.router.lifespan_context(slot_b):
         router = slot_b.state.replay_router
         with pytest.raises(HTTPException):
             await router.resolve(IDENTIFIER, "another-user")  # membership isolation survives adoption
         async with AsyncClient(transport=ASGITransport(slot_b), base_url="http://runtime", headers=headers) as client:
+            assert (await client.post("/api/auth/owner", json={"username": "replay-test-owner", "password": "synthetic-replay-password"})).status_code == 200
             listed = (await client.get("/api/replays")).json()["items"]
             assert [item["replayId"] for item in listed] == [IDENTIFIER]
             assert listed[0]["status"] == "loading"  # listed before adoption, the client finds it again
@@ -289,6 +303,15 @@ async def test_shutdown_detaches_the_replay_and_the_next_slot_adopts_it_paused(t
             assert detail.status_code == 200, detail.text
             adopted = detail.json()
             assert adopted["status"] == "ready" and adopted["playing"] is False  # paused takeover
+            child_store = slot_b.state.replay_router.contexts[IDENTIFIER].child.state.store
+            assert child_store.is_execution_owner(account_id=account_id, user_id=user_id)
+            changes = child_store.connection.execute(
+                "SELECT before_json, after_json, actor FROM state_changes WHERE object_type = 'execution_owner' AND change = 'updated' ORDER BY seq DESC"
+            ).fetchall()
+            assert len(changes) == 2  # old fixture value and the one repair, no repeated boot rewrite
+            assert changes[0]["before_json"] == '{"executionOwnerUserId":"local-user"}'
+            assert changes[0]["after_json"] == '{"executionOwnerUserId":"' + user_id + '"}'
+            assert changes[0]["actor"] == user_id
             summary = await client.get(f"/api/replays/{IDENTIFIER}/runtime/api/account/summary")
             assert summary.status_code == 200 and summary.json()["equity"] == 1_000_000
             # Only the new slot advances; the adopted replay plays on from paused.

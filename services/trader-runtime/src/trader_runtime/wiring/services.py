@@ -40,7 +40,7 @@ from ..research_desk import ResearchDeskService
 from ..research_live import LiveSources, ResearchLiveService
 from ..risk import InstrumentSpecProvider, RiskPolicyProvider
 from ..simulation_orders import SimulationGateway, SimulationOrderService
-from ..store import RuntimeStore
+from ..store import RuntimeStore, utc_now
 from ..strategy_monitor import StrategyMonitorService
 from ..testing.fake_gateway import ENV_FLAG as FAKE_GATEWAY_FLAG
 from ..testing.fake_gateway import FakeSimulationGateway
@@ -338,7 +338,15 @@ def build_services(
             sidecar_url=spec.sidecar_url,
             sidecar_token_file=spec.sidecar_token_file,
             grants=spec.grants,
+            changed_by=execution_owner_user_id if replay_provider is not None else None,
         )
+    if replay_provider is not None:
+        # The parent verified this replay's owner; repair old child databases before recovering execution.
+        with store.transaction() as connection:
+            connection.execute(
+                "UPDATE trading_accounts SET execution_owner_user_id = ?, changed_by = ?, updated_at = ?"
+                " WHERE id = ? AND execution_owner_user_id != ?",
+                (execution_owner_user_id, execution_owner_user_id, utc_now(), specs[0].id, execution_owner_user_id))
     store.default_trading_account_id = specs[0].id
     if specs[0].grants is None:
         # The 2026-09-23 isolation migration: deployments that never declared the

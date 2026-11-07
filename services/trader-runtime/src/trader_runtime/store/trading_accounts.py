@@ -57,6 +57,7 @@ class TradingAccountStore(StoreBase):
         self, account_id: str, *, execution_owner_user_id: str, provider_kind: str,
         display_name: str, sidecar_url: str | None, sidecar_token_file: str | None = None,
         grants: Iterable[tuple[str, str]] | None = None,
+        changed_by: str | None = None,
     ) -> dict[str, Any]:
         """Create (or refresh) an account and its grants.
 
@@ -77,10 +78,10 @@ class TradingAccountStore(StoreBase):
                 connection.execute(
                     """INSERT INTO trading_accounts
                     (id, environment, provider_kind, display_name, sidecar_url, sidecar_token_file,
-                     execution_owner_user_id, status, created_at, updated_at)
-                    VALUES (?, 'simulation', ?, ?, ?, ?, ?, 'active', ?, ?)""",
+                     execution_owner_user_id, status, created_at, updated_at, changed_by)
+                    VALUES (?, 'simulation', ?, ?, ?, ?, ?, 'active', ?, ?, ?)""",
                     (account_id, provider_kind, display_name, sidecar_url,
-                     sidecar_token_file, execution_owner_user_id, now, now),
+                     sidecar_token_file, execution_owner_user_id, now, now, changed_by),
                 )
             else:
                 connection.execute(

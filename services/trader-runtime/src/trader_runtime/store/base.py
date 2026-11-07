@@ -1228,6 +1228,7 @@ class StoreBase:
             self._add_column("ai_stop_orders", "trailing_json TEXT")
             # 改动留痕 (2026-10-30): who moved a level last (user / strategy / trailing), read by its trigger.
             self._add_column("ai_stop_orders", "changed_by TEXT")
+            self._add_column("trading_accounts", "changed_by TEXT")
             self.connection.execute("""CREATE TABLE IF NOT EXISTS strategy_fill_events (
                 user_id TEXT NOT NULL, event_id TEXT NOT NULL, trade_time INTEGER NOT NULL,
                 trading_day TEXT NOT NULL, client_order_id TEXT NOT NULL,

@@ -91,7 +91,7 @@ def create_app(
     )
 
 
-def create_replay_app(parent: RuntimeContext, root: Path, replay_provider: Any) -> FastAPI:
+def create_replay_app(parent: RuntimeContext, root: Path, replay_provider: Any, user_id: str) -> FastAPI:
     """A historical replay runs as its own app: fake data mode fed by the replay
     provider, which is also its simulation gateway; the parent's auth and agent
     settings; local-token auth so the parent router owns the identity check."""
@@ -107,6 +107,7 @@ def create_replay_app(parent: RuntimeContext, root: Path, replay_provider: Any) 
         runtime_instance_id=None, simulation_gateway=replay_provider,
         agent_credential_configured=parent.agent_credential_configured, registration_enabled=None,
         deepseek_api_key=None, replay_provider=replay_provider, replay_auth=parent.auth,
+        replay_owner_user_id=user_id,
     )
     # A replay app is single-tenant by construction: its own database serves the one
     # user the parent's router already checked owns this replay. It inherits the
@@ -124,10 +125,12 @@ def _build_runtime(
     simulation_gateway: SimulationGateway | None, agent_credential_configured: bool,
     registration_enabled: bool | None, deepseek_api_key: str | None, replay_provider: Any | None,
     replay_auth: AuthService | None, account_providers: Mapping[str, ReadOnlyDataProvider] | None = None,
+    replay_owner_user_id: str | None = None,
 ) -> FastAPI:
     services = build_services(settings, data_provider=data_provider, simulation_gateway=simulation_gateway,
                               replay_provider=replay_provider,
-                              execution_owner_user_id=default_execution_owner_user_id(settings, owner_username),
+                              execution_owner_user_id=(replay_owner_user_id if replay_owner_user_id is not None
+                                                       else default_execution_owner_user_id(settings, owner_username)),
                               account_providers=account_providers)
     agent = build_agent(settings, services, native_transport=native_transport, deepseek_api_key=deepseek_api_key,
                         replay_provider=replay_provider)
@@ -379,14 +382,7 @@ def _build_runtime(
     application.state.ctx = ctx
 
     def create_replay_child(root: Path, child_provider: Any, user_id: str, *, configure: bool = True) -> FastAPI:
-        child = create_replay_app(ctx, root, child_provider)
-        # A replay is the user's own isolated TqSim account: they own it. Without the grant the
-        # hand-driven paths that check the account role (挂/撤保护, 开仓卡顺带止损止盈) refuse every
-        # cloud user with account_not_granted; only the local-token user had one by default.
-        child_account = child.state.accounts.default.account_id
-        if child.state.store.account_role(account_id=child_account, user_id=user_id) is None:
-            child.state.store.grant_account(account_id=child_account, user_id=user_id, role="owner",
-                                            granted_by="replay")
+        child = create_replay_app(ctx, root, child_provider, user_id)
         if configure:
             from .replay import copy_replay_configuration
             copy_replay_configuration(store, child, user_id, child_provider.snapshot["symbol"])

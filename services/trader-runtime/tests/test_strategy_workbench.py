@@ -7,6 +7,8 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from test_replay import IDENTIFIER, SYMBOL, HistoricalSource
+from test_simulation_orders import Gateway, NormalProvider
+from trader_runtime.auth import OwnerIdentity, hash_owner_password
 from trader_runtime.main import create_app
 from trader_runtime.replay import ReplayProvider
 from trader_runtime.strategy_rules import (
@@ -153,12 +155,28 @@ class CycleSource(HistoricalSource):
         return super()._request(method, path, payload, **kwargs)
 
 
-async def test_saved_strategy_runs_both_directions_in_isolated_replay_and_reviews_fees(tmp_path):
+async def test_saved_strategy_runs_both_directions_in_isolated_replay_and_reviews_fees(tmp_path, monkeypatch):
     source = CycleSource()
-    app = create_app(tmp_path/"live.sqlite3", runtime_state_root=tmp_path, data_provider=source, agent_mode="fake", local_token="test-replay-token")
-    headers = {"Origin": "http://127.0.0.1:5173", "Authorization": "Bearer test-replay-token"}
+    monkeypatch.setattr(source, "market_snapshot", NormalProvider().market_snapshot)
+    parent_gateway = Gateway()
+    user_id = OwnerIdentity("replay-test-owner").scoped_user_id
+    app = create_app(tmp_path/"live.sqlite3", runtime_state_root=tmp_path, data_provider=source, agent_mode="fake",
+                     simulation_gateway=parent_gateway,
+                     auth_mode="owner-password", owner_username="replay-test-owner",
+                     owner_password_hash=hash_owner_password("synthetic-replay-password"),
+                     owner_session_secret="synthetic-replay-session-secret-over-32-bytes",
+                     cors_origins={"http://127.0.0.1:5173"})
+    headers = {"Origin": "http://127.0.0.1:5173"}
     async with app.router.lifespan_context(app):
         async with AsyncClient(transport=ASGITransport(app), base_url="http://runtime", headers=headers) as client:
+            login = await client.post("/api/auth/owner", json={"username": "replay-test-owner", "password": "synthetic-replay-password"})
+            assert login.status_code == 200, login.text
+            parent_session = (await client.post("/api/sessions", json={"mode": "local", "agentId": "native"})).json()["sessionId"]
+            parent_authorization = app.state.autonomy.ensure_runtime_access(
+                user_id=user_id, session_id=parent_session, symbol=SYMBOL, permission="open")
+            tables = ("trading_accounts", "ai_execution_authorizations", "tqkq_sim_order_links")
+            parent_before = {table: [tuple(row) for row in app.state.store.connection.execute(f"SELECT * FROM {table}")]
+                             for table in tables}
             saved = await client.post("/api/strategy-plans", json={"plan": plan().model_dump()})
             assert saved.status_code == 201, saved.text
             identifier = saved.json()["strategyId"]
@@ -169,22 +187,35 @@ async def test_saved_strategy_runs_both_directions_in_isolated_replay_and_review
             created = await client.post("/api/replays", json={"symbol": SYMBOL, "tradingDay": "2026-09-04", "initialBalance": 1000000})
             assert created.status_code == 201, created.text
             prefix = created.json()["runtimePath"]
+            child = app.state.replay_router.contexts[IDENTIFIER].child
+            assert child.state.store.is_execution_owner(account_id=child.state.accounts.default.account_id, user_id=user_id)
+            assert child.state.autonomy.current(user_id=user_id) is None  # the parent's active lease was not copied
             await client.post(f"/api/replays/{IDENTIFIER}/control", json={"action":"step"})
             validation = await client.post(prefix+f"/api/strategy-plans/{identifier}/validate", json={})
             assert validation.status_code == 200, validation.text
             identifier = validation.json()["strategyId"]
-            assert (await client.post(prefix+f"/api/strategies/{identifier}/monitor/start", json={})).status_code == 200
+            invalid_session = await client.post(prefix+f"/api/strategies/{identifier}/monitor/start",
+                                                json={"signalAction": "auto", "sessionId": parent_session})
+            assert invalid_session.status_code == 404, invalid_session.text
+            session = (await client.post(prefix+"/api/sessions", json={"mode": "local", "agentId": "native"})).json()["sessionId"]
+            started = await client.post(prefix+f"/api/strategies/{identifier}/monitor/start",
+                                        json={"signalAction": "auto", "sessionId": session})
+            assert started.status_code == 200, started.text
+            assert started.json()["status"] == "monitoring"
             for price in [824, 822, 822, 822, 822, 824, 824, 824, 824]:
                 source.price = price
                 result = await client.post(f"/api/replays/{IDENTIFIER}/control", json={"action":"step"})
                 assert result.status_code == 200, result.text
             assert [(o["direction"], o["offset"]) for o in source.submits[:4]] == [("BUY","OPEN"),("SELL","CLOSETODAY"),("SELL","OPEN"),("BUY","CLOSETODAY")]
+            authorization = child.state.autonomy.current(user_id=user_id)
+            assert authorization["authorizationId"] != parent_authorization["authorizationId"]
+            child.state.store.get_session(authorization["sessionId"], user_id=user_id)
             review = (await client.get(prefix+f"/api/trade-review?symbol={SYMBOL}")).json()
             assert [t["direction"] for t in review["trades"]] == ["long","short"]
             assert [t["fees"] for t in review["trades"]] == [5,5]
             assert review["account"]["commission"] == 10
-            assert app.state.store.get_strategy_draft(saved.json()["strategyId"], user_id="local-user")["status"] == "draft"
-            assert app.state.simulation_orders.list(user_id="local-user") == []
+            assert app.state.store.get_strategy_draft(saved.json()["strategyId"], user_id=user_id)["status"] == "draft"
+            assert app.state.simulation_orders.list(user_id=user_id) == []
             await client.post(f"/api/replays/{IDENTIFIER}/control", json={"action":"pause_entries"})
             # Fill an already submitted entry, then still allow its rule exit.
             source.price = 822
@@ -197,6 +228,9 @@ async def test_saved_strategy_runs_both_directions_in_isolated_replay_and_review
             assert (await client.post(prefix+f"/api/strategies/{identifier}/monitor/start", json={})).status_code == 409
             assert (await client.get(prefix+"/api/account/summary")).json()["marketSessionStatus"] == "closed"
             assert (tmp_path/"replays"/IDENTIFIER/"review.json").is_file()
+            assert {table: [tuple(row) for row in app.state.store.connection.execute(f"SELECT * FROM {table}")]
+                    for table in tables} == parent_before
+            assert parent_gateway.submit_count == parent_gateway.cancel_count == 0
 
 
 async def test_custom_fees_frozen_and_account_not_double_adjusted():

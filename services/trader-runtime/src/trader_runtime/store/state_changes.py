@@ -45,6 +45,9 @@ class Spec:
 
 
 SPECS = (
+    Spec("trading_accounts", "execution_owner", "{r}.id", "{r}.execution_owner_user_id", "{r}.id",
+         {"execution_owner_user_id": "executionOwnerUserId"}, {},
+         insert_actor="NEW.changed_by", update_actor="NEW.changed_by"),
     # 保护单 (stop / take): the writers that move a level say who (changed_by); status steps are the system's.
     Spec("ai_stop_orders", "protection", "{r}.id", "{r}.user_id", "{r}.trading_account_id",
          {"trigger_price": "triggerPrice", "take_profit_price": "takeProfitPrice", "status": "status", "volume": "volume"},
