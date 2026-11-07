@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { useDisclosureSurface } from "../../uiSurfaces";
 import { LAYOUTS_MAX, type WorkspaceLayoutChange, type WorkspaceLayoutsHandle } from "./workspaceLayouts";
 import { Presence } from "../motion";
+import { useMenuPlace } from "./ChartContextMenu";
 import "./LayoutMenu.css";
 
 /**
@@ -16,6 +17,11 @@ export function LayoutMenu({ handle }: { handle: WorkspaceLayoutsHandle }) {
   const [renaming, setRenaming] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const box = useRef<HTMLSpanElement>(null);
+  const list = useRef<HTMLDivElement>(null);
+  // Placed by the menus' shared placement in window coordinates, kept inside the window (it ran off the right edge at
+  // 特大, 11-07) and opening upward over its button when there is no room below; drawn relative to the button's row,
+  // since the settings dialog is a top-layer modal a menu at the shell's root would sit under.
+  const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const { layouts } = handle;
   const current = layouts.items.find(item => item.id === layouts.current);
   useEffect(() => {
@@ -26,6 +32,8 @@ export function LayoutMenu({ handle }: { handle: WorkspaceLayoutsHandle }) {
     document.addEventListener("keydown", escape);
     return () => { document.removeEventListener("pointerdown", outside); document.removeEventListener("keydown", escape); };
   }, [open, setOpen]);
+  useLayoutEffect(() => { setAnchor(open ? box.current?.getBoundingClientRect() ?? null : null); }, [open]);
+  const place = useMenuPlace(list, anchor?.left ?? 0, (anchor?.bottom ?? 0) + 4, anchor, anchor ? anchor.top - 4 : undefined);
   const run = (change: WorkspaceLayoutChange) => {
     try { handle.apply(change); setError(""); return true; } catch (failure) { setError(failure instanceof Error ? failure.message : "布局暂时不能切换"); return false; }
   };
@@ -35,7 +43,8 @@ export function LayoutMenu({ handle }: { handle: WorkspaceLayoutsHandle }) {
         data-agent-target="workspace-layouts" onClick={() => setOpen(!open)}>
         <span>{current?.name ?? "布局"}</span><ChevronDown />
       </button>
-      <Presence>{open ? <div className="fdw-layout-list" data-agent-target="workspace-layouts-menu">
+      <Presence>{open ? <div className="fdw-layout-list" data-agent-target="workspace-layouts-menu" ref={list}
+        style={anchor ? { left: place.left - anchor.left, top: place.top - anchor.top } : { visibility: "hidden" }}>
         {layouts.items.map(item => <div key={item.id}>
           {renaming === item.id
             ? <form className="fdw-layout-form" onSubmit={event => { event.preventDefault(); if (run({ rename: { id: item.id, name: draft } })) setRenaming(null); }}>

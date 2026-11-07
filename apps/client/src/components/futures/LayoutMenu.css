@@ -1,7 +1,7 @@
-/* 布局 dropdown in 设置 → 界面 → 布局 (the last row there, so the list opens upward). */
+/* 布局 dropdown in 设置 → 界面 → 布局: LayoutMenu places the list (useMenuPlace) inside the window, upward when it must. */
 .fdw-layout-menu { position: relative; display: inline-flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
 .fdw-layout-menu > button svg { width: 14px; height: 14px; }
-.fdw-layout-list { position: absolute; bottom: calc(100% + 4px); left: 0; z-index: 30; width: 280px; display: grid; gap: var(--space-0); padding: var(--space-1);
+.fdw-layout-list { position: absolute; left: 0; top: 0; z-index: 30; width: max(280px, calc(var(--font-md) * 21)); display: grid; gap: var(--space-0); padding: var(--space-1);
   border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--panel); box-shadow: var(--shadow-2); }
 .fdw-layout-list > div { display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
 .fdw-layout-list button { height: 28px; display: flex; align-items: center; padding: 0 var(--space-3); border: 0; border-radius: var(--radius-control);

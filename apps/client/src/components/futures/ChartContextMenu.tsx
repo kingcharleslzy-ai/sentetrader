@@ -103,15 +103,18 @@ export interface ChartMenuActions {
  */
 export const menuHost = () => document.querySelector(".fdw-shell") ?? document.body;
 
-export function useMenuPlace(ref: RefObject<HTMLElement | null>, x: number, y: number, key?: unknown) {
+export function useMenuPlace(ref: RefObject<HTMLElement | null>, x: number, y: number, key?: unknown, above?: number) {
   const [place, setPlace] = useState({ left: x, top: y, flip: false });
   useLayoutEffect(() => {
     const height = ref.current?.offsetHeight ?? 320;
     const menuWidth = ref.current?.offsetWidth ?? 248;
     const width = window.innerWidth || 1024;
     const left = Math.max(8, Math.min(x, width - menuWidth - 12));
-    setPlace({ left, top: Math.max(8, Math.min(y, (window.innerHeight || 768) - height - 8)), flip: left + menuWidth + 268 > width });
-  }, [ref, x, y, key]);
+    const room = (window.innerHeight || 768) - height - 8;
+    // `above`: a dropdown's control top — one that would run off the bottom opens upward over it instead of covering it.
+    const top = above !== undefined && y > room && above - height >= 8 ? above - height : Math.max(8, Math.min(y, room));
+    setPlace({ left, top, flip: left + menuWidth + 268 > width });
+  }, [ref, x, y, key, above]);
   return place;
 }
 
