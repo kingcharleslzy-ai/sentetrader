@@ -12684,7 +12684,7 @@
    },
    "TourChange": {
     "additionalProperties": false,
-    "description": "A guided tour: `start` with 1–20 steps, then `next` / `prev` / `stop`. Each step opens its surface,\nhighlights its target and shows the step indicator (第 n/N 步 · 上一步 / 下一步 / 结束). A click anywhere\nonly closes the bubble; only `stop` (or 结束, or `next` past the last step) ends the tour.",
+    "description": "A guided tour: `start` with 1–20 steps, then `next` / `prev` / `stop`. Each step opens its surface,\nhighlights its target (a ring, no label) and shows the step indicator with the step's label (第 n/N 步 · 上一步 /\n下一步 / 结束), placed clear of the target and the open side panel. A click anywhere only clears the highlight;\nonly `stop` (or 结束, or `next` past the last step) ends the tour.",
     "properties": {
      "op": {
       "enum": [
@@ -12984,7 +12984,7 @@
       "description": "先把目标所在表面打开（view/panel/dialog…），再高亮"
      },
      "label": {
-      "description": "气泡里的一句话",
+      "description": "步骤条里这一步的一句话",
       "maxLength": 40,
       "minLength": 1,
       "title": "Label",
@@ -17040,10 +17040,10 @@
  "info": {
   "description": "TqKq 模拟盘默认不设平台手数或次数上限，也不逐单请求授权；每次动作仍重新校验行情、账户、持仓和可配置风险规则。实盘始终关闭。",
   "title": "Sente Runtime",
-  "version": "1.9.1",
+  "version": "1.9.2",
   "x-ai-trader": {
-   "commit": "679ac475615529ff7af7263644ad957ff90ff866",
-   "version": "1.9.1"
+   "commit": "cf811aa9f40b50fb2d9b9a111a03497327c70828",
+   "version": "1.9.2"
   }
  },
  "openapi": "3.1.0",
