@@ -3,7 +3,7 @@ import { listProductBriefs, refreshProductBriefs, requestJson, type ProductBrief
 import { LONG_READ_TIMEOUT_MS } from "../requestTimeout";
 import { useActivityFresh, useFillFeedback } from "../hooks/useActivityMotion";
 import { usePersistentDraft } from "../hooks/usePersistentDraft";
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 
 /** The trading account the session acts on now; account-scoped reads key on it (#526). */
 function useActiveTradingAccount() { return useSyncExternalStore(onTradingAccountChange, activeTradingAccount); }
@@ -25,6 +25,8 @@ export type { ChartExtension } from "../runtimeClient";
 import { HelpButton } from "./AppHelp";
 import "./AiActivity.css";
 import { Presence } from "./motion";
+import { createPortal } from "react-dom";
+import { menuHost, useMenuPlace } from "./futures/ChartContextMenu";
 
 const defaultConfig: WorkbenchConfig = { showAiActivity: true, showTradeMarkers: true, showMarketBriefs: true, extensions: [] };
 export function useAppWorkbench(baseUrl: string | undefined, symbol: string | undefined) {
@@ -184,10 +186,7 @@ const seenBriefIds = new Set<string>();
 const ORB_LABEL_HALF = 118;
 const FLOAT_POSITION_KEY = "ai-trader-ai-float-position-v2";
 const LEGACY_POSITION_KEY = "ai-trader-ai-float-position-v1";
-/** The orb's place as fractions of its safe area (the chart minus its price/time axes, see
- *  FuturesDecisionWorkspace.css), so a remembered place stays visible and off the axes at any window size.
- *  Default: bottom-left of the main price pane — clear of the price axis, the pane legends
- *  and the right rail. */
+/** The orb's place as fractions of the desktop workspace; storage stays local to this device. */
 function readOrbPosition(): { x: number; y: number } | undefined {
   try {
     const stored = JSON.parse(localStorage.getItem(FLOAT_POSITION_KEY) ?? "null");
@@ -221,7 +220,7 @@ const LONG_PRESS_MS = 500;
 
 /**
  * The one floating AI orb (2026-09-18: the "AI 动态" ball and the voice orb became one). Draggable
- * with a remembered position (default bottom-left of the main price pane, inside the axes).
+ * with a remembered position shared by all desktop views (default workspace bottom-left).
  * Its look layers what the AI is doing: standby breathing; an arc while a strategy operates or the call's agent request runs; the call's own listening halo and speaking
  * bars; a dot for unread activity. Click connects or hangs up the voice call (retries after an
  * error; opens the activity card when the Runtime has no voice). New activity, a market brief or
@@ -237,17 +236,17 @@ export function AiOrb({ baseUrl, symbol, replay, activity, error, config, onBrie
   voiceAvailable?: boolean;
   /** 设置 → 界面 → AI 形象. */
   avatar?: AiAvatarKind;
-  /** A short message beside the orb (the AI 指令栏's result), on the side with more room: away from the price axis. */
+  /** A short message beside the orb (the AI 指令栏's result), on the side with more room. */
   beside?: ReactNode;
 }) {
   const identity = useReadIdentity();
   const area = useRef<HTMLDivElement>(null); const bubble = useRef<HTMLButtonElement>(null);
+  const menu = useRef<HTMLMenuElement>(null);
   const drag = useRef<{ x: number; y: number; left: number; top: number; moved: boolean } | undefined>(undefined);
   const suppressClick = useRef(false);
   const pressTimer = useRef<number | undefined>(undefined);
   const autoTimer = useRef<number | undefined>(undefined);
-  const [size, setSize] = useState({ width: 0, height: 0 });
-  const [mainBottom, setMainBottom] = useState<number>();
+  const [size, setSize] = useState({ width: 0, height: 0, left: 0, top: 0, leftInset: 0, rightInset: 0, bottomInset: 0, menuHeight: 0, menuWidth: 0 });
   const [position, setPosition] = useState(readOrbPosition);
   const [open, setOpen] = useState(false); const [closing, setClosing] = useState(false); const [unread, setUnread] = useState(false);
   // "auto": the card showed itself for new activity and folds back on its own; a click or command pins it.
@@ -286,21 +285,40 @@ export function AiOrb({ baseUrl, symbol, replay, activity, error, config, onBrie
     if (open && !auto) setUnread(false);
     if (open) { const close = (event: KeyboardEvent) => { if (event.key === "Escape") { closeCard(); } }; window.addEventListener("keydown", close); return () => window.removeEventListener("keydown", close); }
   }, [open, auto]);
-  useEffect(() => {
-    if (!area.current) return;
-    const main = area.current.parentElement?.querySelector('[data-region="chart.main"]');
-    const observer = new ResizeObserver(entries => {
-      const entry = entries.find(item => item.target === area.current) ?? entries[0];
-      if (entry && (!main || entry.target === area.current)) setSize({ width: entry.contentRect.width, height: entry.contentRect.height });
-      if (main && area.current) {
-        const hasSubPanes = main.parentElement?.querySelectorAll('.fdw-chart-pane').length !== 1;
-        setMainBottom(main.getBoundingClientRect().bottom - area.current.getBoundingClientRect().top - (hasSubPanes ? 12 : 38));
-      }
-    });
-    observer.observe(area.current);
-    if (main) observer.observe(main);
+  // Rebind after each render: switching views can add/remove the bottom bar without resizing the body.
+  useLayoutEffect(() => {
+    const host = area.current;
+    if (!host) return;
+    const bar = host.parentElement?.querySelector('[data-testid="positions-bar"]');
+    const rail = host.parentElement?.querySelector(".fdw-tools-rail");
+    const measure = () => {
+      const rect = host.getBoundingClientRect();
+      const barRect = bar?.getBoundingClientRect();
+      const railRect = rail?.getBoundingClientRect();
+      const next = { width: rect.width, height: rect.height, left: rect.left, top: rect.top,
+        leftInset: railRect?.width && railRect.left < rect.left + rect.width / 2 ? Math.max(0, railRect.right - rect.left + 8) : 0,
+        rightInset: railRect?.width && railRect.left >= rect.left + rect.width / 2 ? Math.max(0, rect.right - railRect.left + 8) : 0,
+        bottomInset: barRect?.height ? Math.max(0, rect.bottom - (bar!.parentElement!.getBoundingClientRect().bottom - barRect.height) + 8) : 0,
+        menuHeight: menu.current?.offsetHeight ?? 0, menuWidth: menu.current?.offsetWidth ?? 0 };
+      setSize(old => Object.keys(next).every(key => old[key as keyof typeof old] === next[key as keyof typeof next]) ? old : next);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(host);
+    if (bar) observer.observe(bar);
+    if (rail) observer.observe(rail);
+    if (menu.current) observer.observe(menu.current);
     return () => observer.disconnect();
-  }, []);
+  });
+  useEffect(() => {
+    if (!menuOpen) return;
+    menu.current?.querySelector('button')?.focus();
+    const close = (event: KeyboardEvent) => { if (event.key === "Escape") { setMenuOpen(false); bubble.current?.focus(); } };
+    const outside = (event: PointerEvent) => { if (!menu.current?.contains(event.target as Node) && !bubble.current?.contains(event.target as Node)) setMenuOpen(false); };
+    window.addEventListener("keydown", close);
+    window.addEventListener("pointerdown", outside);
+    return () => { window.removeEventListener("keydown", close); window.removeEventListener("pointerdown", outside); };
+  }, [menuOpen]);
 
   // --- the voice call ---
   // The orb is always mounted, so it owns the `voice-call` / `voice-mute` surfaces; the 对话面板
@@ -325,23 +343,24 @@ export function AiOrb({ baseUrl, symbol, replay, activity, error, config, onBrie
     if (inCall) hangUp(); else startCall();
   };
 
-  const maxX = Math.max(0, size.width - 56), maxY = Math.max(0, size.height - 56);
-  const left = Math.round((position?.x ?? 0) * maxX);
-  const top = position ? Math.round(position.y * maxY) : Math.round(Math.max(0, Math.min(maxY, (mainBottom ?? size.height) - 56)));
+  const windowMaxX = Math.max(0, size.width - 56), windowMaxY = Math.max(0, size.height - 56);
+  const maxX = Math.max(size.leftInset, windowMaxX - size.rightInset), maxY = Math.max(0, windowMaxY - size.bottomInset);
+  const left = Math.max(size.leftInset, Math.min(maxX, Math.round((position?.x ?? 0) * windowMaxX)));
+  const top = position ? Math.min(maxY, Math.round(position.y * windowMaxY)) : maxY;
   const move = (x: number, y: number) => {
-    const next = { x: maxX ? Math.max(0, Math.min(maxX, x)) / maxX : 0, y: maxY ? Math.max(0, Math.min(maxY, y)) / maxY : 0 };
+    const next = { x: windowMaxX ? Math.max(size.leftInset, Math.min(maxX, x)) / windowMaxX : 0, y: windowMaxY ? Math.max(0, Math.min(maxY, y)) / windowMaxY : 0 };
     setPosition(next);
     try { localStorage.setItem(FLOAT_POSITION_KEY, JSON.stringify(next)); } catch { /* Optional preference. */ }
   };
-  const cardWidth = Math.min(348, size.width), cardHeight = Math.min(440, size.height);
+  const safeHeight = Math.max(0, size.height - size.bottomInset);
+  const cardWidth = Math.min(348, size.width), cardHeight = Math.min(440, safeHeight);
   const cardLeft=Math.max(0,Math.min(left+56-cardWidth,size.width-cardWidth));
-  const cardTop=Math.max(0,Math.min(top-cardHeight-8,size.height-cardHeight));
+  const cardTop=Math.max(0,Math.min(top-cardHeight-8,safeHeight-cardHeight));
   const besideWidth = Math.min(304, size.width);
   const besideLeft = Math.max(0, Math.min(left + 28 > size.width / 2 ? left - 8 - besideWidth : left + 64, size.width - besideWidth));
   // Bottom-aligned with the orb, growing upwards; an orb near the top grows it downwards instead.
   const besidePlace = top < 120 ? { top } : { bottom: Math.max(0, size.height - top - 56) };
-  const menuLeft = Math.max(0, Math.min(left + 56 - 148, size.width - 148));
-  const menuTop = Math.max(0, top - 8 - (inCall ? 4 : 2) * 34 - 8);
+  const menuPlace = useMenuPlace(menu, size.left + left, size.top + top + 64, `${menuOpen}:${size.menuHeight}:${size.menuWidth}`, size.top + top - 8);
   return <div className="ai-floating-area" ref={area}>
     <button type="button" className="ai-orb" data-testid="ai-orb" data-state={look} data-muted={callStatus.muted ? "true" : undefined} data-call={inCall ? "true" : undefined}
       data-operating={operating||undefined} data-connection={fresh?"ready":"unavailable"} data-unread={unread || undefined}
@@ -351,9 +370,9 @@ export function AiOrb({ baseUrl, symbol, replay, activity, error, config, onBrie
         window.clearTimeout(pressTimer.current); pressTimer.current = window.setTimeout(() => { if (!drag.current?.moved) { suppressClick.current = true; setMenuOpen(true); } }, LONG_PRESS_MS); }}
       onPointerMove={event => { const start = drag.current; if (!start) return; const dx = event.clientX - start.x, dy = event.clientY - start.y; if (Math.hypot(dx, dy) > 5) { start.moved = true; window.clearTimeout(pressTimer.current); } if (start.moved) move(start.left + dx, start.top + dy); }}
       onPointerUp={event => { window.clearTimeout(pressTimer.current); suppressClick.current = suppressClick.current || Boolean(drag.current?.moved); drag.current = undefined; if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); }}
-      onPointerCancel={() => { window.clearTimeout(pressTimer.current); drag.current = undefined; suppressClick.current = true; }} onLostPointerCapture={() => { drag.current = undefined; }}
+      onPointerCancel={() => { window.clearTimeout(pressTimer.current); drag.current = undefined; suppressClick.current = true; }} onLostPointerCapture={() => { window.clearTimeout(pressTimer.current); drag.current = undefined; }}
       onContextMenu={event => { event.preventDefault(); setMenuOpen(value => !value); }}
-      onClick={() => { if (suppressClick.current) { suppressClick.current = false; return; } onPrimary(); }}
+      onClick={event => { if (event.detail > 0 && suppressClick.current) { suppressClick.current = false; return; } onPrimary(); }}
       onKeyDown={event => { const step = 16; const delta = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[event.key]; if (delta) { event.preventDefault(); move(left + delta[0], top + delta[1]); } if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) { event.preventDefault(); setMenuOpen(true); } }}>
       <AiAvatar kind={avatar} size={56} level={callStatus.muted ? 0 : callStatus.level ?? 0}
         state={callStatus.state === "error" ? "error" : !fresh && !inCall ? "offline" : look} />
@@ -361,14 +380,14 @@ export function AiOrb({ baseUrl, symbol, replay, activity, error, config, onBrie
       {unread && <i className="ai-orb-dot" />}
     </button>
     {beside ? <div className="ai-orb-beside" style={{ left: besideLeft, width: besideWidth, ...besidePlace }}>{beside}</div> : null}
-    {voice && (inCall || callStatus.state === "error") ? <span className="ai-orb-label" role="status" data-state={callStatus.state} style={{ left: size.width > 2 * ORB_LABEL_HALF ? Math.min(Math.max(left + 28, ORB_LABEL_HALF), size.width - ORB_LABEL_HALF) : left + 28, top: top + 60 > size.height - 24 ? top - 26 : top + 60 }}>{callLabel}</span> : null}
-    <Presence>{menuOpen ? (
-      <menu className="ai-orb-menu" role="menu" aria-label="AI 球菜单" style={{ left: menuLeft, top: menuTop }}>
+    {voice && (inCall || callStatus.state === "error") ? <span className="ai-orb-label" role="status" data-state={callStatus.state} style={{ left: size.width > 2 * ORB_LABEL_HALF ? Math.min(Math.max(left + 28, ORB_LABEL_HALF), size.width - ORB_LABEL_HALF) : left + 28, top: top + 60 > safeHeight - 24 ? top - 26 : top + 60 }}>{callLabel}</span> : null}
+    <Presence>{menuOpen ? createPortal(
+      <menu ref={menu} className="ai-orb-menu" role="menu" aria-label="AI 球菜单" style={{ left: menuPlace.left, top: menuPlace.top }}>
         {inCall ? <li><button type="button" role="menuitem" onClick={() => { call.mute(!callStatus.muted); setMenuOpen(false); }}>{callStatus.muted ? <><Mic />取消静音</> : <><MicOff />静音</>}</button></li> : null}
         {inCall ? <li><button type="button" role="menuitem" onClick={hangUp}><PhoneOff />挂断</button></li> : null}
         <li><button type="button" role="menuitem" onClick={() => { onOpenChat(); if (inCall) hangUp(); setMenuOpen(false); }}><MessageSquareText />切文字</button></li>
         <li><button type="button" role="menuitem" onClick={() => showCard()}><Activity />AI 动态{unread ? "（有新）" : ""}</button></li>
-      </menu>
+      </menu>, menuHost()
     ) : null}</Presence>
     {(open||closing) && <section inert={closing} aria-hidden={closing||undefined} data-closing={closing||undefined} data-auto={auto||undefined} id="ai-floating-card" className="ai-floating-card" role="region" aria-label="AI 动态卡片" style={{ width: cardWidth, maxHeight: cardHeight, left:cardLeft,top:cardTop,transformOrigin:`${left+28-cardLeft}px ${top+28-cardTop}px` }}
       onPointerEnter={() => { if (auto) { window.clearTimeout(autoTimer.current); setAuto(false); setUnread(false); } }}>

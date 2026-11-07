@@ -92,3 +92,119 @@ test("the AI orb is the voice entry and the activity ball: menu, call, mute, han
   expect(after["voice-call"]).toBe(false);
   expect(after["voice-mute"]).toBeUndefined();
 });
+
+for (const viewport of [{ width: 1280, height: 695 }, { width: 1440, height: 900 }]) {
+  for (const fontScale of ["standard", "extra-large"] as const) {
+    for (const theme of ["light", "dark"] as const) {
+      test(`workspace orb ${viewport.width}x${viewport.height} ${fontScale} ${theme}`, async ({ page }, testInfo) => {
+        test.setTimeout(120_000);
+        await page.setViewportSize(viewport);
+        const runtime = `http://127.0.0.1:${process.env.AI_TRADER_EXECUTION_E2E_RUNTIME_PORT || "8003"}`;
+        const headers = { Authorization: "Bearer ai-trader-execution-e2e-token", Origin: `http://127.0.0.1:${process.env.AI_TRADER_EXECUTION_E2E_CLIENT_PORT || "4176"}` };
+        const windows = async () => (await (await page.request.get(`${runtime}/api/app/ui/windows`, { headers })).json()).windows as { windowId: string; online: boolean }[];
+        const before = new Set((await windows()).map(item => item.windowId));
+        await page.goto("/");
+        await waitForWorkspace(page);
+        const windowId = async () => (await windows()).filter(item => item.online && !before.has(item.windowId)).at(-1)?.windowId;
+        await expect.poll(windowId).toBeTruthy();
+        const command = async (changes: Record<string, unknown>) => {
+          let receipt;
+          for (const [key, value] of Object.entries(changes)) {
+            for (let attempt = 0; attempt < 3; attempt++) {
+              const id = await windowId();
+              const state = await (await page.request.get(`${runtime}/api/app/ui/windows/${id}`, { headers })).json();
+              receipt = await (await page.request.post(`${runtime}/api/app/ui/commands?waitMs=5000`, { headers,
+                data: { commandId: crypto.randomUUID(), windowId: id, expectedRevision: state.revision, changes: { [key]: value } } })).json();
+              if (receipt.status === "applied") break;
+            }
+            expect(receipt.status, JSON.stringify(receipt)).toBe("applied");
+          }
+          return receipt;
+        };
+        await command({ fontScale, theme, panel: null, preference: { key: "ui.autoHidePositionsBar", value: false } });
+        await expect(page.locator("html")).toHaveAttribute("data-font-scale", fontScale);
+        await expect(page.locator("html")).toHaveAttribute("data-app-theme", theme);
+        const orb = page.getByTestId("ai-orb");
+        const menu = page.getByRole("menu", { name: "AI 球菜单" });
+        const dragTo = async (x: number, y: number) => {
+          const box = (await orb.boundingBox())!;
+          await page.mouse.move(box.x + 28, box.y + 28);
+          await page.mouse.down();
+          await page.mouse.move(x, y, { steps: 8 });
+          await page.mouse.up();
+          await expect(menu).not.toBeVisible();
+          await expect(page.getByRole("region", { name: "AI 动态卡片" })).not.toBeVisible();
+        };
+        const bounded = async () => {
+          await expect.poll(() => orb.evaluate(el => {
+            const r = el.getBoundingClientRect(), body = el.closest(".fdw-body")!.getBoundingClientRect();
+            const bar = document.querySelector('[data-testid="positions-bar"]')?.getBoundingClientRect();
+            const rail = document.querySelector(".fdw-tools-rail")!.getBoundingClientRect();
+            return r.left >= body.left + 7 && r.right <= body.right - 7 && r.top >= body.top + 7
+              && r.bottom <= Math.min(body.bottom - 7, bar?.height ? bar.top - 7 : Infinity)
+              && (r.right <= rail.left - 7 || r.left >= rail.right + 7);
+          })).toBe(true);
+        };
+        for (const view of ["trade", "board", "dashboard", "review"]) {
+          await command({ view });
+          await expect(orb).toHaveCount(1);
+          expect(await orb.evaluate(el => el.parentElement?.parentElement?.className)).toBe("fdw-body");
+          for (const [x, y] of [[0, 0], [viewport.width, 0], [0, viewport.height], [viewport.width, viewport.height]]) {
+            await dragTo(x, y);
+            await bounded();
+            await orb.click({ button: "right" });
+            await expect(menu).toBeVisible();
+            const m = (await menu.boundingBox())!;
+            expect(m.x).toBeGreaterThanOrEqual(0);
+            expect(m.y).toBeGreaterThanOrEqual(0);
+            expect(m.x + m.width).toBeLessThanOrEqual(viewport.width);
+            expect(m.y + m.height).toBeLessThanOrEqual(viewport.height);
+            await page.keyboard.press("Escape");
+            await expect(orb).toBeFocused();
+          }
+          await orb.press("ArrowUp");
+          const saved = await page.evaluate(() => localStorage.getItem("ai-trader-ai-float-position-v2"));
+          await page.locator(".fdw-tools-rail").getByRole("button", { name: "打开持仓面板", exact: true }).click();
+          const expand = page.getByRole("button", { name: "展开持仓与委托", exact: true });
+          if (await expand.isVisible()) await expand.click();
+          await bounded();
+          expect(await page.evaluate(() => localStorage.getItem("ai-trader-ai-float-position-v2"))).toBe(saved);
+          // Park clear of the fixture's quote rows / price plot after exercising the four edges.
+          const pane = page.locator(".fdw-market .fdw-chart-pane").first();
+          const park = await (view === "board" ? page.locator(".fdw-market-core") : pane).boundingBox();
+          expect(park).toBeTruthy();
+          await dragTo(park!.x + 170, view === "board" ? park!.y + park!.height - 80 : park!.y + 60);
+          await page.screenshot({ animations: "disabled", path: testInfo.outputPath(`${view}-panel.png`) });
+          const collapse = page.getByRole("button", { name: "收起持仓与委托", exact: true });
+          if (await collapse.isVisible()) await collapse.click();
+          await page.locator(".fdw-tools-rail").getByRole("button", { name: "收起持仓面板", exact: true }).click();
+          await bounded();
+          await orb.press("Shift+F10");
+          await expect(menu).toBeVisible();
+          await page.screenshot({ animations: "disabled", path: testInfo.outputPath(`${view}-menu.png`) });
+          await page.keyboard.press("Escape");
+        }
+        const saved = await page.evaluate(() => localStorage.getItem("ai-trader-ai-float-position-v2"));
+        await page.setViewportSize({ width: 960, height: 600 });
+        await bounded();
+        await page.screenshot({ animations: "disabled", path: testInfo.outputPath("shrink.png") });
+        await page.reload();
+        await waitForWorkspace(page);
+        await bounded();
+        expect(await page.evaluate(() => localStorage.getItem("ai-trader-ai-float-position-v2"))).toBe(saved);
+      });
+    }
+  }
+}
+
+
+test("the phone keeps its own voice entry without a floating orb", async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true,
+    userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1" });
+  try {
+    const page = await context.newPage();
+    await page.goto(baseURL!);
+    await expect(page.locator('[data-agent-target="mobile-hold-to-talk"]')).toBeVisible();
+    await expect(page.getByTestId("ai-orb")).toHaveCount(0);
+  } finally { await context.close(); }
+});

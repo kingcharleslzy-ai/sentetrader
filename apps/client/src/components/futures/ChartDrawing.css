@@ -11,8 +11,7 @@
 
 .fdw-chart-body[data-drawing-tool] .fdw-chart-canvas { cursor: crosshair; }
 
-/* While the toolbar shows, the AI orb and the armed tool's hint keep clear of it. */
-.fdw-chart-area:has(.fdw-draw-toolbar) .ai-floating-area { left: 64px; }
+/* While the toolbar shows, the armed tool's hint keeps clear of it. */
 .fdw-chart-body:has(.fdw-draw-toolbar) .fdw-draw-hint { left: 64px; }
 
 /* ── Toolbar: floats over the chart, so showing it never resizes the chart ── */

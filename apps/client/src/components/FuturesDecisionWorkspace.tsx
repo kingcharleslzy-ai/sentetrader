@@ -1359,9 +1359,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     // 策略编辑卡第二版: the chart keeps a quarter of the window (300px at least) while the strategy panel edits.
     ...(editorPanel(rightDock) ? { "--fdw-chart-min": `${EDITOR_CHART_MIN}px` } : {})
   } as CSSProperties;
-  // The floating AI orb rides inside the chart area, so it only ever covers the chart —
-  // never the 复盘 list or a side panel. Without a quote (no chart) it floats over the
-  // whole market area; its key changes with the symbol, so the move remounts nothing extra.
+  // A workspace-level orb; keep the existing contract-scoped activity reset and shared saved position.
   const aiOrb = !props.guest ? <AiOrb key={String(props.runtimeBaseUrl) + quote?.symbol} baseUrl={connectedRuntimeUrl} symbol={quote?.symbol} name={quote?.name} replay={Boolean(props.replayActive)} activity={appWorkbench.activity} error={appWorkbench.error} config={appWorkbench.config} onConfigChange={appWorkbench.updateConfig} onBriefStatusChange={setBriefStatus} onOpenChat={openChat} sessionId={props.chatSessionId} voiceAvailable={voiceAvailable} avatar={preferences.ui?.aiAvatar ?? "kline"}
     beside={aiCommand.asked ? <AiCommandBubble key={`${aiCommand.asked.after}:${aiCommand.asked.text}`} command={aiCommand} onOpenChat={openChat} /> : undefined} /> : null;
 
@@ -1961,8 +1959,8 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
       {props.replayControls}
 
       <div className="fdw-body">
+        {aiOrb}
         <main className="fdw-market" data-testid="market-workspace">
-          {(market || (!props.guest && view === "review")) && view !== "board" ? null : aiOrb}
           {!props.guest && !props.replayActive ? <ConnectionProgress connection={props.connection} runtime={props.state.runtime} agent={props.agentAccount} hasMarket={Boolean(market)} runtimeUsable={props.status.runtimeUsable} onSettings={() => setSettingsOpen(true)} /> : null}
           {props.guest && (props.guest.status || props.guest.notice || ptt.status.notice || ptt.status.partial) ? <div className="fdw-runtime-notice" role="status">
             {props.guest.status || props.guest.notice}<PttLive status={ptt.status} />
@@ -1995,7 +1993,6 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
                 {market && <ChartGrid enabled={gridAvailable} handle={desktopCharts} baseUrl={connectedRuntimeUrl} own={{ market, error: props.marketError }}
                   nameOf={symbol => contractLabel(symbol, props.instruments)} chartSettings={chartSettings} setChartSettings={setChartSettings}
                   chartPreferences={chartPreferences} resolvedTheme={resolvedTheme} onError={setAccessNotice}>{chartStage}</ChartGrid>}
-                {aiOrb}
                 </div>)}
                 {!props.guest && view === "review" ? <aside className="fdw-market-side">{props.runtimeBaseUrl !== undefined ? props.replayActive ? <TradeReview baseUrl={props.runtimeBaseUrl} symbol={props.selectedSymbol ?? ""} onFocus={setTradeFocus}/> : <AccountPnl baseUrl={props.runtimeBaseUrl} rootUrl={props.rootBaseUrl ?? props.runtimeBaseUrl} symbol={quote?.symbol ?? props.selectedSymbol ?? ""} chartSymbols={(props.instruments?.items ?? []).map(item => item.symbol)} chartAvailable={Boolean(quote)} accountId={reviewAccountId} foreignAccountId={foreignReviewAccountId} snapshots={ledgerSnapshots} onFocus={setTradeFocus} onSelectSymbol={props.onSelectSymbol} initialBalance={initialBalance} onInitialBalanceChange={setInitialBalance} onVoiceReview={call.available ? call.review : undefined} voiceReviewing={Boolean(call.status.review)} /> : <ActivityPanel account={props.account} simulationOrders={props.simulationOrders} busy={props.tradeBusy} onOrderAction={handleOrderAction} />}</aside> : null}
               </section>

@@ -46,7 +46,6 @@
 .fdw-position-dock > header > div > button[aria-pressed="true"] { color: var(--ink); background: var(--soft); }
 .fdw-position-dock > header > div > button:last-child { width: 28px; padding: 0; display: grid; place-items: center; }
 .fdw-position-dock > header > div > button:last-child svg { width: 16px; height: 16px; }
-.fdw-market:has(.fdw-position-dock:not(.collapsed)) .ai-floating-area { bottom: calc(var(--fdw-dock) + 34px); }
 
 @container workspace-market (max-width: 960px) {
   .fdw-position-dock > header nav { gap: var(--space-3); }

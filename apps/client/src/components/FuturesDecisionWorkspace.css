@@ -162,6 +162,7 @@
 /* Warnings never disappear: out of room the text truncates instead. */
 
 .fdw-body {
+  position: relative;
   height: auto;
   min-height: 0;
   display: grid;
@@ -221,8 +222,6 @@
   border-right: 1px solid var(--line);
 }
 
-/* The chart column plus the AI orb that floats over it: the wrapper is the orb's anchor
-   (2026-09-30), so the orb never covers the 复盘 list, side panels or the right dock. */
 .fdw-chart-area {
   position: relative;
   min-width: 0;
@@ -234,19 +233,6 @@
 .fdw-chart-area > .fdw-chart-stage {
   flex: 1 1 auto;
   min-height: 0;
-}
-
-/* The orb's area is the chart's safe area: inside the K 线 price axis (minimumWidth 74) and
-   above the time axis, so neither the default place (main-pane bottom-left) nor a remembered one lands
-   on an axis at any window size. 分时 reads its prices on the left, so the gap moves there.
-   Outside a chart (no quote yet) the area rule in AiActivity.css spans the market area. */
-.fdw-chart-area .ai-floating-area {
-  inset: 10px 82px 36px 12px;
-}
-
-.fdw-chart-area:has(.fdw-timeshare) .ai-floating-area {
-  right: 12px;
-  left: 82px;
 }
 
 .fdw-selected-price {

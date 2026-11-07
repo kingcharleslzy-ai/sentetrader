@@ -26,8 +26,11 @@ test("with voice: click starts the call, the same surface carries aiActivityCard
   expect(start).toHaveBeenCalledWith("http://runtime", "chat-1");
   act(() => applyUiSurface("disclosure:voice-call", true));
   expect(start).toHaveBeenCalledTimes(2);
+  fireEvent.keyDown(orb, { key: "F10", shiftKey: true });
+  fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+  expect(orb).toHaveFocus();
   // Right-click menu: 切文字 and AI 动态; the card opens through the same surface and reports open.
-  fireEvent.contextMenu(orb);
+  fireEvent.keyDown(orb, { key: "F10", shiftKey: true });
   expect(screen.getByRole("menuitem", { name: "切文字" })).toBeVisible();
   fireEvent.click(screen.getByRole("menuitem", { name: /AI 动态/ }));
   expect(screen.getByRole("region", { name: "AI 动态卡片" })).toBeVisible();
@@ -73,11 +76,8 @@ test("new activity pops the card for about 8 s with an unread dot, even during a
   expect(screen.getByTestId("ai-orb")).not.toHaveAttribute("data-unread");
 });
 
-test("默认位置在图表主图安全区左下（时间轴上方、价格轴内侧）；只在拖动后记住，旧版默认角不算用户位置，越界夹回", () => {
-  // The safe area is the orb's container (AiActivity.css / FuturesDecisionWorkspace.css keep it off the
-  // axes); a 800×500 area puts the bottom-left default at left 0, top 500 - 56.
-  class Sized { constructor(private callback: ResizeObserverCallback) {} observe() { this.callback([{ contentRect: { width: 800, height: 500 } }] as never, this as never); } unobserve() {} disconnect() {} }
-  vi.stubGlobal("ResizeObserver", Sized);
+test("默认位置在工作区左下；只在移动后记住，旧版默认角不算用户位置，越界夹回", () => {
+  const rect = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({ left: 0, top: 0, right: 800, bottom: 500, width: 800, height: 500 } as DOMRect);
   localStorage.clear();
   expect(savedOrbPosition()).toEqual({ x: 0, y: 1 });
   const view = render(<AiOrb {...props} activity={activity() as any} voiceAvailable={false} />, { wrapper });
@@ -104,4 +104,5 @@ test("默认位置在图表主图安全区左下（时间轴上方、价格轴�
   localStorage.setItem("ai-trader-ai-float-position-v2", JSON.stringify({ x: 3, y: -2 }));
   expect(savedOrbPosition()).toEqual({ x: 1, y: 0 });
   localStorage.clear();
+  rect.mockRestore();
 });

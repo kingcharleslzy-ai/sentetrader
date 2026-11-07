@@ -127,7 +127,7 @@
     "card-details": {"desc": "Every conversation card's folded 详情 (identifiers, provenance, explanations).", "card": true},
     "voice-call": {"desc": "Real-time voice: the floating orb's call (open = in a call), its mute, and its long-press menu."},
     "voice-mute": {},
-    "voice-menu": {},
+    "voice-menu": {"desc": "Desktop workspace AI orb menu, anchored to the shared draggable orb across views."},
     "voice-playback": {"desc": "Real-time voice (2026-11-03): open = the AI's voice is playing on this device; closing it is 打断 (stop it and listen). It cannot be opened."},
     "voice-review": {"desc": "复盘页“语音复盘” (2026-09-29): open = the call is (or opens) walking through the day's notable trades."},
     "unlinked-notes": {"desc": "复盘页末尾“未关联的补充（N）” (2026-10-04): open = the list of 补充 whose fill a real report replaced is shown; only while there are any (`review.unlinkedNotes` carries the count)."},

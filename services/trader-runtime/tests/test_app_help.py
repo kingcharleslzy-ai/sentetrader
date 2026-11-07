@@ -168,7 +168,9 @@ def test_every_tour_step_points_at_a_target_the_client_renders():
     for source in client.rglob("*.tsx"):
         if ".test." in source.name:
             continue
-        rendered.update(re.findall(r'data-(?:agent-target|testid|region)="([^"]+)"', source.read_text(encoding="utf-8")))
+        # Include conditional JSX attributes: the passive chart omits the main chart's target.
+        for attribute in re.findall(r'data-(?:agent-target|testid|region)=("[^"]+"|\{[^{}]*\})', source.read_text(encoding="utf-8")):
+            rendered.update(re.findall(r'"([^"]+)"', attribute))
     steps = [step for topic in HELP.values() for step in topic.get("tour") or []]
     assert steps
     assert [step["target"] for step in steps if step["target"] not in rendered] == []
