@@ -147,6 +147,18 @@ const NONE_MARKS: BacktestMark[] = [];
 const CHART_MARKS_CLEARED_PREFIX = "ai-trader:chart-marks-cleared:";
 const clearedStamps = new Map<string, string>();
 let clearedScope: string | undefined;
+let annotationsScope: string | undefined;
+const scopedDrawings = new Map<string, { annotations: Record<string, ChartAnnotation[]>; backtestMarks: BacktestMarks | null }>();
+/** Switch AI drawings and backtest marks without changing the user's persisted fill-clear stamps. */
+export function setChartAnnotationsScope(scope: string | undefined) {
+  if (scope === annotationsScope) return;
+  if (annotationsScope) scopedDrawings.set(annotationsScope, { annotations, backtestMarks });
+  const drawings = scope ? scopedDrawings.get(scope) : undefined;
+  annotations = drawings?.annotations ?? {};
+  backtestMarks = drawings?.backtestMarks ?? null;
+  annotationsScope = scope;
+  notify();
+}
 /** Load the stamps of the user now signed in (called by the workspace whenever its scope changes). */
 export function setChartMarksScope(scope: string | undefined) {
   if (scope === clearedScope) return;
@@ -186,7 +198,7 @@ export function fillVisibleAfterClear(symbol: string | undefined, tradeDateTime:
 
 /** Test helper. */
 export function resetAiAnnotations() {
-  clearHighlights(); annotations = {}; backtestMarks = null; clearedStamps.clear(); clearedScope = undefined;
+  clearHighlights(); annotations = {}; backtestMarks = null; scopedDrawings.clear(); annotationsScope = undefined; clearedStamps.clear(); clearedScope = undefined;
   try {
     for (let index = localStorage.length - 1; index >= 0; index -= 1) {
       const key = localStorage.key(index);

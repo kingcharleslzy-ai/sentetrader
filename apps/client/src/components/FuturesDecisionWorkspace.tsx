@@ -12,7 +12,7 @@ import { AccountPnl } from "./AccountPnl";
 import { useAccountPnl } from "../hooks/useAccountPnl";
 import { TradeReview } from "./TradeReview";
 import { ChevronLeft, CircleAlert, GripVertical, PanelRightClose, ReceiptText } from "lucide-react";
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { chartSymbolOf, requestJson, sameContract, type MarketBoardRow } from "../api";
 import type { AccountPosition, MarketWorkbenchSnapshot, SimulationOrder } from "../api";
@@ -93,7 +93,7 @@ import { bumpDebates, debateShownNow } from "../researchDebate";
 import { shortcutAction } from "../shortcuts";
 import { PttButton, PttLive, usePushToTalk } from "./futures/PushToTalk";
 import { voiceReply } from "../voiceReply";
-import { applyChartAnnotations, setChartMarksScope, useChartAnnotations, type ChartAnnotationInput } from "../aiAnnotations";
+import { applyChartAnnotations, setChartAnnotationsScope, setChartMarksScope, useChartAnnotations, type ChartAnnotationInput } from "../aiAnnotations";
 import type { FuturesDecisionWorkspaceProps } from "./futures/props";
 import { CHAT_PLACE_LABELS, useChatSuggestions } from "../hooks/useChatSuggestions";
 import type { ChatSuggestionView } from "../api";
@@ -413,6 +413,9 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   // 4.4b: the session's trading accounts — the switcher in the header and 设置 → 账户,
   // and the `tradingAccount` UI command; the account id follows runtime.status alone.
   const accountsView = useTradingAccounts(connectedRuntimeUrl, props.chatSessionId, props.state.runtime);
+  const chartAnnotationsScope = props.workspaceScope && accountsView.currentId
+    ? JSON.stringify([props.runtimeBaseUrl, props.workspaceScope, accountsView.currentId]) : undefined;
+  useLayoutEffect(() => { setChartAnnotationsScope(chartAnnotationsScope); }, [chartAnnotationsScope]);
   // An account's reminder opens on its own account once the window shows it (#932 R3).
   const reminderNavigation = useAccountNavigation({ currentId: accountsView.currentId, statusAt: props.state.runtimeUpdatedAt,
     sessionId: props.chatSessionId, runtimeUrl: connectedRuntimeUrl, requestSwitch: accountsView.requestSwitch, onNotice: setAccessNotice,
@@ -526,7 +529,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     const symbol = props.selectedSymbol;
     const timer = window.setTimeout(() => applyChartAnnotations(symbol, "clear"), aiAnnotationsAutoClearMinutes * 60_000);
     return () => window.clearTimeout(timer);
-  }, [isGuest, symbolAnnotations, aiAnnotationsAutoClearMinutes, props.selectedSymbol]);
+  }, [isGuest, symbolAnnotations, aiAnnotationsAutoClearMinutes, props.selectedSymbol, chartAnnotationsScope]);
   // 活动保护: only statuses that still stand (the server's own protected-position set);
   // EXECUTED / CANCELLED / FAILED are terminal and no longer count as active.
   const activeProtections = appWorkbench.activity?.protections?.filter(p => (!activeStrategy || p.strategyId === activeStrategy) && isProtectionActive(p.status));

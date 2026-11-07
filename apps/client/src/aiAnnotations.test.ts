@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { applyChartAnnotations, chartAnnotationsFor, chartMarksClearedAt, clearChartMarks, clearHighlights, currentHighlights, resetAiAnnotations, setChartMarksScope, showHighlight } from "./aiAnnotations";
+import { applyChartAnnotations, chartAnnotationsFor, chartMarksClearedAt, clearChartMarks, clearHighlights, currentBacktestMarks, currentHighlights, resetAiAnnotations, setBacktestMarks, setChartAnnotationsScope, setChartMarksScope, showHighlight } from "./aiAnnotations";
 
 afterEach(() => { resetAiAnnotations(); document.body.innerHTML = ""; vi.useRealTimers(); });
 
@@ -36,15 +36,37 @@ it("chart annotations are per contract: set replaces, add merges by id, clear em
   expect(chartAnnotationsFor(undefined)).toEqual([]);
 });
 
-it("trade-marker clear stamps are per user: another scope neither inherits nor loses them, no scope keeps memory only", () => {
+it("drawings are per account/replay while clear stamps stay per user, no scope keeps memory only", () => {
   const prefix = "ai-trader:chart-marks-cleared:";
   setChartMarksScope("scope-a");
+  setChartAnnotationsScope("scope-a:account-main");
   expect(chartMarksClearedAt("SHFE.au2612")).toBeNull();
   clearChartMarks("SHFE.au2612");
   expect(localStorage.getItem(`${prefix}scope-a:SHFE.AU2612`)).toBeTruthy();
+  applyChartAnnotations("SHFE.au2612", "set", [{ id: "main", kind: "hline", price: 800 }]);
+  setBacktestMarks({ backtestId: "main", symbol: "SHFE.au2612", durationSeconds: 60, items: [] });
   setChartMarksScope("scope-b");
+  setChartAnnotationsScope("scope-a:replay-one");
   expect(chartMarksClearedAt("SHFE.au2612")).toBeNull();
+  expect(chartAnnotationsFor("SHFE.au2612")).toEqual([]);
+  expect(currentBacktestMarks()).toBeNull();
+  applyChartAnnotations("SHFE.au2612", "set", [{ id: "replay", kind: "hline", price: 900 }]);
+  setBacktestMarks({ backtestId: "replay", symbol: "SHFE.au2612", durationSeconds: 60, items: [] });
+  setChartAnnotationsScope("scope-a:account-main");
+  expect(chartAnnotationsFor("SHFE.au2612").map(item => item.id)).toEqual(["main"]);
+  expect(currentBacktestMarks()?.backtestId).toBe("main");
+  setChartAnnotationsScope("scope-a:replay-one");
+  expect(chartAnnotationsFor("SHFE.au2612").map(item => item.id)).toEqual(["replay"]);
+  expect(currentBacktestMarks()?.backtestId).toBe("replay");
+  clearChartMarks("SHFE.au2612");
+  expect(currentBacktestMarks()).toBeNull();
+  setChartAnnotationsScope("scope-a:account-main");
+  expect(chartAnnotationsFor("SHFE.au2612").map(item => item.id)).toEqual(["main"]);
+  expect(currentBacktestMarks()?.backtestId).toBe("main");
+  localStorage.removeItem(`${prefix}scope-b:SHFE.AU2612`);
   setChartMarksScope(undefined);
+  setChartAnnotationsScope(undefined);
+  expect(chartAnnotationsFor("SHFE.au2612")).toEqual([]);
   clearChartMarks("SHFE.au2612");
   expect(chartMarksClearedAt("SHFE.au2612")).toBeTruthy();
   expect(Object.keys(localStorage).filter(key => key.startsWith(prefix))).toEqual([`${prefix}scope-a:SHFE.AU2612`]);
