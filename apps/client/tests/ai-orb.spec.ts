@@ -93,7 +93,7 @@ test("the AI orb is the voice entry and the activity ball: menu, call, mute, han
   expect(after["voice-mute"]).toBeUndefined();
 });
 
-for (const viewport of [{ width: 1280, height: 695 }, { width: 1440, height: 900 }]) {
+for (const viewport of [{ width: 1100, height: 695 }, { width: 1280, height: 695 }]) {
   for (const fontScale of ["standard", "extra-large"] as const) {
     for (const theme of ["light", "dark"] as const) {
       test(`workspace orb ${viewport.width}x${viewport.height} ${fontScale} ${theme}`, async ({ page }, testInfo) => {
@@ -140,14 +140,27 @@ for (const viewport of [{ width: 1280, height: 695 }, { width: 1440, height: 900
             const r = el.getBoundingClientRect(), body = el.closest(".fdw-body")!.getBoundingClientRect();
             const bar = document.querySelector('[data-testid="positions-bar"]')?.getBoundingClientRect();
             const rail = document.querySelector(".fdw-tools-rail")!.getBoundingClientRect();
+            const commands = [...document.querySelectorAll(".fdw-market-command")].map(el => el.getBoundingClientRect()).filter(rect => rect.width && rect.height);
             return r.left >= body.left + 7 && r.right <= body.right - 7 && r.top >= body.top + 7
               && r.bottom <= Math.min(body.bottom - 7, bar?.height ? bar.top - 7 : Infinity)
-              && (r.right <= rail.left - 7 || r.left >= rail.right + 7);
+              && (r.right <= rail.left - 7 || r.left >= rail.right + 7)
+              && commands.every(bar => r.right <= bar.left - 7 || r.left >= bar.right + 7 || r.bottom <= bar.top - 7 || r.top >= bar.bottom + 7);
           })).toBe(true);
         };
         for (const view of ["trade", "board", "dashboard", "review"]) {
           await command({ view });
           await expect(orb).toHaveCount(1);
+          const marketBar = page.locator(".fdw-market-command:visible").first();
+          if (await marketBar.isVisible()) {
+            const bounds = (await marketBar.boundingBox())!;
+            await dragTo(bounds.x + 28, bounds.y + 28);
+            await bounded();
+            await marketBar.locator('[data-agent-target="market:contract"]').click();
+            await expect(page.getByRole("dialog", { name: "合约列表", exact: true })).toBeVisible();
+            await page.getByRole("button", { name: "关闭合约列表", exact: true }).click();
+            await marketBar.getByRole("button", { name: "1分", exact: true }).click();
+            await expect(marketBar.getByRole("button", { name: "1分", exact: true })).toHaveClass(/active/);
+          }
           expect(await orb.evaluate(el => el.parentElement?.parentElement?.className)).toBe("fdw-body");
           for (const [x, y] of [[0, 0], [viewport.width, 0], [0, viewport.height], [viewport.width, viewport.height]]) {
             await dragTo(x, y);
@@ -163,6 +176,7 @@ for (const viewport of [{ width: 1280, height: 695 }, { width: 1440, height: 900
             await expect(orb).toBeFocused();
           }
           await orb.press("ArrowUp");
+          await bounded();
           const saved = await page.evaluate(() => localStorage.getItem("ai-trader-ai-float-position-v2"));
           await page.locator(".fdw-tools-rail").getByRole("button", { name: "打开持仓面板", exact: true }).click();
           const expand = page.getByRole("button", { name: "展开持仓与委托", exact: true });
@@ -184,6 +198,9 @@ for (const viewport of [{ width: 1280, height: 695 }, { width: 1440, height: 900
           await page.screenshot({ animations: "disabled", path: testInfo.outputPath(`${view}-menu.png`) });
           await page.keyboard.press("Escape");
         }
+        await command({ fontScale: fontScale === "standard" ? "extra-large" : "standard" });
+        await bounded();
+        await command({ fontScale });
         const saved = await page.evaluate(() => localStorage.getItem("ai-trader-ai-float-position-v2"));
         await page.setViewportSize({ width: 960, height: 600 });
         await bounded();

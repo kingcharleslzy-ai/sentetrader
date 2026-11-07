@@ -247,6 +247,7 @@ export function AiOrb({ baseUrl, symbol, replay, activity, error, config, onBrie
   const pressTimer = useRef<number | undefined>(undefined);
   const autoTimer = useRef<number | undefined>(undefined);
   const [size, setSize] = useState({ width: 0, height: 0, left: 0, top: 0, leftInset: 0, rightInset: 0, bottomInset: 0, menuHeight: 0, menuWidth: 0 });
+  const [marketBars, setMarketBars] = useState<{ left: number; top: number; right: number; bottom: number }[]>([]);
   const [position, setPosition] = useState(readOrbPosition);
   const [open, setOpen] = useState(false); const [closing, setClosing] = useState(false); const [unread, setUnread] = useState(false);
   // "auto": the card showed itself for new activity and folds back on its own; a click or command pins it.
@@ -291,10 +292,14 @@ export function AiOrb({ baseUrl, symbol, replay, activity, error, config, onBrie
     if (!host) return;
     const bar = host.parentElement?.querySelector('[data-testid="positions-bar"]');
     const rail = host.parentElement?.querySelector(".fdw-tools-rail");
+    const commands = [...host.parentElement?.querySelectorAll(".fdw-market-command") ?? []];
     const measure = () => {
       const rect = host.getBoundingClientRect();
       const barRect = bar?.getBoundingClientRect();
       const railRect = rail?.getBoundingClientRect();
+      const bars = commands.map(command => command.getBoundingClientRect()).filter(bar => bar.width && bar.height)
+        .map(bar => ({ left: bar.left - rect.left, top: bar.top - rect.top, right: bar.right - rect.left, bottom: bar.bottom - rect.top }));
+      setMarketBars(old => JSON.stringify(old) === JSON.stringify(bars) ? old : bars);
       const next = { width: rect.width, height: rect.height, left: rect.left, top: rect.top,
         leftInset: railRect?.width && railRect.left < rect.left + rect.width / 2 ? Math.max(0, railRect.right - rect.left + 8) : 0,
         rightInset: railRect?.width && railRect.left >= rect.left + rect.width / 2 ? Math.max(0, rect.right - railRect.left + 8) : 0,
@@ -307,8 +312,10 @@ export function AiOrb({ baseUrl, symbol, replay, activity, error, config, onBrie
     observer.observe(host);
     if (bar) observer.observe(bar);
     if (rail) observer.observe(rail);
+    commands.forEach(command => { observer.observe(command); if (command.parentElement) observer.observe(command.parentElement); });
     if (menu.current) observer.observe(menu.current);
-    return () => observer.disconnect();
+    host.parentElement?.addEventListener("scroll", measure, true);
+    return () => { observer.disconnect(); host.parentElement?.removeEventListener("scroll", measure, true); };
   });
   useEffect(() => {
     if (!menuOpen) return;
@@ -345,10 +352,20 @@ export function AiOrb({ baseUrl, symbol, replay, activity, error, config, onBrie
 
   const windowMaxX = Math.max(0, size.width - 56), windowMaxY = Math.max(0, size.height - 56);
   const maxX = Math.max(size.leftInset, windowMaxX - size.rightInset), maxY = Math.max(0, windowMaxY - size.bottomInset);
-  const left = Math.max(size.leftInset, Math.min(maxX, Math.round((position?.x ?? 0) * windowMaxX)));
-  const top = position ? Math.min(maxY, Math.round(position.y * windowMaxY)) : maxY;
+  const safePosition = (x: number, y: number) => {
+    const clamp = (point: { x: number; y: number }) => ({ x: Math.max(size.leftInset, Math.min(maxX, point.x)), y: Math.max(0, Math.min(maxY, point.y)) });
+    const wanted = clamp({ x, y });
+    // Only the market bars themselves are protected: a board's chart may sit below other content.
+    const xs = [wanted.x, ...marketBars.flatMap(bar => [bar.left - 64, bar.right + 8])];
+    const ys = [wanted.y, ...marketBars.flatMap(bar => [bar.top - 64, bar.bottom + 8])];
+    const candidates = xs.flatMap(x => ys.map(y => clamp({ x, y }))).filter(point => marketBars.every(bar => point.x + 56 <= bar.left - 8 || point.x >= bar.right + 8
+      || point.y + 56 <= bar.top - 8 || point.y >= bar.bottom + 8));
+    return candidates.sort((a, b) => (a.x - wanted.x) ** 2 + (a.y - wanted.y) ** 2 - (b.x - wanted.x) ** 2 - (b.y - wanted.y) ** 2)[0] ?? wanted;
+  };
+  const { x: left, y: top } = safePosition(Math.round((position?.x ?? 0) * windowMaxX), position ? Math.round(position.y * windowMaxY) : maxY);
   const move = (x: number, y: number) => {
-    const next = { x: windowMaxX ? Math.max(size.leftInset, Math.min(maxX, x)) / windowMaxX : 0, y: windowMaxY ? Math.max(0, Math.min(maxY, y)) / windowMaxY : 0 };
+    const safe = safePosition(x, y);
+    const next = { x: windowMaxX ? safe.x / windowMaxX : 0, y: windowMaxY ? safe.y / windowMaxY : 0 };
     setPosition(next);
     try { localStorage.setItem(FLOAT_POSITION_KEY, JSON.stringify(next)); } catch { /* Optional preference. */ }
   };

@@ -103,6 +103,29 @@ test("默认位置在工作区左下；只在移动后记住，旧版默认角�
   // A stored place is a fraction of the safe area, clamped into it: any window size keeps it visible.
   localStorage.setItem("ai-trader-ai-float-position-v2", JSON.stringify({ x: 3, y: -2 }));
   expect(savedOrbPosition()).toEqual({ x: 1, y: 0 });
+  // A board's market bar can be in the middle: protect its rectangle, not everything above it.
+  let barTop = 200;
+  rect.mockImplementation(function (this: HTMLElement) {
+    const bar = this.classList.contains("fdw-market-command");
+    return { left: 0, top: bar ? barTop : 0, right: 800, bottom: bar ? barTop + 40 : 500,
+      width: 800, height: bar ? 40 : 500 } as DOMRect;
+  });
+  localStorage.setItem("ai-trader-ai-float-position-v2", JSON.stringify({ x: 0, y: 210 / 444 }));
+  const content = () => <div><section className="fdw-market-command"/><AiOrb {...props} activity={activity() as any} voiceAvailable={false}/></div>;
+  const board = render(content(), { wrapper });
+  const boardOrb = screen.getByTestId("ai-orb");
+  expect(boardOrb.style.top).toBe("248px");
+  fireEvent.keyDown(boardOrb, { key: "ArrowUp" });
+  expect(boardOrb.style.top).toBe("248px");
+  const saved = localStorage.getItem("ai-trader-ai-float-position-v2");
+  barTop = 270;
+  fireEvent.scroll(boardOrb.parentElement!.parentElement!);
+  expect(boardOrb.style.top).toBe("206px");
+  expect(localStorage.getItem("ai-trader-ai-float-position-v2")).toBe(saved);
+  barTop = 340;
+  board.rerender(content());
+  expect(boardOrb.style.top).toBe("248px");
+  board.unmount();
   localStorage.clear();
   rect.mockRestore();
 });
