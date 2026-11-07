@@ -22,7 +22,7 @@ import type { TradingChartSettings } from "../TradingCharts";
 import { AddPaneChooser, MaLinesEditor, SubPaneEditor, type ChartIndicatorPatch } from "../chartIndicatorEditor";
 import { SUB_PANE_NAMES, type ChartIndicatorConfig } from "../chartIndicators";
 import type { FuturesDecisionWorkspaceProps } from "./props";
-import { AI_AVATAR_OPTIONS, type DockSide } from "./support";
+import { AI_AVATAR_OPTIONS, AI_AVATAR_SIZES, aiAvatarOf, type DockSide } from "./support";
 import { AiAvatar } from "../AiAvatar";
 import type { PreferencesHandle } from "../../userPreferences";
 import { DEFAULT_QUICK_SKILLS } from "../../userPreferences";
@@ -338,10 +338,11 @@ export function WorkspaceSettings({ workspace, page, onPageChange, onClose, mode
         </SettingsSection>
         {!workspace.guest ? <SettingsSection title="AI 形象">
           <div className="ai-avatar-picker" role="radiogroup" aria-label="AI 形象">
-            {AI_AVATAR_OPTIONS.map(option => <button key={option.value} type="button" role="radio" aria-checked={(prefs.ui?.aiAvatar ?? "kline") === option.value} disabled={offline} onClick={() => setPref("ui.aiAvatar", option.value)}>
+            {AI_AVATAR_OPTIONS.map(option => <button key={option.value} type="button" role="radio" aria-checked={aiAvatarOf(prefs.ui?.aiAvatar) === option.value} disabled={offline} onClick={() => setPref("ui.aiAvatar", option.value)}>
               <AiAvatar kind={option.value} state="standby" size={44} /><span>{option.label}</span>
             </button>)}
           </div>
+          <SettingRow label="大小"><Segmented label="AI 形象大小" value={prefs.ui?.aiAvatarSize ?? "md"} disabled={offline} options={AI_AVATAR_SIZES.map(option => ({ value: option.value, label: option.label }))} onChange={value => setPref("ui.aiAvatarSize", value)} /></SettingRow>
         </SettingsSection> : null}
         <SettingsSection title="布局">
           <SettingRow label="辅助区位置"><Segmented label="辅助区位置" value={dockSide} options={[{ value: "left", label: "左侧" }, { value: "right", label: "右侧" }] as const} onChange={setDockSide} /></SettingRow>

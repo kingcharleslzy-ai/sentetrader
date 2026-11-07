@@ -258,18 +258,38 @@ def test_quick_skill_pins_travel_the_ui_command_channel():
             UiChanges.model_validate({"preference": {"key": "ui.quickSkills", "value": bad}})
 
 
-def test_the_ai_figure_is_one_of_three_and_travels_the_preference_command():
-    """设置 → 界面 → AI 形象 (`ui.aiAvatar`): K 线音柱 by default; only the three figures are
-    accepted, through a PUT-shaped document and the `preference` UI command alike."""
-    assert UserPreferences().ui.aiAvatar == "kline"
+def test_the_ai_figure_is_one_of_five_and_travels_the_preference_command(tmp_path):
+    """设置 → 界面 → AI 形象 (`ui.aiAvatar`, 2026-11-07): 弈石 by default; the retired K 线音柱 reads as
+    弈石 with the rest of the document intact; only known figures and sizes are accepted, through a
+    PUT-shaped document and the `preference` UI command alike."""
+    assert UserPreferences().ui.aiAvatar == "stone"
+    assert UserPreferences().ui.aiAvatarSize == "md"
     assert UserPreferences.model_validate({"ui": {"aiAvatar": "pixel"}}).ui.aiAvatar == "pixel"
-    with pytest.raises(ValidationError):
-        UserPreferences.model_validate({"ui": {"aiAvatar": "robot"}})
+    stored = UserPreferences.model_validate({"ui": {"aiAvatar": "kline", "quickSkills": [], "aiAvatarSize": "lg",
+                                                    "autoHidePositionsBar": False}}).ui
+    assert (stored.aiAvatar, stored.aiAvatarSize, stored.autoHidePositionsBar) == ("stone", "lg", False)
+    # A stored K 线音柱 row reads as 弈石 and a later write keeps every list (#1332): four layouts, the pins.
+    store = RuntimeStore(tmp_path / "avatar.sqlite3")
+    layouts = {"current": "mine", "items": [{"id": "pre", "name": "盘前"}, {"id": "live", "name": "盘中"},
+                                            {"id": "review", "name": "复盘"}, {"id": "mine", "name": "我的"}]}
+    store.connection.execute(
+        "INSERT INTO user_preferences (user_id, version, preferences_json, updated_at) VALUES ('alice', 2, ?, '2026-11-01T00:00:00+00:00')",
+        (json.dumps({"ui": {"aiAvatar": "kline", "quickSkills": ["help"], "workspaceLayouts": layouts}, "trade": {"defaultVolume": 3}}),))
+    store.connection.commit()
+    read = store.get_preferences("alice")["preferences"]
+    assert (read["ui"]["aiAvatar"], read["ui"]["quickSkills"], read["trade"]["defaultVolume"]) == ("stone", ["help"], 3)
+    store.update_preferences("alice", {"ui": {"aiAvatarSize": "sm"}})
+    again = store.get_preferences("alice")["preferences"]["ui"]
+    assert again["aiAvatarSize"] == "sm" and [item["id"] for item in again["workspaceLayouts"]["items"]] == ["pre", "live", "review", "mine"]
+    for bad in ({"aiAvatar": "robot"}, {"aiAvatarSize": "xl"}):
+        with pytest.raises(ValidationError):
+            UserPreferences.model_validate({"ui": bad})
     command = UiChanges.model_validate({"preference": {"key": "ui.aiAvatar", "value": "eyes"}})
     document = UserPreferences().model_dump()
     assert changes_match(ui_state(preferences=document), command.model_dump(exclude_none=True)) is False
     document["ui"]["aiAvatar"] = "eyes"
     assert changes_match(ui_state(preferences=document), command.model_dump(exclude_none=True)) is True
+    UiChanges.model_validate({"preference": {"key": "ui.aiAvatarSize", "value": "sm"}})
     with pytest.raises(ValidationError):
         UiChanges.model_validate({"preference": {"key": "ui.aiAvatar", "value": "robot"}})
 

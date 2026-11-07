@@ -22,16 +22,19 @@
 .ai-orb:hover > .ai-avatar { transform: translateY(-2px); }
 .ai-orb-badge { position: absolute; right: -4px; bottom: -4px; width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; background: var(--panel); color: var(--ink); border: 1px solid var(--line); box-shadow: var(--shadow-1); }
 .ai-orb-badge svg { width: 11px; height: 11px; }
-.ai-orb[data-muted="true"] .ai-orb-badge { color: var(--danger); }
-.ai-orb-dot { position: absolute; width: 10px; height: 10px; top: -2px; right: -2px; border-radius: 50%; background: var(--danger); border: 2px solid var(--panel); }
-.ai-orb-dot::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--danger); animation: none; opacity: 0; }
+.ai-orb[data-muted="true"] .ai-orb-badge { color: var(--muted); }
+/* New activity or an unseen reply: a brand-blue dot (never red: red/green mean price direction). */
+.ai-orb-dot { position: absolute; width: 12px; height: 12px; top: 0; right: 0; border-radius: 50%; background: var(--orb-blue); border: 2px solid var(--panel); }
+.ai-orb-dot::after { content: ""; position: absolute; inset: -2px; border-radius: 50%; background: var(--orb-blue); opacity: 0; animation: orb-dot-pulse 2.6s ease-out infinite; }
+@keyframes orb-dot-pulse { 0% { opacity: .45; transform: scale(1); } 70%, 100% { opacity: 0; transform: scale(2.2); } }
 .ai-orb-label { position: absolute; transform: translateX(-50%); max-width: 220px; padding: var(--space-0) var(--space-2); border-radius: var(--radius-pill); background: var(--panel); color: var(--muted); border: 1px solid var(--line); font-size: var(--font-md); line-height: 1.4; white-space: nowrap; pointer-events: none; }
 .ai-orb-label[data-state="speaking"] { color: var(--accent); }
-.ai-orb-label[data-state="error"] { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, transparent); white-space: normal; }
+.ai-orb-label[data-state="error"] { white-space: normal; }
 .ai-orb-menu { position: fixed; margin: 0; padding: var(--space-1); list-style: none; display: flex; flex-direction: column; gap: var(--space-0); min-width: 148px; border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--panel); color: var(--ink); box-shadow: var(--shadow-2); pointer-events: auto; z-index: 20; }
 .ai-orb-menu button { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 32px; padding: var(--space-1) var(--space-3); border: 0; border-radius: var(--radius-control); background: transparent; color: inherit; font-size: var(--font-md); cursor: pointer; text-align: left; }
 .ai-orb-menu button:hover, .ai-orb-menu button:focus-visible { background: var(--soft); outline: none; }
 .ai-orb-menu button svg { width: 14px; height: 14px; color: var(--muted); }
+.ai-orb-menu-note { max-width: 240px; padding: var(--space-1) var(--space-3) var(--space-2); color: var(--muted); font-size: var(--font-md); line-height: 1.5; border-bottom: 1px solid var(--line); margin-bottom: var(--space-0); }
 .ai-floating-card[data-auto] { box-shadow: var(--shadow-2); }
 .ai-floating-card { position: absolute; display: flex; flex-direction: column; pointer-events: auto; overflow: hidden; background: var(--fdw-surface, var(--panel)); color: var(--fdw-text, var(--ink)); border: 1px solid var(--fdw-line, var(--line)); border-radius: var(--radius-card); box-shadow: var(--shadow-2); font-size: var(--font-md); }
 .ai-floating-card > header { display: flex; align-items: center; justify-content: space-between; flex: 0 0 auto; padding: var(--space-3) var(--space-3); border-bottom: 1px solid var(--fdw-line, var(--line)); }

@@ -3645,3 +3645,19 @@ test("习惯对照 reaches the formal snapshot as review.habits (not only the re
       { status: "ok", actual: { count: 9, pnl: 3670 }, planned: { count: 6, pnl: 1995 }, gap: -1675, picks: ["h1"] }));
   } finally { view.unmount(); control.mockRestore(); }
 });
+
+test("有新消息: the orb's dot marks an AI reply the user has not seen and clears once the conversation shows it", async () => {
+  const turn = (id: string, text: string, origin?: "voice") => ({ id, role: "assistant", text, origin, timestamp: "2026-11-07T01:00:00Z", completed: true, cards: [] });
+  const withTurns = (turns: unknown[]) => props({ chatSessionId: "s-1", state: { turns, runtime: { simulationTrading: true } } }) as any;
+  const view = render(<FuturesDecisionWorkspace {...withTurns([turn("a1", "旧回复")])} />);
+  // The history read first is not new; a voice reply was heard; a typed one is new.
+  expect(screen.getByTestId("ai-orb")).not.toHaveAttribute("data-new-message");
+  view.rerender(<FuturesDecisionWorkspace {...withTurns([turn("a1", "旧回复"), turn("v1", "念过了", "voice")])} />);
+  expect(screen.getByTestId("ai-orb")).not.toHaveAttribute("data-new-message");
+  view.rerender(<FuturesDecisionWorkspace {...withTurns([turn("a1", "旧回复"), turn("a2", "新回复")])} />);
+  expect(screen.getByTestId("ai-orb")).toHaveAttribute("data-new-message", "true");
+  expect(screen.getByTestId("ai-orb").querySelector(".ai-orb-dot")).not.toBeNull();
+  openAiPanel();
+  await waitFor(() => expect(screen.getByTestId("ai-orb")).not.toHaveAttribute("data-new-message"));
+  view.unmount();
+});

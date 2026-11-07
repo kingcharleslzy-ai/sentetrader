@@ -1,4 +1,4 @@
-import { contractLabel } from "./futures/support";
+import { aiAvatarOf, aiAvatarPx, contractLabel } from "./futures/support";
 import { AccountAccessContext, useAccountAccess, type WorkspaceAccess } from "../hooks/useAccountAccess";
 import { GuestAppearanceContext } from "../guestAppearance";
 import { rumChartShown } from "../rum";
@@ -1361,8 +1361,20 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     // 策略编辑卡第二版: the chart keeps a quarter of the window (300px at least) while the strategy panel edits.
     ...(editorPanel(rightDock) ? { "--fdw-chart-min": `${EDITOR_CHART_MIN}px` } : {})
   } as CSSProperties;
+  // 有新消息 (owner 2026-11-07): the orb's blue dot while the conversation has an AI reply or card the user has not
+  // seen — the 对话面板 (or a board's chat block) is closed or scrolled up from the bottom. The reply seen last is
+  // remembered per chat session; the first one read for a session (its history) counts as seen. Voice replies were heard.
+  const lastAiTurnId = useMemo(() => [...decisionTurns].reverse().find(turn => turn.role !== "user" && turn.origin !== "voice")?.id, [decisionTurns]);
+  const [chatAtLatest, setChatAtLatest] = useState(true);
+  const chatLooking = (rightDock === "ai" || boardModules.includes("chat")) && chatAtLatest;
+  const [chatSeen, setChatSeen] = useState<{ session: string | undefined; id: string }>();
+  useEffect(() => {
+    if (lastAiTurnId && (chatLooking || chatSeen?.session !== props.chatSessionId)) setChatSeen({ session: props.chatSessionId, id: lastAiTurnId });
+  }, [lastAiTurnId, chatLooking, chatSeen?.session, props.chatSessionId]);
+  const chatNewMessage = Boolean(lastAiTurnId) && !chatLooking && chatSeen !== undefined && chatSeen.session === props.chatSessionId && chatSeen.id !== lastAiTurnId;
   // A workspace-level orb; keep the existing contract-scoped activity reset and shared saved position.
-  const aiOrb = !props.guest ? <AiOrb key={String(props.runtimeBaseUrl) + quote?.symbol} baseUrl={connectedRuntimeUrl} symbol={quote?.symbol} name={quote?.name} replay={Boolean(props.replayActive)} activity={appWorkbench.activity} error={appWorkbench.error} config={appWorkbench.config} onConfigChange={appWorkbench.updateConfig} onBriefStatusChange={setBriefStatus} onOpenChat={openChat} sessionId={props.chatSessionId} voiceAvailable={voiceAvailable} avatar={preferences.ui?.aiAvatar ?? "kline"}
+  const aiOrb = !props.guest ? <AiOrb key={String(props.runtimeBaseUrl) + quote?.symbol} baseUrl={connectedRuntimeUrl} symbol={quote?.symbol} name={quote?.name} replay={Boolean(props.replayActive)} activity={appWorkbench.activity} error={appWorkbench.error} config={appWorkbench.config} onConfigChange={appWorkbench.updateConfig} onBriefStatusChange={setBriefStatus} onOpenChat={openChat} sessionId={props.chatSessionId} voiceAvailable={voiceAvailable} avatar={aiAvatarOf(preferences.ui?.aiAvatar)}
+    size={aiAvatarPx(preferences.ui?.aiAvatarSize)} newMessage={chatNewMessage}
     beside={aiCommand.asked ? <AiCommandBubble key={`${aiCommand.asked.after}:${aiCommand.asked.text}`} command={aiCommand} onOpenChat={openChat} /> : undefined} /> : null;
 
   // Shared by both layouts: the confirmations, help and tour overlays before the body, the drawers,
@@ -1411,7 +1423,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
       aiExecutionActive={aiExecutionActive} apiSetupRequired={apiSetupRequired} apiConnectionFailed={apiConnectionFailed} apiProviderName={apiProviderName} view={view} sendKey={preferences.chat.sendKey}
       quickSkills={quickSkillChips} onQuickPrompt={text => { void chat.sendQuickPrompt(text); }}
       suggestions={{ label: CHAT_PLACE_LABELS[examplesFrom], items: suggestions }}
-      ptt={ptt} avatar={preferences.ui?.aiAvatar ?? "kline"} applyUi={applyCardUi} symbolName={quoteEntry?.instrumentName} mobile={mobileChat} />;
+      ptt={ptt} avatar={aiAvatarOf(preferences.ui?.aiAvatar)} applyUi={applyCardUi} symbolName={quoteEntry?.instrumentName} mobile={mobileChat} onFollowLatest={setChatAtLatest} />;
 
   const blockingMarketState = props.marketError && !market && (props.state.runtime?.dataConnectionStage === "failed" || (props.state.runtime?.marketDataStatus === "normal" && !props.marketLoading))
     ? <div className="fdw-blocking-state" data-contract-condition={props.marketError !== "当前行情暂时不可用" || undefined}><CircleAlert /><strong>{props.marketError}</strong><button type="button" className={props.marketError !== "当前行情暂时不可用" ? "secondary" : ""} onClick={props.onRefreshMarket}>重新读取</button></div> : null;

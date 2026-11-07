@@ -63,7 +63,7 @@ export function GuestEntry({ mode, children }: { mode: RuntimeMode; children: Re
     const timer = window.setTimeout(() => setSlow(true), SLOW_CONNECT_MS);
     return () => window.clearTimeout(timer);
   }, [entry, identityRevision]);
-  if (entry === "checking") return <main className="owner-login-gate app-boot" role="status"><AiAvatar kind="kline" state="busy" size={56} /><span>正在连接行情…</span>
+  if (entry === "checking") return <main className="owner-login-gate app-boot" role="status"><AiAvatar kind="stone" state="busy" size={56} /><span>正在连接行情…</span>
     {stalled || slow ? <p className="app-boot-slow">{stalled ?? "仍在连接，网络较慢或应用服务暂时连不上"}<button type="button" className="ghost-button" onClick={() => window.location.reload()}>刷新重试</button></p> : null}</main>;
   if (entry === "guest" && guest) return <GuestAccount {...guest} onAuthenticated={appearance => { setMemberAppearance(appearance); setEntry("member"); }} />;
   return <ReturnToGuestContext.Provider value={eligible ? returnToGuest : undefined}><GuestAppearanceContext.Provider value={memberAppearance && { ...memberAppearance, consume: () => setMemberAppearance(undefined) }}>{children}</GuestAppearanceContext.Provider></ReturnToGuestContext.Provider>;

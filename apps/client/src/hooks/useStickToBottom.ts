@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 /** How close to the bottom (px) still counts as "following the newest message". */
 const FOLLOW_SLACK = 48;
@@ -8,19 +8,21 @@ const FOLLOW_SLACK = 48;
  * voice transcripts and cards used to land below the fold until the owner scrolled by hand).
  * While the reader is at the bottom, any growth — a new turn, a streaming reply, a card — scrolls
  * it into view; once they scroll up to read, nothing moves until they come back down. A change of
- * `followKey` (the newest message the user sent or spoke) always jumps to the bottom.
+ * `followKey` (the newest message the user sent or spoke) always jumps to the bottom. `onFollow` hears
+ * whether the reader is on the newest content (the AI orb's new-message dot, 2026-11-07).
  */
-export function useStickToBottom<T extends HTMLElement>(followKey: string | undefined) {
+export function useStickToBottom<T extends HTMLElement>(followKey: string | undefined, onFollow?: (following: boolean) => void) {
   const ref = useRef<T>(null);
   const following = useRef(true);
+  const heard = useRef(onFollow);
+  heard.current = onFollow;
+  const setFollowing = useCallback((value: boolean) => { if (following.current !== value) { following.current = value; heard.current?.(value); } }, []);
 
   useEffect(() => {
     const element = ref.current;
     if (!element) return;
     const toBottom = () => { element.scrollTop = element.scrollHeight; };
-    const onScroll = () => {
-      following.current = element.scrollHeight - element.scrollTop - element.clientHeight <= FOLLOW_SLACK;
-    };
+    const onScroll = () => setFollowing(element.scrollHeight - element.scrollTop - element.clientHeight <= FOLLOW_SLACK);
     const follow = () => { if (following.current) toBottom(); };
     const observer = new MutationObserver(follow);
     observer.observe(element, { childList: true, subtree: true, characterData: true });
@@ -29,15 +31,16 @@ export function useStickToBottom<T extends HTMLElement>(followKey: string | unde
     resize?.observe(element);
     element.addEventListener("scroll", onScroll, { passive: true });
     toBottom();
+    heard.current?.(true);
     return () => { observer.disconnect(); resize?.disconnect(); element.removeEventListener("scroll", onScroll); };
-  }, []);
+  }, [setFollowing]);
 
   useEffect(() => {
     const element = ref.current;
     if (!element || followKey === undefined) return;
-    following.current = true;
+    setFollowing(true);
     element.scrollTop = element.scrollHeight;
-  }, [followKey]);
+  }, [followKey, setFollowing]);
 
   return ref;
 }

@@ -64,6 +64,8 @@ interface Props {
   /** 手机版 (2026-10-04): the page form — a back arrow to AI 首页 instead of 收起, the account in the
    *  head, and the big hold-to-talk button in the composer (the send button replaces it while typing). */
   mobile?: { onBack: () => void; accountLabel?: string; holdButton?: ReactNode };
+  /** Whether the reader is on the newest message (the AI orb's new-message dot clears then). */
+  onFollowLatest?: (atLatest: boolean) => void;
 }
 
 /** One chip of the 快捷技能栏: the pinned skill's label, the fixed prompt it
@@ -88,7 +90,7 @@ function runningFor(since: string | undefined, now: number): string {
 export function AiDock({ workspace, chat, focus, appWorkbench, call, voiceUnavailableReason, onClose,
   onPauseStrategy, briefs, quote, decimals, selectedPrice, currentPositions, decisionTurns,
   aiExecutionActive, apiSetupRequired, apiConnectionFailed, apiProviderName, view, sendKey, quickSkills, onQuickPrompt,
-  suggestions, ptt, avatar = "kline", applyUi, symbolName, mobile }: Props) {
+  suggestions, ptt, avatar = "stone", applyUi, symbolName, mobile, onFollowLatest }: Props) {
   const access = useContext(AccountAccessContext);
   const [accessNotice, setAccessNotice] = useState("");
   const { prompt, setPrompt, promptError, promptSaveError, sendingPrompt, chatHistory, chatError, chatBlocked, selectChat, toggleHistory,
@@ -126,7 +128,7 @@ export function AiDock({ workspace, chat, focus, appWorkbench, call, voiceUnavai
   const turns = decisionTurns;
   // Follow the newest message; whatever the user just sent or said always brings it back down.
   const lastUserTurnId = useMemo(() => [...turns].reverse().find(turn => turn.role === "user")?.id, [turns]);
-  const scrollRef = useStickToBottom<HTMLDivElement>(lastUserTurnId);
+  const scrollRef = useStickToBottom<HTMLDivElement>(lastUserTurnId, onFollowLatest);
   const empty = !turns.length && !flow.length;
   // 建议问题: in the empty conversation, else left of the 快捷技能 chips. A click only fills the
   // input (the user edits and sends), so it never runs a skill on its own. A new set rises in once.

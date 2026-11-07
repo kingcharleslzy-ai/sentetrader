@@ -18,10 +18,18 @@ export type RightDock = "ai" | "strategy" | "news" | "reminders" | "order" | "po
 /** 策略面板 (2026-10-08): 我的策略, 正在运行, and the selected strategy's 结果页 (the retired lab = detail). */
 export type StrategyTab = "library" | "detail" | "running";
 export type DockSide = "left" | "right";
-/** 设置 → 界面 → AI 形象: K 线音柱 / 灵动双眼 / 像素小牛. */
-export type AiAvatar = "kline" | "eyes" | "pixel";
+/** 设置 → 界面 → AI 形象 (2026-11-07): 弈石 / 先手环 / 声纹环 / 灵动双眼 / 像素小牛. */
+export type AiAvatar = "stone" | "ring" | "voice" | "eyes" | "pixel";
 export const AI_AVATAR_OPTIONS: { value: AiAvatar; label: string }[] = [
-  { value: "kline", label: "K 线音柱" }, { value: "eyes", label: "灵动双眼" }, { value: "pixel", label: "像素小牛" }];
+  { value: "stone", label: "弈石" }, { value: "ring", label: "先手环" }, { value: "voice", label: "声纹环" },
+  { value: "eyes", label: "灵动双眼" }, { value: "pixel", label: "像素小牛" }];
+/** The stored figure; the retired K 线音柱 (`kline`) and anything unknown read as 弈石, as the Runtime does. */
+export const aiAvatarOf = (value: unknown): AiAvatar => AI_AVATAR_OPTIONS.find(option => option.value === value)?.value ?? "stone";
+/** 设置 → 界面 → AI 形象大小: the floating orb's size in px (中 = the orb's size before 2026-11-07). */
+export type AiAvatarSize = "sm" | "md" | "lg";
+export const AI_AVATAR_SIZES: { value: AiAvatarSize; label: string; px: number }[] = [
+  { value: "sm", label: "小", px: 44 }, { value: "md", label: "中", px: 56 }, { value: "lg", label: "大", px: 68 }];
+export const aiAvatarPx = (value: unknown) => (AI_AVATAR_SIZES.find(option => option.value === value) ?? AI_AVATAR_SIZES[1]).px;
 export type RecentWorkspaceAction = FuturesWorkspacePromptContext["recentActions"][number];
 
 /** 报价总表: the four columns a command may sort by (the Runtime's boardSort key enum). */

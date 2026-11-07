@@ -575,9 +575,13 @@ class UiPreferences(BaseModel):
     model_config = ConfigDict(extra="forbid")
     quickSkills: list[str] = Field(default_factory=lambda: list(DEFAULT_QUICK_SKILLS),
                                    max_length=QUICK_SKILLS_MAX)
-    # 设置 → 界面 → AI 形象 (2026-09-28): the floating AI figure and the chat avatar.
-    # kline = K 线音柱, eyes = 灵动双眼, pixel = 像素小牛.
-    aiAvatar: Literal["kline", "eyes", "pixel"] = "kline"
+    # 设置 → 界面 → AI 形象 (2026-09-28; 2026-11-07): the floating AI figure and the chat avatar.
+    # stone = 弈石, ring = 先手环, voice = 声纹环, eyes = 灵动双眼, pixel = 像素小牛. The retired
+    # kline (K 线音柱) stays accepted for older clients and documents, and always reads as stone.
+    aiAvatar: Annotated[Literal["stone", "ring", "voice", "eyes", "pixel", "kline"],
+                        BeforeValidator(lambda value: "stone" if value == "kline" else value)] = "stone"
+    # 设置 → 界面 → AI 形象大小 (2026-11-07): the floating orb 小 / 中 / 大.
+    aiAvatarSize: Literal["sm", "md", "lg"] = "md"
     # 设置 → 界面 → 布局 (2026-09-30): hide the collapsed positions bar when the account
     # has no positions and no working orders (the chart takes the space).
     autoHidePositionsBar: bool = True

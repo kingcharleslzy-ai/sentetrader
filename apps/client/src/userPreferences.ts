@@ -65,8 +65,11 @@ export interface UserPreferences {
    *  skills that offer a quick action; an empty list hides the bar). Optional
    *  because a pre-registry Runtime's document has no `ui` category yet. */
   ui?: { quickSkills: string[];
-    /** 设置 → 界面 → AI 形象; absent on a Runtime before 2026-09-28. */
-    aiAvatar?: "kline" | "eyes" | "pixel";
+    /** 设置 → 界面 → AI 形象; absent on a Runtime before 2026-09-28. Read through `aiAvatarOf` (futures/support):
+     *  `kline` (K 线音柱, retired 2026-11-07) and unknown values read as stone. */
+    aiAvatar?: "stone" | "ring" | "voice" | "eyes" | "pixel" | "kline";
+    /** 设置 → 界面 → AI 形象大小 (2026-11-07): the floating orb 小 / 中 / 大; absent on an older Runtime (中). */
+    aiAvatarSize?: "sm" | "md" | "lg";
     /** 设置 → 界面 → 布局 (2026-09-30): hide the collapsed positions bar when the account has
      *  no positions and no working orders. Absent on an older Runtime (defaults to true). */
     autoHidePositionsBar?: boolean;
@@ -137,7 +140,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
     morningDesk: true, movement: false, dailyReview: true, breakEven: true, breakEvenRule: { mode: "multiple", multiple: 1, amount: 1000, amountUsd: null },
     lockScreenAmounts: true },
   data: { sessionRetentionDays: 365 },
-  ui: { quickSkills: [...DEFAULT_QUICK_SKILLS], aiAvatar: "kline", autoHidePositionsBar: true },
+  ui: { quickSkills: [...DEFAULT_QUICK_SKILLS], aiAvatar: "stone", aiAvatarSize: "md", autoHidePositionsBar: true },
   marketBoard: { columns: [...DEFAULT_BOARD_COLUMNS], sort: { ...DEFAULT_BOARD_SORT }, exchange: "all" },
   watchlist: { products: [] }
 };

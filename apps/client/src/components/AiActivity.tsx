@@ -227,7 +227,7 @@ const LONG_PRESS_MS = 500;
  * news pops the card above the orb for a few seconds even mid-call; long-press / right-click opens
  * 静音 / 挂断 / 切文字 / AI 动态. Commandable: `aiActivityCard`, `disclosure: voice-call|voice-mute|voice-menu`.
  */
-export function AiOrb({ baseUrl, symbol, replay, activity, error, config, onBriefStatusChange, onOpenChat, sessionId, voiceAvailable, avatar = "kline", beside }: {
+export function AiOrb({ baseUrl, symbol, replay, activity, error, config, onBriefStatusChange, onOpenChat, sessionId, voiceAvailable, avatar = "stone", size: orb = 56, newMessage = false, beside }: {
   baseUrl?: string; symbol?: string; name?: string; replay: boolean; activity?: ActivitySnapshot; error: string;
   config: typeof defaultConfig; onConfigChange: (patch: Partial<typeof defaultConfig>) => Promise<void>; onOpenChat: () => void; onBriefStatusChange?: (status: string) => void;
   /** The chat session voice turns join. */
@@ -236,6 +236,10 @@ export function AiOrb({ baseUrl, symbol, replay, activity, error, config, onBrie
   voiceAvailable?: boolean;
   /** 设置 → 界面 → AI 形象. */
   avatar?: AiAvatarKind;
+  /** 设置 → 界面 → AI 形象大小: the orb's size in px; bounds, avoidance and the menu follow it. */
+  size?: number;
+  /** The conversation has an AI reply or card the user has not seen (the workspace decides). */
+  newMessage?: boolean;
   /** A short message beside the orb (the AI 指令栏's result), on the side with more room. */
   beside?: ReactNode;
 }) {
@@ -340,9 +344,11 @@ export function AiOrb({ baseUrl, symbol, replay, activity, error, config, onBrie
   const look = inCall || callStatus.state === "connecting" ? orbState(callStatus) : operating ? "busy" : "standby";
   const activityLabel = operating ? "AI 操作中" : fresh ? "AI 待机" : "连接待确认";
   const callLabel = voice ? (inCall || callStatus.state === "error" ? orbLabel(callStatus) : "开始语音通话") : "";
-  const ariaLabel = [voice ? (inCall ? `结束语音通话（${callLabel}）` : callLabel) : "AI 动态", activityLabel, unread ? "有新动态" : "", "可拖动", "右键更多"].filter(Boolean).join("；");
+  const ariaLabel = [voice ? (inCall ? `结束语音通话（${callLabel}）` : callLabel) : "AI 动态", activityLabel, unread ? "有新动态" : "", newMessage ? "对话有新消息" : "", "可拖动", "右键更多"].filter(Boolean).join("；");
   // The orb is the voice side of the one AI; the 对话面板 is its text side (same call, same chat).
   const title = voice ? `AI 语音：点一下${inCall ? "挂断" : callStatus.state === "error" ? "重试" : "通话"} · 右键更多` : "AI 动态：点一下查看 · 右键更多";
+  // Error looks like offline (grey, owner 2026-11-07); why is said in the menu, not in red.
+  const greyReason = callStatus.state === "error" ? orbLabel(callStatus) : !fresh && !inCall ? error || "连接待确认" : "";
   const onPrimary = () => {
     if (menuOpen) { setMenuOpen(false); return; }
     if (!voice) { if (open && !auto) closeCard(); else showCard(); return; }
@@ -350,16 +356,16 @@ export function AiOrb({ baseUrl, symbol, replay, activity, error, config, onBrie
     if (inCall) hangUp(); else startCall();
   };
 
-  const windowMaxX = Math.max(0, size.width - 56), windowMaxY = Math.max(0, size.height - 56);
+  const windowMaxX = Math.max(0, size.width - orb), windowMaxY = Math.max(0, size.height - orb);
   const maxX = Math.max(size.leftInset, windowMaxX - size.rightInset), maxY = Math.max(0, windowMaxY - size.bottomInset);
   const safePosition = (x: number, y: number) => {
     const clamp = (point: { x: number; y: number }) => ({ x: Math.max(size.leftInset, Math.min(maxX, point.x)), y: Math.max(0, Math.min(maxY, point.y)) });
     const wanted = clamp({ x, y });
     // Only the market bars themselves are protected: a board's chart may sit below other content.
-    const xs = [wanted.x, ...marketBars.flatMap(bar => [bar.left - 64, bar.right + 8])];
-    const ys = [wanted.y, ...marketBars.flatMap(bar => [bar.top - 64, bar.bottom + 8])];
-    const candidates = xs.flatMap(x => ys.map(y => clamp({ x, y }))).filter(point => marketBars.every(bar => point.x + 56 <= bar.left - 8 || point.x >= bar.right + 8
-      || point.y + 56 <= bar.top - 8 || point.y >= bar.bottom + 8));
+    const xs = [wanted.x, ...marketBars.flatMap(bar => [bar.left - orb - 8, bar.right + 8])];
+    const ys = [wanted.y, ...marketBars.flatMap(bar => [bar.top - orb - 8, bar.bottom + 8])];
+    const candidates = xs.flatMap(x => ys.map(y => clamp({ x, y }))).filter(point => marketBars.every(bar => point.x + orb <= bar.left - 8 || point.x >= bar.right + 8
+      || point.y + orb <= bar.top - 8 || point.y >= bar.bottom + 8));
     return candidates.sort((a, b) => (a.x - wanted.x) ** 2 + (a.y - wanted.y) ** 2 - (b.x - wanted.x) ** 2 - (b.y - wanted.y) ** 2)[0] ?? wanted;
   };
   const { x: left, y: top } = safePosition(Math.round((position?.x ?? 0) * windowMaxX), position ? Math.round(position.y * windowMaxY) : maxY);
@@ -371,17 +377,17 @@ export function AiOrb({ baseUrl, symbol, replay, activity, error, config, onBrie
   };
   const safeHeight = Math.max(0, size.height - size.bottomInset);
   const cardWidth = Math.min(348, size.width), cardHeight = Math.min(440, safeHeight);
-  const cardLeft=Math.max(0,Math.min(left+56-cardWidth,size.width-cardWidth));
+  const cardLeft=Math.max(0,Math.min(left+orb-cardWidth,size.width-cardWidth));
   const cardTop=Math.max(0,Math.min(top-cardHeight-8,safeHeight-cardHeight));
   const besideWidth = Math.min(304, size.width);
-  const besideLeft = Math.max(0, Math.min(left + 28 > size.width / 2 ? left - 8 - besideWidth : left + 64, size.width - besideWidth));
+  const besideLeft = Math.max(0, Math.min(left + orb / 2 > size.width / 2 ? left - 8 - besideWidth : left + orb + 8, size.width - besideWidth));
   // Bottom-aligned with the orb, growing upwards; an orb near the top grows it downwards instead.
-  const besidePlace = top < 120 ? { top } : { bottom: Math.max(0, size.height - top - 56) };
-  const menuPlace = useMenuPlace(menu, size.left + left, size.top + top + 64, `${menuOpen}:${size.menuHeight}:${size.menuWidth}`, size.top + top - 8);
+  const besidePlace = top < 120 ? { top } : { bottom: Math.max(0, size.height - top - orb) };
+  const menuPlace = useMenuPlace(menu, size.left + left, size.top + top + orb + 8, `${menuOpen}:${size.menuHeight}:${size.menuWidth}`, size.top + top - 8);
   return <div className="ai-floating-area" ref={area}>
     <button type="button" className="ai-orb" data-testid="ai-orb" data-state={look} data-muted={callStatus.muted ? "true" : undefined} data-call={inCall ? "true" : undefined}
-      data-operating={operating||undefined} data-connection={fresh?"ready":"unavailable"} data-unread={unread || undefined}
-      title={title} ref={bubble} style={{ left, top, "--voice-level": callStatus.level ?? 0 } as React.CSSProperties}
+      data-operating={operating||undefined} data-connection={fresh?"ready":"unavailable"} data-unread={unread || undefined} data-new-message={newMessage || undefined}
+      title={title} ref={bubble} style={{ left, top, width: orb, height: orb, "--voice-level": callStatus.level ?? 0 } as React.CSSProperties}
       aria-label={ariaLabel} aria-pressed={voice ? inCall : undefined} aria-expanded={open} aria-controls="ai-floating-card"
       onPointerDown={event => { if (event.button !== 0) return; suppressClick.current = false; drag.current = { x: event.clientX, y: event.clientY, left, top, moved: false }; event.currentTarget.setPointerCapture(event.pointerId);
         window.clearTimeout(pressTimer.current); pressTimer.current = window.setTimeout(() => { if (!drag.current?.moved) { suppressClick.current = true; setMenuOpen(true); } }, LONG_PRESS_MS); }}
@@ -391,22 +397,23 @@ export function AiOrb({ baseUrl, symbol, replay, activity, error, config, onBrie
       onContextMenu={event => { event.preventDefault(); setMenuOpen(value => !value); }}
       onClick={event => { if (event.detail > 0 && suppressClick.current) { suppressClick.current = false; return; } onPrimary(); }}
       onKeyDown={event => { const step = 16; const delta = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[event.key]; if (delta) { event.preventDefault(); move(left + delta[0], top + delta[1]); } if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) { event.preventDefault(); setMenuOpen(true); } }}>
-      <AiAvatar kind={avatar} size={56} level={callStatus.muted ? 0 : callStatus.level ?? 0}
+      <AiAvatar kind={avatar} size={orb} level={callStatus.muted ? 0 : callStatus.level ?? 0}
         state={callStatus.state === "error" ? "error" : !fresh && !inCall ? "offline" : look} />
       {inCall ? <span className="ai-orb-badge" aria-hidden="true">{callStatus.muted ? <MicOff /> : <Mic />}</span> : null}
-      {unread && <i className="ai-orb-dot" />}
+      {unread || newMessage ? <i className="ai-orb-dot" /> : null}
     </button>
     {beside ? <div className="ai-orb-beside" style={{ left: besideLeft, width: besideWidth, ...besidePlace }}>{beside}</div> : null}
-    {voice && (inCall || callStatus.state === "error") ? <span className="ai-orb-label" role="status" data-state={callStatus.state} style={{ left: size.width > 2 * ORB_LABEL_HALF ? Math.min(Math.max(left + 28, ORB_LABEL_HALF), size.width - ORB_LABEL_HALF) : left + 28, top: top + 60 > safeHeight - 24 ? top - 26 : top + 60 }}>{callLabel}</span> : null}
+    {voice && (inCall || callStatus.state === "error") ? <span className="ai-orb-label" role="status" data-state={callStatus.state} style={{ left: size.width > 2 * ORB_LABEL_HALF ? Math.min(Math.max(left + orb / 2, ORB_LABEL_HALF), size.width - ORB_LABEL_HALF) : left + orb / 2, top: top + orb + 4 > safeHeight - 24 ? top - 26 : top + orb + 4 }}>{callLabel}</span> : null}
     <Presence>{menuOpen ? createPortal(
       <menu ref={menu} className="ai-orb-menu" role="menu" aria-label="AI 球菜单" style={{ left: menuPlace.left, top: menuPlace.top }}>
+        {greyReason ? <li role="presentation" className="ai-orb-menu-note">{greyReason}</li> : null}
         {inCall ? <li><button type="button" role="menuitem" onClick={() => { call.mute(!callStatus.muted); setMenuOpen(false); }}>{callStatus.muted ? <><Mic />取消静音</> : <><MicOff />静音</>}</button></li> : null}
         {inCall ? <li><button type="button" role="menuitem" onClick={hangUp}><PhoneOff />挂断</button></li> : null}
-        <li><button type="button" role="menuitem" onClick={() => { onOpenChat(); if (inCall) hangUp(); setMenuOpen(false); }}><MessageSquareText />切文字</button></li>
+        <li><button type="button" role="menuitem" onClick={() => { onOpenChat(); if (inCall) hangUp(); setMenuOpen(false); }}><MessageSquareText />切文字{newMessage ? "（有新消息）" : ""}</button></li>
         <li><button type="button" role="menuitem" onClick={() => showCard()}><Activity />AI 动态{unread ? "（有新）" : ""}</button></li>
       </menu>, menuHost()
     ) : null}</Presence>
-    {(open||closing) && <section inert={closing} aria-hidden={closing||undefined} data-closing={closing||undefined} data-auto={auto||undefined} id="ai-floating-card" className="ai-floating-card" role="region" aria-label="AI 动态卡片" style={{ width: cardWidth, maxHeight: cardHeight, left:cardLeft,top:cardTop,transformOrigin:`${left+28-cardLeft}px ${top+28-cardTop}px` }}
+    {(open||closing) && <section inert={closing} aria-hidden={closing||undefined} data-closing={closing||undefined} data-auto={auto||undefined} id="ai-floating-card" className="ai-floating-card" role="region" aria-label="AI 动态卡片" style={{ width: cardWidth, maxHeight: cardHeight, left:cardLeft,top:cardTop,transformOrigin:`${left+orb/2-cardLeft}px ${top+orb/2-cardTop}px` }}
       onPointerEnter={() => { if (auto) { window.clearTimeout(autoTimer.current); setAuto(false); setUnread(false); } }}>
       <header><div><strong>AI 动态</strong><small>{operating?"AI 操作中":fresh?"待机":"连接待确认"}</small></div><button type="button" aria-label="收起 AI 动态" onClick={closeCard}>×</button></header>
       <div className="ai-floating-scroll">
