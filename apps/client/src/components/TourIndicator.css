@@ -1,6 +1,8 @@
-/* Guided tour step indicator: bottom centre, above the positions bar, theme tokens only. */
+/* Guided tour step indicator: bottom centre, above the positions bar, theme tokens only. TourIndicator moves it over
+   the room the side panel leaves and above a target its bottom spot would cover; it keeps its width wherever it sits. */
 .ai-tour-indicator {
-  position: fixed; left: 50%; bottom: 56px; transform: translateX(-50%); z-index: 95;
+  --ai-tour-bottom: 56px;
+  position: fixed; left: 50%; bottom: var(--ai-tour-bottom); transform: translateX(-50%); z-index: 95; width: max-content;
   display: flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-2);
   max-width: min(560px, calc(100vw - 32px)); border: 1px solid var(--line); border-radius: var(--radius-card);
   background: var(--panel); color: var(--ink); box-shadow: var(--shadow-2);
@@ -12,4 +14,4 @@
 .ai-tour-indicator > button:not(.ai-tour-step) { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; padding: 0 var(--space-2); border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--soft); color: var(--ink); cursor: pointer; }
 .ai-tour-indicator > button:not(.ai-tour-step):disabled { opacity: .4; cursor: default; }
 .ai-tour-indicator > button:not(.ai-tour-step) svg { width: 16px; height: 16px; }
-@media (max-width: 760px) { .ai-tour-indicator { bottom: 96px; } }
+@media (max-width: 760px) { .ai-tour-indicator { --ai-tour-bottom: 96px; } }

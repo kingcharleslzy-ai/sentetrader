@@ -3767,8 +3767,9 @@ export interface components {
         /**
          * TourChange
          * @description A guided tour: `start` with 1–20 steps, then `next` / `prev` / `stop`. Each step opens its surface,
-         *     highlights its target and shows the step indicator (第 n/N 步 · 上一步 / 下一步 / 结束). A click anywhere
-         *     only closes the bubble; only `stop` (or 结束, or `next` past the last step) ends the tour.
+         *     highlights its target (a ring, no label) and shows the step indicator with the step's label (第 n/N 步 · 上一步 /
+         *     下一步 / 结束), placed clear of the target and the open side panel. A click anywhere only clears the highlight;
+         *     only `stop` (or 结束, or `next` past the last step) ends the tour.
          */
         TourChange: {
             /**
@@ -3827,7 +3828,7 @@ export interface components {
             target: string;
             /**
              * Label
-             * @description 气泡里的一句话
+             * @description 步骤条里这一步的一句话
              */
             label: string;
             /**
@@ -4026,7 +4027,10 @@ export interface components {
             state: components["schemas"]["UiState"] | null;
             /** Observedrevision */
             observedRevision?: number | null;
-            /** Reason */
+            /**
+             * Reason
+             * @description 命令被拒绝的中文原因；state 和 observedRevision 是拒绝时的最新窗口状态与版本
+             */
             reason?: string | null;
         };
         /** UiDevice */

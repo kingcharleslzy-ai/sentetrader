@@ -4,9 +4,9 @@ import type { components } from "./workbench.generated";
 
 /**
  * A guided tour (AI annotation layer, step two): an ordered list of steps, each opening a
- * surface (`focus`, a subset of UiChanges applied by the workspace) and highlighting a target
- * with a bubble. The step indicator lets the user go back and forth or end the tour; a click
- * anywhere only closes the bubble. The workspace reports `tour` in UiState and applies the
+ * surface (`focus`, a subset of UiChanges applied by the workspace) and highlighting a target;
+ * the step indicator carries the step's words and lets the user go back and forth or end the
+ * tour; a click anywhere only clears the highlight. The workspace reports `tour` in UiState and applies the
  * `tour` command; the 新手引导 entry starts the course the manual describes.
  */
 export type TourStep = components["schemas"]["TourStep"];
@@ -31,16 +31,20 @@ export function useTour(): TourState { return useSyncExternalStore(subscribe, to
 /** The workspace hands the store the function that applies a step's `focus` (its UiChanges apply). */
 export function registerTourFocus(apply: ((focus: TourFocus) => void) | undefined) { runFocus = apply; }
 
+/** The ring only: the step indicator already carries the step's words and keeps clear of the target, where a label
+ *  beside the target covered what sat next to it (the header over 周期, 买多 / 卖空 beside 下单, the chat's head; 11-07). */
+const lightStep = (step: TourStep) => showHighlight({ target: step.target, label: null, style: "pulse", durationMs: STEP_HIGHLIGHT_MS });
+
 function show(at: number) {
   const step = steps[at];
   if (step.focus && runFocus) runFocus(step.focus);
   clearHighlights();
   // A target that opens with the step's focus may mount after this paint: retry once; without a
   // focus a missing target is the caller's mistake and the step (or the start) is refused.
-  try { showHighlight({ target: step.target, label: step.label, style: "pulse", durationMs: STEP_HIGHLIGHT_MS }); }
+  try { lightStep(step); }
   catch (error) {
     if (!step.focus) throw error;
-    setTimeout(() => { if (index === at && state.active) try { showHighlight({ target: step.target, label: step.label, style: "pulse", durationMs: STEP_HIGHLIGHT_MS }); } catch { /* the indicator still names the step */ } }, 350);
+    setTimeout(() => { if (index === at && state.active) try { lightStep(step); } catch { /* the indicator still names the step */ } }, 350);
   }
   index = at;
   state = { active: true, step: at + 1, total: steps.length, current: step };
@@ -79,7 +83,7 @@ export function stopTour() {
 /** Show the current step's highlight again (the user's click only closed the bubble). */
 export function relightTourStep() {
   if (!state.active || index < 0) return;
-  try { showHighlight({ target: steps[index].target, label: steps[index].label, style: "pulse", durationMs: STEP_HIGHLIGHT_MS }); } catch { /* the surface moved on */ }
+  try { lightStep(steps[index]); } catch { /* the surface moved on */ }
 }
 
 /** Test helper. */

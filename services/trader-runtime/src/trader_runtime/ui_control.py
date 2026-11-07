@@ -1121,15 +1121,16 @@ class TourFocus(BaseModel):
 class TourStep(BaseModel):
     model_config = ConfigDict(extra="forbid")
     target: str = Field(min_length=1, max_length=80, pattern=r"^[A-Za-z0-9_.:-]+$", description="高亮目标 id（同 highlight.target）")
-    label: str = Field(min_length=1, max_length=40, description="气泡里的一句话")
+    label: str = Field(min_length=1, max_length=40, description="步骤条里这一步的一句话")
     say: str | None = Field(default=None, max_length=80, description="这一步要念/要说的话（语音回合逐步播报）")
     focus: TourFocus | None = Field(default=None, description="先把目标所在表面打开（view/panel/dialog…），再高亮")
 
 
 class TourChange(BaseModel):
     """A guided tour: `start` with 1–20 steps, then `next` / `prev` / `stop`. Each step opens its surface,
-    highlights its target and shows the step indicator (第 n/N 步 · 上一步 / 下一步 / 结束). A click anywhere
-    only closes the bubble; only `stop` (or 结束, or `next` past the last step) ends the tour."""
+    highlights its target (a ring, no label) and shows the step indicator with the step's label (第 n/N 步 · 上一步 /
+    下一步 / 结束), placed clear of the target and the open side panel. A click anywhere only clears the highlight;
+    only `stop` (or 结束, or `next` past the last step) ends the tour."""
     model_config = ConfigDict(extra="forbid")
     op: Literal["start", "next", "prev", "stop"]
     steps: list[TourStep] = Field(default_factory=list, max_length=TOUR_MAX_STEPS)

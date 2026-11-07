@@ -91,7 +91,7 @@ test("AI annotations and highlights are commandable, observable and clearable", 
   expect(receipt.status, JSON.stringify(receipt)).toBe("applied");
   expect(receipt.state).toMatchObject({ dockSide: "right", dockWidth: 340, positionsBar: "collapsed" });
 
-  // A guided tour: start lights step 1 after its focus, next/prev move, a click only closes the bubble, stop ends it.
+  // A guided tour: start lights step 1 after its focus, next/prev move, a click only clears the highlight, stop ends it.
   const course = [
     { target: "rail:order", label: "下单区在这里", say: "下单区", focus: { panel: "order", ticketMode: "open" } },
     { target: "positions-bar", label: "底栏看持仓", focus: { positionsBar: "expanded" } },
@@ -103,7 +103,9 @@ test("AI annotations and highlights are commandable, observable and clearable", 
   expect(receipt.state!.panel).toBe("order");
   const indicator = page.getByRole("group", { name: "新手引导" });
   await expect(indicator).toContainText("第 1/3 步");
-  await expect(page.locator(".ai-highlight[data-target='rail:order']")).toContainText("下单区在这里");
+  // The ring marks the target; the step's words are in the indicator only, which keeps clear of the target.
+  await expect(page.locator(".ai-highlight[data-target='rail:order']")).toBeVisible();
+  await expect(indicator).toContainText("下单区在这里");
   receipt = await command({ tour: { op: "next" } });
   expect(receipt.status).toBe("applied");
   expect(receipt.state!.tour).toMatchObject({ step: 2, current: { target: "positions-bar" } });
