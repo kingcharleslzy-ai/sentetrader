@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { expect, test, type BrowserContext, type Page, type Route } from "@playwright/test";
 import { waitForWorkspace } from "./support/workspace";
 import { classify, staleKnownGaps, type Control } from "./support/uiCoverage";
@@ -191,6 +192,15 @@ test("every user-operable control is commandable or reachable, and visible to th
     await route.fallback({ postData: JSON.stringify({ ...body,
       reports: body.reports.filter((key: string) => !/^(account-pnl|daily-review|habits)(\?|$)/.test(key)) }) });
   });
+  // The fake adapter seeds every new chat with demo turns; this one fixture is an empty chat.
+  await page.route("**/api/sessions?chat=true", async route => {
+    const response = await route.fetch();
+    const { sessionId } = await response.json();
+    execFileSync("python3", ["-c", "import sqlite3,sys; c=sqlite3.connect(sys.argv[1]); c.execute(\"DELETE FROM events WHERE session_id=? AND kind IN ('message','artifact')\", (sys.argv[2],)); c.commit()",
+      `${process.env.AI_TRADER_E2E_STATE_ROOT}/ai-trader.sqlite3`, sessionId]);
+    await route.fulfill({ response });
+  });
+  await page.route("**/api/agent/suggestions", route => route.fulfill({ json: { items: ["看看当前行情", "持仓要留意什么"] } }));
   await briefRoutes(page);
   await routineRoutes(page);
   await reminderRoutes(page);
@@ -265,6 +275,8 @@ test("every user-operable control is commandable or reachable, and visible to th
     // 看板 · 铺满版 (2026-11-05): the 盘中 board as it starts, the header's board list (on the board: 编辑 / 改名 / 删除), its right-click menu,
     // then editing 复盘 (大档持仓) with the 模块库, a block's ⋯, the 让 AI 帮我摆 card and an arrangement's preview, back to trade.
     ["dashboard", [{ view: "dashboard" }, { boards: { select: "live" } }], true],
+    ["board-chat-examples", [{ chatSession: { new: true } }, { boards: { editing: true } }, { boards: { preview: { layout: { type: "split", direction: "row", children: ["chart", "chat"], splitPercentages: [60, 40] }, locks: { chat: "medium" } } } }, { panel: null }], true],
+    ["", [{ boards: { discard: true } }, { boards: { editing: false } }], false],
     ["boards-menu", [{ disclosure: { name: "boards-menu", open: true } }], true],
     ["", [{ disclosure: { name: "boards-menu", open: false } }], false],
     ["board-context-menu", [{ disclosure: { name: "board-context-menu", open: true } }], true],
@@ -484,6 +496,7 @@ test("every user-operable control is commandable or reachable, and visible to th
     }
     if (!audit) continue;
     await target.waitForTimeout(600);
+    if (surface === "board-chat-examples") await expect(target.locator('[data-agent-target="board-tile:chat"] [data-agent-target="chat-examples"]')).toBeVisible();
     const raw = await collectControls(target);
     // The observation rides on the heartbeat: content that does not change UiState (a new card) reaches
     // the Runtime with the next idle pulse, up to 10 s later. Wait for a snapshot that has caught up.

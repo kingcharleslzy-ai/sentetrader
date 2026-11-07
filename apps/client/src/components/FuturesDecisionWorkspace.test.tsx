@@ -9,6 +9,7 @@ import type {
 } from "../api";
 import { rememberStrategyScopes } from "../api";
 import { GuestAppearanceContext } from "../guestAppearance";
+import { ChatCompact } from "./boards/BoardTiles";
 import { FuturesDecisionWorkspace } from "./FuturesDecisionWorkspace";
 import { DEFAULT_PREFERENCES } from "../userPreferences";
 import { resetShortcutStore } from "../shortcuts";
@@ -476,7 +477,7 @@ test("建议问题：对话面板打开才按当前页面向 AI 要，最多 2 �
   const values = props({ mode: "cloud", runtimeBaseUrl: "https://runtime.test", chatSessionId: "s-1", state: {
     turns: [{ id: "welcome", role: "assistant", text: "Sente 已连接。本站模拟账户 · 模拟执行可用 · 实盘关闭。", timestamp: market.capturedAt, cards: [] }]
   } });
-  render(<FuturesDecisionWorkspace {...values as any} />);
+  const workspace = render(<FuturesDecisionWorkspace {...values as any} />);
   await act(async () => { await Promise.resolve(); });
   expect(asked).toEqual([]);  // the panel is closed: nothing is asked
   openAiPanel();
@@ -501,6 +502,19 @@ test("建议问题：对话面板打开才按当前页面向 AI 要，最多 2 �
   expect(screen.queryByText(/可以这样问/)).toBeNull();
   expect(screen.getByText("还没有对话：在下面问一句")).toBeVisible();
   expect(values.onPrompt).not.toHaveBeenCalled();
+  workspace.unmount();
+  const compact = render(<ChatCompact medium turns={[]} suggestions={["黄金夜盘怎么看", "要不要设个止损"]}
+    busy={false} onSend={values.onPrompt} onOpen={vi.fn()} />);
+  expect(compact.container.querySelector(".board-reply")).toBeNull();
+  expect(compact.container.querySelector(".board-chat-empty")).toHaveTextContent("还没有对话");
+  fireEvent.click(screen.getByRole("button", { name: "黄金夜盘怎么看" }));
+  expect(screen.getByRole("textbox", { name: "给 AI 发消息" })).toHaveValue("黄金夜盘怎么看");
+  expect(screen.getByRole("textbox", { name: "给 AI 发消息" })).toHaveFocus();
+  expect(values.onPrompt).not.toHaveBeenCalled();
+  compact.rerender(<ChatCompact medium turns={[{ key: "reply", role: "assistant", text: "已有回复", at: "10:00" }]}
+    suggestions={["黄金夜盘怎么看"]} busy={false} onSend={values.onPrompt} onOpen={vi.fn()} />);
+  expect(screen.queryByLabelText("建议问题")).toBeNull();
+  expect(screen.getByLabelText("最近的对话")).toHaveTextContent("已有回复");
 });
 
 test("顶栏不显示交易账户切换；设置 → 账户里按“账户名 / 本站模拟”列出，非本人账户才带角色", async () => {

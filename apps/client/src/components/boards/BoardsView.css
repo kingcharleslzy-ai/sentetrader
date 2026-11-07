@@ -193,7 +193,8 @@
 .board-chat-input { flex: none; display: flex; align-items: center; gap: var(--space-2); width: 100%; }
 .board-chat-medium .board-chat-input { padding: var(--space-2) var(--space-3); border-top: 1px solid var(--line); }
 .board-chat-input input { flex: 1; min-width: 0; height: 36px; padding: 0 var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-control); background: var(--soft); color: var(--ink); font-size: var(--font-md); }
-.board-reply { flex: 1; min-height: 0; margin: 0; padding: var(--space-2) var(--space-3); color: var(--ai-bubble-ink); background: var(--ai-bubble); line-height: 1.5; }
+.board-chat-empty { flex: 1; min-height: 0; overflow: auto; padding: var(--space-2) var(--space-3); }
+.board-chat-empty .board-empty { margin: 0 0 var(--space-2); line-height: 1.5; }
 .board-sheet-medium .board-empty, .board-alert-medium .board-empty, .board-watch-medium .board-empty, .board-positions-medium .board-empty { white-space: normal; text-align: left; line-height: 1.5; }
 .board-positions-large { display: flex; flex-direction: column; min-height: 0; }
 .board-large-head { flex: none; height: 40px; padding: 0 var(--space-3); border-bottom: 1px solid var(--line); }

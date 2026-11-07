@@ -1,3 +1,4 @@
+import { ChatExamples } from "../futures/ChatExamples";
 import { useEffect, useLayoutEffect, useRef, useState, type ComponentProps, type CSSProperties, type ReactNode } from "react";
 import { normalizePaneSizes, SUB_PANES_MAX, type PaneSizes } from "../chartIndicators";
 import { foreignQuoteOnly, sameContract, type AccountPosition, type AccountSnapshot, type InstrumentCatalog, type MarketBoardRow, type MarketWorkbenchSnapshot, type RemoteTradeSnapshot,
@@ -374,16 +375,17 @@ export function AlertCompact({ waiting, latest, onOpen, medium }: {
 }
 
 /** 对话 · 一条 (输入框和发送) / 中 (最近一条回复 + 输入框): what is typed goes to the same conversation as the 对话 panel. */
-export function ChatCompact({ turns, busy, blockedReason, onSend, onOpen, medium }: {
+export function ChatCompact({ turns, suggestions, busy, blockedReason, onSend, onOpen, medium }: {
   /** The conversation's recent turns, oldest first; the block shows as many of the latest as fit. */
   turns: { key: string; role: "user" | "assistant"; text: string; at: string }[]; busy: boolean; blockedReason?: string;
-  onSend: (text: string) => void; onOpen: () => void; medium?: boolean;
+  suggestions: string[]; onSend: (text: string) => void; onOpen: () => void; medium?: boolean;
 }) {
+  const composer = useRef<HTMLInputElement>(null);
   const reply = [...turns].reverse().find(turn => turn.role === "assistant");
   const [text, setText] = useState("");
   const send = () => { const value = text.trim(); if (!value || busy || blockedReason) return; onSend(value); setText(""); };
   const input = <form className="board-chat-input" onSubmit={event => { event.preventDefault(); send(); }}>
-    <input value={text} onChange={event => setText(event.target.value)} placeholder={blockedReason || "问 AI，或说一句要做的事"} aria-label="给 AI 发消息" disabled={Boolean(blockedReason)} />
+    <input ref={composer} value={text} onChange={event => setText(event.target.value)} placeholder={blockedReason || "问 AI，或说一句要做的事"} aria-label="给 AI 发消息" disabled={Boolean(blockedReason)} />
     <button type="submit" className="app-button primary" disabled={!text.trim() || busy || Boolean(blockedReason)}>{busy ? "回答中" : "发送"}</button>
   </form>;
   // The name bar, as every block has one: a block of only an input box looked broken (visual review 2026-11-07).
@@ -393,7 +395,10 @@ export function ChatCompact({ turns, busy, blockedReason, onSend, onOpen, medium
   return <div className="board-chat-medium">
     {head}
     {turns.length ? <ol className="board-turns board-read" aria-label="最近的对话">{[...turns].reverse().map(turn => <li key={turn.key} data-role={turn.role}>
-      <p>{turn.text}</p></li>)}</ol> : <p className="board-reply">还没有对话：在下面问一句</p>}
+      <p>{turn.text}</p></li>)}</ol> : <div className="board-chat-empty">
+      <p className="board-empty">还没有对话：在下面问一句</p>
+      <ChatExamples items={suggestions} onFill={value => { setText(value); composer.current?.focus(); }} />
+    </div>}
     {input}
   </div>;
 }

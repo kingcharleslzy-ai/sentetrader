@@ -855,10 +855,10 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     explanationSupported, selectedPrice, currentPositions, selectedPosition, ticketDraft, recentActions });
   const chat = useWorkspaceChat({ workspace: props, promptContext });
   // 建议问题 (2026-10-05): the AI's own 0–2 questions, asked only while the 对话面板 shows (the phone's
-  // chat page is the same dock) and the conversation can actually be used.
+  // chat page is the same dock), or the board has a chat block, and the conversation can be used.
   const suggestions = useChatSuggestions({
     baseUrl: connectedRuntimeUrl,
-    enabled: !isGuest && rightDock === "ai" && !props.replayActive
+    enabled: !isGuest && (rightDock === "ai" || boardModules.includes("chat")) && !props.replayActive
       && !(props.agentAccount && (!props.agentAccount.authenticated || props.agentAccount.configurationRequired))
       && !access.reason("ai-chat"),
     sessionId: props.chatSessionId, accountId: props.state.runtime?.account?.id,
@@ -1841,7 +1841,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
       const turns = decisionTurns.filter(turn => (turn.role === "user" || turn.role === "assistant") && turn.text.trim()).slice(-20)
         .map((turn, index) => ({ key: `${turn.timestamp}:${index}`, role: turn.role as "user" | "assistant", text: turn.text,
           at: new Date(turn.timestamp).toLocaleTimeString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false, hour: "2-digit", minute: "2-digit" }) }));
-      return <ChatCompact medium={size === "medium"} busy={Boolean(props.chatBusy || chat.sendingPrompt)} blockedReason={aiBlocked || undefined} turns={turns}
+      return <ChatCompact medium={size === "medium"} busy={Boolean(props.chatBusy || chat.sendingPrompt)} blockedReason={aiBlocked || undefined} turns={turns} suggestions={suggestions}
         onSend={text => void chat.sendQuickPrompt(text)} onOpen={() => setRightDock("ai")} />;
     }
     if (module === "watch") {

@@ -1,3 +1,4 @@
+import { ChatExamples } from "./ChatExamples";
 import { AccountAccessContext } from "../../hooks/useAccountAccess";
 import { Bot, ChevronLeft, History, MessageSquareText, PanelRightClose, Pause, Plus, Send } from "lucide-react";
 import { useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -129,14 +130,8 @@ export function AiDock({ workspace, chat, focus, appWorkbench, call, voiceUnavai
   const empty = !turns.length && !flow.length;
   // 建议问题: in the empty conversation, else left of the 快捷技能 chips. A click only fills the
   // input (the user edits and sends), so it never runs a skill on its own. A new set rises in once.
-  const exampleChips = suggestions.items.length ? (
-    <div className="fdw-chat-examples" data-agent-target="chat-examples" aria-label="建议问题" key={suggestions.items.join("\n")}>
-      {suggestions.items.map(text => (
-        <button type="button" key={text} title={`填入输入框：${text}`}
-          onClick={() => { pushToTalkStore.dismiss(); setPrompt(text); (input.current ?? area.current)?.focus(); }}>{text}</button>
-      ))}
-    </div>
-  ) : null;
+  const exampleChips = suggestions.items.length ? <ChatExamples items={suggestions.items}
+    onFill={text => { pushToTalkStore.dismiss(); setPrompt(text); (input.current ?? area.current)?.focus(); }} /> : null;
   const positionTag = currentPositions.length
     ? currentPositions.map(position => `${position.direction === "long" ? "多" : "空"} ${position.volume} 手 ${formatSigned(position.unrealizedPnl, 0)}`).join(" · ")
     : workspace.account ? "空仓" : "持仓读取中";

@@ -590,14 +590,14 @@
    of quoted sentences; a click fills the input. With a conversation they lead the chip row as
    dashed pills, so they read apart from the solid 快捷技能 chips that send at once. A new set
    rises in once (no motion under reduced motion: --dur-3 is 0). */
-.fdw-ai-empty .fdw-chat-examples {
+:is(.fdw-ai-empty, .board-chat-empty) .fdw-chat-examples {
   display: grid;
   gap: var(--space-1);
   width: min(100%, 280px);
   margin-top: var(--space-1);
 }
 
-.fdw-ai-empty .fdw-chat-examples button {
+:is(.fdw-ai-empty, .board-chat-empty) .fdw-chat-examples button {
   min-height: 32px;
   padding: var(--space-1) var(--space-3);
   border: 1px solid var(--line);
@@ -610,8 +610,8 @@
   cursor: pointer;
 }
 
-.fdw-ai-empty .fdw-chat-examples button::before { content: "“"; color: var(--muted); }
-.fdw-ai-empty .fdw-chat-examples button::after { content: "”"; color: var(--muted); }
+:is(.fdw-ai-empty, .board-chat-empty) .fdw-chat-examples button::before { content: "“"; color: var(--muted); }
+:is(.fdw-ai-empty, .board-chat-empty) .fdw-chat-examples button::after { content: "”"; color: var(--muted); }
 
 .fdw-chat-examples button { animation: ui-panel-in var(--dur-2) var(--ease-out) backwards; }
 
