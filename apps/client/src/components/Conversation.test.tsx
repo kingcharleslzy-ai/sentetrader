@@ -3,7 +3,7 @@ import { expect, test, vi } from "vitest";
 import type { AccountSnapshot } from "../api";
 import type { AgentTask, UiEvent } from "@ai-trader/ui-events";
 import { conversationReducer, initialConversationState, type ConversationTurn } from "../state/conversation";
-import { Conversation, cardSpeaksForTurn, type ProposalActions } from "./Conversation";
+import { Conversation, cardSpeaksForTurn, isStartupStatusTurn, type ProposalActions } from "./Conversation";
 
 const actions: ProposalActions = {
   adjustRisk: vi.fn(),
@@ -51,6 +51,13 @@ const connectedAccount: AccountSnapshot = {
 };
 
 test("startup status keeps the useful account card without a synthetic assistant message", () => {
+  expect(isStartupStatusTurn(startupTurn)).toBe(true);
+  const connected = { ...startupTurn, text: "Sente 已连接。本站模拟账户 · 模拟执行可用 · 实盘关闭。" };
+  expect(isStartupStatusTurn(connected)).toBe(true);
+  expect(isStartupStatusTurn({ ...connected, role: "user" })).toBe(false);
+  expect(isStartupStatusTurn({ ...connected, cards: [] })).toBe(true);
+  expect(isStartupStatusTurn({ ...connected, cards: connected.cards.map(card => card.type === "account"
+    ? { ...card, payload: { ...card.payload, cardId: "answer-account" } } : card) })).toBe(false);
   render(<Conversation turns={[startupTurn]} actions={actions} />);
   expect(screen.getByTestId("account-card")).toBeVisible();
   expect(screen.queryByText(/Codex 已连接到 AI Trader/)).not.toBeInTheDocument();

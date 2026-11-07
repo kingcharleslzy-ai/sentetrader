@@ -212,7 +212,7 @@ export function AiDock({ workspace, chat, focus, appWorkbench, call, voiceUnavai
       ) : null}
       <div className="fdw-ai-scroll" ref={scrollRef}>
         <Conversation turns={turns} actions={cardActions} accountOverride={workspace.account?.account} systemItems={flow} />
-        {empty ? <div className="fdw-ai-empty"><MessageSquareText />{exampleChips ? <strong>在{suggestions.label}可以这样问</strong> : null}{aiExecutionActive ? <span>AI 模拟执行可用，实盘始终关闭。</span> : null}{exampleChips}</div> : null}
+        {empty ? <div className="fdw-ai-empty"><MessageSquareText /><strong>{exampleChips ? <>在{suggestions.label}可以这样问</> : "还没有对话：在下面问一句"}</strong>{aiExecutionActive ? <span>AI 模拟执行可用，实盘始终关闭。</span> : null}{exampleChips}</div> : null}
       </div>
       {(!empty && exampleChips) || quickSkills.length ? (
         <div className="fdw-ai-chips">

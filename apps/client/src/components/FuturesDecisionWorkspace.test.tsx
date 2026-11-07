@@ -473,7 +473,9 @@ test("建议问题：对话面板打开才按当前页面向 AI 要，最多 2 �
     return missing ? new Response("not found", { status: 404 })
       : new Response(JSON.stringify({ items: ["黄金夜盘怎么看", "要不要设个止损", "第三条不显示"] }), { headers: { "Content-Type": "application/json" } });
   } });
-  const values = props({ mode: "cloud", runtimeBaseUrl: "https://runtime.test", chatSessionId: "s-1" });
+  const values = props({ mode: "cloud", runtimeBaseUrl: "https://runtime.test", chatSessionId: "s-1", state: {
+    turns: [{ id: "welcome", role: "assistant", text: "Sente 已连接。本站模拟账户 · 模拟执行可用 · 实盘关闭。", timestamp: market.capturedAt, cards: [] }]
+  } });
   render(<FuturesDecisionWorkspace {...values as any} />);
   await act(async () => { await Promise.resolve(); });
   expect(asked).toEqual([]);  // the panel is closed: nothing is asked
@@ -482,6 +484,7 @@ test("建议问题：对话面板打开才按当前页面向 AI 要，最多 2 �
   expect(within(group).getAllByRole("button").map(button => button.textContent)).toEqual(["黄金夜盘怎么看", "要不要设个止损"]);
   expect(asked).toEqual([{ sessionId: "s-1", symbol: "SHFE.au2612", view: "trade", trigger: "open" }]);
   expect(screen.getByText("在K 线图可以这样问")).toBeVisible();
+  expect(screen.queryByText(/^Sente 已连接/)).toBeNull();
   fireEvent.click(within(group).getByRole("button", { name: "要不要设个止损" }));
   const input = screen.getByRole("textbox", { name: "向 AI 决策流提问" });
   expect(input).toHaveValue("要不要设个止损");
@@ -496,6 +499,7 @@ test("建议问题：对话面板打开才按当前页面向 AI 要，最多 2 �
   await act(async () => { await Promise.resolve(); });
   expect(screen.queryByLabelText("建议问题")).toBeNull();
   expect(screen.queryByText(/可以这样问/)).toBeNull();
+  expect(screen.getByText("还没有对话：在下面问一句")).toBeVisible();
   expect(values.onPrompt).not.toHaveBeenCalled();
 });
 

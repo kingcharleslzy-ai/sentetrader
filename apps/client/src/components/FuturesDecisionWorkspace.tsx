@@ -108,7 +108,7 @@ import { MobileStrategy, useMobileStrategies } from "./mobile/MobileStrategy";
 import { MobileStrategyEditor, useMobileStrategyEditor } from "./mobile/MobileStrategyEditor";
 import { StrategyStarts } from "./StrategyStarts";
 import { MobileLab, type MobileLabReport } from "./mobile/MobileLab";
-import { CardRenderer } from "./Conversation";
+import { CardRenderer, isStartupStatusTurn } from "./Conversation";
 import { signalActionLabel } from "./StrategySignalAction";
 import { closeCheckTime } from "../marketSession";
 import { MobileResearch } from "./mobile/MobileResearch";
@@ -616,7 +616,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   // never read as applied and the window answered 409 to everything after it).
   const selectedPosition = currentPositions.find((position) => positionKey(position) === selectedPositionKey);
   const decisionTurns = useMemo(() => props.state.turns
-    .filter((turn) => !turn.hidden)
+    .filter((turn) => !turn.hidden && !isStartupStatusTurn(turn))
     .map((turn) => ({
       ...turn,
       cards: turn.cards.filter((card) => [
@@ -630,9 +630,8 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     .filter((turn) => !(
       turn.role === "assistant"
       && turn.cards.length === 0
-      && (/Codex 已连接|Runtime 已就绪|Sente 已就绪|只读账户快照|内置假数据/.test(turn.text)
-        // A card-only turn whose card this panel does not show (e.g. an account card) has nothing left.
-        || (!turn.text.trim() && turn.completed !== false))
+      // A card-only turn whose card this panel does not show (e.g. an account card) has nothing left.
+      && !turn.text.trim() && turn.completed !== false
     )), [props.state.turns]);
 
   useEffect(() => {
@@ -1839,7 +1838,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     }
     if (module === "chat") {
       if (size === "large") return renderDockPanel("ai", true);
-      const turns = props.state.turns.filter(turn => (turn.role === "user" || turn.role === "assistant") && turn.text.trim()).slice(-20)
+      const turns = decisionTurns.filter(turn => (turn.role === "user" || turn.role === "assistant") && turn.text.trim()).slice(-20)
         .map((turn, index) => ({ key: `${turn.timestamp}:${index}`, role: turn.role as "user" | "assistant", text: turn.text,
           at: new Date(turn.timestamp).toLocaleTimeString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false, hour: "2-digit", minute: "2-digit" }) }));
       return <ChatCompact medium={size === "medium"} busy={Boolean(props.chatBusy || chat.sendingPrompt)} blockedReason={aiBlocked || undefined} turns={turns}

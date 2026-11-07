@@ -374,10 +374,10 @@ const startupStatusMessages = new Set([
   "TqKq 只读账户数据当前不可用；页面不会编造账户盈亏结论。"
 ]);
 
-function isStartupStatusTurn(turn: ConversationTurn): boolean {
+export function isStartupStatusTurn(turn: ConversationTurn): boolean {
   return turn.role === "assistant"
-    && turn.cards.some((card) => card.type === "account")
-    && startupStatusMessages.has(turn.text.trim());
+    && turn.cards.every((card) => card.type === "account" && !card.payload.cardId)
+    && (startupStatusMessages.has(turn.text.trim()) || turn.text.startsWith("Sente 已连接。"));
 }
 
 /** Cards that say it all: with one of these in an answer the model's own words are not shown (the
