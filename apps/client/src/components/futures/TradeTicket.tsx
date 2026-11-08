@@ -464,7 +464,8 @@ export function TradeTicket({
         ?? (priceMissing ? "请输入委托价" : tradeMode === "close" && !selectedPosition ? "先选择持仓"
           : tradeMode === "close" && closeAvailable < volume ? `当前可平 ${closeAvailable} 手` : ""));
   const blockedLine = <>
-    <small data-testid="ticket-blocked-reason">{blockedReason}</small>
+    <small data-testid="ticket-blocked-reason">{blockedReason
+      || (simulationEnabled && tradeMode !== "target" && snapshot.marketSessionStatus === "closed" ? "现在休市，下的单开盘时发出" : "")}</small>
     {tradeMode === "target" && targetNotice ? <small role="status" data-testid="target-card-notice">{targetNotice}</small> : null}
   </>;
 

@@ -15,7 +15,7 @@ const rows = buildMobileFeed({ turns: [], briefs: buildFlowItems({ briefs: [
   brief("b1", "SHFE.rb", "螺纹钢", "螺纹库存回落", 1), brief("b2", "DCE.i", "铁矿石", "港口到货增加", 2), brief("b3", "SHFE.rb", "螺纹钢", "钢厂限产", 3),
 ] }) }).map(notifyRow);
 
-const watch: WatchInfo = { positions: ["甲醇空单 6 手"], alerts: ["螺纹 3188"], conditions: ["跌破年线"], strategies: ["均线金叉 · 出卡确认"],
+const watch: WatchInfo = { positions: ["甲醇空单 6 手"], alerts: ["螺纹 3188"], conditions: ["跌破年线"], strategies: ["均线金叉 · 出卡确认"], preopen: [],
   checks: ["保本", "盘中异动"], next: "14:55 收盘前持仓检查", closed: false };
 const now = Date.UTC(2026, 9, 5, 2, 0);
 

@@ -393,7 +393,22 @@ export function positionPromptContext(position: AccountPosition) {
 
 /** An order's status as the user reads it: an order that ended after a partial fill says how many
  *  lots filled and whether a cancel or the trading day ended the rest (#932). */
-export function orderStatusText(order: { displayStatus: string; filledVolume?: number; cancelPhase?: string }): string {
+/** When a 等开盘 order goes out, Beijing time as people say it (the Runtime's `preopen_words`): 今天 21:00 / 明天 09:00 / 11月9日（周一）09:00. */
+export function preopenWords(at: string, now = new Date()): string {
+  const day = (value: Date) => value.toLocaleDateString("en-CA", { timeZone: "Asia/Shanghai" });
+  const moment = new Date(at);
+  const clock = moment.toLocaleTimeString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false, hour: "2-digit", minute: "2-digit" });
+  const days = Math.round((Date.parse(day(moment)) - Date.parse(day(now))) / 86_400_000);
+  if (days === 0) return `今天 ${clock}`;
+  if (days === 1) return `明天 ${clock}`;
+  const [, month, date] = day(moment).split("-").map(Number);
+  const weekday = "日一二三四五六"[new Date(`${day(moment)}T12:00:00+08:00`).getUTCDay()];
+  return `${month}月${date}日（周${weekday}）${clock}`;
+}
+
+export function orderStatusText(order: { displayStatus: string; filledVolume?: number; cancelPhase?: string; preopenAt?: string | null }): string {
+  // 开盘预埋单 (2026-11-08): a 待发送 order confirmed while closed waits for its session's open.
+  if (order.displayStatus === "待发送" && order.preopenAt) return `等开盘 · ${preopenWords(order.preopenAt)}发出`;
   if (order.displayStatus !== "部分成交后已结束") return order.displayStatus;
   return `部分成交 ${order.filledVolume ?? 0} 手后${order.cancelPhase === "CONFIRMED" ? "已撤" : "已结束"}`;
 }

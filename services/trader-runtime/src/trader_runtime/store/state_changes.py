@@ -63,6 +63,12 @@ SPECS = (
     Spec("ai_execution_controls", "execution_controls", "{r}.user_id || ':' || {r}.trading_account_id", "{r}.user_id",
          "{r}.trading_account_id",
          {"stop_status": "stopStatus", "max_order_volume": "maxOrderVolume", "max_orders": "maxOrders"}, {}),
+    # 委托 (开盘预埋单, owner 2026-11-08): whether it waited for the open, when it went out or was taken back, and why
+    # it did not; who only on the 等开盘 moves (confirm, 撤销, the open's own send or give-up set changed_by).
+    Spec("tqkq_sim_order_links", "order", "{r}.client_order_id", "{r}.user_id", "{r}.trading_account_id",
+         {"submit_phase": "submitPhase", "preopen_at": "preopenAt", "last_read_error": "notSentReason"},
+         {"proposal_id": "proposalId"}, insert_actor="NEW.changed_by",
+         update_actor="CASE WHEN NEW.preopen_at IS NOT NULL OR OLD.preopen_at IS NOT NULL THEN NEW.changed_by END"),
     # A strategy's new version is a new row (its history already); only the in-place rewrites are recorded.
     Spec("strategy_drafts", "strategy", "{r}.id", "{r}.user_id", "{r}.trading_account_id",
          {"status": "status", "definition_digest": "definitionDigest"}, {"name": "name", "version": "version"},

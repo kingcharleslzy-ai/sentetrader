@@ -461,6 +461,29 @@ def trading_seconds(start_ns: int, end_ns: int, schedule: dict[str, Any] | None,
     return total // NS
 
 
+def next_session_start(timestamp_ns: int, schedule: dict[str, Any] | None,
+                       trading_days: Sequence[str] | None = None) -> int | None:
+    """The start of the first domestic session after `timestamp_ns` (开盘预埋单, owner 2026-11-08): the night
+    session only on an evening whose next trading day is the next weekday — the exchanges hold none before a
+    holiday (#516) — and a contract without night periods waits for the day session. None without a usable
+    domestic schedule."""
+    if isinstance(schedule, dict) and schedule.get("dayRule") == "cme":
+        return None
+    days = sorted(trading_days or ())
+    day = trading_day_of(timestamp_ns, days)
+    for _ in range(20):  # the longest exchange holiday is well inside 20 trading days
+        evening = date.fromisoformat(previous_trading_day(day, days))
+        night_held = _next_weekday(evening + timedelta(days=1)) == date.fromisoformat(day)
+        for session in sessions_of_day(day, schedule, days):
+            if session.start_ns > timestamp_ns and (night_held or not session.night):
+                return session.start_ns
+        if days and days[0] <= day < days[-1]:
+            day = days[bisect_left(days, day) + 1] if day in days else days[bisect_left(days, day)]
+        else:
+            day = _next_weekday(date.fromisoformat(day) + timedelta(days=1)).isoformat()
+    return None
+
+
 def is_night(timestamp_ns: int, schedule: dict[str, Any] | None = None,
              trading_days: Sequence[str] | None = None) -> bool:
     """Night session: by the schedule when it is usable, else 18:00–06:00 local. CME's one 23-hour session has

@@ -280,7 +280,8 @@ def test_opening_beyond_the_open_limit_is_refused_with_the_numbers(tmp_path: Pat
     app.state.store.close()
 
 
-def test_call_auction_adds_a_readiness_note_without_refusing(tmp_path: Path) -> None:
+def test_call_auction_card_waits_for_the_open(tmp_path: Path) -> None:
+    """集合竞价时本站模拟盘不收单：卡照出，确认后等开盘发出（开盘预埋单 2026-11-08）。"""
     app = application(
         tmp_path / "runtime-auction.sqlite3",
         Gateway(),
@@ -300,7 +301,7 @@ def test_call_auction_adds_a_readiness_note_without_refusing(tmp_path: Path) -> 
     assert result["success"] is True and event is not None and event[0] == "proposal.trade"
     readiness = event[1]["readiness"]
     assert readiness["passed"] is True and readiness["issues"] == []
-    assert readiness["summary"].endswith("集合竞价中，开盘撮合后才有成交")
+    assert readiness["summary"].startswith("现在休市：确认后等下一段开盘发出")
     assert _tool_text(result)["data"]["readiness"] == readiness
     app.state.store.close()
 

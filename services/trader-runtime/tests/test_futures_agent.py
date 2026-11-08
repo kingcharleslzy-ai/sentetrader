@@ -168,7 +168,7 @@ def test_a_closed_session_says_which_break_and_when_trading_resumes() -> None:
     assert context["proposalReady"] is False and context["proposalReadinessReasons"][0] == "market_session_closed"
     assert "market_not_fresh" not in context["proposalReadinessReasons"]
     issue = context["userFacing"]["candidateIssues"][0]
-    assert issue.startswith("现在") and issue.endswith("暂不可下单")
+    assert issue.startswith("现在") and issue.endswith("现在确认的单会等开盘时发出")
     break_time = datetime(2026, 11, 2, 10, 20, tzinfo=timezone(timedelta(hours=8)))
-    assert closed_order_words(has_night=True, exchange="SHFE", now=break_time) == "现在是上午小节休息，十点半继续，暂不可下单"
+    assert closed_order_words(has_night=True, exchange="SHFE", now=break_time) == "现在是上午小节休息，十点半继续，现在确认的单会等开盘时发出"
     assert closed_order_words(has_night=False, exchange="CME", now=break_time) is None

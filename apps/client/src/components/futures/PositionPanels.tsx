@@ -91,11 +91,11 @@ function AbandonOrderDialog({ order, busy, onClose, onConfirm }: { order?: Simul
     <dialog ref={ref} className="replay-setup fdw-quick-order-dialog" aria-labelledby="abandon-order-title" data-testid="abandon-order-dialog"
       onCancel={(event) => { event.preventDefault(); if (!busy) onClose(); }}>
       <div className="replay-setup-body">
-        <h2 id="abandon-order-title">放弃这张待发送委托？</h2>
-        {order ? <p>{order.request.symbol} · {orderActionLabel(order)} · {order.request.limitPrice} × {order.request.volume}。放弃后不会发送到模拟网关，也不能恢复。</p> : null}
+        <h2 id="abandon-order-title">{order?.preopenAt ? "撤销这张等开盘的委托？" : "放弃这张待发送委托？"}</h2>
+        {order ? <p>{order.request.symbol} · {orderActionLabel(order)} · {order.request.limitPrice} × {order.request.volume}。{order.preopenAt ? "撤销后开盘时不会发出" : "放弃后不会发送到模拟网关"}，也不能恢复。</p> : null}
         <div className="confirm-grid">
           <button type="button" disabled={busy} onClick={onClose}>取消</button>
-          <button type="button" className="app-button danger" disabled={busy || !order} onClick={() => order && onConfirm(order)}>确认放弃</button>
+          <button type="button" className="app-button danger" disabled={busy || !order} onClick={() => order && onConfirm(order)}>{order?.preopenAt ? "确认撤销" : "确认放弃"}</button>
         </div>
       </div>
     </dialog>
@@ -362,6 +362,8 @@ export function OrderRows({ orders, history, busy, limit, onOrderAction, onAband
         const alive = order.remoteStatus === "ALIVE" && order.cancelPhase === "NONE";
         // A prepared order was never sent: the user decides to send it now or drop it (dropping is confirmed).
         const prepared = order.submitPhase === "PREPARED" && !history;
+        // 等开盘 (开盘预埋单): it goes out by itself at the open; the one thing to do now is take it back.
+        const waiting = prepared && Boolean(order.preopenAt);
         const name = contractLabel(order.request.symbol, instruments);
         const focus = { kind: "order" as const, id: order.clientOrderId, label: `${order.request.symbol} ${orderActionLabel(order)} ${order.request.volume} 手` };
         const askItems: AiMenuItem[] = [
@@ -370,7 +372,8 @@ export function OrderRows({ orders, history, busy, limit, onOrderAction, onAband
         ];
         // 手机手势: 继续 / 放弃 (its own confirmation), 查询 or 撤单 behind a left swipe; the AI questions on a long press.
         const actions: RowAction[] = [
-          ...(prepared ? [{ label: "继续", disabled: busy, run: () => onOrderAction(order, "continue") }, { label: "放弃", danger: true, disabled: busy, run: () => onAbandon(order) }]
+          ...(waiting ? [{ label: "撤销", danger: true, disabled: busy, run: () => onAbandon(order) }]
+            : prepared ? [{ label: "继续", disabled: busy, run: () => onOrderAction(order, "continue") }, { label: "放弃", danger: true, disabled: busy, run: () => onAbandon(order) }]
             : unknown ? [{ label: "查询", disabled: busy, run: () => onOrderAction(order, "query") }]
             : alive ? [{ label: "撤单", disabled: busy, run: () => onOrderAction(order, "cancel") }] : []),
           ...(onAskAi ? askItems.map(item => ({ label: item.label, menuOnly: true, run: () => onAskAi(item.prompt, focus) })) : []),
@@ -382,7 +385,8 @@ export function OrderRows({ orders, history, busy, limit, onOrderAction, onAband
             <span>{orderActionLabel(order)}</span>
             <span>{order.request.limitPrice} × {order.request.volume}</span>
             <em>{orderStatusText(order)}{prepared && notSentReason(order.lastReadError) ? ` · ${notSentReason(order.lastReadError)}` : ""}</em>
-            {prepared ? <span className="fdw-row-actions"><button type="button" disabled={busy} onClick={() => onOrderAction(order, "continue")}>继续</button><button type="button" className="app-button danger" disabled={busy} onClick={() => onAbandon(order)}>放弃</button></span>
+            {waiting ? <button type="button" className="app-button danger" disabled={busy} onClick={() => onAbandon(order)}>撤销</button>
+              : prepared ? <span className="fdw-row-actions"><button type="button" disabled={busy} onClick={() => onOrderAction(order, "continue")}>继续</button><button type="button" className="app-button danger" disabled={busy} onClick={() => onAbandon(order)}>放弃</button></span>
               : unknown ? <button type="button" disabled={busy} onClick={() => onOrderAction(order, "query")}>查询</button>
               : alive ? <button type="button" disabled={busy} onClick={() => onOrderAction(order, "cancel")}>撤单</button> : null}
             <AiMenu compact onAsk={onAskAi} focus={focus} items={askItems}/>

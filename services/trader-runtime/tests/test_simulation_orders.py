@@ -2180,21 +2180,22 @@ async def test_close_batch_lists_every_position_bucket_and_one_confirmation_send
     app.state.store.close()
 
 
-async def test_close_batch_over_a_closed_market_refuses_with_each_skipped_contract(tmp_path: Path) -> None:
-    """#721: 休市时全部平仓——每个持仓都因行情不新鲜被跳过，拒绝必须带上每个合约和 builder 的
-    原因码（工具层据此说中文），而不是一个光秃秃的 close_batch_no_order_available。"""
+async def test_close_batch_over_a_stale_market_refuses_with_each_skipped_contract(tmp_path: Path) -> None:
+    """#721: 行情停更时全部平仓——每个持仓都因行情不新鲜被跳过，拒绝必须带上每个合约和 builder 的
+    原因码（工具层据此说中文），而不是一个光秃秃的 close_batch_no_order_available。（休市时的全部平仓
+    现在是一张等开盘的卡，开盘预埋单 2026-11-08。）"""
     provider = NormalProvider()
-    provider.market_session_status = "closed"
-    app = application(tmp_path / "close-batch-closed.sqlite3", Gateway(), provider)
+    provider.age_seconds = 60
+    app = application(tmp_path / "close-batch-stale.sqlite3", Gateway(), provider)
     session = app.state.broker.create_session("local", "native", USER)
     from trader_runtime.proposals import ProposalConflict
     with pytest.raises(ProposalConflict) as refused:
-        app.state.proposals.create_close_batch(session.session_id, "turn-closed", reason="休市时全部平仓")
+        app.state.proposals.create_close_batch(session.session_id, "turn-stale", reason="行情停更时全部平仓")
     assert refused.value.code == "close_batch_no_order_available"
     assert str(refused.value) == "close_batch_no_order_available"  # str() keeps the code: logs/HTTP unchanged
     # au2612 long 2 (今 1 + 昨 1) and short 2 (今 1 + 昨 1): four legs, each skipped for the same reason.
     assert [(item["symbol"], item["reason"]) for item in refused.value.skipped] == [
-        ("SHFE.au2612", "market_session_closed")] * 4
+        ("SHFE.au2612", "quote_stale")] * 4
     app.state.store.close()
 
 

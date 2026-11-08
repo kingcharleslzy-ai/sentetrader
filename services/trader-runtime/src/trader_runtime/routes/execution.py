@@ -445,7 +445,8 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
     ) -> dict[str, object]:
         """单笔出卡（下单票、外部 AI/CLI）：与内置 AI 的出卡工具同一个规划器——开仓过就绪门禁，上期所/能源中心
         平仓没给 positionBucket 时按“平今平昨”偏好自动分今昨（跨两侧返回一张批量平仓卡），没给价格时平仓对价、
-        开仓按账号默认价格方式。"""
+        开仓按账号默认价格方式。国内合约休市或集合竞价时照样出卡（开盘预埋单）：卡带 `preopenAt`（下一段开盘时刻），
+        确认后委托等那时由服务端重新核对再发出；外盘、目标持仓与策略卡休市时仍按 market_session_closed 拒绝。"""
         user_id = await current_user(request)
         # 打法本 (2026-10-25): the setup this order is placed under must be the user's own.
         if body.playbookId is not None and store.get_playbook(body.playbookId, user_id=user_id) is None:
@@ -528,6 +529,11 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
         request: Request, client_order_id: str,
         action: Literal["continue", "abandon", "query", "cancel"],
     ) -> dict[str, object]:
+        """One simulation order: `continue` sends a 待发送 order (every send-time check again), `abandon` drops it,
+        `query` reads its fact, `cancel` takes back a resting one. An order confirmed while the session was closed
+        waits for the open (`preopenAt`, the session start it goes out at; 开盘预埋单): the account sends it then by
+        itself, and `abandon` or `cancel` takes it back unsent. Errors: order_not_prepared, order_not_abandonable,
+        order_not_cancelable, order_not_dispatched, market_session_closed (continue while closed)."""
         user_id = await current_user(request)
         context = await ctx.account_context(request, user_id)
         simulation_orders = context.account.simulation_orders

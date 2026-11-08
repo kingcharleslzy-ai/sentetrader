@@ -59,7 +59,11 @@ export function marketClosedNow(market: MarketWorkbenchSnapshot | undefined): bo
  *  one. A 外盘 chart's snapshot already carries CME's status and the MT5 month quote its order is checked on. */
 export function chartQuoteBlockedReason(market: MarketWorkbenchSnapshot, replayActive = false, now = Date.now()): string | undefined {
   if (market.marketSessionStatus === "closed") {
-    return !replayActive && cmeHours(market.quote.tradingSchedule) ? `${marketSessionDisplay(market).label}，暂不可下单` : "休市，暂不可下单";
+    if (replayActive) return "休市，暂不可下单";
+    if (cmeHours(market.quote.tradingSchedule)) return `${marketSessionDisplay(market).label}，暂不可下单`;
+    // 开盘预埋单 (2026-11-08): a domestic order confirmed now waits for the open; the Runtime checks it again then.
+    if (!/^(SHFE|INE|DCE|CZCE|GFEX|CFFEX)\./i.test(market.quote.symbol ?? "")) return "休市，暂不可下单";
+    return market.dataStatus !== "normal" || market.isCached ? "行情不是实时数据" : undefined;
   }
   if (market.dataStatus !== "normal" || market.isCached) return "行情不是实时数据";
   // The same bar the session card labels with (quoteDatetime first; the snapshot's age is the

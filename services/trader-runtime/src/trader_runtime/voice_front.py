@@ -300,11 +300,12 @@ DOMESTIC_EXCHANGES = frozenset({"SHFE", "INE", "DCE", "CZCE", "GFEX", "CFFEX"})
 
 
 def closed_order_words(*, has_night: bool, exchange: str, now: datetime | None = None) -> str | None:
-    """The 下单票's “休市，暂不可下单” as a sentence naming the break and when trading resumes (#932 11-02: a card
-    refused in the 10:15 break said 行情不是最新). None off the domestic clock — 外盘 follows CME's own session."""
+    """A closed domestic session as a sentence naming the break and when trading resumes (#932 11-02: a card
+    refused in the 10:15 break said 行情不是最新), and that an order confirmed now waits for that open (开盘预埋单,
+    2026-11-08). None off the domestic clock — 外盘 follows CME's own session."""
     if exchange.upper() not in DOMESTIC_EXCHANGES:
         return None
-    return _closed_words(has_night=has_night, exchange=exchange, now=now)[0] + "，暂不可下单"
+    return _closed_words(has_night=has_night, exchange=exchange, now=now)[0] + "，现在确认的单会等开盘时发出"
 
 
 def _clock(value: Any) -> str:

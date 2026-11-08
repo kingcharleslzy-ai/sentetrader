@@ -421,6 +421,9 @@ export interface TradeProposal {
   currency?: "CNY" | "USD";
   riskCheck: RiskCheck;
   executionEligibleAtCreation?: boolean;
+  /** 开盘预埋单 (2026-11-08): made while the session was closed — confirmed, its order waits and goes out at this
+   * session start (ISO), every check run again then. */
+  preopenAt?: string;
   approvalId?: string;
   auditId?: string;
   /** Set while the real-time call waits for a spoken "确认": ISO time when the card is abandoned. */
@@ -487,6 +490,8 @@ export interface CloseBatchOrder {
   contractMultiplier: number;
   riskCheck: RiskCheck;
   clientOrderId?: string | null;
+  /** 开盘预埋单: made while closed — this order waits for this session start (ISO) once confirmed. */
+  preopenAt?: string;
 }
 
 /** One card closing every listed position bucket; one confirmation sends them all, one by one. */
@@ -1299,6 +1304,7 @@ const tradeProposalSchema = z.object({
   accountId: z.string().min(1).optional(),
   currency: z.enum(["CNY", "USD"]).optional(),
   riskCheck: riskCheckSchema, executionEligibleAtCreation: z.boolean().optional(), approvalId: z.string().min(1).optional(), auditId: z.string().min(1).optional(),
+  preopenAt: z.string().min(1).optional(),
   voiceConfirmBy: z.string().min(1).nullable().optional(),
   strategySource: z.object({ strategyId: z.string().min(1), name: z.string().min(1), attemptId: z.string().min(1).optional(), barTime: z.string().optional(), add: z.boolean().optional() }).optional(),
   confirmBlocked: z.object({ code: z.string().min(1), reason: z.string().min(1), at: z.string().optional() }).optional(),
@@ -1327,7 +1333,8 @@ const closeBatchOrderSchema = z.object({
   symbol: z.string().min(1), name: z.string().min(1), side: z.enum(["buy_close", "sell_close"]),
   offset: z.enum(["CLOSE", "CLOSETODAY"]), positionBucket: z.enum(["today", "historical", "all"]),
   volume: z.number().int().positive(), limitPrice: finiteNumber.positive(), contractMultiplier: finiteNumber.positive(),
-  riskCheck: riskCheckSchema, clientOrderId: z.string().min(1).nullable().optional()
+  riskCheck: riskCheckSchema, clientOrderId: z.string().min(1).nullable().optional(),
+  preopenAt: z.string().min(1).optional()
 });
 const closeBatchProposalSchema = z.object({
   turnId: z.string().min(1), proposalId: z.string().min(1), version: z.number().int().positive(),

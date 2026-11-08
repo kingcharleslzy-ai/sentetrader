@@ -5,7 +5,7 @@ import { CardActionButtons } from "./cardActions";
 import { CardSteps, remainingResult, remainingStep } from "./ProtectionSteps";
 import { CardShell } from "../CardShell";
 import { useAbandonOrder, type OrderActionHandler } from "../futures/PositionPanels";
-import { chinaClock, orderStatusText } from "../futures/support";
+import { chinaClock, orderStatusText, preopenWords } from "../futures/support";
 import { useVoiceConfirmCountdown, voiceConfirmLabel } from "./voiceConfirm";
 
 interface CloseBatchProposalCardProps {
@@ -48,7 +48,10 @@ export const NOT_SENT_REASONS: Record<string, string> = {
   order_not_prepared: "委托未生成", order_transport_unavailable: "网关连接中断",
   paper_settlement_pending: "本站模拟正在等交易所公布结算价（约 19:00），公布后即可下单",
   gateway_command_expired: "网关排队超时，委托未发出", sidecar_reconnecting: "行情会话重连中，委托未发出",
-  sidecar_auth_rejected: "账户连接已更换，委托未发出"
+  sidecar_auth_rejected: "账户连接已更换，委托未发出",
+  // 开盘预埋单 (2026-11-08): why a 等开盘 order did not go out at the open.
+  preopen_quote_not_ready: "开盘 5 分钟内没有拿到最新行情，没有发出",
+  ai_execution_stopped: "模拟执行已停止或急停，开盘时没有发出", ai_new_opens_halted: "已只停新开仓，开盘时没有发出"
 };
 
 /** The user-readable reason for an unsent order, or empty when none is known. */
@@ -84,13 +87,15 @@ export function batchPriceLabel(proposal: Pick<CloseBatchProposal, "priceIntent"
  * "已发送" is never a default: an unlisted status counts as unknown, not as sent.
  */
 export function closeBatchExecution(facts: (SimulationOrder | undefined)[]) {
-  const statuses = facts.filter((fact): fact is SimulationOrder => fact !== undefined).map(fact => fact.displayStatus);
+  const known = facts.filter((fact): fact is SimulationOrder => fact !== undefined);
+  const statuses = known.map(fact => fact.displayStatus);
+  const waiting = known.filter(fact => fact.preopenAt).length;  // 等开盘: 待发送, going out at the open
   const notSent = statuses.filter(status => NOT_SENT_STATUSES.has(status)).length;
   const sent = statuses.filter(status => SENT_STATUSES.has(status)).length;
   const unknown = statuses.length - notSent - sent;
-  const parts = ([[sent, "已发送"], [notSent, "未发送"], [unknown, "结果未知"]] as const)
+  const parts = ([[sent, "已发送"], [waiting, "等开盘"], [notSent - waiting, "未发送"], [unknown, "结果未知"]] as const)
     .filter(([count]) => count > 0).map(([count, label]) => `${count} 笔${label}`);
-  return { known: statuses.length, sent, notSent, unknown, text: parts.length ? `已确认，${parts.join("、")}` : "" };
+  return { known: statuses.length, sent, notSent, waiting, unknown, text: parts.length ? `已确认，${parts.join("、")}` : "" };
 }
 
 /** A closed card's pill (#932 P2): 已过期 when its confirm window ran out, 已作废 when a newer plan replaced it,
@@ -167,7 +172,8 @@ export function CloseBatchProposalCard({ proposal, busy, id, orders, onOrderActi
         <tbody>
           {proposal.orders.map((order, index) => {
             const fact = facts[index];
-            const prepared = fact?.submitPhase === "PREPARED";
+            const prepared = fact?.submitPhase === "PREPARED" && !fact.preopenAt;
+            const waiting = fact?.submitPhase === "PREPARED" && Boolean(fact.preopenAt);
             return (
               <tr key={order.clientOrderId ?? `${order.symbol}-${order.side}-${order.positionBucket}-${index}`} className={order.riskCheck.passed ? undefined : "negative"}>
                 <td><strong>{order.name}</strong></td>
@@ -177,6 +183,11 @@ export function CloseBatchProposalCard({ proposal, busy, id, orders, onOrderActi
                 {recorded ? (
                   <td>
                     {fact ? prepared ? `未发送 · ${notSentLabel(fact)}` : orderStatusText(fact) : "状态读取中"}
+                    {waiting && onOrderAction ? (
+                      <span className="fdw-row-actions">
+                        <button type="button" className="app-button danger" disabled={busy} onClick={() => abandon.request(fact!)}>撤销</button>
+                      </span>
+                    ) : null}
                     {prepared && onOrderAction ? (
                       <span className="fdw-row-actions">
                         <button type="button" disabled={busy} onClick={() => onOrderAction(fact!, "continue")}>继续发送</button>
@@ -201,10 +212,13 @@ export function CloseBatchProposalCard({ proposal, busy, id, orders, onOrderActi
             ? <div className="card-actions"><CardActionButtons actions={plan.actions} handlers={{ askAi: onAsk }} /></div> : null}
         </div>
       ) : null}
+      {pending && proposal.orders[0]?.preopenAt ? (
+        <p className="close-batch-skipped" data-testid="close-batch-preopen">现在休市，确认后{preopenWords(proposal.orders[0].preopenAt)}开盘时逐张发出</p>
+      ) : null}
       {recorded ? (
         <p className="close-batch-skipped" data-testid="close-batch-execution">
           {execution.text || "已确认，逐笔状态见委托栏"}
-          {execution.notSent ? otherAccount ? `；切回${proposal.accountLabel ?? "这张卡的账户"}后可继续或放弃`
+          {execution.notSent > execution.waiting ? otherAccount ? `；切回${proposal.accountLabel ?? "这张卡的账户"}后可继续或放弃`
             : "；未发送的可在上表继续发送或放弃，系统不会自动重发" : ""}
           {execution.unknown ? `；结果未知的以${proposal.accountLabel === "本站模拟账户" ? "本站模拟" : "快期"}查询为准，系统不会自动重发` : ""}
         </p>

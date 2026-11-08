@@ -1,4 +1,4 @@
-import { aiAvatarOf, aiAvatarPx, contractLabel } from "./futures/support";
+import { aiAvatarOf, aiAvatarPx, contractLabel, orderActionLabel, preopenWords } from "./futures/support";
 import { AccountAccessContext, useAccountAccess, type WorkspaceAccess } from "../hooks/useAccountAccess";
 import { GuestAppearanceContext } from "../guestAppearance";
 import { rumChartShown } from "../rum";
@@ -1554,6 +1554,8 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
       alerts: alerts.active.map(alert => `${shortName(alert.symbol, alert.name)} ${alert.price}`),
       conditions: mobileStrategies.runs.filter(run => run.status === "monitoring" && run.reminderOnly).map(run => run.name),
       strategies: mobileStrategies.runs.filter(run => run.status === "monitoring" && !run.reminderOnly).map(run => `${run.name} · ${signalActionLabel(run.signalAction)}`),
+      preopen: props.simulationOrders.filter(order => order.submitPhase === "PREPARED" && order.preopenAt)
+        .map(order => `${shortName(order.request.symbol)} ${orderActionLabel(order).split(" · ")[0]} ${order.request.volume} 手 · ${preopenWords(order.preopenAt!)}`),
       checks: positionChecks,
       next: positions.length && preferences.notify.marketCloseReminder ? closeCheck ? `${closeCheck} 收盘前持仓检查` : "收盘前 5 分钟检查持仓" : null,
       closed: marketClosedNow(market),

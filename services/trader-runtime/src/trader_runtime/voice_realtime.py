@@ -445,6 +445,10 @@ def _order_outcome_line(order: dict[str, Any], label: str = "") -> str:
     price = order.get("limitPrice")
     if status == "已受理":
         return f"{symbol} 已挂单{f'，限价 {_price_text(price)}' if price else ''}，还没成交，15 秒没成交我会提醒你".strip()
+    if status == "待发送" and order.get("preopenAt"):
+        # 开盘预埋单: confirmed while closed, it goes out by itself at the open.
+        from .simulation_orders import preopen_words
+        return f"{symbol} 已确认，现在休市，{preopen_words(str(order['preopenAt']))}开盘时发出，委托里可以撤销".strip()
     if status == "待发送":
         # Confirmed but never sent (an interrupted batch, or a check that failed before
         # the gateway call). Saying "已确认" alone would read as "it went out".
@@ -2760,7 +2764,7 @@ class VoiceRealtimeService:
                                 "message": answer.get("message"),
                                 "orders": [{"clientOrderId": o.get("clientOrderId"), "displayStatus": o.get("displayStatus"),
                                             "symbol": (o.get("request") or {}).get("symbol"), "limitPrice": (o.get("request") or {}).get("limitPrice"),
-                                            "error": o.get("lastReadError")} for o in orders]})
+                                            "error": o.get("lastReadError"), "preopenAt": o.get("preopenAt")} for o in orders]})
                 if proposal_id != item.get("proposalId"):
                     linked_done.add(str(proposal_id))
             finished.append(str(item.get("proposalId")))

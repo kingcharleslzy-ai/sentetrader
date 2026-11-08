@@ -573,6 +573,8 @@ export interface SimulationOrder {
   /** 部分成交 = still working; 部分成交后已结束 = some lots filled, the rest cancelled or expired (#932). */
   displayStatus: "待发送" | "结果未知" | "已受理" | "部分成交" | "部分成交后已结束" | "已成交" | "已撤销" | "已拒绝" | "身份异常" | "回报异常" | "已放弃";
   lastReadError?: string | null;
+  /** 开盘预埋单: the session start (ISO) this 待发送 order waits for; null when it does not wait. */
+  preopenAt?: string | null;
   lastSyncedAt?: string | null;
   accountLabel: "快期模拟账户" | "本站模拟账户";
   liveTrading: "disabled";

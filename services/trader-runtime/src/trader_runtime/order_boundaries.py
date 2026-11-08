@@ -36,6 +36,13 @@ def price_on_tick(price: Decimal, tick: Decimal) -> bool:
     return (price / tick) == (price / tick).to_integral_value()
 
 
+def session_closed(market: dict[str, Any]) -> bool:
+    """Not open for an order now: a closed session, or the exchange's call auction — 本站模拟盘 matches only
+    inside the contract's trading periods, so an auction order would be refused (开盘预埋单, 2026-11-08)."""
+    return (market.get("marketSessionStatus") == "closed"
+            or str(market.get("tradingStatus") or "").upper() in {"AUCTIONORDERING", "AUCTIONTRADE"})
+
+
 def quote_is_fresh(market: dict[str, Any], *, allow_fixture: bool, now: datetime | None = None) -> None:
     """Raise unless the market snapshot is live, uncached and at most 15 s old by both clocks."""
     if market.get("marketSessionStatus") == "closed":

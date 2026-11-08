@@ -119,6 +119,19 @@ def _armed_day(row: Any, trading_days: Sequence[str] | Callable[[], Sequence[str
     return trading_day_at(str(row["created_at"]), trading_days() if callable(trading_days) else trading_days)
 
 
+# Why a 等开盘 order did not go out at the open, beyond the candidate builder's own refusals (CANDIDATE_ISSUE_LABELS).
+PREOPEN_NOT_SENT_WORDS = {
+    "preopen_quote_not_ready": "开盘 5 分钟内没有拿到最新行情",
+    "paper_settlement_pending": "本站模拟还在等交易所公布结算价",
+    "ai_execution_stopped": "模拟执行已停止或急停",
+    "ai_new_opens_halted": "已只停新开仓",
+    "close_offset_mismatch": "可平手数已变化",
+    "strategy_metadata_changed": "合约参数已变化",
+    "symbol_identity_mismatch": "合约与行情不一致",
+    "risk_check_failed": "确定性检查未通过",
+}
+
+
 def protection_price_text(value: Decimal) -> str:
     """A protection price as humans write it: no trailing .0, thousands separated."""
     text = format(value.normalize(), "f")
@@ -2439,6 +2452,12 @@ class AutonomousSimulationService:
 
     async def run_once(self, *, force_reconcile: bool = False) -> None:
         await self.simulation_orders.reconcile_cancellations()
+        # 开盘预埋单 (owner 2026-11-08): the 等开盘 orders whose session has started go out here; 停止 / 急停 keep
+        # them from going out unattended (a close too: it is no protective exit).
+        for order, reason in await self.simulation_orders.send_preopen_due(
+                lambda user_id, offset: stop_blocks(self.controls(user_id=user_id)["stopStatus"],
+                                                    "open" if offset == "OPEN" else "close")):
+            await self._announce_preopen_not_sent(order, reason)
         symbols = [r[0] for r in self.store.connection.execute(
             """SELECT DISTINCT symbol FROM ai_stop_orders
             WHERE status IN ('ARMED', 'SUBMITTED', 'UNKNOWN', 'PARTIAL') AND trading_account_id = ?""",
@@ -2708,6 +2727,50 @@ class AutonomousSimulationService:
             return contract_label(self.data_provider, symbol)
         except Exception:  # noqa: BLE001 - a notice never fails on a missing name
             return symbol
+
+    async def _announce_preopen_not_sent(self, order: dict[str, Any], reason: str) -> None:
+        """One notice for a 等开盘 order the open did not take (开盘预埋单): why, and that it waits 待发送 for the user's
+        own 继续 / 放弃 — or that the engine rejected it on arrival. In the conversation its card was confirmed in;
+        through 挂单未成交's switch. Never raises."""
+        try:
+            from .order_planner import CANDIDATE_ISSUE_LABELS
+            user_id, request = str(order.get("userId") or ""), order["request"]
+            try:
+                record = self.store.get(str(order["proposalId"]))
+            except KeyError:
+                record = {}
+            user_id = user_id or str(record.get("userId") or "")
+            symbol = str(request["symbol"])
+            name = self._contract_name(symbol)
+            label = (f"{name} {'买' if request['direction'] == 'BUY' else '卖'}"
+                     f"{'开' if request['offset'] == 'OPEN' else '平'} {int(request['volume'])} 手"
+                     f" @ {price_text(request['limitPrice'])}")
+            if reason == "engine_rejected":
+                why = str(((order.get("report") or {}).get("order") or {}).get("lastMsg") or "撮合拒绝")
+                text = f"等开盘的 {label} 开盘时已发出，被撮合拒绝：{why}"
+            else:
+                why = PREOPEN_NOT_SENT_WORDS.get(reason) or CANDIDATE_ISSUE_LABELS.get(reason) or reason
+                text = f"等开盘的 {label} 开盘时没有发出：{why}。它留在委托里“待发送”，可以继续发送或放弃"
+            session_id = self._notice_target(user_id, str(record.get("sessionId") or ""))
+            turn_id = f"preopen-{order['clientOrderId']}"
+            at = datetime.now(UTC).isoformat()
+            card = reminder_card(
+                turn_id=turn_id, kind="order_unfilled", title="预埋单没有成交" if reason == "engine_rejected"
+                else "预埋单没有发出", at=at, symbol=symbol, summary=text,
+                figures=[("委托价", price_text(request["limitPrice"])), ("手数", f"{int(request['volume'])} 手")],
+                actions=[ask_action("问 AI 怎么办", f"{text}，现在怎么办？"),
+                         ui_action("打开委托", {"positionsTab": "orders"})])
+            await deliver_via_store(self.store, ReminderSpec(
+                kind="order_unfilled", user_id=user_id, account_id=self.account_id,
+                dedupe_key=f"{order['clientOrderId']}:preopen", title=f"预埋单 · {name}", body=text,
+                symbol=symbol, name=name, at=at, message=text, turn_id=turn_id, cards=[("card.reminder", card)],
+                session_id=session_id or None, auto_landing=False, speech=text, voice_kind=turn_id,
+                push=PushMessage(kind="order_unfilled", title=f"预埋单 · {name}", body=text,
+                                 short=f"{name}的预埋单没有发出", tag=turn_id,
+                                 url=deep_link("mobilePage", "positions"))),
+                broker=self.broker, voice=self.voice_lookup() if callable(self.voice_lookup) else None)
+        except Exception as error:
+            log.debug("preopen notice not delivered: %s", error)
 
     async def _announce_stop_cancelled(self, row: sqlite3.Row, *, reopened: int = 0) -> None:
         """直接保护自动撤销：纯撤销通知在一次扫描内按 用户+合约+方向 合并成一句；“又开了新仓、要重新挂吗”

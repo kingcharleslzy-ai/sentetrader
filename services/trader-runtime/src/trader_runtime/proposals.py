@@ -31,6 +31,7 @@ from .simulation_orders import (
     close_allocation,
     close_batch_execution,
     close_yesterday_first_split,
+    preopen_words,
 )
 from .store import RuntimeStore, utc_after
 from .strategy_intents import build_strategy_intent
@@ -1458,8 +1459,10 @@ class ProposalService:
         strategy_source: dict[str, Any] | None = None, origin: str | None = None,
         protection: dict[str, Any] | None = None,
         remaining_protection: dict[str, Any] | None = None,
-        account_id: str | None = None, intent_source: str | None = None,
+        account_id: str | None = None, intent_source: str | None = None, preopen: bool = False,
     ) -> dict[str, Any]:
+        """`preopen`: the user's own card (ticket, words, the AI) may wait for the open while the session is closed
+        (开盘预埋单); a strategy's card or a 目标持仓 leg never does."""
         session_account = self._card_account(session_id, account_id)
         provider, order_service = self._view(session_account)
         if order_service is None:
@@ -1471,7 +1474,7 @@ class ProposalService:
                 user_id=user_id, symbol=symbol, side=side, volume=volume,
                 price_intent=price_intent, limit_price=limit_price,
                 position_bucket=position_bucket,
-                reason=reason,
+                reason=reason, preopen=preopen and strategy_source is None and target_position is None,
             ),
             "updatedAt": utc_now(),
             "environment": "simulation", "status": "draft",
@@ -1600,7 +1603,8 @@ class ProposalService:
                 try:
                     candidate = order_service.build_candidate(
                         user_id=user_id, symbol=symbol, side=side, volume=volume, price_intent=price_intent,
-                        limit_price=limit_price, position_bucket=bucket, reason=reason)
+                        limit_price=limit_price, position_bucket=bucket, reason=reason,
+                        preopen=target_position is None)
                 except Exception as error:  # one contract without a fresh quote must not hide the others
                     skipped.append({"symbol": symbol, "side": side, "volume": volume, "positionBucket": bucket, "reason": str(error)})
                     continue
@@ -1977,6 +1981,8 @@ class ProposalService:
                     trade_action = "开仓" if payload.get("offset", "OPEN") == "OPEN" else "平仓"
                     account = "本站模拟" if confirm_provider.mode == "paper" else "快期模拟"
                     terminal, message = "candidate_recorded", f"已确认一张{account}限价{trade_action}委托。"
+                    if simulation_order.get("preopenAt"):
+                        message += f"现在休市，{preopen_words(simulation_order['preopenAt'])}开盘时发出。"
                     execution = "tqkq-simulation"
                 else:
                     payload["riskCheck"] = self._risk(payload, user_id, provider=confirm_provider,
@@ -2003,11 +2009,16 @@ class ProposalService:
                                       trading_account_id=record.get("tradingAccountId"))
                     prepared = order_service.prepare(proposal_id=child_id, user_id=user_id, payload=order, connection=connection)
                     order["clientOrderId"] = prepared["clientOrderId"]
+                    if prepared.get("preopenAt"):
+                        order["preopenAt"] = prepared["preopenAt"]
                     self.store.audit(child_id, "confirm", {"status": "candidate_recorded", "parentProposalId": proposal_id}, connection=connection)
                 # `candidate_recorded` on the parent records the user's approval only.
                 # What each order became is read back from its own link afterwards.
                 account = "本站模拟" if confirm_provider.mode == "paper" else "快期模拟"
                 terminal, message = "candidate_recorded", f"已确认 {len(payload['orders'])} 张{account}平仓委托，逐张发送。"
+                if prepared.get("preopenAt"):
+                    message = (f"已确认 {len(payload['orders'])} 张{account}平仓委托。现在休市，"
+                               f"{preopen_words(prepared['preopenAt'])}开盘时逐张发出。")
                 execution = "tqkq-simulation"
             elif proposal_type == "spread":
                 # The transaction records the user's approval only. Both legs dispatch after it
@@ -2072,6 +2083,8 @@ class ProposalService:
         if proposal_type == "close_batch" and order_service is not None:
             for order in payload["orders"]:
                 client_order_id = str(order["clientOrderId"])
+                if order.get("preopenAt"):
+                    continue  # 等开盘: the account loop sends it at the open
                 try:
                     await order_service.dispatch(client_order_id, user_id=user_id)
                 except Exception as error:
@@ -2086,7 +2099,7 @@ class ProposalService:
             return self.close_batch_view(payload, user_id=user_id, simulation_orders=order_service)
         if (
             proposal_type == "trade" and payload.get("clientOrderId")
-            and order_service is not None
+            and order_service is not None and not payload.get("preopenAt")
         ):
             # 单笔确认与批量共用同一条持久事实 (#518): 派发抛错时先记下原因再抛，
             # 这单留下 PREPARED + 原因，由用户自己的继续/放弃接手，绝不被重发。
@@ -2099,6 +2112,9 @@ class ProposalService:
                     str(payload["clientOrderId"]), user_id=user_id, reason=str(error))
                 raise
             return {**payload, "simulationOrder": order}
+        if proposal_type == "trade" and payload.get("clientOrderId") and order_service is not None:
+            # 等开盘: nothing was sent; the answer is the stored order, which says when it goes out.
+            return {**payload, "simulationOrder": order_service.get(str(payload["clientOrderId"]), user_id=user_id)}
         return payload
 
     async def _launch_confirmed_spread(

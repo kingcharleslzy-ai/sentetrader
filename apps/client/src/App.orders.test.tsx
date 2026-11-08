@@ -414,12 +414,11 @@ it("a trade card whose send was refused after confirmation re-reads the orders, 
   expect(list).toHaveBeenCalledTimes(2);
 });
 
-it("#932 B1 a card stays confirmable while the chart shows a closed contract; the ticket for that contract does not", async () => {
+it("#932 B1 a card stays confirmable while the chart shows a closed contract", async () => {
+  // 开盘预埋单 (2026-11-08): a closed domestic contract no longer blocks the ticket either — its order waits for the open.
   session.marketSessionStatus = "closed";
   confirm.mockResolvedValueOnce(response({ simulationOrder: { ...order("AIT-card", "已受理"), proposalId: "card" } }));
   render(<App />);
-  await waitFor(() => expect(screen.getByTestId("ticket-blocked")).toHaveTextContent("休市，暂不可下单"));
-  expect(screen.getByRole("button", { name: "提交模拟委托" })).toBeDisabled();
   await confirmCard();
   await waitFor(() => expect(confirm).toHaveBeenCalledTimes(1));
   expect(confirm.mock.calls[0][0].pathname).toBe("/api/proposals/card/confirm");

@@ -4,7 +4,7 @@ import type { SimulationOrder } from "../../api";
 import { CardShell } from "../CardShell";
 import { SENT_STATUSES, closedBadge, notSentReason } from "./CloseBatchProposalCard";
 import { useVoiceConfirmCountdown, voiceConfirmLabel } from "./voiceConfirm";
-import { chinaClock, formatFee, orderStatusText } from "../futures/support";
+import { chinaClock, formatFee, orderStatusText, preopenWords } from "../futures/support";
 import { CardActionButtons } from "./cardActions";
 import { CardSteps, priceWords, remainingResult, remainingStep, type CardStep } from "./ProtectionSteps";
 
@@ -80,7 +80,7 @@ export function TradeProposalCard({
   const fact = recorded ? orders?.find(order => order.proposalId === proposal.proposalId) : undefined;
   const unread = recorded && !fact && Boolean(proposal.accountId) && proposal.executionEligibleAtCreation === true;
   const badge = recorded
-    ? fact ? (fact.displayStatus === "待发送" ? "未发送" : orderStatusText(fact))
+    ? fact ? (fact.displayStatus !== "待发送" ? orderStatusText(fact) : fact.preopenAt ? "等开盘" : "未发送")
       : unread ? "已确认" : proposal.executionEligibleAtCreation ? "已发送" : "已记录"
     : rejected
       ? closedBadge(proposal.closedReason)
@@ -202,7 +202,13 @@ export function TradeProposalCard({
             : <small>{proposal.estimate.basis}</small>}
         </p>
       ) : null}
-      {recorded && fact?.displayStatus === "待发送" && notSentReason(fact.lastReadError) ? (
+      {proposal.preopenAt && (proposal.status === "approval_required" || fact?.preopenAt) ? (
+        <p className="target-plan-line" data-testid="trade-preopen-line">
+          <span>{recorded ? `${preopenWords(fact?.preopenAt ?? proposal.preopenAt)}开盘时发出，委托里可以撤销`
+            : `现在休市，确认后${preopenWords(proposal.preopenAt)}开盘时发出`}</span>
+        </p>
+      ) : null}
+      {recorded && fact?.displayStatus === "待发送" && !fact.preopenAt && notSentReason(fact.lastReadError) ? (
         <p className="target-plan-line" data-testid="trade-unsent-reason">
           <span>{notSentReason(fact.lastReadError)}</span>
         </p>

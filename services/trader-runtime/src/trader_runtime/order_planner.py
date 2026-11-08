@@ -27,6 +27,7 @@ from typing import Any, Literal
 
 from .data_providers import provider_read_snapshot
 from .instruments import FOREIGN_TRADE_EXCHANGE, foreign_named, foreign_product_of, foreign_words
+from .order_boundaries import session_closed
 from .order_intent import (
     CARD_ACTS,
     OrderIntent,
@@ -40,6 +41,7 @@ from .order_intent_parse import ParseContext, mentions, side_conflict
 from .proposals import ProposalConflict
 from .simulation_orders import (
     CLOSE_TODAY_EXCHANGES,
+    DOMESTIC_EXCHANGES,
     closable_buckets,
     close_allocation,
     close_yesterday_first_split,
@@ -55,6 +57,7 @@ from .voice_intents import PRODUCT_ALIASES, resolve_symbol
 CANDIDATE_READY_SUMMARY = "就绪检查已通过：行情、K线、合约、账户、持仓与委托数据均为最新，委托价在涨跌停范围内"
 ORDER_SAFETY_SUMMARY = "下单安全检查已通过：合约在目录中且未到期，报价、交易时段、最小变动价位与涨跌停已核对"
 CLOSE_READY_SUMMARY = "就绪检查已通过：账户与持仓为最新，可平手数足够，委托价在涨跌停范围内"
+PREOPEN_READY_SUMMARY = "现在休市：确认后等下一段开盘发出，发出前重新核对行情、价位、涨跌停与持仓"
 CONDITIONAL_LINE = "到价才下的单不出即时卡；可以先建一个价格提醒，到价后我再出卡让你确认"
 TIMED_LINE = "到时间才下的单（开盘后、收盘前、明天…）不出即时卡，到时候再说一遍"
 POSITIONS_UNREADABLE_LINE = "持仓数据暂时取不到，这单先不出卡，稍后再试"
@@ -1154,7 +1157,12 @@ def opening_gate(
     if context is None:
         return Refuse(str(error), form="unavailable")
     facing = context["userFacing"]
-    if not context["proposalReady"]:
+    # 开盘预埋单 (owner 2026-11-08): a session that is only closed (or in its call auction) does not stop the card —
+    # the candidate builder makes it wait for the open, or refuses it as closed when it cannot.
+    reasons = set(context["proposalReadinessReasons"])
+    closed = (session_closed(context.get("market") or {}) and ctx.target_position is None
+              and symbol.split(".", 1)[0].upper() in DOMESTIC_EXCHANGES)
+    if not context["proposalReady"] and not (closed and reasons <= {"market_session_closed"}):
         return Refuse("proposal_gate_not_ready", form="gate",
                       reasons=tuple(context["proposalReadinessReasons"]), user_facing=facing)
     open_limit = context.get("openLimit") or {}
@@ -1165,10 +1173,8 @@ def opening_gate(
             f"{instrument_display(ctx.provider, symbol)}今日还能开 {remaining} 手"
             f"（日内开仓限额 {open_limit['limit']} 手，已开 {open_limit.get('openedToday') or 0} 手"
             + (f"，这句话前面已出卡 {before} 手" if before else "") + "）",))
-    readiness = {"passed": True, "summary": CANDIDATE_READY_SUMMARY, "issues": [], "source": context["source"]}
-    if str((context.get("market") or {}).get("tradingStatus") or "") == "AUCTIONORDERING":
-        # A notice, not a refusal: the order is accepted into the call auction and matches when the session opens.
-        readiness = {**readiness, "summary": CANDIDATE_READY_SUMMARY + "；集合竞价中，开盘撮合后才有成交"}
+    readiness = {"passed": True, "summary": PREOPEN_READY_SUMMARY if closed else CANDIDATE_READY_SUMMARY,
+                 "issues": [], "source": context["source"]}
     return readiness, facing
 
 
@@ -1401,7 +1407,7 @@ def _trade_card(ctx: PlanContext, intent: OrderIntent, *, symbol: str, side: str
             price_intent=price_intent, limit_price=limit_price, position_bucket=bucket,
             reason=intent.reason, readiness=readiness, target_position=ctx.target_position,
             origin=ctx.origin, protection=intent.protection, remaining_protection=intent.remaining_protection,
-            account_id=ctx.account_id or ctx.resolved_account_id, intent_source=ctx.intent_source)
+            account_id=ctx.account_id or ctx.resolved_account_id, intent_source=ctx.intent_source, preopen=True)
     except (KeyError, ProposalConflict, RuntimeError, ValueError) as failure:
         code = getattr(failure, "code", None) or (str(failure.args[0]) if failure.args else "invalid_trade_proposal")
         if code == "close_position_not_found":

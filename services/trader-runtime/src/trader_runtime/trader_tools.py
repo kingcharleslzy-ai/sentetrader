@@ -1765,6 +1765,7 @@ class TraderReadOnlyTools:
                     "description": (
                         "在活动授权范围内撤销本人一张仍可撤的 TqKq 模拟委托。"
                         "只调用一次 cancel_order，结果未知时仅查询原委托。"
+                        "等开盘的委托（preopenAt 有值）撤销即不再发出。"
                     ),
                     "inputSchema": TOOL_ARGUMENT_MODELS["cancel_simulation_order"].model_json_schema(),
                 },

@@ -1208,6 +1208,13 @@ class StoreBase:
             self._add_column("tqkq_sim_order_links", "last_read_error TEXT")
             self._add_column("tqkq_sim_order_links", "last_error_report_json TEXT")
             self._add_column("tqkq_sim_order_links", "fact_revision INTEGER NOT NULL DEFAULT 0")
+            # 开盘预埋单 (owner 2026-11-08): the session start a 待发送 order confirmed while closed waits for
+            # (NULL = not waiting), and who last moved it (user / system), read by its 改动留痕 trigger.
+            self._add_column("tqkq_sim_order_links", "preopen_at TEXT")
+            self._add_column("tqkq_sim_order_links", "changed_by TEXT")
+            # The account loop looks for due 等开盘 orders twice a second: only the waiting rows are indexed.
+            self.connection.execute("""CREATE INDEX IF NOT EXISTS idx_tqkq_sim_order_links_preopen
+                ON tqkq_sim_order_links(trading_account_id, preopen_at) WHERE preopen_at IS NOT NULL""")
             self.connection.execute("""CREATE TRIGGER IF NOT EXISTS tqkq_order_fact_revision
                 AFTER UPDATE OF submit_phase, cancel_phase, last_remote_status, last_report_json, cancel_requested_at
                 ON tqkq_sim_order_links BEGIN

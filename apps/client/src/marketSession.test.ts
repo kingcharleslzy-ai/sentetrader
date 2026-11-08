@@ -71,7 +71,8 @@ describe("下单票的行情条件", () => {
   test("国内判定不变", () => {
     const now = at("2026-10-21T17:19:45+08:00");
     expect(chartQuoteBlockedReason(market(now, { quoteDatetime: naive(now, 20) }), false, now)).toBe("行情已 20 秒无新报价");
-    expect(chartQuoteBlockedReason(market(now, {}, { marketSessionStatus: "closed" }), false, now)).toBe("休市，暂不可下单");
+    // 开盘预埋单 (2026-11-08): a closed domestic contract's ticket stays open — the order waits for the open.
+    expect(chartQuoteBlockedReason(market(now, {}, { marketSessionStatus: "closed" }), false, now)).toBeUndefined();
     expect(chartQuoteBlockedReason(market(now, { symbol: "KQD.m@LME.CA" }, { marketSessionStatus: "closed" }), false, now)).toBe("休市，暂不可下单");
   });
 });

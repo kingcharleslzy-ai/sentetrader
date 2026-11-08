@@ -21,6 +21,8 @@ export interface WatchInfo {
   conditions: string[];
   /** "均线金叉 · 出卡确认" per running strategy. */
   strategies: string[];
+  /** 开盘预埋单: "螺纹 买多 1 手 · 今天 21:00" per order waiting for the open. */
+  preopen: string[];
   /** The position checks that are on: "保本", "风险度", "收盘前", "盘中异动". */
   checks: string[];
   /** "14:55 收盘前持仓检查" while there are positions and that check is on. */
@@ -141,6 +143,7 @@ export function MobileHome({ rows, pending, renderCard, quickPending, now, accou
     watch.alerts.length ? `${watch.alerts.length} 个到价提醒：${watch.alerts.join("、")}` : "",
     watch.conditions.length ? `${watch.conditions.length} 个条件提醒：${watch.conditions.join("、")}` : "",
     watch.strategies.length ? `${watch.strategies.length} 个策略运行中：${watch.strategies.join("、")}` : "",
+    watch.preopen.length ? `${watch.preopen.length} 笔委托等开盘发出：${watch.preopen.join("、")}` : "",
     watch.positions.length && watch.checks.length ? `${watch.positions.length} 笔持仓：${watch.positions.join("、")}，查${watch.checks.join("、")}` : "",
   ].filter(Boolean);
   let order = 0;
@@ -170,6 +173,7 @@ export function MobileHome({ rows, pending, renderCard, quickPending, now, accou
           <button type="button" onClick={onAlerts}>到价 <b>{watch.alerts.length}</b></button>
           <button type="button" onClick={onAlerts}>条件提醒 <b>{watch.conditions.length}</b></button>
           <button type="button" onClick={onStrategies}>策略在跑 <b>{watch.strategies.length}</b></button>
+          {watch.preopen.length ? <button type="button" onClick={onPositions}>等开盘 <b>{watch.preopen.length}</b></button> : null}
         </div>
         {watch.closed ? <div className="fdm-watch-next"><span>休市中，开盘后继续盯</span></div>
           : watch.next ? <div className="fdm-watch-next"><span>下一次：{watch.next}</span></div> : null}

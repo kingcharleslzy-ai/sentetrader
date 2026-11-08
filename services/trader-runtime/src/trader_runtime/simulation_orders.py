@@ -6,7 +6,7 @@ import logging
 import sqlite3
 import time
 from collections.abc import Awaitable, Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Protocol
@@ -20,6 +20,7 @@ from .order_boundaries import (
     finite_positive,
     price_on_tick,
     quote_is_fresh,
+    session_closed,
 )
 from .risk import (
     InstrumentSpecProvider,
@@ -31,7 +32,7 @@ from .risk import (
 )
 from .sidecar_http import SidecarHttpError
 from .store import RuntimeStore, utc_now
-from .trading_calendar import trading_day_at
+from .trading_calendar import NS, next_session_start, trading_day_at
 from .trading_clock import TradingClock
 from .trading_costs import effective_fee_rate
 
@@ -41,6 +42,12 @@ CLOSE_TODAY_EXCHANGES = frozenset({"SHFE", "INE"})
 OPEN_SIDES = frozenset({"buy_open", "sell_open"})
 CLOSE_SIDES = frozenset({"buy_close", "sell_close"})
 ANOMALOUS_REMOTE_STATUSES = frozenset({"IDENTITY_MISMATCH", "REPORT_INVALID"})
+DOMESTIC_EXCHANGES = frozenset({"SHFE", "INE", "DCE", "CZCE", "GFEX", "CFFEX"})
+# 开盘预埋单 (owner 2026-11-08): how long after its session starts a 等开盘 order keeps being tried while the open's
+# first fresh quote (or the engine's settlement price) has not come, and the refusals that are only that wait.
+PREOPEN_SEND_WINDOW_SECONDS = 300
+PREOPEN_WAIT_CODES = frozenset({"market_session_closed", "quote_not_current", "quote_age_missing", "quote_stale",
+                                "quote_datetime_missing", "paper_settlement_pending"})
 
 
 def _paper_settlement_pending(error: BaseException) -> bool:
@@ -134,6 +141,19 @@ def close_yesterday_first_split(position: dict[str, Any], *, volume: int) -> dic
     return {"historical": used_historical, "today": min(volume - used_historical, today)}
 
 
+def preopen_words(at: str, now: datetime | None = None) -> str:
+    """When a 等开盘 order goes out, in Beijing time as people say it: 今天 21:00 / 明天 09:00 / 11月9日（周一）09:00."""
+    china = timezone(timedelta(hours=8))
+    moment = datetime.fromisoformat(at).astimezone(china)
+    days = (moment.date() - (now or datetime.now(UTC)).astimezone(china).date()).days
+    clock = moment.strftime("%H:%M")
+    if days == 0:
+        return f"今天 {clock}"
+    if days == 1:
+        return f"明天 {clock}"
+    return f"{moment.month}月{moment.day}日（周{'一二三四五六日'[moment.weekday()]}）{clock}"
+
+
 # The one projection from an order's local phases and its remote report to the status users
 # see; the order list and the AI activity feed both use it (#483).
 def order_display_status(
@@ -171,12 +191,14 @@ def close_batch_execution(orders: list[dict[str, Any]]) -> dict[str, Any]:
     """What actually happened to a batch, counted from its persisted child orders.
     The parent's own `candidate_recorded` only ever meant "the user confirmed"."""
     statuses = [str(order.get("displayStatus") or "结果未知") for order in orders]
+    waiting = sum(1 for order in orders if order.get("preopenAt"))  # 等开盘: 待发送, going out at the open
     not_sent = sum(1 for status in statuses if status in NOT_SENT_STATUSES)
     sent = sum(1 for status in statuses if status in SENT_STATUSES)
     unknown = len(statuses) - not_sent - sent
     parts = [
         f"{count} 笔{label}"
-        for count, label in ((sent, "已发送"), (not_sent, "未发送"), (unknown, "结果未知"))
+        for count, label in ((sent, "已发送"), (waiting, "等开盘"), (not_sent - waiting, "未发送"),
+                             (unknown, "结果未知"))
         if count
     ]
     return {
@@ -368,7 +390,10 @@ class SimulationOrderService:
         reason: str,
         limit_price: float | None = None,
         position_bucket: str | None = None,
+        preopen: bool = False,
     ) -> dict[str, Any]:
+        """`preopen`: the caller's card may wait for the open (开盘预埋单) — while the session is closed it is built on
+        the last quote and says when it would go out (`preopenAt`); every check runs again when it is sent."""
         if side not in OPEN_SIDES | CLOSE_SIDES:
             raise SimulationOrderError("invalid_order_side")
         if isinstance(volume, bool) or not isinstance(volume, int) or volume <= 0:
@@ -376,7 +401,9 @@ class SimulationOrderService:
         if price_intent not in {"passive", "aggressive", "last"}:
             raise SimulationOrderError("invalid_price_intent")
         market = self.data_provider.market_snapshot("", symbol.strip())
-        quote_is_fresh(market, allow_fixture=self.gateway is None, now=self.trading_now())
+        preopen_at = self.preopen_open_at(market) if preopen else None
+        if preopen_at is None:
+            quote_is_fresh(market, allow_fixture=self.gateway is None, now=self.trading_now())
         tick = finite_positive(market.get("priceTick"), "price_tick_missing")
         multiplier = finite_positive(
             market.get("volumeMultiple"), "volume_multiple_missing"
@@ -425,6 +452,8 @@ class SimulationOrderService:
                 )
             },
         }
+        if preopen_at is not None:
+            payload["preopenAt"] = preopen_at
         if offset == "OPEN":
             policy = self.policies.get(user_id=user_id, symbol=str(market["symbol"]))
             if policy.max_loss_per_trade is not None:
@@ -445,6 +474,29 @@ class SimulationOrderService:
                 }
             )
         return payload
+
+    def preopen_open_at(self, market: dict[str, Any]) -> str | None:
+        """开盘预埋单 (owner 2026-11-08): when an order on this closed (or call-auction) quote, confirmed now, would go
+        out — the start of the contract's next session (ISO), from its catalog schedule and the exchange calendar.
+        None when it cannot wait: the session is open, no simulation gateway, not a domestic futures contract (外盘
+        follows CME's clock), a quote that is not a real one, or no schedule to read the next open from."""
+        symbol = str(market.get("symbol") or "")
+        # A replay (the one runtime without historical price bands) has no next open to wait for.
+        if (self.gateway is None or self.historical_price_limits_unavailable or not session_closed(market)
+                or market.get("dataStatus") != "normal"
+                or bool(market.get("isCached")) or symbol.split(".", 1)[0].upper() not in DOMESTIC_EXCHANGES
+                or not str(market.get("quoteDatetime") or "").strip()):
+            return None
+        try:
+            items = self.data_provider.instrument_catalog().get("items") or []
+        except Exception:  # noqa: BLE001 - no catalog, no schedule: the card is refused as closed
+            return None
+        item = next((row for row in items if isinstance(row, dict)
+                     and str(row.get("symbol") or "").casefold() == symbol.casefold()), None)
+        now = self.trading_now() or datetime.now(UTC)
+        start = next_session_start(int(now.timestamp() * NS), (item or {}).get("tradingSchedule"),
+                                   calendar_trading_days(self.data_provider) or None)
+        return datetime.fromtimestamp(start / NS, UTC).isoformat() if start is not None else None
 
     @classmethod
     def _intent_price(cls, market: dict[str, Any], *, side: str, price_intent: str) -> Decimal:
@@ -554,7 +606,10 @@ class SimulationOrderService:
         if payload.get("executionEligibleAtCreation") is not True:
             raise SimulationOrderError("proposal_not_execution_eligible")
         market = self.data_provider.market_snapshot("", str(payload["symbol"]))
-        quote_is_fresh(market, allow_fixture=False, now=self.trading_now())
+        # A 预埋 card confirmed while still closed is stored 等开盘; one the open overtook goes out now as usual.
+        preopen_at = self.preopen_open_at(market) if payload.get("preopenAt") else None
+        if preopen_at is None:
+            quote_is_fresh(market, allow_fixture=False, now=self.trading_now())
         tick = finite_positive(market.get("priceTick"), "price_tick_missing")
         current_multiplier = finite_positive(
             market.get("volumeMultiple"), "volume_multiple_missing"
@@ -592,6 +647,10 @@ class SimulationOrderService:
                 )
             },
         })
+        if preopen_at is not None:
+            payload["preopenAt"] = preopen_at
+        else:
+            payload.pop("preopenAt", None)
         client_order_id = f"AIT{uuid4().hex}"
         request = {
             "commandId": f"submit:{client_order_id}",
@@ -615,8 +674,8 @@ class SimulationOrderService:
             """INSERT INTO tqkq_sim_order_links
             (id, user_id, proposal_id, client_order_id, request_json, submit_phase,
              cancel_phase, last_remote_status, last_report_json, last_synced_at,
-             created_at, updated_at, trading_account_id)
-            VALUES (?, ?, ?, ?, ?, 'PREPARED', 'NONE', NULL, NULL, NULL, ?, ?, ?)""",
+             created_at, updated_at, trading_account_id, preopen_at, changed_by)
+            VALUES (?, ?, ?, ?, ?, 'PREPARED', 'NONE', NULL, NULL, NULL, ?, ?, ?, ?, 'user')""",
             (
                 link_id,
                 user_id,
@@ -626,6 +685,7 @@ class SimulationOrderService:
                 now,
                 now,
                 self.account_id,
+                preopen_at,
             ),
         )
         self._notify_change()
@@ -663,6 +723,8 @@ class SimulationOrderService:
             "displayStatus": self._display_status(row, request, report),
             "lastSyncedAt": row["last_synced_at"],
             "lastReadError": row["last_read_error"],
+            # 开盘预埋单: the session start this 待发送 order waits for (None = it does not wait).
+            "preopenAt": row["preopen_at"] if row["submit_phase"] == "PREPARED" else None,
             "factRevision": row["fact_revision"],
             "createdAt": row["created_at"],
             "updatedAt": row["updated_at"],
@@ -909,11 +971,15 @@ class SimulationOrderService:
                 if not self.risk_check(payload, user_id)["passed"]:
                     raise SimulationOrderError("risk_check_failed")
             else:
+                bucket = payload.get("positionBucket")
+                if current["request"]["symbol"].split(".", 1)[0].upper() in CLOSE_TODAY_EXCHANGES:
+                    # The request's own offset names the bucket: a 等开盘 close may have moved to the other one.
+                    bucket = "today" if current["request"]["offset"] == "CLOSETODAY" else "historical"
                 expected_offset, _ = self._close_position(
                     symbol=current["request"]["symbol"],
                     side=str(payload.get("side")),
                     volume=int(current["request"]["volume"]),
-                    position_bucket=payload.get("positionBucket"),
+                    position_bucket=bucket,
                     allow_fixture=False,
                 )
                 if expected_offset != current["request"]["offset"]:
@@ -933,6 +999,95 @@ class SimulationOrderService:
         # transfer the bounded send and durable result to the operation owner.
         return await owned_operation(
             lambda: self._submit_and_record(client_order_id, user_id, current["request"], started=started), committed=True)
+
+    async def send_preopen_due(
+        self, blocked: Callable[[str, str], str | None] | None = None,
+    ) -> list[tuple[dict[str, Any], str]]:
+        """开盘预埋单 (owner 2026-11-08), one pass of the account loop: every 等开盘 order whose session has started
+        goes out through `dispatch` — the confirmed order itself, every send-time check run again, nothing repriced
+        or resized. Until the open's first fresh quote (or the engine's settlement price) has come it is tried again,
+        for PREOPEN_SEND_WINDOW_SECONDS; any other refusal, or the window passing, ends the wait: the order stays
+        待发送 with its reason for the user's own 继续 / 放弃. Returns those orders, and any the engine rejected on
+        arrival, each with its reason, for the loop to tell their user. `blocked(user_id, offset)` is the account's
+        停止 / 急停 say: an order it blocks does not go out unattended at the open."""
+        if self.gateway is None:
+            return []
+        now = (self.trading_now() or datetime.now(UTC)).astimezone(UTC)
+        rows = self.store.connection.execute(
+            """SELECT client_order_id, user_id, preopen_at FROM tqkq_sim_order_links
+            WHERE trading_account_id = ? AND submit_phase = 'PREPARED' AND preopen_at IS NOT NULL
+            AND preopen_at <= ?""", (self.account_id, now.isoformat())).fetchall()
+        told: list[tuple[dict[str, Any], str]] = []
+        for row in rows:
+            client_order_id, user_id = str(row["client_order_id"]), str(row["user_id"])
+            with self.store.lock, self.store.connection:
+                self.store.connection.execute(
+                    "UPDATE tqkq_sim_order_links SET changed_by = 'system' WHERE client_order_id = ?",
+                    (client_order_id,))
+            waiting = False
+            try:
+                offset = str(self.get(client_order_id, user_id=user_id)["request"]["offset"])
+                if blocked is not None and (stop := blocked(user_id, offset)):
+                    raise SimulationOrderError(stop)
+                self._preopen_close_bucket(client_order_id, user_id=user_id)
+                order = await self.dispatch(client_order_id, user_id=user_id)
+            except SimulationOrderError as error:
+                code = str(error)
+                waiting = code in PREOPEN_WAIT_CODES
+            except (KeyError, RuntimeError, OSError, TimeoutError):  # a quote or position read that failed
+                code, waiting = "quote_not_current", True
+            else:
+                if order["submitPhase"] != "PREPARED":
+                    if order["displayStatus"] == "已拒绝":
+                        told.append((order, "engine_rejected"))
+                    continue
+                code = str(order.get("lastReadError") or "not_dispatched")
+                waiting = code in PREOPEN_WAIT_CODES
+            if waiting and (now - datetime.fromisoformat(str(row["preopen_at"]))).total_seconds() < \
+                    PREOPEN_SEND_WINDOW_SECONDS:
+                continue
+            reason = code if not waiting or code == "paper_settlement_pending" else "preopen_quote_not_ready"
+            with self.store.lock, self.store.connection:
+                cursor = self.store.connection.execute(
+                    """UPDATE tqkq_sim_order_links SET preopen_at = NULL, changed_by = 'system',
+                    last_read_error = ?, updated_at = ?
+                    WHERE client_order_id = ? AND submit_phase = 'PREPARED' AND preopen_at IS NOT NULL""",
+                    (reason, utc_now(), client_order_id))
+            if cursor.rowcount == 1:
+                told.append((self.get(client_order_id, user_id=user_id), reason))
+        if told:
+            self._notify_change()
+        return told
+
+    def _preopen_close_bucket(self, client_order_id: str, *, user_id: str) -> None:
+        """平今平昨在发出时再定: a settlement between confirming and the open turns 今仓 into 昨仓, so an SHFE/INE
+        等开盘 close whose bucket no longer covers its volume moves whole to the other bucket when that one does
+        (same order, not yet sent). Anything else is left for `dispatch` to refuse."""
+        request = self.get(client_order_id, user_id=user_id)["request"]
+        symbol, offset = str(request["symbol"]), str(request["offset"])
+        if offset not in {"CLOSE", "CLOSETODAY"} or symbol.split(".", 1)[0].upper() not in CLOSE_TODAY_EXCHANGES:
+            return
+        side = ("buy" if request["direction"] == "BUY" else "sell") + "_close"
+        current = "today" if offset == "CLOSETODAY" else "historical"
+        try:
+            self._close_position(symbol=symbol, side=side, volume=int(request["volume"]),
+                                 position_bucket=current, allow_fixture=False)
+            return
+        except SimulationOrderError as error:
+            if str(error) != "close_volume_unavailable":
+                return
+        try:
+            moved, _ = self._close_position(symbol=symbol, side=side, volume=int(request["volume"]),
+                                            position_bucket="historical" if current == "today" else "today",
+                                            allow_fixture=False)
+        except SimulationOrderError:
+            return
+        with self.store.lock, self.store.connection:
+            self.store.connection.execute(
+                """UPDATE tqkq_sim_order_links SET request_json = ?, updated_at = ?
+                WHERE client_order_id = ? AND submit_phase = 'PREPARED'""",
+                (json.dumps({**request, "offset": moved}, ensure_ascii=False, separators=(",", ":")), utc_now(),
+                 client_order_id))
 
     async def _submit_and_record(self, client_order_id, user_id, request, *, started=None):
         sent = time.monotonic()
@@ -1034,6 +1189,9 @@ class SimulationOrderService:
         if self.gateway is None:
             raise SimulationOrderError("simulation_gateway_disabled")
         current = self.get(client_order_id, user_id=user_id)
+        if current["preopenAt"]:
+            # 撤一张等开盘的单（开盘预埋单）: it was never sent, so taking it back is not sending it — 放弃.
+            return self.abandon(client_order_id, user_id=user_id)
         # 还在挂才可撤（#518）: 按阶段判断，已结束的单（含部分成交后结束）直接回不可撤，
         # 不向网关发起撤，也不制造“结果未知”。
         if not order_is_working(current):
@@ -1084,8 +1242,10 @@ class SimulationOrderService:
             role = self.store.account_role(account_id=self.account_id, user_id=user_id)
             if role not in {"owner", "operator"}:
                 raise SimulationOrderError("account_read_only" if role == "viewer" else "account_not_granted")
+            # 放弃 is also how a 等开盘 order is taken back (撤销): it stops waiting, and 改动留痕 records the user.
             cursor = self.store.connection.execute(
-                """UPDATE tqkq_sim_order_links SET submit_phase = 'ABANDONED', updated_at = ?
+                """UPDATE tqkq_sim_order_links SET submit_phase = 'ABANDONED', updated_at = ?,
+                changed_by = CASE WHEN preopen_at IS NULL THEN changed_by ELSE 'user' END, preopen_at = NULL
                 WHERE client_order_id = ? AND user_id = ? AND trading_account_id = ? AND submit_phase = 'PREPARED'""",
                 (utc_now(), client_order_id, user_id, self.account_id),
             )
