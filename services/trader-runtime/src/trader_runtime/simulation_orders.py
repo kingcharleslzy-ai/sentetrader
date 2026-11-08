@@ -493,8 +493,11 @@ class SimulationOrderService:
             return None
         item = next((row for row in items if isinstance(row, dict)
                      and str(row.get("symbol") or "").casefold() == symbol.casefold()), None)
+        from .account_reminders import normalize_schedule  # lazy: it pulls in the reminder stack
         now = self.trading_now() or datetime.now(UTC)
-        start = next_session_start(int(now.timestamp() * NS), (item or {}).get("tradingSchedule"),
+        # The catalog writes periods as "09:00" and a night end past midnight as "02:30": the one normalizer
+        # the close reminder reads them through.
+        start = next_session_start(int(now.timestamp() * NS), normalize_schedule((item or {}).get("tradingSchedule")),
                                    calendar_trading_days(self.data_provider) or None)
         return datetime.fromtimestamp(start / NS, UTC).isoformat() if start is not None else None
 
