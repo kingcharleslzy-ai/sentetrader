@@ -479,12 +479,14 @@ class SimulationOrderService:
         """开盘预埋单 (owner 2026-11-08): when an order on this closed (or call-auction) quote, confirmed now, would go
         out — the start of the contract's next session (ISO), from its catalog schedule and the exchange calendar.
         None when it cannot wait: the session is open, no simulation gateway, not a domestic futures contract (外盘
-        follows CME's clock), a quote that is not a real one, or no schedule to read the next open from."""
+        follows CME's clock), a quote that is not the source's own (the engine marks its last one stale while
+        closed — that one is the card's reference; 新浪备用 or a missing feed is not), or no schedule to read the
+        next open from. The open's send asks for a fresh quote again."""
         symbol = str(market.get("symbol") or "")
         # A replay (the one runtime without historical price bands) has no next open to wait for.
         if (self.gateway is None or self.historical_price_limits_unavailable or not session_closed(market)
-                or market.get("dataStatus") != "normal"
-                or bool(market.get("isCached")) or symbol.split(".", 1)[0].upper() not in DOMESTIC_EXCHANGES
+                or market.get("dataStatus") not in {"normal", "stale"}
+                or symbol.split(".", 1)[0].upper() not in DOMESTIC_EXCHANGES
                 or not str(market.get("quoteDatetime") or "").strip()):
             return None
         try:
