@@ -223,7 +223,10 @@ async def test_generated_once_after_1515_tagged_by_rule_and_pushed_once(tmp_path
         assert len(sender.sent) == 1 and len(review_messages(app, session_id)) == 2
         assert (await http.post("/api/account/daily-review/regenerate", json={})).status_code == 429
         # The round trips carry each leg's tag too (平仓记录).
-        trades = (await http.get("/api/trade-review")).json()["trades"]
+        # 平仓记录 counts back from today; reach back to the fixed test day.
+        # shortcut: the endpoint caps days at 366, so this fixture day needs moving after 2027-10.
+        reach = (datetime.now(UTC).date() - datetime.fromisoformat(DAY).date()).days + 2
+        trades = (await http.get("/api/trade-review", params={"days": reach})).json()["trades"]
         assert {(trade["openTag"], trade["closeTag"]) for trade in trades} == {("plan", "remind"), ("plan", "adhoc")}
     finally:
         await http.aclose()

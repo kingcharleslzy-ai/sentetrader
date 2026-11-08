@@ -534,8 +534,11 @@ class DailyReviewService:
         fills = await self.day_fills(services, trading_day)
         if not fills:
             return None
+        # Historical closing rounds belong to the selected day, not the wall clock.
+        review_at = datetime.combine(date.fromisoformat(trading_day), clock_time.max,
+                                     tzinfo=NEW_YORK if is_foreign_paper(account_id) else CHINA)
         review = await account_trade_review(store, services.provider, app.state.fee_settings, user_id, symbol=None,
-                                            days=30, trading_account_id=account_id, desk=desk)
+                                            days=30, trading_account_id=account_id, desk=desk, now=review_at)
         sources = await asyncio.to_thread(order_sources, store, user_id)
         reminders = await asyncio.to_thread(load_reminders, store, user_id=user_id, account_id=account_id)
         placed = await asyncio.to_thread(order_placed_times, store, user_id)

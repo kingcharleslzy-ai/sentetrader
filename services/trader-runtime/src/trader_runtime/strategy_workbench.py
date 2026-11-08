@@ -249,7 +249,7 @@ def journal_fields(rounds: list[dict], notes: dict[str, dict], desk: Any = None)
 
 async def account_trade_review(store, provider, fees, user: str, *, symbol: str | None, days: int,
                                trading_account_id: str | None = None, desk: Any = None,
-                               product: Any = None) -> dict:
+                               product: Any = None, now: datetime | None = None) -> dict:
     """Round trips over the account's fills: the provider's current-day fills plus
     every fill the store kept, each with its 交易日志 fields (`journal_fields`). Raises
     KeyError/ValueError/RuntimeError when the account or a requested contract's
@@ -282,7 +282,7 @@ async def account_trade_review(store, provider, fees, user: str, *, symbol: str 
             skipped.append(name)
     sources = await asyncio.to_thread(order_sources, store, user)
     from .replay import ReplayProvider
-    now = provider.clock() if isinstance(provider, ReplayProvider) else None
+    now = now or (provider.clock() if isinstance(provider, ReplayProvider) else None)
     # 外盘合约（美元子账户）按外盘引擎的每手美元手续费配对，不套用户为国内设的费率表（外盘盘点 3A，2026-10-21）。
     foreign = await asyncio.to_thread(foreign_review_schedules, provider, list(multipliers))
     result = review_account_trades(fills, schedule, multipliers, days=days, sources=sources, now=now, schedules=foreign)
