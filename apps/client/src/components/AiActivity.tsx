@@ -347,7 +347,7 @@ export function AiOrb({ baseUrl, symbol, replay, activity, error, config, onBrie
   const ariaLabel = [voice ? (inCall ? `结束语音通话（${callLabel}）` : callLabel) : "AI 动态", activityLabel, unread ? "有新动态" : "", newMessage ? "对话有新消息" : "", "可拖动", "右键更多"].filter(Boolean).join("；");
   // The orb is the voice side of the one AI; the 对话面板 is its text side (same call, same chat).
   const title = voice ? `AI 语音：点一下${inCall ? "挂断" : callStatus.state === "error" ? "重试" : "通话"} · 右键更多` : "AI 动态：点一下查看 · 右键更多";
-  // Error looks like offline (grey, owner 2026-11-07); why is said in the menu, not in red.
+  // Error looks like offline (grey, owner 2026-11-07); why is said in the menu, not in red. A failed call clears itself (voiceCallStore).
   const greyReason = callStatus.state === "error" ? orbLabel(callStatus) : !fresh && !inCall ? error || "连接待确认" : "";
   const onPrimary = () => {
     if (menuOpen) { setMenuOpen(false); return; }

@@ -104,6 +104,17 @@ test("通话出错（没有麦克风）点 ✕ 关闭：错误条消失、通话
   start.mockRestore();
 });
 
+test("通话出错不点 ✕ 也会在约 3 秒后自己回到待机", () => {
+  vi.useFakeTimers();
+  try {
+    act(() => { voiceCallStore["publish"]({ state: "error", error: "未检测到麦克风（NotFoundError）" } as never); });
+    act(() => { vi.advanceTimersByTime(2900); });
+    expect(voiceCallStore.snapshot().state).toBe("error");
+    act(() => { vi.advanceTimersByTime(200); });
+    expect(voiceCallStore.snapshot().state).toBe("idle");
+  } finally { vi.useRealTimers(); }
+});
+
 test("语音不可用时开始通话禁用并写出原因", () => {
   render(<Dock available={false} reason="服务器未配置语音密钥，暂不能通话" />, { wrapper });
   expect(screen.getByRole("button", { name: "开始语音通话" })).toBeDisabled();

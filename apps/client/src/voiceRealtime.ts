@@ -573,6 +573,9 @@ export function microphoneError(error: unknown): string {
 }
 
 /** The page's one call: the floating orb starts, ends and shows it; the composer only reports its state. */
+/** How long a failed call's reason stays on screen (as long as a 按住说话 notice). */
+const CALL_ERROR_MS = 3000;
+
 class VoiceCallStore {
   private call: VoiceCall | null = null;
   /** The sign-in the current call (and the remembered timeline) belongs to (#523). */
@@ -588,8 +591,13 @@ class VoiceCallStore {
     const connected = !["idle", "error", "connecting"].includes(status.state);
     const live = status.state !== "idle" && status.state !== "error";
     this.status = { ...status, startedAt: connected ? this.status.startedAt ?? Date.now() : undefined, review: live && this.reviewing };
+    // A failed call (no microphone, say) is said for a moment, then the orb and call bar are back to standby;
+    // the AI itself is fine, and a retry with nothing changed only fails again.
+    window.clearTimeout(this.errorTimer);
+    if (status.state === "error") this.errorTimer = window.setTimeout(() => this.dismissError(), CALL_ERROR_MS);
     this.listeners.forEach(listener => listener());
   }
+  private errorTimer: number | undefined;
   private reviewing = false;
   async start(baseUrl: string, sessionId?: string, intent?: "review") {
     if (this.call) return;
