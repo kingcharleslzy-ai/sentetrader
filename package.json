@@ -1,6 +1,6 @@
 {
   "name": "ai-trader",
-  "version": "1.9.6",
+  "version": "1.9.7",
   "private": true,
   "description": "AI 原生期货单页客户端第一阶段工程",
   "packageManager": "npm@10.9.7",
