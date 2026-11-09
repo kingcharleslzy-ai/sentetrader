@@ -87,8 +87,25 @@ export const mainLink = (board: Board): LinkColor => {
   const order = leavesOf(board.layout).includes("order") ? linkOf(board, "order") : "blue";
   return order === "none" ? "blue" : order;
 };
-/** An AI arrangement on screen before 用这套 (never saved until then). */
-export interface BoardPreview { layout: BoardNode; locks: Partial<Record<BoardBlock, BoardLock>>; charts: Partial<Record<BoardBlock, ChartChoice>>; note: string }
+/**
+ * The trade view's own chart (with its 画线, market bar and the trade chart's 副图): the first chart block that follows the
+ * header's contract and period by its settings — a chart on a contract or period of its own stays a passive chart even
+ * when the header happens to show the same one.
+ */
+export const stageChart = (board: Board): BoardBlock | undefined => {
+  const main = mainLink(board);
+  return leavesOf(board.layout).find(block => moduleOf(block) === "chart" && !board.charts[block]?.duration
+    && (linkOf(board, block) === "none" ? !board.charts[block]?.symbol : linkOf(board, block) === main));
+};
+/** An AI arrangement on screen before 用这套 (never saved until then); `board` is the board it was made for. */
+export interface BoardPreview { layout: BoardNode; locks: Partial<Record<BoardBlock, BoardLock>>; charts: Partial<Record<BoardBlock, ChartChoice>>; note: string; board?: string }
+/** A board with an arrangement on it (the preview shows it, 用这套 saves it): a chart given a contract follows it (不联动). */
+export function arrangedBoard(board: Board, arrangement: { layout: BoardNode | null; locks: Board["locks"]; charts?: Board["charts"] }): Board {
+  const layout = cleanLayout(arrangement.layout);
+  const charts = arrangement.charts ?? {};
+  const links = Object.fromEntries(Object.keys(charts).filter(block => charts[block]?.symbol).map(block => [block, "none"]));
+  return { ...board, layout, ...cleanSettings(layout, { locks: arrangement.locks, links, charts }) };
+}
 /** The block a new chart gets: `chart` while there is none, then the first free `chart-n`. */
 export function nextChartBlock(layout: BoardNode | null): BoardBlock | null {
   const taken = new Set(leavesOf(layout));
@@ -181,7 +198,9 @@ export function fitLayout(layout: BoardNode | null, w: number, h: number, min: B
   else if (shares.some((share, index) => share < needs[index])) {
     const deficit = shares.reduce((sum, share, index) => sum + Math.max(0, needs[index] - share), 0);
     const spare = shares.reduce((sum, share, index) => sum + Math.max(0, share - needs[index]), 0);
-    fitted = shares.map((share, index) => share < needs[index] ? needs[index] : share - (share - needs[index]) / spare * deficit);
+    // Rounding can leave `total` a hair under 100 with nothing to spare: then share by need, as a full canvas does.
+    fitted = spare <= deficit ? needs.map(need => need / total * 100)
+      : shares.map((share, index) => share < needs[index] ? needs[index] : share - (share - needs[index]) / spare * deficit);
   }
   const children = layout.children.map((child, index) => layout.direction === "row"
     ? fitLayout(child, w * fitted[index] / 100, h, min)! : fitLayout(child, w, h * fitted[index] / 100, min)!);
@@ -398,8 +417,8 @@ export function planBoardsChange(change: BoardsChange, boards: Boards): Boards {
   }
   if (change.layout !== undefined) return withCurrent({ layout: change.layout === null ? null : cleanLayout(change.layout) });
   if (change.arrange !== undefined) {
-    const layout = cleanLayout(change.arrange.layout);
-    return withCurrent({ layout, locks: change.arrange.locks, links: {}, charts: change.arrange.charts ?? {} });
+    const arrangement = change.arrange;
+    return { ...boards, items: boards.items.map(item => item.id === current.id ? arrangedBoard(item, arrangement) : item) };
   }
   if (change.link !== undefined) {
     const { module: block, color } = change.link;
@@ -415,7 +434,12 @@ export function planBoardsChange(change: BoardsChange, boards: Boards): Boards {
     onBoard(block);
     if (moduleOf(block) !== "chart") throw new Error(`${blockLabel(block)}不是图表`);
     const links = symbol && linkOf(current, block) !== "none" ? { ...current.links, [block]: "none" as const } : current.links;
-    return withCurrent({ charts: chartChoice(block, symbol, duration, panes), links });
+    const next = withCurrent({ charts: chartChoice(block, symbol, duration, panes), links });
+    // The trade view's chart shows the trade chart's 副图: a list of its own would be saved and never drawn.
+    if (panes && stageChart(next.items.find(item => item.id === current.id)!) === block) {
+      throw new Error(`${blockLabel(block)}跟着顶栏，就是交易台那张图：副图跟交易台一起改（在图上“＋ 副图”），或先给它选自己的合约或周期`);
+    }
+    return next;
   }
   if (change.take !== undefined) {
     onBoard(change.take);
@@ -487,6 +511,11 @@ export interface BoardsHandle {
   resetUndo: () => void;
   /** A resize drag in progress: shown at once, saved (and undoable) when released. */
   preview: (layout: BoardNode | null) => void;
+  /** An AI arrangement shown on its board (`board` above is then that board as it would be; nothing is saved). */
+  arrangement: BoardPreview | null;
+  arrange: (preview: BoardPreview | null) => void;
+  /** The last save: still running, failed, or null once it is stored (the `boards` command's receipt waits for it). */
+  save: "pending" | "failed" | null;
 }
 
 /** A member's boards (account preference `ui.boards`); a change shows at once and is saved behind it. */
@@ -497,32 +526,45 @@ export function useBoards({ document, connected, update }: {
 }): BoardsHandle {
   const [pending, setPending] = useState<Boards>();
   const [dragging, setDragging] = useState<BoardNode | null | undefined>();
-  const [history, setHistory] = useState<Boards[]>([]);
+  const [arrangement, arrange] = useState<BoardPreview | null>(null);
+  // Undo steps: the board a block change changed, as it was (only its blocks and their settings come back, never its name).
+  const [history, setHistory] = useState<Board[]>([]);
+  const [save, setSave] = useState<"pending" | "failed" | null>(null);
   const saved = useMemo(() => pending ?? normalizeBoards(document), [pending, document]);
   const latest = useRef(saved);
   latest.current = saved;
+  const writes = useRef(0);
   const write = useCallback((next: Boards) => {
+    const id = ++writes.current;
     setPending(next);
+    setSave("pending");
     const settle = () => setPending(shown => shown === next ? undefined : shown);
-    void update({ ui: { boards: next } }).then(settle, settle);
+    return update({ ui: { boards: next } }).then(() => { settle(); if (writes.current === id) setSave(null); },
+      error => { settle(); if (writes.current === id) setSave("failed"); throw error; });
   }, [update]);
   const apply = useCallback((change: BoardsChange) => {
     if (!connected) throw new Error("连接后可改看板");
     const before = latest.current;
     const next = planBoardsChange(change, before);
     setDragging(undefined);
-    if (!(change.select ?? change.create ?? change.rename ?? change.remove)) setHistory(list => [...list.slice(-19), before]);
-    write(next);
+    const changed = before.items.find(item => item.id === before.current);
+    if (!(change.select ?? change.create ?? change.rename ?? change.remove) && changed) setHistory(list => [...list.slice(-19), changed]);
+    void write(next).catch(() => undefined);
   }, [connected, write]);
   const stored = saved.items.find(item => item.id === saved.current) ?? saved.items[0];
-  const board = dragging !== undefined ? { ...stored, layout: dragging } : stored;
-  const boards = dragging !== undefined ? { ...saved, items: saved.items.map(item => item.id === stored.id ? board : item) } : saved;
+  const shownArrangement = arrangement?.board === stored.id ? arrangement : null;
+  const arranged = useMemo(() => shownArrangement && arrangedBoard(stored, shownArrangement), [stored, shownArrangement]);
+  const board = arranged ?? (dragging !== undefined ? { ...stored, layout: dragging } : stored);
+  const boards = board !== stored ? { ...saved, items: saved.items.map(item => item.id === stored.id ? board : item) } : saved;
   const undo = history.length ? () => {
     const previous = history.at(-1)!;
     setHistory(list => list.slice(0, -1));
-    write({ ...latest.current, items: latest.current.items.map(item => item.id === previous.current ? previous.items.find(old => old.id === item.id) ?? item : item) });
+    const { layout, locks, links, charts } = previous;
+    void write({ ...latest.current, items: latest.current.items.map(item => item.id === previous.id ? { ...item, layout, locks, links, charts } : item) })
+      // Not saved: the step stays to be undone again.
+      .catch(() => setHistory(list => [...list, previous]));
   } : undefined;
   const resetUndo = useCallback(() => setHistory([]), []);
   const preview = useCallback((layout: BoardNode | null) => setDragging(layout), []);
-  return { boards, board, apply, undo, resetUndo, preview };
+  return { boards, board, apply, undo, resetUndo, preview, arrangement: shownArrangement, arrange, save };
 }

@@ -1344,16 +1344,18 @@ export interface components {
          *     默认 0.5）；不给 target 就放在整块看板的 side 边、占三分之一；已在看板上的那一块挪过去。块的名字就是模块名，图表可以放
          *     多块（chart、chart-2 … chart-9）：module chart 不给 block 且已有图表时再放一块，给 block 就是挪那一块；图表可同时给
          *     symbol、duration（它自己的合约和周期，再放的图表默认不联动、用自己的合约）, chart {block, symbol?, duration?} 给某一块
-         *     图表设自己的合约 / 周期 / 副图（panes: kd / macd / rsi / oi / cci / volume 最多 3 个；null 回到顶栏的）, replace {module: 块, with: 模块} 那一块换成另一个模块,
+         *     图表设自己的合约 / 周期 / 副图（panes: kd / macd / rsi / oi / cci / volume 最多 3 个；null 回到顶栏的；跟着顶栏合约和周期的第一块图表就是交易台的图，
+         *     副图跟交易台共用，单给它 panes 会 rejected）, replace {module: 块, with: 模块} 那一块换成另一个模块,
          *     take <块> 拿掉一块（旁边的补满）, ratio {module: 块, value} 拖分隔线：那一块占它所在那一层的 value（0.05–0.95）,
          *     lock {module, size: auto / small / medium} 档位跟着地方大小自动选或锁小 / 锁中, editing 进入（并打开看板）/ 退出编辑,
-         *     undo 撤销这次编辑里最近一步, link {module: 块, color} 联动色（图表 / 下单 / 自选 / 作战表的块各一个颜色 blue / purple /
+         *     undo 撤销这次编辑里最近一步（只恢复这套看板的块和块的设置，不动名字；切看板就清空）, link {module: 块, color} 联动色（图表 / 下单 / 自选 / 作战表的块各一个颜色 blue / purple /
          *     orange，图表还可以 none 不联动；同色的跟同一个合约；下单所在的颜色跟着顶栏的当前合约）, linkSymbol {color, symbol} 让另一个颜色的那几块换到某个合约,
          *     preview {layout, locks?, note?} 编辑时先把一套摆法摆出来给用户看（不保存）, adopt 用这套（存下，可撤销）, discard 不用,
          *     ask <一句话> 让 AI 帮我摆（编辑时；AI 只给摆法，结果是 preview）, flash {filter?: product / watch / macro / all, sort?: time /
          *     impact} 看板上快讯那一块自己的筛选和排序（调研面板的快讯另有 news 命令）. Modules chart / positions / order / watch / sheet（作战表）/ alert（提醒）/ chat（对话）,
          *     each at most once per board except 图表 (up to nine). The list is the account preference ui.boards; state.boards carries
-         *     editing, the 模块库 and each block's size, lock, share, colour and (charts) contract and period.
+         *     editing, the 模块库 and each block's size, lock, share, colour and (charts) contract and period, and save (this window's
+         *     last save of ui.boards: pending / failed / null); a change that saves is applied only once that save went through.
          */
         BoardsChange: {
             /** Select */
@@ -1413,6 +1415,8 @@ export interface components {
              */
             arranging: boolean;
             flash?: components["schemas"]["BoardFlash"] | null;
+            /** Save */
+            save?: ("pending" | "failed") | null;
         };
         /**
          * Branch

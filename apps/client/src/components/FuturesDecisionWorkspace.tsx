@@ -68,7 +68,7 @@ import { buildPromptContext } from "./futures/promptContext";
 import { useChartFocus } from "./futures/useChartFocus";
 import { useQuickOrderSkipConfirm, useQuickOrders } from "./futures/useQuickOrders";
 import { QuickActions, quickCloseRequests, useTicketQuickActions } from "./futures/QuickActions";
-import { leavesOf, linkOf, mainLink, moduleOf, useBoards, type BoardBlock, type BoardSize, type LinkColor } from "./boards/boards";
+import { leavesOf, linkOf, mainLink, moduleOf, stageChart, useBoards, type BoardBlock, type BoardSize, type LinkColor } from "./boards/boards";
 import { BoardsMenu, BoardsView, useBoardsControl } from "./boards/BoardsView";
 import { AccountCompact, BriefsCompact, DebateCompact, NotesCompact, FlashSmall, type BoardDebate, OrdersCompact, PnlSmall, StrategiesCompact, AlertCompact, ChartSmall, ChartMedium, ChatCompact, OrderCompact, PositionsSmall, PositionsMedium, PositionsLarge, positionsQuality, SheetCompact, WatchCompact, watchRows } from "./boards/BoardTiles";
 import { BattleSheet, useBattleSheet } from "./BattleSheet";
@@ -755,8 +755,8 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     return { symbol: (own ? choice.symbol : boardLinkSymbol(block)) ?? quote?.symbol, duration: (choice.duration ?? props.duration) as typeof props.duration };
   };
   const boardChartPlans = boardBlocks.filter(block => moduleOf(block) === "chart").map(block => ({ block, ...boardChartOf(block) }));
-  // The first chart on the app's own contract and period is the trade view's chart itself (with its 画线 and market bar).
-  const boardStageChart = boardChartPlans.find(plan => plan.symbol !== undefined && sameContract(plan.symbol, quote?.symbol) && plan.duration === props.duration)?.block;
+  // The first chart following the app's own contract and period is the trade view's chart itself (with its 画线 and market bar).
+  const boardStageChart = quote?.symbol ? stageChart(boards.board) : undefined;
   const boardChartKey = JSON.stringify(boardChartPlans.filter(plan => plan.symbol && !(sameContract(plan.symbol, quote?.symbol) && plan.duration === props.duration))
     .map((plan, index) => ({ index, symbol: plan.symbol!, duration: plan.duration, auto: false })));
   const boardChartCells = useMemo(() => JSON.parse(boardChartKey) as ResolvedCell[], [boardChartKey]);

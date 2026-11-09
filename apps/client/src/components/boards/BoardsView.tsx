@@ -98,7 +98,10 @@ export function useBoardsControl(handle: BoardsHandle, show: () => void, availab
   contracts: readonly { symbol: string; name: string }[]): BoardsControl {
   const [editing, setEditingState] = useState(false);
   const [links, setLinks] = useState<Record<string, string>>({});
-  const [preview, setPreview] = useState<BoardPreview | null>(null);
+  const { arrangement: preview, arrange } = handle;
+  const boardId = handle.board.id;
+  // A preview is made for the board it shows on.
+  const setPreview = useCallback((next: BoardPreview | null) => arrange(next && { ...next, board: boardId }), [arrange, boardId]);
   const [asking, setAskingState] = useState(false);
   const [arranging, setArranging] = useState(false);
   const canvas = useRef({ w: 0, h: 0 });
@@ -119,11 +122,15 @@ export function useBoardsControl(handle: BoardsHandle, show: () => void, availab
   const [library, setLibraryState] = useState(false);
   const [sizes, setSizes] = useState<Partial<Record<BoardBlock, BoardSize>>>({});
   const { resetUndo } = handle;
+  // 让 AI 帮我摆 in flight: only the latest request of this board's editing may still show its answer.
+  const asked = useRef(0);
+  const dropAsk = useCallback(() => { asked.current += 1; setArranging(false); }, []);
   const setEditing = useCallback((value: boolean) => {
     setEditingState(value);
     setLibraryState(false);
     if (value) resetUndo();
-  }, [resetUndo]);
+    else { dropAsk(); arrange(null); setAskingState(false); }
+  }, [resetUndo, dropAsk, arrange]);
   const setLibrary = useCallback((open: boolean) => setLibraryState(open), []);
   const [notice, setNotice] = useState("");
   const notify = useCallback((message: string) => setNotice(message), []);
@@ -132,39 +139,43 @@ export function useBoardsControl(handle: BoardsHandle, show: () => void, availab
     if ("gone" in tile) { if (!current[tile.block]) return current; const next = { ...current }; delete next[tile.block]; return next; }
     return current[tile.block] === tile.size ? current : { ...current, [tile.block]: tile.size };
   }), []);
-  const boardId = handle.board.id;
   const linkSymbol = useCallback((color: LinkColor) => links[`${boardId}:${color}`], [links, boardId]);
   const followLink = useCallback((color: LinkColor, symbol: string) => setLinks(current => ({ ...current, [`${boardId}:${color}`]: symbol })), [boardId]);
-  // A preview belongs to the board it was made for; switching boards or leaving editing drops it.
-  useEffect(() => { setPreview(null); setAskingState(false); }, [boardId, editing]);
+  // Switching boards drops the old board's preview, request card, AI request and undo steps (leaving editing does in
+  // setEditing, so entering editing keeps a card opened in the same click).
+  useEffect(() => { dropAsk(); arrange(null); setAskingState(false); resetUndo(); }, [boardId, dropAsk, arrange, resetUndo]);
   const { apply } = handle;
   const adopt = useCallback(() => {
     if (!preview) throw new Error("没有 AI 摆好的方案");
+    dropAsk();
     apply({ arrange: { layout: fit(preview.layout) ?? preview.layout, locks: preview.locks, charts: preview.charts } });
-    setPreview(null);
-  }, [apply, preview, fit]);
-  const discard = useCallback(() => setPreview(null), []);
+    arrange(null);
+  }, [apply, preview, fit, dropAsk, arrange]);
+  const discard = useCallback(() => { dropAsk(); arrange(null); }, [dropAsk, arrange]);
   const setAsking = useCallback((open: boolean) => setAskingState(open), []);
   const ask = useCallback(async (sentence: string) => {
     const text = sentence.trim();
     if (!text) throw new Error("先说一句想怎么摆，比如“摆一套盘中，主看螺纹”");
     if (!baseUrl) throw new Error("连接后可让 AI 帮你摆");
+    const id = ++asked.current;
     setArranging(true);
     try {
       const result = await arrangeBoard(baseUrl, { ask: text.slice(0, 200), current: handle.board.layout,
         width: Math.round(canvas.current.w), height: Math.round(canvas.current.h), fontScale, contracts: contractList.current.slice(0, 120) });
+      if (id !== asked.current) return;
       const next = previewOf(result, String(result.note ?? ""));
       if (!next) throw new Error("AI 这次没摆出能用的方案，换个说法再试");
       setPreview(next);
       setAskingState(false);
     } catch (error) {
+      if (id !== asked.current) return;
       const detail = (error as { detail?: { detail?: unknown } }).detail?.detail;
       throw new Error(typeof detail === "string" ? detail : error instanceof Error && !/^\d{3} /.test(error.message) ? error.message : "AI 这次没摆好，稍后再试",
         { cause: error });
     } finally {
-      setArranging(false);
+      if (id === asked.current) setArranging(false);
     }
-  }, [baseUrl, fontScale, handle.board.layout]);
+  }, [baseUrl, fontScale, handle.board.layout, setPreview]);
   const contractList = useRef(contracts);
   contractList.current = contracts;
   const latest = useRef({ handle, show, setEditing, adopt, discard, ask, followLink });
@@ -180,7 +191,8 @@ export function useBoardsControl(handle: BoardsHandle, show: () => void, availab
   const groups = Object.fromEntries(LINK_COLORS.flatMap(({ id }) => id !== main && linkSymbol(id) ? [[id, linkSymbol(id)!]] : []));
   const shownPreview = preview ? { note: preview.note, blocks: leavesOf(preview.layout) } : null;
   const hasFlash = leavesOf(layout).includes("flash");
-  useUiSurface("boards", { state: { editing, library: editing && library, tiles, main, groups, preview: shownPreview, arranging, flash: hasFlash ? flash : null }, apply: value => {
+  useUiSurface("boards", { state: { editing, library: editing && library, tiles, main, groups, preview: shownPreview, arranging, flash: hasFlash ? flash : null,
+    save: handle.save }, apply: value => {
     const change = value as BoardsChange & { editing?: boolean; undo?: boolean; linkSymbol?: { color: LinkColor; symbol: string };
       preview?: { layout: BoardNode; locks?: BoardPreview["locks"]; charts?: BoardPreview["charts"]; note?: string }; adopt?: boolean; discard?: boolean; ask?: string;
       flash?: Partial<{ filter: BoardFlashFilter; sort: BoardFlashSort }> };
@@ -223,7 +235,7 @@ export function useBoardsControl(handle: BoardsHandle, show: () => void, availab
     }
     boards.apply(change);
     if (change.select !== undefined || change.create !== undefined) open();
-  } }, [editing, library, JSON.stringify(tiles), main, JSON.stringify(groups), JSON.stringify(shownPreview), arranging, hasFlash, flash.filter, flash.sort], available);
+  } }, [editing, library, JSON.stringify(tiles), main, JSON.stringify(groups), JSON.stringify(shownPreview), arranging, hasFlash, flash.filter, flash.sort, handle.save], available);
   return { handle, editing, setEditing, library, setLibrary, show, notice, notify, sizes, reportTile, linkSymbol, followLink,
     preview, adopt, discard, asking, setAsking, arranging, ask, canvas, setCanvas, fit, minimum, taken, setTaken, flash, setFlash };
 }
