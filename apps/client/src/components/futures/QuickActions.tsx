@@ -7,27 +7,32 @@ import type { useQuickOrders } from "./useQuickOrders";
 
 export const QUICK_VOLUME_KEY = "ai-trader:quick-volume";
 const readVolume = () => { try { const n = Number(localStorage.getItem(QUICK_VOLUME_KEY)); return n === 2 || n === 5 ? n : 1; } catch { return 1; } };
-/** The same close request as the manual ticket: the Runtime owns today's/yesterday's allocation. */
+/** The same close request as the manual ticket: the Runtime owns today's/yesterday's allocation. A foreign month
+ *  held under its 外盘主连 chart is closed on its own month, never on the month an estimate would pick. */
 export function quickCloseRequests(positions: AccountPosition[], symbol: string, mode: "all" | "today" | "half"): ManualSimulationRequest[] {
   return positions.filter(p => sameContract(p.symbol, symbol)).flatMap(p => {
     const available = Math.max(0, p.volume - (p.frozenToday ?? 0) - (p.frozenHistorical ?? 0));
     const volume = mode === "today" ? Math.max(0, (p.todayVolume ?? 0) - (p.frozenToday ?? 0))
       : mode === "half" ? Math.min(available, Math.max(1, Math.floor(p.volume / 2))) : available;
     return volume > 0 ? [{ side: p.direction === "long" ? "sell_close" : "buy_close", volume,
-      priceIntent: "aggressive", source: "three-key", ...(mode === "today" ? { positionBucket: "today" as const } : {}) }] : [];
+      priceIntent: "aggressive", source: "three-key", ...(p.symbol !== symbol ? { symbol: p.symbol } : {}),
+      ...(mode === "today" ? { positionBucket: "today" as const } : {}) }] : [];
   });
 }
 
 /** 反手 on the chart's contract: target −net (null when flat or long = short), and both steps in words — the same
- *  reading as the Runtime's plan summary (close the gross holding, then open the net on the other side). */
-export function quickReverse(positions: AccountPosition[], symbol: string): { targetNet: number; summary: string } | null {
-  const rows = positions.filter(p => sameContract(p.symbol, symbol));
+ *  reading as the Runtime's plan summary (close the gross holding, then open the net on the other side). The target
+ *  is the held month's own (`contract`); holdings in several months of a 外盘主连 are refused, not summed into one. */
+export function quickReverse(positions: AccountPosition[], symbol: string): { targetNet: number; summary: string; contract: string } | { refused: string } | null {
+  const rows = positions.filter(p => sameContract(p.symbol, symbol) && p.volume > 0);
+  const months = [...new Set(rows.map(p => p.symbol))];
+  if (months.length > 1) return { refused: `持仓分在 ${months.join("、")}，快捷反手只做单个月份` };
   const long = rows.filter(p => p.direction === "long").reduce((sum, p) => sum + p.volume, 0);
   const short = rows.filter(p => p.direction === "short").reduce((sum, p) => sum + p.volume, 0);
   const net = long - short;
   if (!net) return null;
   const held = !short ? "平多" : !long ? "平空" : "平掉全部";
-  return { targetNet: -net, summary: `${held} ${long + short} 手，成交后自动${net > 0 ? "开空" : "开多"} ${Math.abs(net)} 手（确认一次）` };
+  return { targetNet: -net, contract: months[0], summary: `${held} ${long + short} 手，成交后自动${net > 0 ? "开空" : "开多"} ${Math.abs(net)} 手（确认一次）` };
 }
 
 export function useTicketQuickActions({ quote, positions, orders, busy, enabled, quick }: {
@@ -43,7 +48,8 @@ export function useTicketQuickActions({ quote, positions, orders, busy, enabled,
   const all = quickCloseRequests(positions, quote?.symbol ?? "", "all");
   const today = todayVisible ? quickCloseRequests(positions, quote?.symbol ?? "", "today") : [];
   const half = quickCloseRequests(positions, quote?.symbol ?? "", "half");
-  const reverse = quickReverse(positions, quote?.symbol ?? "");
+  const reversal = quickReverse(positions, quote?.symbol ?? "");
+  const reverse = reversal && "refused" in reversal ? null : reversal;
   const cancellable = orders.filter(o => sameContract(o.request.symbol, quote?.symbol ?? "") && o.remoteStatus === "ALIVE" && o.cancelPhase === "NONE");
   const locked = busy || quick.quickBusy || Boolean(quick.pending);
   const disabled: Record<string, boolean> = {
@@ -73,13 +79,14 @@ export function useTicketQuickActions({ quote, positions, orders, busy, enabled,
     window.addEventListener("keydown", listener);
     return () => window.removeEventListener("keydown", listener);
   });
-  return { volume, setVolume, shortcuts, disabled, run, todayVisible, message: quick.quickMessage, quote };
+  return { volume, setVolume, shortcuts, disabled, run, todayVisible, message: quick.quickMessage, quote,
+    reverseRefused: reversal && "refused" in reversal ? reversal.refused : undefined };
 }
 
 export function QuickActions({ controller, onSettings }: { controller: ReturnType<typeof useTicketQuickActions>; onSettings: () => void }) {
-  const { volume, setVolume, shortcuts, disabled, run, todayVisible, message, quote } = controller;
+  const { volume, setVolume, shortcuts, disabled, run, todayVisible, message, quote, reverseRefused } = controller;
   const button = (action: ShortcutAction, label: string, style: string) => <button type="button" className={style}
-    aria-label={`一键${label}`} disabled={disabled[action]} onClick={() => run(action)}>
+    aria-label={`一键${label}`} disabled={disabled[action]} title={action === "quickReverse" ? reverseRefused : undefined} onClick={() => run(action)}>
     <span className="fdw-quick-button-copy"><span>{label}</span>{action === "quickBuy" || action === "quickSell" ? <small>{formatNumber(action === "quickBuy" ? quote?.askPrice1 : quote?.bidPrice1, decimalsForTick(quote?.priceTick))}</small> : null}</span><kbd>{shortcutLabel(shortcuts[action])}</kbd>
   </button>;
   return <section className="fdw-quick-actions" aria-label="快捷下单" data-agent-target="quick-actions" data-testid="quick-row">

@@ -81,7 +81,7 @@ export function Presence({ children }: { children: ReactNode }) {
   const { shown, closing } = usePresence(open);
   if (!shown) last.current = null;
   return shown ? <PresenceClosing.Provider value={closing}>
-    <div className="ui-presence" data-closing={closing ? "" : undefined}>{open ? children : last.current}</div>
+    <div className="ui-presence" data-closing={closing ? "" : undefined} inert={closing || undefined}>{open ? children : last.current}</div>
   </PresenceClosing.Provider> : null;
 }
 

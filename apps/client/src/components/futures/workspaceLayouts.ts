@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DesktopChartsPreferences, PreferencesDocument } from "../../userPreferences";
 import type { RightDock } from "./support";
-import { DEFAULT_DESKTOP_CHARTS } from "./desktopCharts";
+import { DEFAULT_DESKTOP_CHARTS, activeIndex } from "./desktopCharts";
 
 /**
  * 自由布局 (2026-11-02): 盘前 / 盘中 / 复盘 and the layouts the user saves, in the account preference
@@ -58,7 +58,7 @@ export function planLayoutChange(change: WorkspaceLayoutChange, layouts: Workspa
     if (items.length >= LAYOUTS_MAX) throw new Error(`最多存 ${LAYOUTS_MAX} 个布局，先删一个`);
     if (items.some(item => item.name === name)) throw new Error(`已经有叫“${name}”的布局`);
     const id = `u${Date.now().toString(36)}`;
-    const shown = now.charts?.cells[now.charts.active];
+    const shown = now.charts?.cells[activeIndex(now.charts)];  // single keeps the old 1–3 active: the shown cell is 0
     const blank = { id, name, dock: EMPTY_DOCK,
       charts: { ...DEFAULT_DESKTOP_CHARTS, cells: DEFAULT_DESKTOP_CHARTS.cells.map((cell, index) => index === 0 && shown ? shown : cell) } };
     return { layouts: { current: id, items: [...items, blank] }, restore: blank };

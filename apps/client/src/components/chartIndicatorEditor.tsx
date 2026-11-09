@@ -162,7 +162,7 @@ export function ChartPopover({ title, anchorRect, onClose, children, width = 340
   // or board block covers it.
   const place = useMenuPlace(ref, anchorRect.left, anchorRect.bottom + 6, anchorRect);
   return createPortal(
-    <div className="fdw-ind-popover" role="dialog" aria-label={title} style={{ position: "fixed", left: place.left, top: place.top, width }} ref={ref} data-closing={closing || undefined}>
+    <div className="fdw-ind-popover" role="dialog" aria-label={title} style={{ position: "fixed", left: place.left, top: place.top, width }} ref={ref} data-closing={closing || undefined} inert={closing || undefined}>
       <div className="fdw-ind-popover-title"><strong>{title}</strong><button type="button" aria-label="关闭" onClick={onClose}>×</button></div>
       <div className="fdw-ind-popover-body">{children}</div>
     </div>,

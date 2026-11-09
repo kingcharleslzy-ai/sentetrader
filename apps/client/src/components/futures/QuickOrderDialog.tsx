@@ -33,7 +33,7 @@ export function QuickOrderDialog({ pending, decimals, busy, onClose, onConfirm }
           <span>{request.symbol ?? pending.execution?.symbol ?? pending.symbol} · {request.volume} 手 · {priceLabel(request, decimals)}</span>
         </li>)}
       </ul> : pending?.kind === "cancel" ? <p>撤销 {pending.symbol} 的 {pending.orders.length} 笔可撤委托</p>
-        : pending?.kind === "reverse" ? <p>反手：{pending.execution?.symbol ?? pending.symbol} {pending.summary} · 对手价</p> : null}
+        : pending?.kind === "reverse" ? <p>反手：{pending.execution?.symbol ?? pending.contract} {pending.summary} · 对手价</p> : null}
       <div className="confirm-grid">
         <button type="button" disabled={busy} onClick={onClose}>取消</button>
         <button type="button" className="app-button primary" disabled={busy || !pending} onKeyDown={event => { if (event.key === "Enter" && (event.repeat || event.nativeEvent.isComposing)) event.preventDefault(); }} onClick={() => pending && onConfirm(pending)}>{busy ? "提交中…" : "确认提交"}</button>

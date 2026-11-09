@@ -8,7 +8,7 @@ import { manualOrderReceipt, type ManualOrderOutcome } from "../../hooks/useSimu
 export type PendingQuickOrder = { symbol: string; contextKey?: string; execution?: { symbol: string; accountId: string; currency: "USD" } } & (
   { kind: "orders"; requests: ManualSimulationRequest[] } | { kind: "cancel"; orders: SimulationOrder[] }
   /** 反手: the 目标持仓 route at −net, its card confirmed once here; the Runtime sends the opening leg after the close fills. */
-  | { kind: "reverse"; targetNet: number; summary: string }
+  | { kind: "reverse"; targetNet: number; summary: string; contract: string }
 );
 
 /**
@@ -97,7 +97,7 @@ export function useQuickOrders({ quote, runtimeBaseUrl, tradeBusy, simulationEna
         }
         if (current(order)) setQuickMessage("撤单请求已逐笔处理，请查看委托回报。");
       } else if (order.kind === "reverse") {
-        const confirmed = await submitTargetPosition?.({ symbol: order.execution?.symbol ?? order.symbol, targetNet: order.targetNet, priceIntent: "aggressive", confirm: true });
+        const confirmed = await submitTargetPosition?.({ symbol: order.execution?.symbol ?? order.contract, targetNet: order.targetNet, priceIntent: "aggressive", confirm: true });
         if (current(order)) setQuickMessage(confirmed ? `反手已确认：${order.summary}，平仓全部成交后自动开仓，进度见对话。` : "反手未提交，原因见提示。");
       } else {
         const receipts: string[] = [];
@@ -128,7 +128,7 @@ export function useQuickOrders({ quote, runtimeBaseUrl, tradeBusy, simulationEna
           const request = order.kind === "orders" ? order.requests[0] : undefined;
           const target = order.kind === "reverse" ? order.targetNet : 0;
           const estimate = await getOrderEstimate(runtimeBaseUrl, {
-            symbol: request?.symbol ?? order.symbol, side: request ? request.side.startsWith("buy") ? "buy" : "sell" : target > 0 ? "buy" : "sell",
+            symbol: request?.symbol ?? (order.kind === "reverse" ? order.contract : order.symbol), side: request ? request.side.startsWith("buy") ? "buy" : "sell" : target > 0 ? "buy" : "sell",
             offset: request?.side.endsWith("_close") ? "close" : "open", volume: request?.volume ?? Math.abs(target),
             price: request?.limitPrice, positionBucket: request?.positionBucket,
           });

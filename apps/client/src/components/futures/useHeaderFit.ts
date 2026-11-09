@@ -72,12 +72,13 @@ function hasDisplayedContent(element: HTMLElement): boolean {
 /** A flex row that ran out of room: a child with content squeezed flat, or one drawn over its neighbour. */
 function childrenSqueeze(parent: HTMLElement, floating: string): boolean {
   const children = (Array.from(parent.children) as HTMLElement[]).filter(child => isDisplayed(child) && !child.matches(floating));
-  let rightEdge = Number.NEGATIVE_INFINITY;
+  const placed: DOMRect[] = [];
   for (const child of children) {
     const rect = child.getBoundingClientRect();
     if (rect.width < 1 && hasDisplayedContent(child)) return true;
-    if (rect.left < rightEdge - 1) return true;
-    rightEdge = Math.max(rightEdge, rect.right);
+    // Only neighbours on the same line can overlap sideways: a status line or a second row below starts at the left again.
+    if (placed.some(prev => rect.left < prev.right - 1 && rect.top < prev.top + prev.height - 1 && prev.top < rect.top + rect.height - 1)) return true;
+    placed.push(rect);
   }
   return false;
 }
