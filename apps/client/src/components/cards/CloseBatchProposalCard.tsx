@@ -51,6 +51,7 @@ export const NOT_SENT_REASONS: Record<string, string> = {
   sidecar_auth_rejected: "账户连接已更换，委托未发出",
   // 开盘预埋单 (2026-11-08): why a 等开盘 order did not go out at the open.
   preopen_quote_not_ready: "开盘 5 分钟内没有拿到最新行情，没有发出",
+  preopen_window_passed: "开盘 5 分钟内没有发出，不再自动发送",
   ai_execution_stopped: "模拟执行已停止或急停，开盘时没有发出", ai_new_opens_halted: "已只停新开仓，开盘时没有发出"
 };
 

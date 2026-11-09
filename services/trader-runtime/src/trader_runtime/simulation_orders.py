@@ -32,7 +32,7 @@ from .risk import (
 )
 from .sidecar_http import SidecarHttpError
 from .store import RuntimeStore, utc_now
-from .trading_calendar import NS, next_session_start, trading_day_at
+from .trading_calendar import NS, next_session_start, trading_day_at, trading_day_of
 from .trading_clock import TradingClock
 from .trading_costs import effective_fee_rate
 
@@ -481,7 +481,8 @@ class SimulationOrderService:
         None when it cannot wait: the session is open, no simulation gateway, not a domestic futures contract (外盘
         follows CME's clock), a quote that is not the source's own (the engine marks its last one stale while
         closed — that one is the card's reference; 新浪备用 or a missing feed is not), or no schedule to read the
-        next open from. The open's send asks for a fresh quote again."""
+        next open from, or an exchange calendar that does not reach that open (#1439: past its end the next open is
+        only a weekday guess). The open's send asks for a fresh quote again."""
         symbol = str(market.get("symbol") or "")
         # A replay (the one runtime without historical price bands) has no next open to wait for.
         if (self.gateway is None or self.historical_price_limits_unavailable or not session_closed(market)
@@ -499,9 +500,12 @@ class SimulationOrderService:
         now = self.trading_now() or datetime.now(UTC)
         # The catalog writes periods as "09:00" and a night end past midnight as "02:30": the one normalizer
         # the close reminder reads them through.
+        days = calendar_trading_days(self.data_provider)
         start = next_session_start(int(now.timestamp() * NS), normalize_schedule((item or {}).get("tradingSchedule")),
-                                   calendar_trading_days(self.data_provider) or None)
-        return datetime.fromtimestamp(start / NS, UTC).isoformat() if start is not None else None
+                                   days or None)
+        if start is None or trading_day_of(start, days) not in days:
+            return None
+        return datetime.fromtimestamp(start / NS, UTC).isoformat()
 
     @classmethod
     def _intent_price(cls, market: dict[str, Any], *, side: str, price_intent: str) -> Decimal:
@@ -1025,12 +1029,17 @@ class SimulationOrderService:
         told: list[tuple[dict[str, Any], str]] = []
         for row in rows:
             client_order_id, user_id = str(row["client_order_id"]), str(row["user_id"])
+            # Each order's own clock (#1437): a late loop or an earlier send in this pass must not stretch the window.
+            now = (self.trading_now() or datetime.now(UTC)).astimezone(UTC)
+            late = (now - datetime.fromisoformat(str(row["preopen_at"]))).total_seconds() >= PREOPEN_SEND_WINDOW_SECONDS
             with self.store.lock, self.store.connection:
                 self.store.connection.execute(
                     "UPDATE tqkq_sim_order_links SET changed_by = 'system' WHERE client_order_id = ?",
                     (client_order_id,))
             waiting = False
             try:
+                if late:
+                    raise SimulationOrderError("preopen_window_passed")
                 offset = str(self.get(client_order_id, user_id=user_id)["request"]["offset"])
                 if blocked is not None and (stop := blocked(user_id, offset)):
                     raise SimulationOrderError(stop)
@@ -1048,43 +1057,51 @@ class SimulationOrderService:
                     continue
                 code = str(order.get("lastReadError") or "not_dispatched")
                 waiting = code in PREOPEN_WAIT_CODES
-            if waiting and (now - datetime.fromisoformat(str(row["preopen_at"]))).total_seconds() < \
-                    PREOPEN_SEND_WINDOW_SECONDS:
+            if waiting and not late:
                 continue
-            reason = code if not waiting or code == "paper_settlement_pending" else "preopen_quote_not_ready"
             with self.store.lock, self.store.connection:
                 cursor = self.store.connection.execute(
                     """UPDATE tqkq_sim_order_links SET preopen_at = NULL, changed_by = 'system',
                     last_read_error = ?, updated_at = ?
                     WHERE client_order_id = ? AND submit_phase = 'PREPARED' AND preopen_at IS NOT NULL""",
-                    (reason, utc_now(), client_order_id))
+                    (code, utc_now(), client_order_id))
             if cursor.rowcount == 1:
-                told.append((self.get(client_order_id, user_id=user_id), reason))
+                told.append((self.get(client_order_id, user_id=user_id), code))
         if told:
             self._notify_change()
         return told
 
     def _preopen_close_bucket(self, client_order_id: str, *, user_id: str) -> None:
         """平今平昨在发出时再定: a settlement between confirming and the open turns 今仓 into 昨仓, so an SHFE/INE
-        等开盘 close whose bucket no longer covers its volume moves whole to the other bucket when that one does
-        (same order, not yet sent). Anything else is left for `dispatch` to refuse."""
-        request = self.get(client_order_id, user_id=user_id)["request"]
-        symbol, offset = str(request["symbol"]), str(request["offset"])
-        if offset not in {"CLOSE", "CLOSETODAY"} or symbol.split(".", 1)[0].upper() not in CLOSE_TODAY_EXCHANGES:
+        等开盘 平今 confirmed on an earlier trading day whose today bucket no longer covers its volume moves whole to
+        平昨 when that one does (same order, not yet sent). Only that way (#1438): a 平昨 never becomes 平今, and
+        nothing moves within one trading day. Anything else is left for `dispatch` to refuse."""
+        current = self.get(client_order_id, user_id=user_id)
+        request = current["request"]
+        symbol = str(request["symbol"])
+        if request["offset"] != "CLOSETODAY" or symbol.split(".", 1)[0].upper() not in CLOSE_TODAY_EXCHANGES:
+            return
+        # Settlement is the account's own roll (the 本站模拟 book rolls once the settlement price is in, #790 review),
+        # not the 18:00 turn; an account that reports no day falls back to the calendar, as the direct stops do.
+        days = calendar_trading_days(self.data_provider)
+        try:
+            today = str(self.data_provider.account_summary("").get("tradingDay") or "")
+            datetime.strptime(today, "%Y-%m-%d")
+        except Exception:  # noqa: BLE001 - no account day: the calendar rule stands in
+            today = trading_day_at(self.trading_now() or datetime.now(UTC), days)
+        if today <= trading_day_at(current["createdAt"], days):
             return
         side = ("buy" if request["direction"] == "BUY" else "sell") + "_close"
-        current = "today" if offset == "CLOSETODAY" else "historical"
         try:
             self._close_position(symbol=symbol, side=side, volume=int(request["volume"]),
-                                 position_bucket=current, allow_fixture=False)
+                                 position_bucket="today", allow_fixture=False)
             return
         except SimulationOrderError as error:
             if str(error) != "close_volume_unavailable":
                 return
         try:
             moved, _ = self._close_position(symbol=symbol, side=side, volume=int(request["volume"]),
-                                            position_bucket="historical" if current == "today" else "today",
-                                            allow_fixture=False)
+                                            position_bucket="historical", allow_fixture=False)
         except SimulationOrderError:
             return
         with self.store.lock, self.store.connection:

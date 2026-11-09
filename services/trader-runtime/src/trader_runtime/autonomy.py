@@ -122,6 +122,7 @@ def _armed_day(row: Any, trading_days: Sequence[str] | Callable[[], Sequence[str
 # Why a 等开盘 order did not go out at the open, beyond the candidate builder's own refusals (CANDIDATE_ISSUE_LABELS).
 PREOPEN_NOT_SENT_WORDS = {
     "preopen_quote_not_ready": "开盘 5 分钟内没有拿到最新行情",
+    "preopen_window_passed": "开盘 5 分钟内没有发出",
     "paper_settlement_pending": "本站模拟还在等交易所公布结算价",
     "ai_execution_stopped": "模拟执行已停止或急停",
     "ai_new_opens_halted": "已只停新开仓",
