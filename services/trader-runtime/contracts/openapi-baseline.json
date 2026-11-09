@@ -2136,7 +2136,7 @@
    },
    "BoardsChange": {
     "additionalProperties": false,
-    "description": "看板 · 铺满版 (2026-11-05), one key per command: select 切到一个看板（并打开看板）, create 新建一个空白看板并切过去,\nrename {id, name}, remove 删除一个看板（删当前的切到第一个）, place {module, block?, target?, side?, ratio?, symbol?,\nduration?} 把模块放到 target 那一块的 side 边（left / right / top / bottom，默认 right），占那一块的 ratio（0.1–0.9，\n默认 0.5）；不给 target 就放在整块看板的 side 边、占三分之一；已在看板上的那一块挪过去。块的名字就是模块名，图表可以放\n多块（chart、chart-2 … chart-9）：module chart 不给 block 且已有图表时再放一块，给 block 就是挪那一块；图表可同时给\nsymbol、duration（它自己的合约和周期，再放的图表默认不联动、用自己的合约）, chart {block, symbol?, duration?} 给某一块\n图表设自己的合约 / 周期 / 副图（panes: kd / macd / rsi / oi / cci / volume 最多 3 个；null 回到顶栏的）, replace {module: 块, with: 模块} 那一块换成另一个模块,\ntake <块> 拿掉一块（旁边的补满）, ratio {module: 块, value} 拖分隔线：那一块占它所在那一层的 value（0.05–0.95）,\nlock {module, size: auto / small / medium} 档位跟着地方大小自动选或锁小 / 锁中, editing 进入（并打开看板）/ 退出编辑,\nundo 撤销这次编辑里最近一步, link {module: 块, color} 联动色（图表 / 下单 / 自选 / 作战表的块各一个颜色 blue / purple /\norange，图表还可以 none 不联动；同色的跟同一个合约；下单所在的颜色跟着顶栏的当前合约）, linkSymbol {color, symbol} 让另一个颜色的那几块换到某个合约,\npreview {layout, locks?, note?} 编辑时先把一套摆法摆出来给用户看（不保存）, adopt 用这套（存下，可撤销）, discard 不用,\nask <一句话> 让 AI 帮我摆（编辑时；AI 只给摆法，结果是 preview）, flash {filter?: product / watch / macro / all, sort?: time /\nimpact} 看板上快讯那一块自己的筛选和排序（调研面板的快讯另有 news 命令）. Modules chart / positions / order / watch / sheet（作战表）/ alert（提醒）/ chat（对话）,\neach at most once per board except 图表 (up to nine). The list is the account preference ui.boards; state.boards carries\nediting, the 模块库 and each block's size, lock, share, colour and (charts) contract and period.",
+    "description": "看板 · 铺满版 (2026-11-05), one key per command: select 切到一个看板（并打开看板）, create 新建一个空白看板并切过去,\nrename {id, name}, remove 删除一个看板（删当前的切到第一个）, place {module, block?, target?, side?, ratio?, symbol?,\nduration?} 把模块放到 target 那一块的 side 边（left / right / top / bottom，默认 right），占那一块的 ratio（0.1–0.9，\n默认 0.5）；不给 target 就放在整块看板的 side 边、占三分之一；已在看板上的那一块挪过去。块的名字就是模块名，图表可以放\n多块（chart、chart-2 … chart-9）：module chart 不给 block 且已有图表时再放一块，给 block 就是挪那一块；图表可同时给\nsymbol、duration（它自己的合约和周期，再放的图表默认不联动、用自己的合约）, chart {block, symbol?, duration?} 给某一块\n图表设自己的合约 / 周期 / 副图（panes: kd / macd / rsi / oi / cci / volume 最多 3 个；null 回到顶栏的；跟着顶栏合约和周期的第一块图表就是交易台的图，\n副图跟交易台共用，单给它 panes 会 rejected）, replace {module: 块, with: 模块} 那一块换成另一个模块,\ntake <块> 拿掉一块（旁边的补满）, ratio {module: 块, value} 拖分隔线：那一块占它所在那一层的 value（0.05–0.95）,\nlock {module, size: auto / small / medium} 档位跟着地方大小自动选或锁小 / 锁中, editing 进入（并打开看板）/ 退出编辑,\nundo 撤销这次编辑里最近一步（只恢复这套看板的块和块的设置，不动名字；切看板就清空）, link {module: 块, color} 联动色（图表 / 下单 / 自选 / 作战表的块各一个颜色 blue / purple /\norange，图表还可以 none 不联动；同色的跟同一个合约；下单所在的颜色跟着顶栏的当前合约）, linkSymbol {color, symbol} 让另一个颜色的那几块换到某个合约,\npreview {layout, locks?, note?} 编辑时先把一套摆法摆出来给用户看（不保存）, adopt 用这套（存下，可撤销）, discard 不用,\nask <一句话> 让 AI 帮我摆（编辑时；AI 只给摆法，结果是 preview）, flash {filter?: product / watch / macro / all, sort?: time /\nimpact} 看板上快讯那一块自己的筛选和排序（调研面板的快讯另有 news 命令）. Modules chart / positions / order / watch / sheet（作战表）/ alert（提醒）/ chat（对话）,\neach at most once per board except 图表 (up to nine). The list is the account preference ui.boards; state.boards carries\nediting, the 模块库 and each block's size, lock, share, colour and (charts) contract and period, and save (this window's\nlast save of ui.boards: pending / failed / null); a change that saves is applied only once that save went through.",
     "properties": {
      "adopt": {
       "anyOf": [
@@ -2433,6 +2433,21 @@
         "type": "null"
        }
       ]
+     },
+     "save": {
+      "anyOf": [
+       {
+        "enum": [
+         "pending",
+         "failed"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Save"
      },
      "tiles": {
       "items": {
@@ -9597,7 +9612,7 @@
       "type": "string"
      },
      "kind": {
-      "description": "类别：stop_triggered / protection_cancelled / order_unfilled / target_plan / strategy / fill / cancel / price_alert / market_close / risk_ratio / breakeven / delivery / market_movement / daily_review / morning_desk / research_debate / brief / emergency_stop",
+      "description": "类别：stop_triggered / protection_cancelled / order_unfilled / target_plan / strategy / condition_reminder / fill / cancel / price_alert / market_close / risk_ratio / breakeven / delivery / market_movement / daily_review / morning_desk / research_debate / brief / emergency_stop",
       "title": "Kind",
       "type": "string"
      },
@@ -15152,6 +15167,39 @@
       ],
       "title": "Disclosures"
      },
+     "dockGroups": {
+      "anyOf": [
+       {
+        "items": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "maxItems": 6,
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Dockgroups"
+     },
+     "dockPanels": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "maxItems": 6,
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Dockpanels"
+     },
      "dockSide": {
       "enum": [
        "left",
@@ -17053,10 +17101,10 @@
  "info": {
   "description": "TqKq 模拟盘默认不设平台手数或次数上限，也不逐单请求授权；每次动作仍重新校验行情、账户、持仓和可配置风险规则。实盘始终关闭。",
   "title": "Sente Runtime",
-  "version": "1.9.7",
+  "version": "1.9.8",
   "x-ai-trader": {
-   "commit": "1bedeb049150a4673b1d25f74a773a4ad2f00de1",
-   "version": "1.9.7"
+   "commit": "26eed352f86758fad80ac6b825f77cdb68b4358e",
+   "version": "1.9.8"
   }
  },
  "openapi": "3.1.0",
@@ -24681,6 +24729,7 @@
   },
   "/api/simulation/orders/{client_order_id}/{action}": {
    "post": {
+    "description": "One simulation order: `continue` sends a 待发送 order (every send-time check again), `abandon` drops it,\n`query` reads its fact, `cancel` takes back a resting one. An order confirmed while the session was closed\nwaits for the open (`preopenAt`, the session start it goes out at; 开盘预埋单): the account sends it then by\nitself, and `abandon` or `cancel` takes it back unsent. Errors: order_not_prepared, order_not_abandonable,\norder_not_cancelable, order_not_dispatched, market_session_closed (continue while closed).",
     "operationId": "mutate_simulation_order_api_simulation_orders__client_order_id___action__post",
     "parameters": [
      {
@@ -24737,7 +24786,7 @@
   },
   "/api/simulation/proposals": {
    "post": {
-    "description": "单笔出卡（下单票、外部 AI/CLI）：与内置 AI 的出卡工具同一个规划器——开仓过就绪门禁，上期所/能源中心\n平仓没给 positionBucket 时按“平今平昨”偏好自动分今昨（跨两侧返回一张批量平仓卡），没给价格时平仓对价、\n开仓按账号默认价格方式。",
+    "description": "单笔出卡（下单票、外部 AI/CLI）：与内置 AI 的出卡工具同一个规划器——开仓过就绪门禁，上期所/能源中心\n平仓没给 positionBucket 时按“平今平昨”偏好自动分今昨（跨两侧返回一张批量平仓卡），没给价格时平仓对价、\n开仓按账号默认价格方式。国内合约休市或集合竞价时照样出卡（开盘预埋单）：卡带 `preopenAt`（下一段开盘时刻），\n确认后委托等那时由服务端重新核对再发出；外盘、目标持仓与策略卡休市时仍按 market_session_closed 拒绝。",
     "operationId": "create_simulation_proposal_api_simulation_proposals_post",
     "requestBody": {
      "content": {

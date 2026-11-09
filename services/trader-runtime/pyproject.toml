@@ -1,6 +1,6 @@
 [project]
 name = "ai-trader-runtime"
-version = "1.9.7"
+version = "1.9.8"
 description = "AI Trader Runtime with bounded TqKq simulation autonomy and voice conversation"
 requires-python = ">=3.12"
 dependencies = [
