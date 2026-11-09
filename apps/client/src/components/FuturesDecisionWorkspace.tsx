@@ -48,7 +48,7 @@ import { DebateTab, useDebateHost } from "./ResearchDebate";
 import { getDebate, listDebates, useDebateVersion } from "../researchDebate";
 import { PlaybookPage, usePlaybooks } from "./playbooks/PlaybookPage";
 import { Switch } from "./settings/controls";
-import { FlashFeed, productOfSymbol, type FlashFeedResponse } from "./FlashFeed";
+import { FlashFeed, flashUnavailableText, productOfSymbol, type FlashFeedResponse } from "./FlashFeed";
 import { StrategyDock } from "./futures/StrategyDock";
 import { applyUiSurface, uiSurface, uiSurfaceStates, useUiSurface } from "../uiSurfaces";
 import type { AiFocus } from "./AiMenu";
@@ -70,7 +70,7 @@ import { useQuickOrderSkipConfirm, useQuickOrders } from "./futures/useQuickOrde
 import { QuickActions, quickCloseRequests, useTicketQuickActions } from "./futures/QuickActions";
 import { leavesOf, linkOf, mainLink, moduleOf, useBoards, type BoardBlock, type BoardSize, type LinkColor } from "./boards/boards";
 import { BoardsMenu, BoardsView, useBoardsControl } from "./boards/BoardsView";
-import { AccountCompact, BriefsCompact, DebateCompact, NotesCompact, FlashSmall, type BoardDebate, OrdersCompact, PnlSmall, StrategiesCompact, AlertCompact, ChartSmall, ChartMedium, ChatCompact, OrderCompact, PositionsSmall, PositionsMedium, PositionsLarge, SheetCompact, WatchCompact, watchRows } from "./boards/BoardTiles";
+import { AccountCompact, BriefsCompact, DebateCompact, NotesCompact, FlashSmall, type BoardDebate, OrdersCompact, PnlSmall, StrategiesCompact, AlertCompact, ChartSmall, ChartMedium, ChatCompact, OrderCompact, PositionsSmall, PositionsMedium, PositionsLarge, positionsQuality, SheetCompact, WatchCompact, watchRows } from "./boards/BoardTiles";
 import { BattleSheet, useBattleSheet } from "./BattleSheet";
 import { QuickOrderDialog } from "./futures/QuickOrderDialog";
 import { useTradeReview } from "../hooks/useTradeReview";
@@ -179,6 +179,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   // runtimeBaseUrl already points at the replay child, so the bell, the lines and the crossings
   // all live inside that replay and vanish with it.
   const alerts = usePriceAlerts(connectedRuntimeUrl, !isGuest);
+  const boardAlertNotice = view === "dashboard" ? alerts.notice : "";
   // 提醒中心 (#932, 2026-10-15): the Runtime's reminders and their read marks — the toolbar bell's
   // popover, the phone's 提醒 page and the unread badge. A replay window keeps its own alerts in the
   // bell but has no reminder record.
@@ -939,7 +940,8 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
       if (!active) return;
       setBoardDebate({ key, value: { id: summary.id, name: summary.name, status: summary.status, finishedAt: summary.finishedAt, createdAt: summary.createdAt,
         stance: summary.stance, confidence: summary.confidence, headline: detail?.verdict?.headline,
-        reports: (detail?.analysts ?? []).flatMap(report => report.conclusion?.text ? [{ title: report.title, text: report.conclusion.text }] : []) } });
+        reports: (detail?.analysts ?? []).flatMap(report => report.conclusion?.text ? [{ title: report.title, text: report.conclusion.text,
+          verified: report.conclusion.verified, problem: report.conclusion.problem }] : []) } });
     }).catch(() => undefined);
     return () => { active = false; };
   }, [boardDebateWanted, connectedRuntimeUrl, quote?.symbol, boardDebateKey, debateVersion]);
@@ -1412,7 +1414,9 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
       ownerStatus={ownerPlan.status} preferences={prefs} skills={skills} routines={routineActions} mobile={mobile}
       layoutMenu={gridAvailable ? <LayoutMenu handle={workspaceLayouts} /> : undefined} /> : null}</Presence>
 
-    <Presence>{accessNotice && (!settingsOpen || props.guest?.loginOpen) ? <div className="toast" data-kind="warning" role="status"><i aria-hidden="true">!</i><span>{accessNotice}</span></div> : null}</Presence>
+    {/* 看板 (#1375): a chart's 设提醒 receipt shows here — the board may have no market bar to say it. */}
+    <Presence>{(accessNotice || boardAlertNotice) && (!settingsOpen || props.guest?.loginOpen) ? <div className="toast" data-kind={accessNotice || boardAlertNotice === alerts.createError ? "warning" : "info"} role="status"
+      data-testid={accessNotice ? undefined : "price-alert-notice"}><i aria-hidden="true">{accessNotice || boardAlertNotice === alerts.createError ? "!" : "i"}</i><span>{accessNotice || boardAlertNotice}</span></div> : null}</Presence>
     {signalNotice ? <p className="fdw-signal-notice" role="status" data-testid="strategy-signal-notice">{signalNotice}</p> : null}
     {!props.guest && !uiControlHealth.registered ? <div className="fdw-global-error" role="status" data-agent-target="ui-control-health">界面命令不可用：登记失败（{uiControlHealth.detail.slice(0, 160) || "/api/ui/pulse 422"}）</div> : null}
   </>;
@@ -1720,7 +1724,9 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
       case "reminders": return props.guest ? null : <RemindersPanel tab={remindersTab} onTab={setRemindersTab} onClose={() => setRightDock(null)}
           center={reminderCenter} settings={reminderSettings} mine={myReminders} />;
       case "strategy": return props.guest ? null : <StrategyDock workspace={workspace} quote={quote}
-          onClose={embedded ? undefined : () => setRightDock(null)} tab={embedded ? "running" : strategyTab} onTabChange={setStrategyTab}
+          onClose={embedded ? undefined : () => setRightDock(null)} tab={embedded ? "running" : strategyTab}
+          // On the 看板 the block stays on 正在运行: another tab opens in the side panel (and the block becomes the list).
+          onTabChange={embedded ? tab => { setStrategyTab(tab); setRightDock("strategy"); } : setStrategyTab}
           onStrategySelected={focus.setActiveStrategy} autonomy={preferencesLoaded ? preferences.trade.aiAutonomy : undefined}
           onAskAi={askAi} explainBlocked={signalsBlocked} backtestBlocked={backtestBlocked}
           onShowReminders={showMyReminders}
@@ -1755,7 +1761,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   // The chart's bar (contract, price, periods, tools): above the trade view's chart, or the 看板's large 图表 (no 多图 there).
   const marketCommand = (onBoard = false) => market ? <MarketCommand workspace={workspace} market={market} headerCurrentContract={headerCurrentContract} chartView={chartView} decimals={decimals} onOpenContracts={() => setContractOpen(true)}
                 onSelectDuration={selectDuration} onSelectChartView={selectChartView}
-                alerts={alerts.available ? alerts : undefined}
+                alerts={alerts.available ? onBoard ? { ...alerts, notice: "" } : alerts : undefined}
                 reminderBell={reminderAvailable ? <ReminderBell open={reminderShown} onOpenChange={showReminderCenter} unread={reminders.unread} /> : undefined}
                 chartLayout={gridAvailable && !onBoard ? <ChartLayoutControls handle={desktopCharts} onError={setAccessNotice} /> : undefined}
                 foldedChartLayout={gridAvailable && !onBoard ? <ChartLayoutControls handle={desktopCharts} onError={setAccessNotice} help={false} /> : undefined}
@@ -1774,23 +1780,66 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     onReminder={mobile || props.guest ? undefined : playbook => openReminderEditor({ new: true, reminder: true,
       ...(playbook ? { ask: `按我的交易笔记「${playbook.name}」设提醒：${playbook.entryRules.trim() || playbook.name}`.slice(0, 500) } : {}) })} /> : null;
   // 看板 (2026-11-05): one module at one size. Small and medium are their own layouts; the large ones are the panels.
+  // A board chart's right-click menu (owner 2026-11-06): the trade chart's own, acting on that block — its 周期 (onPeriod),
+  // its 副图 (change: the block's own list, or the trade chart's for the trade view's own chart) and the shared 主图指标;
+  // 提醒 and the AI questions are on its contract; 画线 is the trade chart's (greyed with where it is); 编辑看板 last.
+  const boardChartMenu = (block: BoardBlock, chartSymbol: string, chartDuration: MarketWorkbenchSnapshot["durationSeconds"], tick: ChartMenuActions["tick"], name: string,
+    indicators: ReturnType<typeof normalizeChartIndicators>, change: ((patch: ChartIndicatorPatch) => void) | undefined,
+    onPeriod: ChartMenuActions["onPeriod"]): ChartMenuActions => {
+    const panes = indicators.subPaneList;
+    const openSurface = (key: string) => { try { uiSurface(key)?.apply?.(true); } catch { /* The popover reports its own state. */ } };
+    return {
+      chartView: "kline", duration: chartDuration, decimals: decimalsForTick(tick), tick,
+      indicators: change ? indicators : null,
+      drawingsAvailable: false, drawingsBlocked: "在交易台画：点图表的名字过去",
+      hiddenAll: false, hiddenCount: 0, locked: false, magnet: false, drawingCount: 0, hasChartMarks: false,
+      onAlert: alerts.available ? price => { void alerts.create(chartSymbol, price); } : undefined,
+      onTool: () => undefined, onGroup: () => undefined, onPeriod,
+      onIndicatorToggle: which => change?.(which === "ma"
+        ? { maLines: indicators.maLines.map(line => ({ ...line, enabled: !indicators.maLines.some(item => item.enabled) })) }
+        : { boll: { ...indicators.boll, enabled: !indicators.boll.enabled } }),
+      onIndicatorSettings: () => openSurface(`disclosure:board-chart-ma-editor:${block}`),
+      onAddPane: type => { if (!panes.includes(type)) change?.({ subPaneList: [...panes, type] }); },
+      onChartSettings: () => window.dispatchEvent(new CustomEvent("ai-trader-open-settings", { detail: "chart" })),
+      onAskPrice: price => { openChat(); setPrompt(`分析 ${name} 价格 ${formatNumber(price, decimalsForTick(tick))} 附近的机会与风险，不创建订单。`); },
+      onAskSpan: () => { openChat(); setPrompt(`讲讲 ${name} ${durationLabel(chartDuration)} 图上最近这段走势：先在图上画出关键位置再解释，不创建订单。`); },
+      onDrawingSwitch: () => undefined, onShowHidden: () => undefined, onClearDrawings: () => undefined, onClearMarks: () => undefined,
+      onPatch: () => undefined, onSettings: () => undefined, onLineAlert: () => undefined, onDuplicate: () => undefined, onDelete: () => undefined,
+      onSwapPane: (from, to) => change?.({ subPaneList: panes.map(item => item === from ? to : item) }),
+      onPaneSettings: type => openSurface(`disclosure:board-chart-pane-editor:${block}:${type}`),
+      onMovePane: (type, direction) => {
+        const list = [...panes];
+        const at = list.indexOf(type), to = at + direction;
+        if (at < 0 || to < 0 || to >= list.length) return;
+        [list[at], list[to]] = [list[to], list[at]];
+        change?.({ subPaneList: list });
+      },
+      onClosePane: type => change?.({ subPaneList: panes.filter(item => item !== type) }),
+      onEditBoard: boardsAvailable ? () => boardsControl.setEditing(true) : undefined,
+    };
+  };
   const renderBoardTile = (block: BoardBlock, size: BoardSize): ReactNode => {
     const module = moduleOf(block);
     const roomy = size !== "small";
+    // 账户明细 lives on the 复盘 page (and a roomy 复盘盈亏 block): with neither on screen, go to 复盘 first, as the header does.
     if (module === "account") return <AccountCompact account={props.account?.account} foreign={props.account?.foreign?.account} medium={roomy}
-      onOpen={() => applyUiSurface("dialog:account-detail", { open: true })} />;
+      onOpen={() => {
+        if (!uiSurface("dialog:account-detail")) { if (!(accessRef.current?.require("review-summary") ?? true)) return; selectView("review"); }
+        applyUiSurface("dialog:account-detail", { open: true });
+      }} />;
+    const openOrders = () => { setPositionsTab("orders"); setRightDock("positions"); };
     if (module === "orders") return <OrdersCompact orders={props.simulationOrders.filter(orderIsActive)} fills={props.account?.activity.trades ?? []}
-      instruments={props.instruments} medium={roomy} onCancel={order => handleOrderAction(order, "cancel")}
-      onOpen={() => { setPositionsTab("orders"); setRightDock("positions"); }} />;
+      instruments={props.instruments} medium={roomy} busy={props.tradeBusy} onOrderAction={handleOrderAction} onOpen={openOrders} />;
     if (module === "strategies") {
-      if (size === "large") return renderDockPanel("strategy", true);
+      // One 策略 panel at a time (its stop confirmations are named by strategy): with the side panel open this block is the list.
+      if (size === "large" && rightDock !== "strategy") return renderDockPanel("strategy", true);
       const items = (appWorkbench.activity?.strategies ?? []).map(item => ({ id: item.strategyId, name: item.name, status: item.status,
         reminderOnly: item.reminderOnly, note: item.decision?.detail ?? undefined }));
       return <StrategiesCompact items={items} medium={roomy} onOpen={() => { setStrategyTab("running"); setRightDock("strategy"); }} />;
     }
     if (module === "flash") {
       const openFlash = () => { setNewsTab("flash"); setRightDock("news"); };
-      if (!roomy) return <FlashSmall items={boardFlash?.items} onOpen={openFlash} />;
+      if (!roomy) return <FlashSmall items={boardFlash?.items} unavailable={boardFlash?.status === "unavailable" ? flashUnavailableText(boardFlash.error) : undefined} onOpen={openFlash} />;
       return <div className="board-flash">
         <FlashFeed baseUrl={connectedRuntimeUrl} symbol={quote?.symbol} visible filter={boardsControl.flash.filter} onFilterChange={filter => boardsControl.setFlash({ filter })}
           sort={boardsControl.flash.sort} onSortChange={sort => boardsControl.setFlash({ sort })} watchProducts={flashWatchProducts} instruments={props.instruments?.items} onSelectSymbol={selectContract} onState={NO_FLASH_STATE} calendarSurface="board-flash-calendar" />
@@ -1805,13 +1854,14 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     }
     if (module === "notes") {
       if (size === "large") return connectedRuntimeUrl ? <PlaybookPage baseUrl={connectedRuntimeUrl} /> : <p className="board-empty" role="status">连接后可看交易笔记</p>;
-      return <NotesCompact items={boardNotes.items} loaded={boardNotes.loaded} medium={roomy} onOpen={() => selectView("review")} />;
+      return <NotesCompact items={boardNotes.items} loaded={boardNotes.loaded} error={boardNotes.error} medium={roomy} onOpen={() => selectView("review")} />;
     }
     if (module === "briefs") {
       const openNotify = () => { setSettingsPage(normalizeSettingsPage("notify")); setSettingsOpen(true); };
       const toggle = size === "large" ? <><span>生成简讯</span><Switch label="生成简讯" checked={appWorkbench.config.showMarketBriefs} disabled={!connectedRuntimeUrl}
         onChange={value => { if (accessRef.current?.require("market-briefs") ?? true) void appWorkbench.updateConfig({ showMarketBriefs: value }).catch(() => setAccessNotice("简讯设置未保存，请重试")); }} /></> : undefined;
-      return <BriefsCompact products={boardBriefSubs.data?.products.length} items={appWorkbench.config.showMarketBriefs ? flowBriefs.items : []} medium={roomy} toggle={toggle} onOpen={openNotify} />;
+      return <BriefsCompact products={boardBriefSubs.data?.products.length} items={appWorkbench.config.showMarketBriefs ? flowBriefs.items : []}
+        error={appWorkbench.config.showMarketBriefs ? flowBriefs.refreshError || undefined : undefined} medium={roomy} toggle={toggle} onOpen={openNotify} />;
     }
     if (module === "pnl") {
       if (!roomy) return <PnlSmall pnl={boardPnl.pnl} error={boardPnl.error} onOpen={() => selectView("review")} />;
@@ -1823,11 +1873,12 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     const compact = size === "small" || size === "medium";
     if (module === "positions") {
       const positions = props.account?.positions ?? [];
-      if (size === "small") return <PositionsSmall positions={positions} instruments={props.instruments} account={props.account?.account} onOpen={() => setRightDock("positions")} />;
-      if (size === "medium") return <PositionsMedium positions={positions} instruments={props.instruments} account={props.account?.account} onOpen={() => setRightDock("positions")} />;
-      return <PositionsLarge positions={positions} instruments={props.instruments} orders={props.simulationOrders.filter(orderIsActive)}
-        fills={props.account?.activity.trades ?? []} onOpen={() => setRightDock("positions")} onClose={closePosition}
-        onCancel={order => handleOrderAction(order, "cancel")} />;
+      const quality = positionsQuality(props.account);
+      if (size === "small") return <PositionsSmall positions={positions} instruments={props.instruments} account={props.account?.account} quality={quality} onOpen={() => setRightDock("positions")} />;
+      if (size === "medium") return <PositionsMedium positions={positions} instruments={props.instruments} account={props.account?.account} quality={quality} onOpen={() => setRightDock("positions")} />;
+      return <PositionsLarge positions={positions} instruments={props.instruments} orders={props.simulationOrders.filter(orderIsActive)} quality={quality} busy={props.tradeBusy}
+        fills={props.account?.activity.trades ?? []} onOpen={() => setRightDock("positions")} onOpenOrders={openOrders} onClose={closePosition}
+        onOrderAction={handleOrderAction} />;
     }
     if (module === "sheet") {
       const openSheet = () => { setNewsTab("sheet"); setRightDock("news"); };
@@ -1838,7 +1889,8 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
       };
       const sheetSymbol = own ?? quote?.symbol;
       if (size === "large") return <BattleSheet baseUrl={connectedRuntimeUrl} visible watchlist={prefs.document ? watchlist : undefined} onOpen={openRow} />;
-      const status = boardSheet.error ? `作战表读取失败（${boardSheet.error}）` : boardSheet.report ? watchlist.length ? "" : "还没有自选品种" : "正在排作战表…";
+      const status = boardSheet.error ? `作战表读取失败（${boardSheet.error}）${boardSheet.report ? "，下面是上次的内容" : ""}`
+        : boardSheet.report ? watchlist.length ? "" : "还没有自选品种" : "正在排作战表…";
       return <SheetCompact rows={boardSheet.report?.rows ?? []} status={status} symbol={sheetSymbol} name={sheetSymbol ? contractLabel(sheetSymbol, props.instruments) : "当前合约"}
         onOpen={openSheet} onOpenRow={openRow} medium={size === "medium"} />;
     }
@@ -1858,13 +1910,13 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
         .map((turn, index) => ({ key: `${turn.timestamp}:${index}`, role: turn.role as "user" | "assistant", text: turn.text,
           at: new Date(turn.timestamp).toLocaleTimeString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false, hour: "2-digit", minute: "2-digit" }) }));
       return <ChatCompact medium={size === "medium"} busy={Boolean(props.chatBusy || chat.sendingPrompt)} blockedReason={aiBlocked || undefined} turns={turns} suggestions={suggestions}
-        onSend={text => void chat.sendQuickPrompt(text)} onOpen={() => setRightDock("ai")} />;
+        text={chat.prompt} setText={chat.setPrompt} onSubmit={event => void chat.submitPrompt(event)} error={chat.promptError || undefined} onOpen={() => setRightDock("ai")} />;
     }
     if (module === "watch") {
       const openBoard = (exchange: BoardExchange = "watchlist") => { setBoardExchange(exchange); selectView("board"); };
       const watchSelected = boardLinkSymbol(block) ?? props.selectedSymbol;
       const pickWatch = (symbol: string) => followBoardLink(block, symbol);
-      if (compact) return <WatchCompact rows={watchRows(board.snapshot?.rows, watchlist)} selectedSymbol={watchSelected} onSelect={pickWatch}
+      if (compact) return <WatchCompact rows={watchRows(board.snapshot?.rows, watchlist, foreignBoard.snapshot, boardProductNames)} selectedSymbol={watchSelected} onSelect={pickWatch}
         onOpen={() => openBoard()} medium={size === "medium"} emptyText={watchlist.length ? board.error || "正在读取报价…" : "还没有自选：在报价总表里点星标加"} />;
       return <MarketBoard snapshot={board.snapshot} foreign={foreignBoard} error={board.error} query={boardQuery} onQueryChange={setBoardQuery}
         exchange="watchlist" onExchangeChange={openBoard} sort={boardSort} onSortChange={setBoardSort}
@@ -1892,45 +1944,11 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
         if (subPaneList) { try { boards.apply({ chart: { block, panes: subPaneList } }); } catch (error) { setAccessNotice(error instanceof Error ? error.message : "副图没改成"); } }
         if (Object.keys(shared).length) chartIndicatorsChange(shared);
       } : undefined;
-      // 右键 (owner 2026-11-06): the trade chart's own menu, acting on this block — its 周期, 副图 and the shared 主图指标;
-      // 提醒 and the AI questions are on its contract; 画线 is the trade chart's (greyed with where it is); 编辑看板 last.
-      const indicators = normalizeChartIndicators(passivePreferences);
-      const panes = indicators.subPaneList;
-      const tick = read.market.quote.priceTick;
-      const openSurface = (key: string) => { try { uiSurface(key)?.apply?.(true); } catch { /* The popover reports its own state. */ } };
-      const menuActions: ChartMenuActions = {
-        chartView: "kline", duration: chartDuration, decimals: decimalsForTick(tick), tick,
-        indicators: changePassive ? indicators : null,
-        drawingsAvailable: false, drawingsBlocked: "在交易台画：点图表的名字过去",
-        hiddenAll: false, hiddenCount: 0, locked: false, magnet: false, drawingCount: 0, hasChartMarks: false,
-        onAlert: alerts.available ? price => { void alerts.create(chartSymbol, price); } : undefined,
-        onTool: () => undefined, onGroup: () => undefined,
-        onPeriod: value => {
-          if (value === "timeshare") { selectContract(chartSymbol); selectChartView("timeshare"); selectView("trade"); return; }
-          try { boards.apply({ chart: { block, duration: value } }); } catch (error) { setAccessNotice(error instanceof Error ? error.message : "周期没改成"); }
-        },
-        onIndicatorToggle: which => changePassive?.(which === "ma"
-          ? { maLines: indicators.maLines.map(line => ({ ...line, enabled: !indicators.maLines.some(item => item.enabled) })) }
-          : { boll: { ...indicators.boll, enabled: !indicators.boll.enabled } }),
-        onIndicatorSettings: () => openSurface(`disclosure:board-chart-ma-editor:${block}`),
-        onAddPane: type => { if (!panes.includes(type)) changePassive?.({ subPaneList: [...panes, type] }); },
-        onChartSettings: () => window.dispatchEvent(new CustomEvent("ai-trader-open-settings", { detail: "chart" })),
-        onAskPrice: price => { openChat(); setPrompt(`分析 ${linkedName} 价格 ${formatNumber(price, decimalsForTick(tick))} 附近的机会与风险，不创建订单。`); },
-        onAskSpan: () => { openChat(); setPrompt(`讲讲 ${linkedName} ${durationLabel(chartDuration)} 图上最近这段走势：先在图上画出关键位置再解释，不创建订单。`); },
-        onDrawingSwitch: () => undefined, onShowHidden: () => undefined, onClearDrawings: () => undefined, onClearMarks: () => undefined,
-        onPatch: () => undefined, onSettings: () => undefined, onLineAlert: () => undefined, onDuplicate: () => undefined, onDelete: () => undefined,
-        onSwapPane: (from, to) => changePassive?.({ subPaneList: panes.map(item => item === from ? to : item) }),
-        onPaneSettings: type => openSurface(`disclosure:board-chart-pane-editor:${block}:${type}`),
-        onMovePane: (type, direction) => {
-          const list = [...panes];
-          const at = list.indexOf(type), to = at + direction;
-          if (at < 0 || to < 0 || to >= list.length) return;
-          [list[at], list[to]] = [list[to], list[at]];
-          changePassive?.({ subPaneList: list });
-        },
-        onClosePane: type => changePassive?.({ subPaneList: panes.filter(item => item !== type) }),
-        onEditBoard: boardsAvailable ? () => boardsControl.setEditing(true) : undefined,
-      };
+      // 右键: 周期 only changes this block (分时 opens its contract's trade view).
+      const menuActions = boardChartMenu(block, chartSymbol, chartDuration, read.market.quote.priceTick, linkedName, normalizeChartIndicators(passivePreferences), changePassive, value => {
+        if (value === "timeshare") { selectContract(chartSymbol); selectChartView("timeshare"); selectView("trade"); return; }
+        try { boards.apply({ chart: { block, duration: value } }); } catch (error) { setAccessNotice(error instanceof Error ? error.message : "周期没改成"); }
+      });
       return <ChartMedium market={read.market} name={linkedName} onOpen={openLinked} menuActions={menuActions}
         chart={{ settings: chartSettings, onSettingsChange: setChartSettings, resolvedTheme, timeZone: "Asia/Shanghai", surfaceScope: block,
           preferences: passivePreferences, onIndicatorsChange: changePassive }} />;
@@ -1939,8 +1957,10 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     const name = contractLabel(market.quote.symbol, props.instruments);
     if (module === "chart") {
       if (size === "small") return <ChartSmall market={market} name={name} onOpen={() => selectView("trade")} />;
-      // The trade view's own chart: its 副图 are the trade chart's.
+      // The trade view's own chart: its 副图 are the trade chart's, and its 右键 周期 is the trade chart's (the header's).
       if (size === "medium") return <ChartMedium market={market} name={name} onOpen={() => selectView("trade")}
+        menuActions={boardChartMenu(block, market.quote.symbol, props.duration, market.quote.priceTick, name, chartIndicators, chartIndicatorsChange,
+          value => { if (value === "timeshare") { selectChartView("timeshare"); selectView("trade"); } else selectDuration(value as MarketWorkbenchSnapshot["durationSeconds"]); })}
         chart={{ settings: chartSettings, onSettingsChange: setChartSettings, preferences: chartPreferences, resolvedTheme, timeZone: "Asia/Shanghai",
           surfaceScope: block, onIndicatorsChange: chartIndicatorsChange }} />;
       return <div className="board-chart-large">{marketCommand(true)}<div className="fdw-chart-area">{chartStage}</div></div>;

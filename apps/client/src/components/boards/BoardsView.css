@@ -112,6 +112,8 @@
 .board-chart-medium, .board-positions-medium, .board-watch-medium { display: flex; flex-direction: column; min-height: 0; }
 .board-chart-body { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .board-caption { margin-top: auto; color: var(--muted); font-size: var(--font-sm); }
+/* Why what a block shows is not the latest (a failed refresh, a stale snapshot, an unchecked line): a warning, not grey. */
+.board-stale { flex: none; color: var(--warning); font-size: var(--font-sm); line-height: 1.45; overflow-wrap: anywhere; }
 /* A money figure shrinks to the block's width instead of being cut (an ellipsis after "-32,7" reads as another number):
    --chars is its length, a digit is at most ~0.62em, and the block's padding and a scrollbar come off the width. */
 .board-figure { font-size: min(var(--font-2xl), calc((100cqi - 2 * var(--space-3) - 8px) / (var(--chars, 1) * 0.62))); font-weight: 700; line-height: 1.15; }

@@ -142,6 +142,8 @@ interface TradingChartsProps {
   onIndicatorsChange?: (patch: ChartIndicatorPatch) => void;
   /** The preference save path's inline status (已保存 / 越界原因), shown inside the popovers. */
   indicatorStatus?: string;
+  /** 副图 set for this chart but left out for lack of room (a board chart): they still fill the ＋副图 slots. */
+  hiddenPanes?: SubPaneType[];
 }
 
 type ChartBar = { time: UTCTimestamp; open: number; high: number; low: number; close: number; volume: number; openInterest: number };
@@ -350,6 +352,7 @@ export function TradingCharts({
   onSettingsChange,
   onIndicatorsChange,
   indicatorStatus,
+  hiddenPanes,
   tradeFocus,
   onTradeSelect,
   selectedTradeIds,
@@ -391,6 +394,7 @@ export function TradingCharts({
   const indicators = useMemo<ChartIndicatorConfig>(() => normalizeChartIndicators(preferences), [preferences]);
   const paneTypes = indicators.subPaneList;
   const paneKey = paneTypes.join(",");
+  const configuredPanes = hiddenPanes?.length ? [...hiddenPanes, ...paneTypes] : paneTypes;
   const editable = Boolean(onIndicatorsChange);
   const changeIndicators = (patch: ChartIndicatorPatch) => onIndicatorsChange?.(patch);
   const seriesData = useMemo(() => buildSeriesData(chartBars, indicators), [chartBars, indicators]);
@@ -988,8 +992,21 @@ export function TradingCharts({
   useDisclosureSurface(scoped("chart-pane-editor"), { id: paneId("oi"), available: editable && paneTypes.includes("oi"), state: popover?.open.kind === "pane" && popover.open.type === "oi", apply: open => (open ? openPopover({ kind: "pane", type: "oi" }) : closePopover()) });
   useDisclosureSurface(scoped("chart-pane-editor"), { id: paneId("cci"), available: editable && paneTypes.includes("cci"), state: popover?.open.kind === "pane" && popover.open.type === "cci", apply: open => (open ? openPopover({ kind: "pane", type: "cci" }) : closePopover()) });
   useDisclosureSurface(scoped("chart-pane-editor"), { id: paneId("volume"), available: editable && paneTypes.includes("volume"), state: popover?.open.kind === "pane" && popover.open.type === "volume", apply: open => (open ? openPopover({ kind: "pane", type: "volume" }) : closePopover()) });
+  // The open 副图 card follows its slot: a new type there keeps it open on that type; the slot removed closes it.
+  const changePane = (patch: ChartIndicatorPatch) => {
+    changeIndicators(patch);
+    if (popover?.open.kind !== "pane" || !patch.subPaneList) return;
+    const next = patch.subPaneList.length === paneTypes.length ? patch.subPaneList[paneTypes.indexOf(popover.open.type)] : undefined;
+    if (next) setPopover({ ...popover, open: { kind: "pane", type: next } }); else closePopover();
+  };
+  // The list changed and its 副图 is gone (a command, the room a board chart has): the card closes rather than edit
+  // nothing. (Only on a list change: right after an edit the card already shows the type the save is bringing.)
+  useEffect(() => {
+    if (popover?.open.kind === "pane" && !paneTypes.includes(popover.open.type)) closePopover();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paneKey]);
   const addPane = (type: SubPaneType) => {
-    if (paneTypes.length >= SUB_PANES_MAX || paneTypes.includes(type)) return;
+    if (configuredPanes.length >= SUB_PANES_MAX || configuredPanes.includes(type)) return;
     changeIndicators({ subPaneList: [...paneTypes, type] });
     closePopover();
   };
@@ -1025,7 +1042,7 @@ export function TradingCharts({
     ? barReadout(chartBars, shownTime, { decimals: decimalsForTick(priceTick), daily: durationSeconds >= 86400, timeZone }) : null;
   const editorStatus = editable ? indicatorStatus : undefined;
   const addPaneSlot = paneTypes.length;  // The ＋副图 button sits on the last label row (the price label when there are no panes).
-  const addPaneButton = editable && paneTypes.length < SUB_PANES_MAX
+  const addPaneButton = editable && configuredPanes.length < SUB_PANES_MAX
     ? <button type="button" className="fdw-ind-label fdw-ind-add-pane" ref={addLabelRef} aria-label="添加副图" onClick={() => popover?.open.kind === "add" ? closePopover() : openPopover({ kind: "add" })}>＋ 副图</button>
     : null;
 
@@ -1109,8 +1126,9 @@ export function TradingCharts({
         title={popover.open.kind === "ma" ? "均线与布林带" : popover.open.kind === "add" ? "添加副图" : `${SUB_PANE_NAMES[popover.open.type]} 副图`}
         anchorRect={popover.rect} onClose={closePopover} width={popover.open.kind === "ma" ? 360 : 320}>
         {popover.open.kind === "ma" ? <MaLinesEditor indicators={indicators} onChange={changeIndicators} status={editorStatus} />
-          : popover.open.kind === "add" ? <AddPaneChooser indicators={indicators} onAdd={addPane} status={editorStatus} />
-          : <SubPaneEditor index={paneTypes.indexOf(popover.open.type)} indicators={indicators} onChange={changeIndicators} status={editorStatus} />}
+          : popover.open.kind === "add" ? <AddPaneChooser indicators={hiddenPanes?.length ? { ...indicators, subPaneList: configuredPanes } : indicators} onAdd={addPane} status={editorStatus} />
+          : paneTypes.includes(popover.open.type) ? <SubPaneEditor index={paneTypes.indexOf(popover.open.type)} indicators={indicators} onChange={changePane} status={editorStatus} />
+            : editorStatus ? <span className="fdw-ind-status" role="status">{editorStatus}</span> : null}
       </ChartPopover> : null}</Presence>
     </div>
   );

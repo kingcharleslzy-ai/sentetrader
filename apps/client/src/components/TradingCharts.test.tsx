@@ -260,8 +260,12 @@ test("a pane label opens its editor; ＋副图 adds a pane and hides at three", 
   expect(screen.getByRole("dialog", { name: "KD 副图" })).toBeVisible();
   fireEvent.change(screen.getByLabelText("第 1 格指标"), { target: { value: "rsi" } });
   expect(onIndicatorsChange).toHaveBeenLastCalledWith({ subPaneList: ["rsi", "macd"] });
+  // The saved list comes back: the open card follows its slot to RSI, and removing it removes RSI.
+  view.rerender(<TradingCharts bars={bars} settings={settings} preferences={editablePreferences({ subPaneList: ["rsi", "macd"] })} onSettingsChange={vi.fn()} onIndicatorsChange={onIndicatorsChange} />);
+  expect(screen.getByRole("dialog", { name: "RSI 副图" })).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "移除这一格" }));
   expect(onIndicatorsChange).toHaveBeenLastCalledWith({ subPaneList: ["macd"] });
+  view.rerender(<TradingCharts bars={bars} settings={settings} preferences={editablePreferences()} onSettingsChange={vi.fn()} onIndicatorsChange={onIndicatorsChange} />);
   fireEvent.click(screen.getByRole("button", { name: "添加副图" }));
   expect(screen.getByRole("dialog", { name: "添加副图" })).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "RSI副图" }));

@@ -503,16 +503,17 @@ test("建议问题：对话面板打开才按当前页面向 AI 要，最多 2 �
   expect(screen.getByText("还没有对话：在下面问一句")).toBeVisible();
   expect(values.onPrompt).not.toHaveBeenCalled();
   workspace.unmount();
+  const setText = vi.fn();
   const compact = render(<ChatCompact medium turns={[]} suggestions={["黄金夜盘怎么看", "要不要设个止损"]}
-    busy={false} onSend={values.onPrompt} onOpen={vi.fn()} />);
+    busy={false} text="" setText={setText} onSubmit={values.onPrompt} onOpen={vi.fn()} />);
   expect(compact.container.querySelector(".board-reply")).toBeNull();
   expect(compact.container.querySelector(".board-chat-empty")).toHaveTextContent("还没有对话");
   fireEvent.click(screen.getByRole("button", { name: "黄金夜盘怎么看" }));
-  expect(screen.getByRole("textbox", { name: "给 AI 发消息" })).toHaveValue("黄金夜盘怎么看");
+  expect(setText).toHaveBeenCalledWith("黄金夜盘怎么看");
   expect(screen.getByRole("textbox", { name: "给 AI 发消息" })).toHaveFocus();
   expect(values.onPrompt).not.toHaveBeenCalled();
   compact.rerender(<ChatCompact medium turns={[{ key: "reply", role: "assistant", text: "已有回复", at: "10:00" }]}
-    suggestions={["黄金夜盘怎么看"]} busy={false} onSend={values.onPrompt} onOpen={vi.fn()} />);
+    suggestions={["黄金夜盘怎么看"]} busy={false} text="" setText={setText} onSubmit={values.onPrompt} onOpen={vi.fn()} />);
   expect(screen.queryByLabelText("建议问题")).toBeNull();
   expect(screen.getByLabelText("最近的对话")).toHaveTextContent("已有回复");
 });

@@ -25,7 +25,7 @@ const GRID_TRACKS: Record<BoardColumn, string> = {
 
 
 /** 外盘 rows in the board's row shape: the 合约 column says 主连 and the quote unit; no click-through. */
-function foreignRows(snapshot: ForeignBoardSnapshot | undefined): MarketBoardRow[] {
+export function foreignRows(snapshot: ForeignBoardSnapshot | undefined): MarketBoardRow[] {
   return (snapshot?.rows ?? []).map(row => ({
     symbol: row.key, instrumentId: `${row.contract || "主连"} · ${row.unit}`, instrumentName: row.name, productName: row.name,
     exchangeId: row.exchange, productId: row.key.split(".")[1] ?? row.key, last: row.last, preSettlement: row.preSettlement,
