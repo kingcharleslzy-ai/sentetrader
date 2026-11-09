@@ -437,7 +437,8 @@ class BoardPlace(BaseModel):
 
 
 class BoardReplace(BaseModel):
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    # Dumped as `with` too, so the receipt judgement reads the same field the caller sent.
+    model_config = ConfigDict(extra="forbid", populate_by_name=True, serialize_by_alias=True)
     module: BOARD_BLOCK
     with_: BOARD_MODULES = Field(alias="with")
 
@@ -1343,6 +1344,10 @@ class UiState(BaseModel):
     # AI 引导设计卡, retired 2026-10-08 (the 策略编辑卡 replaced it): 1.7.2 and older clients still report
     # it, so the field stays accepted; nothing reads it.
     strategyGuide: dict[str, Any] | None = None
+    # 自由布局's open side panels and their groups, retired 2026-11-05 (one side panel again): a desktop page
+    # opened before that still reports them, so they stay accepted; nothing reads them.
+    dockPanels: list[str] | None = Field(default=None, max_length=6)
+    dockGroups: list[list[str]] | None = Field(default=None, max_length=6)
     # 策略编辑卡 (2026-10-08), reports only (older clients omit it): {open, mode: new|edit, strategyId (the one
     #  being edited), start: blank|habits|template:<id>, name, fields: {symbol, timeframe, direction, entryLong /
     #  entryShort: {join, conditions: [label], hits: [n], together}, stop: {mode, value}, take: {mode, value},
@@ -2533,15 +2538,22 @@ def register_ui_control(app, current_user):
         RECEIPT_SECONDS — unknown otherwise. A state change pulses at once, so the judgement follows it."""
         changes = command.request.changes.model_dump(exclude_unset=True)
         state = pulse.state.model_dump()
-        if refused(state, changes):
-            command.status = "rejected"
-            command.reason = str(state["reminderCenter"]["moreError"])[:300]
-        elif changes_match(state, changes):
-            command.status = "applied"
-        elif final:
+        try:
+            if refused(state, changes):
+                command.status = "rejected"
+                command.reason = str(state["reminderCenter"]["moreError"])[:300]
+            elif changes_match(state, changes):
+                command.status = "applied"
+            elif final:
+                command.status = "unknown"
+            else:
+                return
+        except Exception:
+            # A judgement that breaks ends this command as unknown; it must not stop the registry's other
+            # users' windows, heartbeats and commands, which all go through prune() and this judgement.
+            logging.getLogger("uvicorn.error.agent").exception(
+                "agent_ui judge failed command_id=%s", command.request.commandId)
             command.status = "unknown"
-        else:
-            return
         command.state, command.observed_revision = state, pulse.revision
         log_result(command)
 

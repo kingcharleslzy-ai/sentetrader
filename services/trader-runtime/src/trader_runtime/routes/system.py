@@ -299,9 +299,13 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
         if not isinstance(auth, OwnerAuth):
             raise HTTPException(status_code=404, detail="owner_auth_disabled")
         identity = await asyncio.to_thread(auth.validate, auth.session_token(request))
-        return await asyncio.to_thread(
+        result = await asyncio.to_thread(
             auth.change_password, request, response, username=identity.username,
             current_password=body.currentPassword, new_password=body.newPassword)
+        # 锁屏提醒 leaves every device with the old password, this one too (no verified device id here):
+        # a signed-out device must not keep showing trades; this device turns it on again in 设置.
+        store.delete_push_subscriptions(user_id=scoped_owner_user_id(identity.username))
+        return result
 
     @application.post("/api/auth/owner/register")
     async def owner_register(
@@ -439,7 +443,10 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
         await require_owner(request)
         if not isinstance(auth, OwnerAuth):
             raise HTTPException(status_code=404, detail="owner_auth_disabled")
-        return await asyncio.to_thread(auth.reset_password, username=username, new_password=body.newPassword)
+        result = await asyncio.to_thread(auth.reset_password, username=username, new_password=body.newPassword)
+        # The member's devices are signed out, so their lock-screen push stops too.
+        store.delete_push_subscriptions(user_id=scoped_owner_user_id(username))
+        return result
 
     @application.put("/api/admin/users/{username}")
     async def admin_update_user(

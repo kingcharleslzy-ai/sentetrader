@@ -4288,6 +4288,10 @@ export interface components {
             strategyGuide?: {
                 [key: string]: unknown;
             } | null;
+            /** Dockpanels */
+            dockPanels?: string[] | null;
+            /** Dockgroups */
+            dockGroups?: string[][] | null;
             /** Strategyeditor */
             strategyEditor?: {
                 [key: string]: unknown;

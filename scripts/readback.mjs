@@ -19,7 +19,8 @@
 //        [--monitor <seconds>] [--no-monitor]
 //   node scripts/readback.mjs --selftest --runtime <sha> --web <sha>   # a wrong expectation must fail the run
 //
-// Plan steps (run in order; `cleanup` steps always run afterwards, then the window's view and panel are restored):
+// Plan steps (run in order; once the identity, version and window checks pass and the steps begin, `cleanup` steps
+// always run afterwards — a run refused before that writes nothing — then the window's view and panel are restored):
 //   {"ui": {<UI command changes>}, "expect": {"panel": "news", "news.tab": "debate"}}
 //   {"api": "PUT /api/account/trade-playbooks/{{roundId}}", "body": {...}, "status": 200,
 //    "expect": {"body.playbookName": "验收打法"}, "save": {"roundId": "body.trades.0.id"}}
@@ -143,7 +144,7 @@ async function run({ plan, expected, out, monitorSeconds }) {
   const allowed = new RegExp(plan.allowWrites?.length ? plan.allowWrites.join("|") : "$^");
   // Once the window registers, every API step speaks for the window's trading account: the session's default
   // account can be another one, whose round trip ids the window would refuse (10-25 第 2 批后半回读).
-  let windowId, account; const saved = {}; let original;
+  let windowId, account; const saved = {}; let original, begun = false;
   page.on("pageerror", error => result.pageErrors.push(String(error)));
   // The script's own requests that failed (a 409 it re-sends, a status a step expects) are judged by the
   // script itself; the browser's "Failed to load resource" line for them is not the page's error.
@@ -257,12 +258,14 @@ async function run({ plan, expected, out, monitorSeconds }) {
     account = original.tradingAccount;
     result.account = account;
     saved.windowId = windowId;  // `{{windowId}}`: this run's web window (a chat message sent with it reads its chart)
+    begun = true;
     for (const raw of plan.steps ?? []) await step(raw, result.steps);
   } catch (error) {
     result.failure = String(error.message ?? error);
     await page.screenshot({ path: join(out, "failure.png"), fullPage: true }).catch(() => {});
   } finally {
-    for (const raw of plan.cleanup ?? []) {
+    // A run refused before its steps (wrong user, version, liveTrading) wrote nothing, so it cleans nothing up.
+    for (const raw of begun ? plan.cleanup ?? [] : []) {
       try { await step(raw, result.cleanup); } catch (error) { result.cleanupFailure = [...(result.cleanupFailure ?? []), String(error.message ?? error)]; }
     }
     // One interface field per command (the Runtime refuses more): the view, then the panel.
