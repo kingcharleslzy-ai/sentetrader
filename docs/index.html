@@ -20,7 +20,7 @@
 <meta name="twitter:title" content="Sente 弈先 · AI 私人交易助理">
 <link rel="icon" href="https://qilinshuzhi.com/favicon.ico">
 <link rel="preload" href="https://qilinshuzhi.com/static/fonts/NotoSerifSC-Black.subset.woff2" as="font" type="font/woff2" crossorigin>
-<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Sente", "alternateName": "弈先", "applicationCategory": "FinanceApplication", "operatingSystem": "macOS, Windows", "softwareVersion": "1.9.7", "description": "一个 AI 看多，一个 AI 看空，吵完再给你结论。盯盘、研究、下单、复盘，交给你自己的 AI 交易助理。", "downloadUrl": ["https://qilinshuzhi.com/downloads/ai-trader/AI-Trader_latest_aarch64.dmg", "https://qilinshuzhi.com/downloads/ai-trader/AI-Trader_latest_x64-setup.exe"], "author": {"@type": "Organization", "name": "杭州富阳启临数智科技工作室", "url": "https://qilinshuzhi.com/"}}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Sente", "alternateName": "弈先", "applicationCategory": "FinanceApplication", "operatingSystem": "macOS, Windows", "softwareVersion": "1.9.8", "description": "一个 AI 看多，一个 AI 看空，吵完再给你结论。盯盘、研究、下单、复盘，交给你自己的 AI 交易助理。", "downloadUrl": ["https://qilinshuzhi.com/downloads/ai-trader/AI-Trader_latest_aarch64.dmg", "https://qilinshuzhi.com/downloads/ai-trader/AI-Trader_latest_x64-setup.exe"], "author": {"@type": "Organization", "name": "杭州富阳启临数智科技工作室", "url": "https://qilinshuzhi.com/"}}</script>
 <script>
 document.documentElement.classList.add('js');
 addEventListener('error',()=>document.documentElement.classList.remove('js'));
@@ -768,7 +768,7 @@ html:not(.js) .tabp+.tabp{margin-top:24px}
         <a class="btn btn-ghost" href="https://qilinshuzhi.com/downloads/ai-trader/AI-Trader_latest_x64-setup.exe" download aria-label="下载 Windows 版"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5 10.4 4.5v7H3zm8.3-1.1L21 3v8.5h-9.7zM3 12.5h7.4v7L3 18.5zm8.3 0H21V21l-9.7-1.4z"/></svg>Windows</a>
         <a class="webapp" href="https://qilinshuzhi.com/trader/" aria-label="打开网页版，不装也能用"><span class="wa-live" aria-hidden="true"><i></i>LIVE</span><svg class="wa-spark" viewBox="0 0 44 22" aria-hidden="true"></svg><span class="wa-label" aria-hidden="true"><span>不装也能用 · 网页版</span><span>qilinshuzhi.com/trader</span></span><span class="wa-go" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a>
       </div>
-      <p class="meta">v<span data-release-version>1.9.7</span> · macOS 13+ Apple Silicon · Windows 10/11 x64 · 快期模拟账户 · <a href="https://qilinshuzhi.com/downloads/ai-trader/SHA256SUMS">SHA-256</a></p>
+      <p class="meta">v<span data-release-version>1.9.8</span> · macOS 13+ Apple Silicon · Windows 10/11 x64 · 快期模拟账户 · <a href="https://qilinshuzhi.com/downloads/ai-trader/SHA256SUMS">SHA-256</a></p>
     </div>
 
     <div class="team" id="team" aria-label="Sente 的三位 AI 成员">
@@ -1143,8 +1143,8 @@ html:not(.js) .tabp+.tabp{margin-top:24px}
 
 <section class="facts" aria-label="Sente 进展">
   <div class="wrap">
-    <div class="fact rv"><b data-n="75">75<sup>天</sup></b><span>从第一行代码到今天</span></div>
-    <div class="fact rv"><b>v<span data-release-version>1.9.7</span></b><span>当前版本</span></div>
+    <div class="fact rv"><b data-n="76">76<sup>天</sup></b><span>从第一行代码到今天</span></div>
+    <div class="fact rv"><b>v<span data-release-version>1.9.8</span></b><span>当前版本</span></div>
     <div class="fact rv"><b>今天</b><span>最近一次更新</span></div>
     <div class="fact rv"><b data-n="3">3<sup>端</sup></b><span>macOS · Windows · 网页</span></div>
   </div>
@@ -1167,7 +1167,9 @@ html:not(.js) .tabp+.tabp{margin-top:24px}
   <div class="wrap">
     <h3 id="log-title">更新日志</h3>
     
-    <details open><summary>v1.9.7 <span>2026-11-08</span></summary><ul><li>电脑没有麦克风等语音接通失败时，错误提示约 3 秒后消失，AI 小球自动回到待机。</li><li>查看历史日复盘时，按所选交易日取平仓记录，不再因记录距今天超过 30 天而漏掉。</li></ul></details>
+    <details open><summary>v1.9.8 <span>2026-11-09</span></summary><ul><li>国内期货休市时也能下单：确认后等下一段开盘，由服务端重新核对后发出；开盘 5 分钟内没发出就停在“待发送”，不会过后补发。</li><li>外盘（美元账户）委托不再在委托栏重复两行、撤单后不再残留，对话里的平仓卡成交后显示“已成交”。</li><li>外盘快捷平仓、反手落在持仓实际所在的月份，不会在主力月份误开仓。</li><li>条件提醒在提醒记录里标“条件提醒”，响过一次或到期的显示“已结束”。</li><li>改登录密码或被重置密码后，所有设备的锁屏提醒一起关掉。</li><li>看板一批修复：AI 摆放不再串到另一套看板，委托、持仓、快讯等小卡如实显示待发送、读不到和陈旧状态。</li></ul></details>
+    
+    <details><summary>v1.9.7 <span>2026-11-08</span></summary><ul><li>电脑没有麦克风等语音接通失败时，错误提示约 3 秒后消失，AI 小球自动回到待机。</li><li>查看历史日复盘时，按所选交易日取平仓记录，不再因记录距今天超过 30 天而漏掉。</li></ul></details>
     
     <details><summary>v1.9.6 <span>2026-11-07</span></summary><ul><li>AI 还在思考或输出时不提前亮蓝点。</li><li>收起对话或滚离底部后，正式回答完成时亮蓝点；打开看到回答或滚回底部后消失。</li></ul></details>
     
@@ -1184,8 +1186,6 @@ html:not(.js) .tabp+.tabp{margin-top:24px}
     <details><summary>v1.9.0 <span>2026-11-06</span></summary><ul><li>新增铺满一屏的看板：图表、持仓、下单、自选、作战表等自由拼放，支持独立图表、颜色联动和让 AI 帮忙摆。</li><li>顶栏与图表按实际空间逐级收起，窄窗口、大字号和不同尺寸的看板更易读。</li><li>今日作战表合并今日判断，条件提醒、画线提醒和追踪止损入口更顺手。</li><li>外盘增加更多品种、美元持仓与复盘，交易时段、手续费和保证金按外盘口径显示。</li><li>多 AI 辩论加入四类分析师与复盘，新闻与调研共用推送，减少重复读取。</li><li>汇集自 1.8.1 桌面版以来的模拟交易、复盘、提醒及运行稳定性修复。</li></ul></details>
     
     <details><summary>v1.8.1 <span>2026-10-20</span></summary><ul><li>外盘：报价页新增外盘分组（COMEX 金银铜、原油、LME 金属、美豆等），点行即开图表；本站模拟多一个“本站模拟 · 美元”子账户，外盘也能下单，按交易所正式结算价逐日结算。</li><li>外盘策略与回测：外盘图表上可以从模板或描述建策略并回测；只接了行情的品种（伦铜、伦铝、美棉等）在合约列表标“仅行情”。</li><li>K 线十字光标：鼠标停在 K 线上，左上角列出这根 K 线的时间、开高低收、涨跌、成交量和持仓量，读数带底色，不被蜡烛压住。</li><li>下单更顺：对话卡点“确认”直接提交；持反向仓说“卖 / 买一手”先问平仓还是开新仓；切换账户后交易卡按自己的账户显示状态。</li><li>修复一批：图表 CCI 横盘归零、合约目录偶尔读不到时不再答错、AI 建的策略进“我的策略”、回放页头不再显示推算值、提醒不再重复。</li></ul></details>
-    
-    <details><summary>v1.8.0 <span>2026-10-17</span></summary><ul><li>下单统一出卡：打字、语音说的下单都先出一张确认卡，一句话说两单按顺序出两张卡、各自确认；同品种不同月份可各自一单，改单只改你说到的部分。</li><li>提醒中心：成交、撤单、保本等提醒集中在一处，按成交去重，两个账户时标题带账户名。</li><li>回答卡：AI 给的行情读数由程序按实际读到的数据填写，结论与数值一致，回答更快、更省。</li><li>本站模拟更接近真实交易：按盘口排队成交、交易所结算价逐日盯市，开仓成本按笔先开先平。</li><li>语音：说话直接查行情、直接出卡；语音通道无响应时自动重连并重念，不再静默卡住。</li><li>行情与回放：报价推送只推看得见的、K 线增量更新；回放从当天第一根 1 分钟线开盘开始，每步一根 1 分钟 K 线。</li><li>Windows 桌面退出时按“进程号 + 创建时间”认领本程序启动的进程再结束，大幅降低误关同号其他程序的可能（创建时间按整秒比较，同一秒内的进程号复用仍无法区分，下个桌面版本在 Windows 真机复核）。</li></ul></details>
     
   </div>
 </section>
