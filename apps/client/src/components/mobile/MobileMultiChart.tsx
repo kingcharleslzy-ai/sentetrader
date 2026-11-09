@@ -20,19 +20,22 @@ const cellKey = (symbol: string, duration: number) => `${symbol.toUpperCase()}@$
  * chart's series (renewed by its own reads) is never the one pushed out. A read refused for the subscription
  * cap marks its cell `limited` and is retried on the next round.
  */
+/** A `symbol@duration` key split at its last "@": a 外盘主连 symbol (KQD.m@COMEX.MGC) carries an "@" of its own. */
+const splitKey = (key: string): [string, number] => { const at = key.lastIndexOf("@"); return [key.slice(0, at), Number(key.slice(at + 1))]; };
+
 export function useMultiChartReads(baseUrl: string | undefined, cells: readonly ResolvedCell[], active: boolean,
   own: { symbol?: string; duration?: number; market?: MarketWorkbenchSnapshot; error?: string }): Map<string, CellRead> {
   const [readState, setReadState] = useState<{ baseUrl?: string; reads: Map<string, CellRead> }>(() => ({ baseUrl, reads: new Map() }));
   // Reject the previous Runtime synchronously; effect cleanup only retires its pending reads.
   const ownKey = own.symbol && own.duration ? cellKey(own.symbol, own.duration) : "";
   const keys = useMemo(() => [...new Set(cells.flatMap(cell => cell.symbol ? [`${cell.symbol}@${cell.duration}`] : []))]
-    .filter(key => cellKey(key.split("@")[0], Number(key.split("@")[1])) !== ownKey).sort().join("|"), [cells, ownKey]);
+    .filter(key => cellKey(...splitKey(key)) !== ownKey).sort().join("|"), [cells, ownKey]);
   useEffect(() => {
     if (!baseUrl || !active || !keys) return;
     let stopped = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const controller = new AbortController();
-    const list = keys.split("|").map(key => { const [symbol, duration] = key.split("@"); return { symbol, duration: Number(duration) as Duration }; });
+    const list = keys.split("|").map(key => { const [symbol, duration] = splitKey(key); return { symbol, duration: duration as Duration }; });
     const round = async () => {
       if (document.visibilityState !== "hidden") {
         await Promise.all(list.map(async ({ symbol, duration }) => {
