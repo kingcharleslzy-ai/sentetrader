@@ -558,7 +558,7 @@ export const COMMANDABLE: Rule[] = [
   { match: control => control.role === "select" && /^第 \d+ 格指标$/.test(control.label), via: "preference: chart.subPaneList（该格换成所选指标；别格在用的类型禁用并注明所在格）" },
   { match: control => control.role === "button" && control.label === "移除这一格" && /^(chart-|settings-chart)/.test(control.surface), via: "preference: chart.subPaneList（移除该格副图）" },
   { match: /^(KD|MACD|RSI|持仓量|CCI|成交量)副图(（已在第 \d+ 格）)?$/, via: "preference: chart.subPaneList（追加该类型副图，最多 3 格；已在别格的禁用并注明位置）" },
-  { match: control => control.role === "button" && control.label === "关闭" && /^(chart-(ma-editor|pane-editor|pane-add|drawing-tools|periods-more)|board-columns|board-chart-pick|price-alerts|contract-info)$/.test(control.surface), via: "disclosure: 对应编辑卡 {open: false}" },
+  { match: control => control.role === "button" && control.label === "关闭" && /^(chart-(ma-editor|pane-editor|pane-add|drawing-tools|periods-more)|board-columns|board-chart-(pick|pane-add)|price-alerts|contract-info)$/.test(control.surface), via: "disclosure: 对应编辑卡 {open: false}" },
   { match: /^全局急停$/, via: "dialog: emergency-stop" },
   { match: /^AI 已急停 · 恢复$/, via: "dialog: resume-execution（顶栏恢复按钮，急停后出现）" },
   { match: /^恢复默认布局$/, via: "presentation: {reset: true}" },
@@ -636,7 +636,7 @@ export const COMMANDABLE: Rule[] = [
   { match: control => control.group === "chart:drawing-style" && control.label === "精确设置", via: "disclosure: {name: chart-drawing-settings, id: <线 id>}" },
   { match: control => control.group === "chart:drawing-settings" && control.label === "关闭", via: "disclosure: {name: chart-drawing-settings, id: <线 id>, open: false}" },
   // The chart's right-click menus (group chart:context-menu) and their submenus.
-  { match: control => control.group === "chart:context-menu" && control.label === "画线", via: "disclosure: {name: chart-context-menu, id: main/draw}" },
+  { match: control => control.group === "chart:context-menu" && /^画线(在交易台画：|$)/.test(control.label), via: "disclosure: {name: chart-context-menu, id: main/draw}" },
   { match: control => control.group === "chart:context-menu" && /^周期/.test(control.label), via: "disclosure: {name: chart-context-menu, id: main/period}" },
   { match: control => control.group === "chart:context-menu" && /^在这里设提醒/.test(control.label), via: "disclosure: {name: chart-context-menu, id: main/alert}" },
   { match: control => control.group === "chart:context-menu" && /^价格到 .+ 时提醒我$/.test(control.label), via: "POST /api/market/alerts（图表右键 · 在这里设提醒，价取自点击处并已按 tick 对齐）" },

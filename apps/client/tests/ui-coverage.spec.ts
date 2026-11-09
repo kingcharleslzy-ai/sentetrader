@@ -11,12 +11,20 @@ import { classify, staleKnownGaps, type Control } from "./support/uiCoverage";
  */
 type Raw = Omit<Control, "surface" | "observed"> & { inDialog: boolean };
 const collectControls = (page: Page) => page.evaluate((): Raw[] => {
-  // What the user can act on right now: rendered, not aria-hidden, and inside the viewport (the snapshot
-  // additionally lists scrolled-out content of scroll regions, so anything counted here must be in it).
+  // What the user can act on right now: rendered, not aria-hidden, inside the viewport and not clipped away by an
+  // `overflow: hidden` ancestor below the nearest scroll container, as in uiObservation.ts (a narrow board block cuts
+  // its chart's ＋ 副图 off). The snapshot additionally lists scrolled-out content of scroll regions, so anything
+  // counted here must be in it.
   const visible = (el: Element) => {
     if (el.closest("[aria-hidden=true]")) return false;
     const r = el.getBoundingClientRect(); const s = getComputedStyle(el);
-    return r.width > 0 && r.height > 0 && s.visibility !== "hidden" && s.display !== "none" && s.opacity !== "0"
+    let { left, top, right, bottom } = r;
+    for (let parent = el.parentElement; parent; parent = parent.parentElement) {
+      const overflow = getComputedStyle(parent); const value = overflow.overflow + overflow.overflowX + overflow.overflowY;
+      if (/auto|scroll/.test(value)) break;
+      if (/hidden|clip/.test(value)) { const b = parent.getBoundingClientRect(); left = Math.max(left, b.left); right = Math.min(right, b.right); top = Math.max(top, b.top); bottom = Math.min(bottom, b.bottom); }
+    }
+    return r.width > 0 && r.height > 0 && s.visibility !== "hidden" && s.display !== "none" && s.opacity !== "0" && right > left && bottom > top
       && r.right > 0 && r.bottom > 0 && r.left < innerWidth && r.top < innerHeight;
   };
   // Same derivation as uiObservation.ts so labels compare 1:1 with the snapshot's controls.
@@ -29,8 +37,10 @@ const collectControls = (page: Page) => page.evaluate((): Raw[] => {
       role: el.getAttribute("role") || (el instanceof HTMLInputElement ? `input:${el.type}` : el.tagName.toLowerCase()),
       label: label(el), disabled: el.hasAttribute("disabled") || el.getAttribute("aria-disabled") === "true",
       inDialog: Boolean(el.closest("dialog[open], [role=dialog]")),
-      // Where it sits: its settings category, else the nearest agent target (e.g. the quick-skills bar).
-      group: el.closest(".app-settings-section")?.getAttribute("aria-label") || el.closest("[data-agent-target]")?.getAttribute("data-agent-target") || "",
+      // Where it sits: the nearer of its settings category and its agent target (e.g. the quick-skills bar, or a menu
+      // inside a settings section such as 保存的布局).
+      group: (() => { const section = el.closest(".app-settings-section"), target = el.closest("[data-agent-target]");
+        return (section && !(target && section.contains(target)) ? section.getAttribute("aria-label") : target?.getAttribute("data-agent-target")) || ""; })(),
     }));
 });
 
@@ -146,6 +156,10 @@ function auditDailyReview() {
     observation: { text: "你看到提醒后会先平一半", legs: ["L1", "L2"], tradeIds: ["L1", "L2"], key: "audit", status: "pending" }, rules: ["计划内：…"] });
   return { review: review("2026-10-09"), days: ["2026-10-09", "2026-10-08"], generatedAt: null, generateAt: "15:15", rules: ["计划内：…"] };
 }
+
+// The audit checks controls, not motion: with reduced motion a closed sheet leaves at once. Otherwise a closing 设置
+// stays modal for its 200 ms fade (motion.tsx `Presence`) and keys typed right after (the 对话 turn below) land on it.
+test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 test("every user-operable control is commandable or reachable, and visible to the snapshot", async ({ page, browser }, testInfo) => {
   test.setTimeout(1_200_000);  // 20 min (was 12): the run measured 11.6 min locally (多 AI 研讨 2026-10-11) and grows with each surface — 12 min left no headroom under CI load (runs under playwright.execution.config.ts, workers: 1)
@@ -270,7 +284,7 @@ test("every user-operable control is commandable or reachable, and visible to th
     ["chart-grid", [{ desktopCharts: { layout: "four" } }], true],
     ["", [{ desktopCharts: { layout: "single" } }], false],
     // 自由布局 (2026-11-02): the 保存的布局 dropdown lives in 设置 → 界面 (2026-11-04).
-    ["workspace-layouts", [{ settingsPage: "ui" }, { disclosure: { name: "workspace-layouts", open: true } }], true],
+    ["settings-workspace-layouts", [{ settingsPage: "ui" }, { disclosure: { name: "workspace-layouts", open: true } }], true],
     ["", [{ disclosure: { name: "workspace-layouts", open: false } }, { settingsOpen: false }], false],
     // 看板 · 铺满版 (2026-11-05): the 盘中 board as it starts, the header's board list (on the board: 编辑 / 改名 / 删除), its right-click menu,
     // then editing 复盘 (大档持仓) with the 模块库, a block's ⋯, the 让 AI 帮我摆 card and an arrangement's preview, back to trade.
@@ -291,7 +305,7 @@ test("every user-operable control is commandable or reachable, and visible to th
     ["", [{ disclosure: { name: "board-chart-pick", id: "chart-2", open: false } }, { disclosure: { name: "board-tile-menu", id: "chart-2", open: true } }], false],
     // 模块补全 (2026-11-06): 账户权益、委托与成交、运行中的策略、快讯、复盘盈亏 on the board, then off again.
     ["board-more-modules", [{ disclosure: { name: "board-tile-menu", id: "chart-2", open: false } }, { boards: { take: "chart-2" } },
-      { boards: { place: { module: "account", target: "order", side: "bottom" } } }, { boards: { place: { module: "orders", target: "account", side: "right" } } },
+      { boards: { place: { module: "account", target: "sheet", side: "bottom" } } }, { boards: { place: { module: "orders", target: "account", side: "right" } } },
       { boards: { place: { module: "strategies", target: "chart", side: "right" } } }, { boards: { place: { module: "flash", target: "strategies", side: "bottom" } } },
       { boards: { place: { module: "pnl", target: "positions", side: "right" } } }], true],
     ["board-debate-notes-briefs", [{ boards: { take: "account" } }, { boards: { take: "orders" } }, { boards: { take: "strategies" } }, { boards: { take: "pnl" } },
@@ -517,7 +531,7 @@ test("every user-operable control is commandable or reachable, and visible to th
     if (capped) capReached.push(surface);
     // With a dialog open the snapshot is rooted at the dialog (by design): audit the dialog's controls only.
     // The settings drawer and the chart labels' popovers (disclosures, 2026-10-02) both root the observation.
-    const dialogOpen = Boolean(snapshot.state.dialog) || surface.startsWith("settings-") || /^(chart-(ma-editor|pane-editor|pane-add|drawing-tools|drawing-settings|drawing-clear|periods-more)|board-columns|price-alerts|reminder-center|reminder-center-unread|contract-info|mobile-order|mobile-install|mobile-strategy-editor-sheet|mobile-strategy-editor-picker|mobile-strategy-editor-backtest|mobile-quote-columns|mobile-row-actions|mobile-chart-cell|mobile-subpanes|mobile-drawing-toolbar)$/.test(surface);
+    const dialogOpen = Boolean(snapshot.state.dialog) || surface.startsWith("settings-") || /^(chart-(ma-editor|pane-editor|pane-add|drawing-tools|drawing-settings|drawing-clear|periods-more)|board-chart-(pick|pane-add)|board-columns|price-alerts|reminder-center|reminder-center-unread|contract-info|mobile-order|mobile-install|mobile-strategy-editor-sheet|mobile-strategy-editor-picker|mobile-strategy-editor-backtest|mobile-quote-columns|mobile-row-actions|mobile-chart-cell|mobile-subpanes|mobile-drawing-toolbar)$/.test(surface);
     for (const { inDialog, ...item } of raw) if (!dialogOpen || inDialog) controls.push({ ...item, surface, observed: capped || observed.has(item.label) });
   } };
   // The first surface opens right after the page loads, and the observation rides on the heartbeat (an
@@ -605,7 +619,7 @@ test("every user-operable control is commandable or reachable, and visible to th
   // the chat page and the four tab pages, each opened by `mobileTab` in a window of its own device.
   {
     const phoneDevice = crypto.randomUUID();
-    const phoneContext = await browser.newContext({ baseURL: testInfo.project.use.baseURL, viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    const phoneContext = await browser.newContext({ baseURL: testInfo.project.use.baseURL, viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, reducedMotion: "reduce" });
     await phoneContext.addInitScript(id => localStorage.setItem("ai-trader:web-device", id), phoneDevice);
     await briefRoutes(phoneContext);
     await reminderRoutes(phoneContext);
