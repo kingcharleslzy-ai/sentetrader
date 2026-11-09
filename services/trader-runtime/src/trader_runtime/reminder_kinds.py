@@ -32,6 +32,8 @@ KINDS: dict[str, ReminderKind] = {
     # 目标持仓下一步 (the relay's own notice; its next-leg card is the business and always lands).
     "target_plan": ReminderKind("目标持仓", "trade", "notify.orderUnfilled"),
     "strategy": ReminderKind("策略", "trade", "notify.strategySignalAlerts"),
+    # 条件提醒 (提醒页的提醒, `plan.reminderOnly`): its own tag, the 策略 switch as before.
+    "condition_reminder": ReminderKind("条件提醒", "trade", "notify.strategySignalAlerts"),
     "fill": ReminderKind("成交", "trade", "notify.desktop.fills"),
     "cancel": ReminderKind("撤单", "trade", "notify.desktop.cancels"),
     "price_alert": ReminderKind("到价", "trade", "notify.desktop.priceAlerts"),

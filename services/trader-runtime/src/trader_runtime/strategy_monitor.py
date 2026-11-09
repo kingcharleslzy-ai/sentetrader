@@ -1264,10 +1264,11 @@ class StrategyMonitorService:
         first = (cards or [(None, {})])[0][1]
         card_id = first.get("proposalId") or first.get("cardId")
         voice = self.voice_lookup() if self.voice_lookup is not None and speak else None
+        reminder = bool(((strategy.get("definition") or {}).get("plan") or {}).get("reminderOnly"))
         delivery = await deliver_via_store(self.store, ReminderSpec(
-            kind="strategy", user_id=user_id, account_id=self.account_id,
+            kind="condition_reminder" if reminder else "strategy", user_id=user_id, account_id=self.account_id,
             dedupe_key=f"{strategy['strategyId']}:{dedupe_key}" if dedupe_key else turn,
-            title=f"策略 · {self._display_name(strategy)}", body=text, symbol=str(strategy.get("symbol") or ""),
+            title=f"{'条件提醒' if reminder else '策略'} · {self._display_name(strategy)}", body=text, symbol=str(strategy.get("symbol") or ""),
             message=text, turn_id=turn, cards=list(cards or []), session_id=session_id, auto_landing=False,
             essential=kind in ESSENTIAL_NOTICE_KINDS, speech=text if speak else None, voice_kind=kind,
             voice_key=str(strategy["strategyId"]),

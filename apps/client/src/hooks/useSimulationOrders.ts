@@ -281,7 +281,7 @@ export function useSimulationOrders({ handle, busy, ticket, accountId, cardAccou
         const result = await confirmProposal(baseUrl, answer.proposalId, answer.approvalId, answer.proposalVersion);
         if (!isCurrentOrderContext()) return false;
         const placed = result.simulationOrder ? [result.simulationOrder] : (result.simulationOrders ?? []).filter(order => Boolean(order.id));
-        setSimulationOrders(orders => [...placed, ...orders.filter(order => !placed.some(item => item.clientOrderId === order.clientOrderId))]);
+        recordConfirmedOrders(placed[0]?.accountId, placed);
         ticket.current.onAccountChanged();
         setToast(`反手已确认：${answer.targetPosition?.summary ?? request.symbol}`);
         return true;
@@ -377,10 +377,9 @@ export function useSimulationOrders({ handle, busy, ticket, accountId, cardAccou
         ...proposal.orders.filter((_, index) => !children[index]?.id)
           .map(order => ({ volume: order.volume, label: `${order.symbol.split(".").at(-1)} 委托未生成，未发送` })),
       ] : [];
-      setSimulationOrders((orders) => [
-        ...placed,
-        ...orders.filter((order) => !placed.some((item) => item.clientOrderId === order.clientOrderId))
-      ]);
+      // A foreign symbol's order is the USD sub-account's: it joins that account's list (its card reads it there),
+      // never the current 委托 list, which shows the sub-account's orders from the foreign half already.
+      recordConfirmedOrders(placed[0].accountId, placed);
       setToast(batch
         // The Runtime counts this from the persisted orders; never from what we asked for.
         ? `手工模拟平仓${result.execution?.text?.replace(/^已确认，?/, "：") ?? "已确认"}，逐笔见委托栏`

@@ -9,14 +9,14 @@ import { SwipeRow } from "../mobile/RowActions";
 import { HelpTip } from "../Blocks";
 
 const REFRESH_MS = 30_000;
-const STATUS: Record<string, string> = { monitoring: "提醒中", paused: "已暂停" };
+const STATUS: Record<string, string> = { monitoring: "提醒中", paused: "已暂停", ended: "已结束" };
 export const MY_REMINDERS_HELP = "你设的提醒都在这一张表里，满足时发一条提醒（对话、桌面通知、锁屏推送），不出卡、不下单。"
   + "到某个价：价格到了提醒一次，提醒过就从表里移走，记进提醒记录；点合约名切到那个合约的图。"
   + "碰到我画的线：在图上一条线的右键或样式条点“这条线被碰到时提醒我”，斜线按它此刻在图上的位置判断，挪线提醒跟着走，删线提醒也删。"
   + "按条件：在提醒编辑卡里选条件和提醒时段，判断、监控和推送和策略是同一套，同一个信号只提醒一次，也不出现在“我的策略”。";
 
 type RunStatus = "monitoring" | "paused";
-export type ReminderRow = { id: string; name: string; status: RunStatus | "idle"; symbol: string | null;
+export type ReminderRow = { id: string; name: string; status: RunStatus | "ended" | "idle"; symbol: string | null;
   runs: Array<{ runId: string; status: RunStatus }> };
 
 /** A 提醒 (library strategy with `plan.reminderOnly`) and every live instance of it (one per contract it was started on):
@@ -24,7 +24,8 @@ export type ReminderRow = { id: string; name: string; status: RunStatus | "idle"
 export function reminderRows(items: SavedStrategy[], executions: SavedStrategy[]): ReminderRow[] {
   return items.filter(item => item.definition.plan?.reminderOnly).map(item => {
     const live = executions.filter(entry => entry.definition.libraryStrategyId === item.strategyId && (entry.status === "monitoring" || entry.status === "paused"));
-    const status: ReminderRow["status"] = live.some(run => run.status === "monitoring") ? "monitoring" : live.length ? "paused" : "idle";
+    const ended = executions.some(entry => entry.definition.libraryStrategyId === item.strategyId && entry.endedAt);
+    const status: ReminderRow["status"] = live.some(run => run.status === "monitoring") ? "monitoring" : live.length ? "paused" : ended ? "ended" : "idle";
     return { id: item.strategyId, name: item.name, status, symbol: live.length ? live.map(run => run.symbol).join("、") : null,
       runs: live.map(run => ({ runId: run.strategyId, status: run.status as RunStatus })) };
   });

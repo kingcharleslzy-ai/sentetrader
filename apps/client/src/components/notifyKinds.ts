@@ -23,6 +23,7 @@ export const REMINDER_KINDS: Record<string, ReminderKindInfo> = {
   // 目标持仓下一步 (the relay's own notice; governed by 挂单未成交's switch).
   target_plan: { label: "目标持仓", icon: Crosshair, tone: "warning" },
   strategy: { label: "策略出卡", icon: FlaskConical, tone: "accent" },
+  condition_reminder: { label: "条件提醒", icon: BellRing, tone: "alert" },
   fill: { label: "成交", icon: ArrowLeftRight, tone: "positive" },
   cancel: { label: "撤单", icon: ArrowLeftRight, tone: "warning" },
   price_alert: { label: "到价", icon: BellRing, tone: "alert" },

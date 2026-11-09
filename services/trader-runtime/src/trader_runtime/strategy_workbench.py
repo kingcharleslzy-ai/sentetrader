@@ -432,8 +432,16 @@ def register_workbench(application, current_user, root, adapter, store, broker, 
                            "planRows": rows_for(item.get("definition") or {}),
                            "latestBacktest": latest.get(item["strategyId"])}
                           for item in store.list_strategy_library(user_id=user)],
-                "executions": [item for item in store.list_strategy_drafts(user_id=user, limit=50)
+                "executions": [ended_reminder(item, user) for item in store.list_strategy_drafts(user_id=user, limit=50)
                                if item["definition"].get("libraryStrategyId")]}
+
+    def ended_reminder(item: dict, user: str) -> dict:
+        """A 提醒 that is done (响过一次 / 到期) goes back to ready like one never started; one that once ran
+        carries `endedAt` so 我的提醒 reads 已结束, not 未开始."""
+        if (item["status"] == "ready" and ((item["definition"].get("plan") or {}).get("reminderOnly"))
+                and store.monitoring_since(strategy_id=item["strategyId"], user_id=user)):
+            return {**item, "endedAt": item["updatedAt"]}
+        return item
 
     def rows_for(definition: dict) -> list[dict] | None:
         try:

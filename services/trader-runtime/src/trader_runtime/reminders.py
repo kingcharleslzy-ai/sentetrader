@@ -378,7 +378,7 @@ class ReminderTarget(BaseModel):
 
 class ReminderItem(BaseModel):
     id: str
-    kind: str = Field(description="类别：stop_triggered / protection_cancelled / order_unfilled / target_plan / strategy / "
+    kind: str = Field(description="类别：stop_triggered / protection_cancelled / order_unfilled / target_plan / strategy / condition_reminder / "
                                   "fill / cancel / price_alert / market_close / risk_ratio / breakeven / delivery / "
                                   "market_movement / daily_review / morning_desk / research_debate / brief / emergency_stop")
     tradingDay: str

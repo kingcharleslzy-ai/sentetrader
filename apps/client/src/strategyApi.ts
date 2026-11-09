@@ -31,6 +31,8 @@ export type StrategyPlan = Omit<Schemas["StrategyPlan"], "rules" | "questions" |
   reminderOnly?: boolean;
 };
 export type SavedStrategy = { strategyId: string; name: string; symbol: string; version: number; status: string;
+  /** A 提醒 instance that ran and stopped itself (响过一次 / 到期), back to ready (2026-11-09). */
+  endedAt?: string | null;
   /** 执行方式 of a running instance (2026-09-25); absent on an older Runtime (= auto). */
   signalAction?: "alert" | "confirm" | "auto";
   /** 说人话 (2026-09-25): 详情's one sentence (the template's plain words, or the Runtime's describe_plan). */
