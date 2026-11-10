@@ -122,6 +122,27 @@ def test_gap_through_the_stop_fills_at_the_open():
     assert (trade["closePrice"], trade["exitReason"]) == (90, "stop_loss")   # stop 95, opened at 90
 
 
+def test_an_open_into_a_bar_locked_at_the_days_high_is_dropped():
+    # Bar 2 is one price at the day's high (封涨停): bar 1's open cannot buy there; bar 2's own signal fills at bar 3.
+    bars = series([(100, 101, 99, 100)] * 2 + [(105, 105, 105, 105), (105, 106, 104, 105), (105, 106, 104, 105)])
+    result = run(plan(), bars)
+    assert [(t["openTime"], t["openPrice"]) for t in result["trades"]] == [(bars[3]["datetime"], 105)]
+    assert any(note.startswith("1 次开仓") for note in result["notes"])
+
+
+def test_a_stop_in_a_locked_or_volumeless_bar_waits_for_the_next_fillable_open():
+    # Long at bar 2's open 100, stop 95. Bar 3 is one price at the day's low (封跌停), bar 4 traded nothing:
+    # the stop cannot sell in either and fills at bar 5's open.
+    bars = series([(100, 101, 99, 100)] * 3 + [(90, 90, 90, 90), (92, 92, 92, 92), (84, 85, 83, 84)])
+    bars[4]["volume"] = 0
+    result = run(plan(stopLossTicks=5), bars)
+    assert [(t["openPrice"], t["closeTime"], t["closePrice"], t["exitReason"]) for t in result["trades"]] == [
+        (100, bars[5]["datetime"], 84, "stop_loss")]
+    assert any(note.startswith("1 次平仓") for note in result["notes"])
+    # A source without volumes (every bar 0) is not "nobody traded": fills go on as usual.
+    assert run(plan(), [{**bar, "volume": 0} for bar in series([(100, 101, 99, 100)] * 5)])["trades"]
+
+
 def test_one_bar_touching_stop_and_take_counts_as_the_stop():
     p = plan(stopLossTicks=5, takeProfitTicks=5)
     rows = [(100, 101, 99, 100)] * 2 + [(100, 101, 99, 100), (100, 106, 94, 100)]

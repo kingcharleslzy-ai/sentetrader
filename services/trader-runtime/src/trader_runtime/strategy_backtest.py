@@ -24,6 +24,19 @@ Live parity
   bar (its low / high may have come before the entry: the conservative reading). 双向触价 (OCO,
   ``Decision.alternate``): both levels are armed; when bar k+1 reaches both, the one nearer its open is
   taken as reached first.
+* 涨跌停与无成交量 (2026-11-10, single-contract plans): a fill is not assumed in a bar nobody could
+  trade in that direction (``_unfillable``) — a bar with zero volume, or a bar whose whole range is
+  one price sitting at its trading day's high so far (封涨停: no buy) or low so far (封跌停: no sell).
+  The volume rule is off when the series carries no volume at all (every bar 0 or missing: a source
+  without the field, e.g. an MT5 feed with neither real nor tick volume).
+  That is an approximation: K-lines carry no daily limit price or settlement, so the limit itself
+  is never computed, and a quiet one-price bar at the day's extreme reads the same as a locked one.
+  An open (also 加仓 and 盘中触价) that cannot fill is dropped and counts for nothing, like live where
+  an unfilled open is cancelled; a close (rule / time exit, 分批止盈, stop / take / trailing, 回撤停机)
+  waits for the first later bar it can fill in and fills at that bar's open, and no new decision is
+  judged while it waits (live pauses the strategy when a close does not fill). Not covered: 价差
+  plans (the joined bars have no high / low / volume), 收盘前平仓 priced by the clock, the final
+  回测结束平仓, 成交量占比上限 and partial fills.
 * The live execution gates that sit outside the engine are applied the same way: cooldownBars
   (bars since the last executed open / rule or time exit), maxOrdersPerDay (opens per trading day),
   maxLoss (the day's closed net), perTradeRisk sizing and the structural-stop sanity check, and one
@@ -122,6 +135,10 @@ ASSUMPTIONS = (
     "历史逐日保证金不可得），并受账户可用资金与总手数上限约束；比例缩小不自动减持。",
     "回撤停机按每根K线收盘的扣费净值（含浮动盈亏）从本轮高点判断；触发后不再开仓，持仓按下一根K线开盘价平仓。"
     "实盘为触发即撤销未成交开仓单并按对手价平仓，会比回测更早离场。",
+    "涨跌停与无成交量（单合约策略）：K线没有成交量（行情源整段都不带成交量时不用这一条），或整根只有一个价且正是当天到那时为止的最高价（视为封涨停，买不进）"
+    "或最低价（视为封跌停，卖不出）时，不假设能成交——开仓作废、不计开仓次数；平仓与止损止盈顺延到之后第一根能成交的"
+    "K线开盘价，等待期间不做新判断。这是按K线形态的近似（历史逐日涨跌停价不可得）；价差策略、按钟点的收盘前平仓"
+    "与回测结束平仓不做这项检查。",
     "只按K线回放，不含盘中逐笔成交、排队与部分成交；历史表现不代表未来。",
 )
 
@@ -158,6 +175,16 @@ def _slipped(price: float, ticks: int, tick: float, *, buy: bool) -> float:
     if not ticks:
         return price
     return float(Decimal(str(price)) + Decimal(str(tick)) * ticks * (1 if buy else -1))
+
+
+def _unfillable(bar: dict[str, Any], day_high: float, day_low: float, *, buy: bool, volumes: bool) -> bool:
+    """No fill can be assumed in `bar` on this side: nothing traded (only when the series carries
+    volumes at all — `volumes`), or the whole bar is one price at its trading day's high so far
+    (封涨停, a buy) / low so far (封跌停, a sell)."""
+    if volumes and float(bar.get("volume") or 0) <= 0:
+        return True
+    high, low = float(bar["high"]), float(bar["low"])
+    return high == low and (high >= day_high if buy else low <= day_low)
 
 
 def _sample(points: list[dict[str, Any]], limit: int = EQUITY_POINTS) -> list[dict[str, Any]]:
@@ -268,6 +295,24 @@ def run_backtest_with_trades(setup: BacktestSetup, *, trace: Callable[[int, Posi
             return None
         return end - minutes * 60 * NS, end
 
+    # Each bar's trading-day high / low so far (itself included), for `_unfillable`.
+    day_highs: list[float] = []
+    day_lows: list[float] = []
+    if spread is None:
+        for i, item in enumerate(base):
+            fresh = i == 0 or days[i] != days[i - 1]
+            day_highs.append(float(item["high"]) if fresh else max(day_highs[-1], float(item["high"])))
+            day_lows.append(float(item["low"]) if fresh else min(day_lows[-1], float(item["low"])))
+
+    # A source that gives no volume (every bar 0 or missing) is "no data", not "nobody traded".
+    has_volumes = any(float(item.get("volume") or 0) > 0 for item in base)
+
+    def blocked(index: int, *, buy: bool) -> bool:
+        return spread is None and _unfillable(base[index], day_highs[index], day_lows[index], buy=buy,
+                                              volumes=has_volumes)
+
+    unfilled_opens = deferred_closes = 0
+    close_waited = False                       # the waiting close is already counted in deferred_closes
     slip = int(setup.slippage_ticks)
     balance = float(setup.initial_balance)
     realized = 0.0
@@ -436,23 +481,35 @@ def run_backtest_with_trades(setup: BacktestSetup, *, trace: Callable[[int, Posi
                                         (float(base[k - 1]["close"]), previous_close - timeframe * NS))
                 close_trade(price, k - 1, "close_before_end", state.bars_held, adds=state.adds, at=at)
                 state = flat_after_close(state)
+        waiting_close = False
         if spread is not None and pending_close is not None and open_trade is not None:
             closing, held, decided = pending_close
             after = int(base[decided]["datetime"])
             close_spread_trade([fill_or_last(0, after), fill_or_last(1, after)],
                                reason=closing.exitReason or "rule", bars=held.bars_held, day=days[k])
         elif pending_close is not None and open_trade is not None:
-            closing, held, _ = pending_close
-            close_trade(float(bar["open"]), k, closing.exitReason or "rule", held.bars_held,
-                        lots=closing.volume, adds=held.adds)
-        pending_close = None
+            if blocked(k, buy=open_trade["direction"] == "short"):
+                waiting_close = True     # 封板 / 无量: the close waits for the next bar
+            else:
+                closing, held, _ = pending_close
+                close_trade(float(bar["open"]), k, closing.exitReason or "rule", held.bars_held,
+                            lots=closing.volume, adds=held.adds)
+        if not waiting_close:
+            pending_close = None
         if drawdown_close:
             # 回撤停机: the previous bar breached the line — the held position fills at this
             # bar's open (live fires at once, at the opponent's price) and stays closed.
-            drawdown_close = False
-            if open_trade is not None:
+            if open_trade is None:
+                drawdown_close = False
+            elif not waiting_close and blocked(k, buy=open_trade["direction"] == "short"):
+                waiting_close = True
+            elif not waiting_close:
+                drawdown_close = False
                 close_trade(float(bar["open"]), k, "drawdown_stop", state.bars_held, adds=state.adds)
                 state = flat_after_close(state)
+        if waiting_close and not close_waited:
+            deferred_closes += 1
+        close_waited = waiting_close
         if drawdown_stopped and pending_open is not None:
             pending_open = None    # 回撤停机: this round's unfilled opens are cancelled, like live
         if pending_open is not None and spread is not None:
@@ -491,13 +548,18 @@ def run_backtest_with_trades(setup: BacktestSetup, *, trace: Callable[[int, Posi
                 net_by_day[days[k]] = net_by_day.get(days[k], 0.0) - open_fees
         elif pending_open is not None:
             reached = []
+            stuck = False
             for opening, volume, decided in pending_open:
                 long = opening.action == "open_long"
                 price_at = float(bar["open"]) if opening.entryTrigger is None else trigger_fill(opening.entryTrigger, bar, long=long)
-                if price_at is not None:
+                if price_at is not None and blocked(k, buy=long):
+                    stuck = True         # 封板 / 无量: this open is dropped
+                elif price_at is not None:
                     reached.append((abs(price_at - float(bar["open"])), opening, volume, decided, price_at))
             pending_open = None
-            if not reached:
+            if not reached and stuck:
+                unfilled_opens += 1
+            elif not reached:
                 lapsed_triggers += 1
             else:
                 _, opening, volume, decided, fill = min(reached, key=lambda item: item[0])
@@ -587,8 +649,10 @@ def run_backtest_with_trades(setup: BacktestSetup, *, trace: Callable[[int, Posi
         market = MarketContext(price_tick=tick, volume_multiple=multiple, equity=equity, funds=funds)
         decision: Decision | None
         try:
-            decision = step(plan, windows, state, market, daily=daily_window, schedule=setup.schedule,
-                            extended=extended, observe=observe)
+            # A close still waiting for a fillable bar: nothing new is judged (live pauses the strategy).
+            decision = None if waiting_close else step(
+                plan, windows, state, market, daily=daily_window, schedule=setup.schedule,
+                extended=extended, observe=observe)
         except StrategyRuleError:
             skipped += 1   # not enough bars for an indicator yet: live would not judge either
             decision = None
@@ -599,7 +663,12 @@ def run_backtest_with_trades(setup: BacktestSetup, *, trace: Callable[[int, Posi
             if action.startswith("close") and open_trade is not None:
                 reason = decision.exitReason or "rule"
                 held = decision.state or state
-                if decision.fillPrice is not None:
+                if decision.fillPrice is not None and blocked(k, buy=open_trade["direction"] == "short"):
+                    # The stop / take was touched in a bar that could not fill: next fillable open.
+                    pending_close = (decision, held, k)
+                    deferred_closes += 1
+                    close_waited = True
+                elif decision.fillPrice is not None:
                     close_trade(float(decision.fillPrice), k, reason, held.bars_held,
                                 lots=decision.volume, adds=held.adds)
                 else:
@@ -670,6 +739,11 @@ def run_backtest_with_trades(setup: BacktestSetup, *, trace: Callable[[int, Posi
         report["notes"].append("拿不到这个合约的交易时段，回测里收盘前平仓不会触发（实盘同样无法按时平，会提醒你手动处理）。")
     if lapsed_triggers:
         report["notes"].append(f"{lapsed_triggers} 次盘中触价单在下一根K线内没有触及价位，已作废（不计开仓次数）。")
+    if unfilled_opens:
+        report["notes"].append(f"{unfilled_opens} 次开仓因那根K线没有成交量或封在涨停/跌停，没有成交，已作废（不计开仓次数）。")
+    if deferred_closes:
+        report["notes"].append(f"{deferred_closes} 次平仓（含止损止盈）因K线没有成交量或封在涨停/跌停，"
+                               "顺延到之后第一根能成交的K线开盘价。")
     if lapsed_opens:
         report["notes"].append(f"{lapsed_opens} 次价差开仓因一腿历史K线先行结束没有成交（不计开仓次数）。")
     if estimated_closes:
