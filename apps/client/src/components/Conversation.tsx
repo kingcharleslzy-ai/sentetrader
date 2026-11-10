@@ -258,7 +258,7 @@ const adviceHeadings = new Map<string, Pick<AdviceSection, "key" | "title">>([
 ]);
 
 function cleanAdviceLine(value: string): string {
-  return value.replace(/^\s*(?:[-*]|\d+[.)])\s*/, "").replaceAll("**", "").trim();
+  return value.replace(/^\s*(?:[-*]|\d+[.)])(?!\d)\s*/, "").replaceAll("**", "").trim();
 }
 
 /** `partial`: the part of a reply that has typed out so far — whatever sections it has, even none. */

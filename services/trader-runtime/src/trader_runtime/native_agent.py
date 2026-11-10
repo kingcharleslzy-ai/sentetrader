@@ -2749,7 +2749,7 @@ class NativeAgentAdapter:
             if line.startswith("|"):
                 cells = [cell.strip() for cell in line.strip("|").split("|")]
                 line = "，".join(cell for cell in cells if cell)
-            line = re.sub(r"^\s*(?:[-*•]|\d+[.、)])\s*", "", line)
+            line = re.sub(r"^\s*(?:[-*•]|\d+[.、)])(?!\d)\s*", "", line)
             line = re.sub(r"^#{1,6}\s*", "", line)
             line = re.sub(r"[*_`>#]+", "", line).strip()
             if line:

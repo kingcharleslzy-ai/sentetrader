@@ -997,7 +997,7 @@ def conclusion_text(text: str) -> str:
     sentences: list[str] = []
     for line in (text or "").split("\n"):
         line = re.sub(r"\*\*|`", "", line)  # bold and code marks only: identifiers keep their underscores
-        line = re.sub(r"^\s*(?:[-*•]|\d+[.、)]|#{1,6})\s*", "", line).strip()
+        line = re.sub(r"^\s*(?:[-*•]|\d+[.、)]|#{1,6})(?!\d)\s*", "", line).strip()
         if not line or line.startswith("|"):
             continue
         for match in _SENTENCE.finditer(line):
