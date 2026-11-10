@@ -528,6 +528,13 @@ def live_position_state(store: RuntimeStore, provider: Any, *, strategy: dict[st
                 initial_volume = sum(int(m["entryVolume"]) for r, m, index in indexed if index == 0)
                 peak_volume = sum(int(m["entryVolume"]) for _, m in metas)
                 last_entry_price = float(metadata["entryPrice"])
+    elif len(metas) > 1 and metadata.get("positionKey") and all(
+            m.get("positionKey") == metadata["positionKey"] for _, m in metas):
+        # One entry filled in several trades (partial fills, a 补单 — #1454): the position's price is
+        # its held lots' average and its time the first fill's, not the last trade's.
+        entry = (sum(Decimal(m["entryPrice"]) * int(r["remaining_volume"]) for r, m in metas)
+                 / sum(int(r["remaining_volume"]) for r, m in metas))
+        entry_time = metadata.get("positionEntryTime") or entry_time
     if entry_time is None:
         entry_time = int(datetime.fromisoformat(str(row["created_at"])).timestamp() * 1_000_000_000)
     extreme = float(metadata.get("trailExtreme") or float(entry))

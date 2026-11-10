@@ -185,7 +185,9 @@ class AutonomyStub:
             raise outcome
         return {
             "clientOrderId": f"strategy-order-{len(self.calls)}",
-            "simulationOrder": {"displayStatus": outcome},
+            # Reported as filled: these tests are about dispatch — an order still working would be
+            # followed to its end (#1454, covered in test_strategy_spread_live).
+            "simulationOrder": {"displayStatus": outcome, "filledVolume": arguments["volume"]},
         }
 
 

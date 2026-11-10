@@ -791,7 +791,12 @@ async def test_drawdown_cancel_failure_keeps_the_round_fenced(tmp_path):
     intent2 = _intent(store, intent_id="intent-funds-2", bar_time="1767225601000000000")
     second = StrategyMonitorService(store=store, proposals=ProposalStub(store, intent2),
                                     autonomy=app.state.autonomy)
+    second._spread_recovered = True     # a second intent in the same process, not a restart: no restart sweep
     assert (await second.run_once())[0]["status"] == "submitted"
+    # 这个假网关只有一格回报：后台跟进 (#1454) 的回读会读到另一笔单。这里测的是回撤清算的撤单，先停掉跟进。
+    for service in (monitor, second):
+        for task in list(service.spread_execution._tasks.values()):
+            task.cancel()
     provider.position_items = [{"symbol": SYMBOL, "direction": "long", "volume": 1,
                                 "todayVolume": 1, "historicalVolume": 0,
                                 "frozenToday": 0, "frozenHistorical": 0}]

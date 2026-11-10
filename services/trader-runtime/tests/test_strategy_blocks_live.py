@@ -249,6 +249,17 @@ async def test_live_state_counts_bars_held_for_max_hold(tmp_path):
                   state.__class__(**{**state.__dict__, "direction": "long", "volume": 1}),
                   MarketContext(price_tick=0.5, volume_multiple=1000, equity=None))
     assert (held.action, held.exitReason) == ("close_long", "max_hold") and held.exitKey.startswith("max_hold:")
+    # The same entry's second trade (a later partial fill, a 补单): the position's price is the held
+    # lots' average and its bars still count from the first fill.
+    first = dict(_stop(app))
+    meta = json.loads(first["strategy_metadata_json"])
+    second = {**first, "id": "second-fill", "strategy_metadata_json": json.dumps(
+        {**meta, "entryPrice": "824", "entryTime": int(bars[75]["datetime"])})}
+    app.state.store.connection.execute(
+        f"INSERT INTO ai_stop_orders ({','.join(second)}) VALUES ({','.join('?' * len(second))})", tuple(second.values()))
+    both = live_position_state(app.state.store, provider, strategy=strategy, symbol="SHFE.au2612",
+                               account=provider.account_summary(""))
+    assert (both.entry_price, both.bars_held) == (823.0, 9)
     app.state.store.close()
 
 
@@ -306,7 +317,8 @@ def _count(store, name: str) -> int:
 
 
 @pytest.mark.parametrize("signal_action", ["alert", "confirm", "auto"])
-async def test_close_before_end_fires_once_per_execution_mode_and_after_restart(tmp_path, signal_action):
+async def test_close_before_end_fires_once_per_execution_mode_and_after_restart(tmp_path, signal_action, monkeypatch):
+    monkeypatch.setattr("trader_runtime.spread_execution.SPREAD_POLL_SECONDS", 0.01)
     provider, gateway = SessionProvider(), Gateway()
     path = tmp_path / f"close-{signal_action}.sqlite3"
     app, monitor = _session_app(path, provider, gateway, signal_action)
@@ -318,14 +330,18 @@ async def test_close_before_end_fires_once_per_execution_mode_and_after_restart(
         assert gateway.submit_count == 1 and gateway.request["offset"] == "CLOSETODAY"
         # The close was cancelled and the position is still there: the time exit is not repeated.
         gateway.query_report = gateway.report(gateway.request, status="FINISHED", volume_left=1)
+        # 平仓单被撤、仓还在 (#1454): 不补发，策略暂停等人处理。
+        await monitor.spread_execution.drain()
     provider.bar_count += 1  # a new completed bar, still before the bell
     again = await monitor.run_once()
-    assert again[0]["status"] == "waiting", again
+    assert again == [] if signal_action == "auto" else again[0]["status"] == "waiting", again
     app.state.store.close()
     app, monitor = _session_app(path, provider, gateway, signal_action)
     provider.bar_count += 1
     restarted = await monitor.run_once()
-    assert restarted[0]["status"] == "waiting", restarted
+    assert restarted == [] if signal_action == "auto" else restarted[0]["status"] == "waiting", restarted
+    if signal_action == "auto":
+        assert app.state.store.get_strategy_draft(STRATEGY_ID, user_id=USER)["status"] == "paused"
     assert len(app.state.store.list_strategy_execution_attempts(strategy_id=STRATEGY_ID, user_id=USER)) == 1
     assert gateway.submit_count == (1 if signal_action == "auto" else 0)
     if signal_action == "confirm":

@@ -670,6 +670,8 @@ class StrategyMonitorService:
                     attempt_id=skip_id, status="SKIPPED", detail="分批止盈这一档只剩 1 手，不再平仓")
         if adjusted["status"] not in {"allowed", "reduce_only"} or action == "hold" or volume <= 0:
             return {"strategyId": strategy_id, "status": "waiting", "detail": adjusted["reason"]}
+        if self.spread_execution.following(strategy_id, user_id=user_id):
+            return {"strategyId": strategy_id, "status": "blocked", "action": action, "detail": "上一笔委托仍在跟进。"}
         if any(_active_order_for_symbol(activity, symbol) for symbol in (
                 [leg.symbol for leg in plan.spread.legs] if plan is not None and plan.spread is not None
                 else [strategy["symbol"]])):
@@ -786,6 +788,21 @@ class StrategyMonitorService:
         details: list[str] = []
         sent_orders: list[dict[str, Any]] = []  # each leg's read-back, for the execution card
         current_client_id: str | None = None
+        # 盘中触价的限价入场: its price is the point of the order, so it is never chased.
+        limit_entry = bool(trigger and side.endswith("_open") and trigger.get("kind") != "stop")
+        unfilled: list[dict[str, Any]] = []     # orders still working after dispatch: followed to an end (#1454)
+        from .strategy_rules import requires_entry_recheck, uses_structural_stop
+        # What every order of this attempt carries — a 补单 goes out with the same (spread_execution.follow_single).
+        extra: dict[str, Any] = {
+            # 本笔的预留不再和发送前预算复核重复计入（其他预留照常占用）。
+            "strategy_attempt_id": attempt_id,
+            "strategy_levels": intent["signalSnapshot"].get("protectionLevels"),
+            # 加仓 skips the sending-time structural / alignment recheck: it joins the
+            # held position instead of opening a fresh one off the entry structure.
+            "strategy_add": is_add,
+            **({"strategy_bar_time": bar_time}
+               if requires_entry_recheck(strategy["definition"]) and not is_add else {}),
+        }
         try:
             for leg_index, (bucket, plan_volume) in enumerate(plans):
                 current_client_id = None
@@ -810,28 +827,18 @@ class StrategyMonitorService:
                     )
                     # Structural-stop intents use the last price. A passive
                     # quote can land on that stop despite a valid preview.
-                    from .strategy_rules import requires_entry_recheck, uses_structural_stop
                     structural_entry = (side.endswith("_open") and uses_structural_stop(strategy["definition"])
                                         and not is_add)
                     result = await self.autonomy.execute_trade(
                         user_id=user_id, session_id=self._session_id(user_id),
                         symbol=strategy["symbol"], side=side, volume=plan_volume,
-                        # 盘中触价: a reached stop takes the opposite side's price (it chases a move, like a
-                        # protective stop), a reached limit the last price.
-                        price_intent=("aggressive" if trigger and side.endswith("_open") and trigger.get("kind") == "stop"
-                                      else "last" if structural_entry or (trigger and side.endswith("_open"))
-                                      else "passive"), position_bucket=bucket,
+                        # 对手价 (#1454): the order is meant to fill on the bar it was decided for, as the
+                        # backtest assumes. 盘中触价的限价入场 and a structural-stop entry keep the last price.
+                        price_intent=("last" if structural_entry or limit_entry else "aggressive"),
+                        position_bucket=bucket,
                         reason=f"策略 {strategy['name']} · 已完成K线 {bar_time}",
                         before_dispatch=record_identity,
-                        strategy_id=strategy_id, ai_initiated=True,
-                        # 本笔的预留不再和发送前预算复核重复计入（其他预留照常占用）。
-                        strategy_attempt_id=attempt_id,
-                        strategy_levels=intent["signalSnapshot"].get("protectionLevels"),
-                        # 加仓 skips the sending-time structural / alignment recheck: it joins the
-                        # held position instead of opening a fresh one off the entry structure.
-                        strategy_add=is_add,
-                        **({"strategy_bar_time": bar_time}
-                           if requires_entry_recheck(strategy["definition"]) and not is_add else {}),
+                        strategy_id=strategy_id, ai_initiated=True, **extra,
                     )
                 client_order_id = str(result["clientOrderId"])
                 if client_order_id not in client_ids:
@@ -849,6 +856,11 @@ class StrategyMonitorService:
                     client_order_id=client_order_id,
                     detail=leg_detail,
                 )
+                order_filled = int(result["simulationOrder"].get("filledVolume") or 0)
+                if leg_status in {"SUBMITTED", "PARTIAL"} and order_filled < plan_volume:
+                    unfilled.append({"legId": leg_id, "index": leg_index, "side": side, "bucket": bucket,
+                                     "volume": plan_volume, "clientOrderId": client_order_id,
+                                     "status": leg_status, "filled": order_filled})
                 if leg_status in {"UNKNOWN", "NOT_DISPATCHED", "REJECTED", "CANCELLED"}:
                     break
             if "UNKNOWN" in leg_statuses:
@@ -883,6 +895,10 @@ class StrategyMonitorService:
                     pause_reason=state["pauseReason"],
                     trading_account_id=self.account_id,
                 )
+            if unfilled and status in {"SUBMITTED", "PARTIAL"}:
+                self.spread_execution.follow_single(
+                    attempt_id=attempt_id, strategy=strategy, action=action, orders=unfilled,
+                    extra=extra, chase=not limit_entry)
             await self._execution_notice(strategy, sent_orders, reason=self._signal_text(intent), turn_id=turn_id)
             return {"strategyId": strategy_id, "status": status.lower(), "clientOrderIds": client_ids}
         except (AutonomyError, SimulationOrderError, KeyError, RuntimeError, ValueError) as error:

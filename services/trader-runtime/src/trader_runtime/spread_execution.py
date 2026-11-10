@@ -107,6 +107,9 @@ class _Leg:
     detail: str = ""
     filled: int = 0
     parent: _Leg | None = field(default=None, repr=False)
+    # 单合约策略单 (#1454): the execute_trade arguments its entry carried (保护价位、所属尝试、发单前复核),
+    # so a 补单 goes out exactly like the order it replaces. Empty = a spread leg.
+    extra: dict[str, Any] = field(default_factory=dict, repr=False)
 
     @property
     def root(self) -> _Leg:
@@ -142,12 +145,30 @@ class SpreadExecutionService:
         self.proposals = monitor.proposals
         self._tasks: dict[str, asyncio.Task[None]] = {}
         self._running: set[str] = set()
+        self._single: dict[str, list[_Leg]] = {}      # 单合约策略单正在跟进的腿，按策略
 
     # -- entry points ------------------------------------------------------------------
 
     def running(self, strategy_id: str) -> bool:
         """An attempt of this strategy is still being followed (fills pending)."""
         return strategy_id in self._running
+
+    def following(self, strategy_id: str, *, user_id: str) -> bool:
+        """单合约 (#1454): an order of this strategy is still being followed and, by the order
+        book's own record, not filled yet — the monitor sends nothing new meanwhile (the moment
+        between the cancel and the 补单 has no working order to block it). A fill the record
+        already shows frees the strategy at once, without waiting for the follow's next poll."""
+        legs = self._single.get(strategy_id)
+        if legs is None:
+            return False
+        for leg in legs:
+            if leg.client_order_id:
+                try:
+                    order = self.autonomy.simulation_orders.get(leg.client_order_id, user_id=user_id)
+                except (KeyError, RuntimeError, ValueError):
+                    continue
+                leg.filled = max(leg.filled, int(order.get("filledVolume") or 0))
+        return not self._primaries_filled(legs)
 
     async def drain(self) -> None:
         """Tests: let every followed attempt reach its outcome."""
@@ -293,6 +314,8 @@ class SpreadExecutionService:
             self.store.update_strategy_execution_attempt(
                 attempt_id=str(row["id"]), status="UNKNOWN", outcome="unknown",
                 detail="Runtime 在价差执行中途重启，两腿执行状态未知，请核对两腿持仓后手动处理。")
+            # Swept once: without this the next restart finds the same row 'following' and pauses and notifies again.
+            self.store.mark_strategy_execution_follow(attempt_id=str(row["id"]), state="done")
             try:
                 strategy = self.store.get_strategy_draft(str(row["strategy_id"]), user_id=str(row["user_id"]))
             except KeyError:
@@ -304,6 +327,52 @@ class SpreadExecutionService:
             text = (f"{self.monitor._display_name(strategy)} · {spread_words(spec)}：Runtime 在价差执行中途重启，"
                     "两腿执行状态未知，已暂停策略；请核对两腿持仓后手动处理，再决定是否继续。")
             await self.monitor._session_notice(strategy, text, kind="strategy-paused")
+        # 单合约策略单 (#1454): its follow died with the process. Orders that filled meanwhile need
+        # nothing; otherwise cancel what may still be working (an order nobody follows is the fault
+        # this follow exists to end), then pause and say so.
+        singles = self.store.connection.execute(
+            """SELECT a.id, a.strategy_id, a.user_id, a.volume FROM strategy_execution_attempts a
+            JOIN strategy_drafts d ON d.id = a.strategy_id AND d.user_id = a.user_id
+            WHERE a.trading_account_id = ? AND a.follow_state = 'following'
+              AND json_extract(d.definition_json, '$.plan.spread') IS NULL""",
+            (self.monitor.account_id,),
+        ).fetchall()
+        for row in singles:
+            user_id = str(row["user_id"])
+            client_ids = [str(leg_row["client_order_id"]) for leg_row in self.store.connection.execute(
+                "SELECT client_order_id FROM strategy_execution_legs WHERE attempt_id = ? AND client_order_id IS NOT NULL",
+                (str(row["id"]),),
+            ).fetchall()]
+            filled = 0
+            for client_id in client_ids:
+                try:
+                    order = await self.autonomy.query_order(user_id=user_id, client_order_id=client_id)
+                except Exception:      # the account is not readable yet: the order's own record answers
+                    try:
+                        order = self.autonomy.simulation_orders.get(client_id, user_id=user_id)
+                    except (KeyError, RuntimeError, ValueError):
+                        continue
+                filled += int(order.get("filledVolume") or 0)
+            if filled >= int(row["volume"]):
+                self.store.mark_strategy_execution_follow(attempt_id=str(row["id"]), state="done")
+                continue
+            for client_id in client_ids:
+                try:
+                    await self.autonomy.cancel_order(user_id=user_id, client_order_id=client_id)
+                except Exception:      # already ended, or the account is not readable yet: the user verifies
+                    LOGGER.debug("single_follow_recover_cancel_skipped", exc_info=True)
+            self.store.update_strategy_execution_attempt(
+                attempt_id=str(row["id"]), status="UNKNOWN", outcome="unknown",
+                detail="Runtime 在跟进这笔委托时重启，未成交部分已尝试撤销，请核对持仓与委托。")
+            self.store.mark_strategy_execution_follow(attempt_id=str(row["id"]), state="done")
+            try:
+                strategy = self.store.get_strategy_draft(str(row["strategy_id"]), user_id=user_id)
+            except KeyError:
+                continue
+            self._pause_strategy(strategy)
+            await self.monitor._session_notice(
+                strategy, f"{self.monitor._display_name(strategy)} · {strategy['symbol']}：Runtime 在跟进这笔委托时重启，"
+                          "未成交部分已尝试撤销，已暂停策略；请核对持仓与委托后再继续。", kind="strategy-paused")
         # #518: a confirmed card's attempt reopened (SKIPPED → RESERVED, signal_action set) but killed before
         # `_dispatch_and_follow` marked it 'following'. That marker is written before any leg is reserved or
         # sent, so no leg went out: the attempt ends FAILED like the confirm path's own interruption (518-F),
@@ -443,14 +512,15 @@ class SpreadExecutionService:
 
     async def _fill_legs(
         self, *, attempt_id: str, strategy: dict[str, Any], legs: list[_Leg], ai_initiated: bool,
+        chase: bool = True,
     ) -> str:
         """Poll the in-flight legs every ``SPREAD_POLL_SECONDS`` until they fill (an instant fill
         settles on the first poll — the wait never blinds the strategy's protective exit for a
         full cycle), chase unfilled remainders once at the deadline, poll through the second wait:
         ``filled`` / ``unknown`` / ``short``. A leg whose result is unknown stops everything —
-        never re-sent, never chased."""
+        never re-sent, never chased. ``chase=False`` is one wait and no 补单 (盘中触价的限价入场)."""
         user_id = strategy["userId"]
-        for cycle in (1, 2):
+        for cycle in ((1, 2) if chase else (2,)):
             deadline = monotonic() + SPREAD_FILL_WAIT_SECONDS
             while True:
                 for leg in [leg for leg in legs
@@ -460,6 +530,8 @@ class SpreadExecutionService:
                     return "filled"
                 if any(leg.status == "UNKNOWN" for leg in legs):
                     return "unknown"
+                if legs[0].extra and not any(leg.status in LEG_ALIVE_STATUSES for leg in legs):
+                    return "short"      # 单合约: every order was ended by someone else — nothing to wait for or chase
                 remaining = deadline - monotonic()
                 if remaining <= 0:
                     break
@@ -496,7 +568,7 @@ class SpreadExecutionService:
                 symbol=leg.symbol, side=leg.side, volume=leg.volume,
                 price_intent="aggressive", position_bucket=leg.bucket, reason=reason,
                 before_dispatch=record_identity, strategy_id=strategy["strategyId"],
-                ai_initiated=ai_initiated, strategy_spread=True)
+                ai_initiated=ai_initiated, **(leg.extra or {"strategy_spread": True}))
         except Exception as error:
             client_order_id = bound.get("client_order_id")
             if client_order_id:
@@ -559,8 +631,12 @@ class SpreadExecutionService:
         ai_initiated: bool,
     ) -> None:
         """瘸腿: cancel this leg's remainder and re-order the missing lots ONCE at the latest
-        opponent price (a fresh leg row — the chase is visible as its own order)."""
+        opponent price (a fresh leg row — the chase is visible as its own order). A single-contract
+        order somebody else already ended (the user's 撤单, a protective stop taking the position
+        out) is not chased: only the remainder this follow cancelled itself is re-ordered."""
         user_id = strategy["userId"]
+        if leg.extra and leg.status not in LEG_ALIVE_STATUSES:
+            return
         if leg.client_order_id and leg.status in LEG_ALIVE_STATUSES:
             if await self._cancel_remainder(leg, user_id=user_id) == "unknown":
                 return
@@ -569,13 +645,108 @@ class SpreadExecutionService:
             return
         chase = _Leg(leg_id=str(uuid4()), index=max(item.index for item in legs) + 1,
                      symbol=leg.symbol, side=leg.side, volume=remainder, bucket=leg.bucket,
-                     tag=f"{leg.tag}补单", parent=leg)
+                     tag=f"{leg.tag}补单", parent=leg, extra=leg.extra)
         self.store.reserve_strategy_execution_leg(
             leg_id=chase.leg_id, attempt_id=attempt_id, leg_index=chase.index,
             position_bucket=chase.bucket, volume=chase.volume)
         legs.append(chase)
         await self._dispatch_leg(leg=chase, strategy=strategy, ai_initiated=ai_initiated,
-                                 reason=f"策略 {strategy['name']} · 价差瘸腿补单")
+                                 reason=f"策略 {strategy['name']} · "
+                                        f"{'未成交补单' if leg.extra else '价差瘸腿补单'}")
+
+    # -- 单合约策略单的跟进 (#1454) ------------------------------------------------------
+
+    def follow_single(
+        self, *, attempt_id: str, strategy: dict[str, Any], action: str,
+        orders: list[dict[str, Any]], extra: dict[str, Any], chase: bool,
+    ) -> None:
+        """自动下单 (单合约): the monitor sent these orders and they are not filled yet. Follow them
+        like a spread's legs — wait, cancel the remainder, 补单 once at the opponent price — to a
+        definite end, so an unfilled order never sits on the book until the close, blocking the
+        strategy's later signals and its own protective stop."""
+        legs = [_Leg(leg_id=str(item["legId"]), index=int(item["index"]), symbol=strategy["symbol"],
+                     side=item["side"], volume=int(item["volume"]), bucket=item["bucket"],
+                     tag=f"第 {int(item['index']) + 1} 腿", client_order_id=str(item["clientOrderId"]),
+                     status=str(item["status"]), filled=int(item["filled"]), extra=extra)
+                for item in orders]
+        self.store.mark_strategy_execution_follow(attempt_id=attempt_id, state="following")
+        self._single[str(strategy["strategyId"])] = legs
+        self._tasks[attempt_id] = asyncio.create_task(self._supervise_single(
+            attempt_id=attempt_id, strategy=strategy, action=action, legs=legs, chase=chase))
+
+    async def _supervise_single(
+        self, *, attempt_id: str, strategy: dict[str, Any], action: str, legs: list[_Leg], chase: bool,
+    ) -> None:
+        finished = False
+        try:
+            outcome = await self._fill_legs(attempt_id=attempt_id, strategy=strategy, legs=legs,
+                                            ai_initiated=True, chase=chase)
+            if outcome == "short":
+                for leg in [leg for leg in legs
+                            if leg.status in LEG_ALIVE_STATUSES and leg.client_order_id]:
+                    if await self._cancel_remainder(leg, user_id=strategy["userId"]) == "unknown":
+                        outcome = "unknown"
+                        break
+                if outcome == "short" and self._primaries_filled(legs):
+                    outcome = "filled"            # the last lots filled before the cancel landed
+            await self._settle_single(attempt_id=attempt_id, strategy=strategy, action=action,
+                                      legs=legs, outcome=outcome)
+            finished = True
+        except asyncio.CancelledError:
+            raise          # stays 'following': the restart sweep cancels what is left and pauses
+        except Exception as error:
+            LOGGER.exception("single_follow_failed strategy=%s attempt=%s",
+                             strategy["strategyId"], attempt_id)
+            self.store.update_strategy_execution_attempt(
+                attempt_id=attempt_id, status="FAILED", outcome="unknown",
+                detail=f"委托跟进异常：{error}"[:200])
+            finished = True
+        finally:
+            if finished:
+                self.store.mark_strategy_execution_follow(attempt_id=attempt_id, state="done")
+            self._tasks.pop(attempt_id, None)
+            self._single.pop(str(strategy["strategyId"]), None)
+
+    async def _settle_single(
+        self, *, attempt_id: str, strategy: dict[str, Any], action: str, legs: list[_Leg], outcome: str,
+    ) -> None:
+        """The followed order's end. 成交齐 says nothing more (the fills have their own notices);
+        开仓没成齐 keeps what filled — those lots carry their protection — and goes on; 平仓没平掉
+        pauses for the user, as a spread does; 结果未知 never re-sends."""
+        primaries = [leg for leg in legs if leg.parent is None]
+        wanted = sum(leg.volume for leg in primaries)
+        filled = sum(_group_filled(legs, leg) for leg in primaries)
+        ids = ",".join(self._client_ids(legs))
+        detail = self._attempt_detail(legs)
+        head = f"{self.monitor._display_name(strategy)} · {strategy['symbol']}："
+        if outcome == "unknown":
+            self.store.update_strategy_execution_attempt(
+                attempt_id=attempt_id, status="UNKNOWN", client_order_id=ids, outcome="unknown",
+                detail=f"{detail}；结果未知，不自动重发。")
+            self._pause_strategy(strategy)
+            await self.monitor._session_notice(
+                strategy, f"{head}委托结果未知，不自动重发，请到委托里核对后手动处理。策略已暂停。",
+                kind="strategy-paused")
+        elif outcome == "filled":
+            self.store.update_strategy_execution_attempt(
+                attempt_id=attempt_id, status="SUBMITTED", client_order_id=ids, detail=detail,
+                outcome="filled_chased" if any(leg.parent is not None for leg in legs) else "filled")
+        elif action.startswith("open"):
+            self.store.update_strategy_execution_attempt(
+                attempt_id=attempt_id, status="PARTIAL" if filled else "CANCELLED", client_order_id=ids,
+                detail=f"{detail}；开仓成交 {filled}/{wanted} 手，剩余已撤销。")
+            await self.monitor._session_notice(
+                strategy, f"{head}开仓只成交 {filled}/{wanted} 手，剩余委托已撤销，不再补发。",
+                kind="strategy-signal")
+        else:
+            self.store.update_strategy_execution_attempt(
+                attempt_id=attempt_id, status="PARTIAL" if filled else "CANCELLED", client_order_id=ids,
+                outcome="leftover", detail=f"{detail}；平仓还剩 {wanted - filled} 手没平掉，请手动处理。")
+            self._pause_strategy(strategy)
+            await self.monitor._session_notice(
+                strategy, f"{head}平仓还剩 {wanted - filled} 手没平掉"
+                          f"（{'补单一次仍未成交' if any(leg.parent is not None for leg in legs) else '委托已被撤销'}），"
+                          "剩余委托已撤销，不会自动重发。策略已暂停，请手动处理。", kind="strategy-paused")
 
     # -- outcomes ----------------------------------------------------------------------
 

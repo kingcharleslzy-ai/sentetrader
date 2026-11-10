@@ -303,7 +303,8 @@ async def test_breakeven_in_ticks_without_an_atr(tmp_path):
 
 
 @pytest.mark.parametrize("signal_action", ["alert", "confirm", "auto"])
-async def test_time_take_profit_closes_once_per_position_under_each_execution_mode(tmp_path, signal_action):
+async def test_time_take_profit_closes_once_per_position_under_each_execution_mode(tmp_path, signal_action, monkeypatch):
+    monkeypatch.setattr("trader_runtime.spread_execution.SPREAD_POLL_SECONDS", 0.01)
     bars = fake_market_workbench("SHFE.au2612", 300)["bars"]
     plan = _plan(timeTakeProfit=[{"afterBars": 50, "profitTicks": 0}, {"afterBars": 3, "profitTicks": 10}])
     path = tmp_path / f"tiers-{signal_action}.sqlite3"
@@ -313,6 +314,7 @@ async def test_time_take_profit_closes_once_per_position_under_each_execution_mo
     session = app.state.broker.create_session("local", "native", USER)
     store.set_strategy_signal_action(STRATEGY_ID, user_id=USER, signal_action=signal_action, session_id=session.session_id)
     monitor = StrategyMonitorService(store=store, proposals=app.state.proposals, autonomy=app.state.autonomy)
+    gateway.query_report = None      # the close reads back its own order, not the entry's fill report
     first = await monitor.run_once()
     assert first[0]["status"] == {"alert": "alerted", "confirm": "proposed", "auto": "submitted"}[signal_action], first
     attempts = store.list_strategy_execution_attempts(strategy_id=STRATEGY_ID, user_id=USER)
@@ -323,14 +325,19 @@ async def test_time_take_profit_closes_once_per_position_under_each_execution_mo
     if signal_action == "auto":
         assert gateway.submit_count == 2 and gateway.request["offset"] == "CLOSETODAY"
         gateway.query_report = gateway.report(gateway.request, status="FINISHED", volume_left=1)   # not filled
+        # 平仓单被撤、仓还在 (#1454): 不补发，策略暂停等人处理 —— 这一档同样不会再触发。
+        await monitor.spread_execution.drain()
     provider.bar_count += 1
     again = await monitor.run_once()
-    assert again[0]["status"] == "waiting", again
+    assert again == [] if signal_action == "auto" else again[0]["status"] == "waiting", again
     store.close()
     app = _app(path, provider, gateway)
     monitor = StrategyMonitorService(store=app.state.store, proposals=app.state.proposals, autonomy=app.state.autonomy)
     provider.bar_count += 1
-    assert (await monitor.run_once())[0]["status"] == "waiting"
+    restarted = await monitor.run_once()
+    assert restarted == [] if signal_action == "auto" else restarted[0]["status"] == "waiting", restarted
+    if signal_action == "auto":
+        assert app.state.store.get_strategy_draft(STRATEGY_ID, user_id=USER)["status"] == "paused"
     closes = [item for item in app.state.store.list_strategy_execution_attempts(strategy_id=STRATEGY_ID, user_id=USER)
               if item["action"] == "close_long"]
     assert len(closes) == 1 and gateway.submit_count == (2 if signal_action == "auto" else 1)

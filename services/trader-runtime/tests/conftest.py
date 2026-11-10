@@ -74,6 +74,15 @@ def isolated_runtime_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
 
 
 @pytest.fixture(autouse=True)
+def unhurried_order_follow(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An unfilled strategy order is followed in the background and re-read every second (#1454).
+    Most fake gateways answer every query with their one last report, whichever order is asked
+    about, so a re-read landing mid-test would read another order's report. Tests that are not
+    about the follow get only its first read (the order just sent); the follow tests set their own pace."""
+    monkeypatch.setattr("trader_runtime.spread_execution.SPREAD_POLL_SECONDS", 15.0)
+
+
+@pytest.fixture(autouse=True)
 def unpaced_hosts(monkeypatch: pytest.MonkeyPatch) -> None:
     """Scraped hosts are paced ≥ 0.5–1.5 s apart in production (host_throttle); recorded sources
     in tests never wait. The pacing itself is tested on a fake clock in test_host_throttle."""

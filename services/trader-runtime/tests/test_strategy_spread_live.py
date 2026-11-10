@@ -961,6 +961,8 @@ async def test_a_restart_mid_execution_sweeps_the_attempt_to_unknown(tmp_path, m
     assert _draft_status(ns) == "paused"
     assert _notices(ns.app, "Runtime 在价差执行中途重启", "已暂停策略")
     assert gateway.submit_count == 2 and gateway.cancel_count == 0   # 清扫本身不下单不撤单
+    await fresh.spread_execution.recover_interrupted()               # 下次重启不再把同一笔清扫第二遍
+    assert len(_notices(ns.app, "Runtime 在价差执行中途重启")) == 1
     ns.store.close()
 
 
@@ -1028,6 +1030,138 @@ async def test_a_single_contract_strategy_still_orders_one_leg(tmp_path):
             payload={"strategySource": {"attemptId": attempt["attemptId"], "strategyId": STRATEGY_ID},
                      "action": "open_long", "units": 1},
             user_id=USER, session_id=ns.session_id)   # 单腿不走价差执行器
+    ns.store.close()
+
+
+# -- (10b) 单合约自动单的跟进 (#1454): 对手价、等待、撤单、补单一次、明确收尾 ------------------------------
+
+
+def _single(tmp_path, name: str, *, rules: dict[str, Any] | None = None):
+    provider, gateway = LiveProvider(), MultiGateway()
+    plan = _plan(rules=rules or {"entryLong": {"conditions": [GT_ZERO]},
+                                 "exitLong": {"conditions": [NEVER]}}, spread=None)
+    return provider, gateway, _app(tmp_path / f"{name}.sqlite3", provider, gateway, plan)
+
+
+async def test_a_stuck_single_open_goes_out_at_the_opponent_price_and_is_chased_once(tmp_path):
+    provider, gateway, ns = _single(tmp_path, "single-chase")
+    gateway.on_submit(SYMBOL_A, STUCK, FILL)              # 第一笔悬着, 补单全成
+    _walk_open_signal(provider)
+
+    assert (await ns.monitor.run_once())[0]["status"] == "submitted"
+    assert ns.executor.following(STRATEGY_ID, user_id=USER)
+    assert (await ns.monitor.run_once())[0]["detail"] == "上一笔委托仍在跟进。"   # 跟进期间不发新单
+    provider.quotes[SYMBOL_A]["ask"] = 817.0              # 补单按最新对手价
+    await ns.executor.drain()
+
+    first, chase = list(gateway.requests.values())
+    assert (first["direction"], first["limitPrice"]) == ("BUY", 815.0)      # 买打 ask, 不再排在买一
+    assert (chase["direction"], chase["volume"], chase["limitPrice"]) == ("BUY", 1, 817.0)
+    assert gateway.cancel_count == 1
+    attempt = _attempts(ns)[0]
+    assert (attempt["status"], attempt["outcome"]) == ("SUBMITTED", "filled_chased")
+    assert _draft_status(ns) == "monitoring" and ns.executor.following(STRATEGY_ID, user_id=USER) is False
+    ns.store.close()
+
+
+async def test_a_single_open_that_never_fills_is_cancelled_and_the_strategy_goes_on(tmp_path):
+    provider, gateway, ns = _single(tmp_path, "single-open-short")
+    _walk_open_signal(provider)                           # 队列为空: 原单与补单都一直不成交
+
+    await ns.monitor.run_once()
+    await ns.executor.drain()
+
+    assert gateway.submit_count == 2 and gateway.cancel_count == 2
+    attempt = _attempts(ns)[0]
+    assert attempt["status"] == "CANCELLED" and "开仓成交 0/1 手，剩余已撤销。" in attempt["detail"]
+    assert _draft_status(ns) == "monitoring"              # 开仓没成不暂停
+    assert _notices(ns.app, "开仓只成交 0/1 手", "不再补发")
+    assert ns.store.count_strategy_attempts_today(         # 没开成的不占当日开仓次数
+        strategy_id=STRATEGY_ID, user_id=USER, trading_date="2026-09-01") == 0
+    ns.store.close()
+
+
+async def test_a_single_close_that_never_fills_pauses_and_asks_for_the_user(tmp_path):
+    provider, gateway, ns = _single(tmp_path, "single-close-short", rules={
+        "entryLong": {"conditions": [NEVER]}, "exitLong": {"conditions": [ALWAYS]}})
+    provider.hold(SYMBOL_A, "long", volume=1, open_price=815.0, today=1)
+    now = datetime.now(UTC).isoformat()                   # 策略自己的 1 手（保护行口径）
+    ns.store.connection.execute("PRAGMA foreign_keys = OFF")
+    ns.store.connection.execute(
+        "INSERT INTO ai_stop_orders (id,user_id,authorization_id,session_id,symbol,position_direction,position_bucket,"
+        "volume,trigger_price,price_intent,status,strategy_metadata_json,remaining_volume,created_at,updated_at)"
+        " VALUES ('own-stop',?,'auth','s',?,'long','today',1,'700','aggressive','ARMED',?,1,?,?)",
+        (USER, SYMBOL_A, json.dumps({"strategyId": STRATEGY_ID, "entryPrice": "815", "contractMultiplier": 10}),
+         now, now))
+    ns.store.connection.commit()
+
+    result = (await ns.monitor.run_once())[0]
+    assert result["status"] == "submitted", result
+    await ns.executor.drain()
+
+    closes = _requests(gateway, offset="CLOSE")
+    assert [(r["direction"], r["limitPrice"]) for r in closes] == [("SELL", 814.0), ("SELL", 814.0)]  # 卖打 bid
+    assert gateway.cancel_count == 2 and _requests(gateway, offset="OPEN") == []
+    attempt = _attempts(ns)[0]
+    assert (attempt["status"], attempt["outcome"]) == ("CANCELLED", "leftover")
+    assert _draft_status(ns) == "paused"
+    assert _notices(ns.app, "平仓还剩 1 手没平掉（补单一次仍未成交）", "不会自动重发", "策略已暂停")
+    ns.store.close()
+
+
+async def test_an_order_somebody_else_ended_is_not_chased(tmp_path):
+    provider, gateway, ns = _single(tmp_path, "single-foreign-cancel")
+    gateway.on_submit(SYMBOL_A, STUCK)
+    gateway.on_query(SYMBOL_A, {"status": "FINISHED"})    # 用户自己撤了（或止损把它撤了）
+    _walk_open_signal(provider)
+
+    await ns.monitor.run_once()
+    await asyncio.wait_for(ns.executor.drain(), timeout=1.0)   # 不等满 15 秒: 没有在场的单就收尾
+
+    assert gateway.submit_count == 1 and gateway.cancel_count == 0
+    assert _attempts(ns)[0]["status"] == "CANCELLED" and _draft_status(ns) == "monitoring"
+    ns.store.close()
+
+
+async def test_a_restart_mid_follow_cancels_the_working_order_and_pauses(tmp_path, monkeypatch):
+    provider, gateway, ns = _single(tmp_path, "single-restart")
+    _walk_open_signal(provider)
+    monkeypatch.setattr(spread_execution, "SPREAD_FILL_WAIT_SECONDS", 5.0)
+
+    await ns.monitor.run_once()
+    task = ns.executor._tasks[_attempts(ns)[0]["attemptId"]]   # Runtime 在跟进中途被杀
+    task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await task
+
+    fresh = StrategyMonitorService(store=ns.store, proposals=ns.app.state.proposals,
+                                   autonomy=ns.app.state.autonomy)
+    await fresh.run_once()
+    assert gateway.cancel_count == 1 and gateway.submit_count == 1   # 挂着的那笔被撤掉, 不补发
+    assert _attempts(ns)[0]["status"] == "UNKNOWN" and _draft_status(ns) == "paused"
+    assert _notices(ns.app, "Runtime 在跟进这笔委托时重启", "已暂停策略")
+    await fresh.spread_execution.recover_interrupted()               # 清扫过的不再清扫第二遍
+    assert len(_notices(ns.app, "Runtime 在跟进这笔委托时重启")) == 1
+    ns.store.close()
+
+
+async def test_a_restart_after_the_followed_order_filled_changes_nothing(tmp_path, monkeypatch):
+    provider, gateway, ns = _single(tmp_path, "single-restart-filled")
+    _walk_open_signal(provider)
+    monkeypatch.setattr(spread_execution, "SPREAD_FILL_WAIT_SECONDS", 5.0)
+
+    await ns.monitor.run_once()
+    task = ns.executor._tasks[_attempts(ns)[0]["attemptId"]]
+    task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await task
+    gateway.on_query(SYMBOL_A, FILL)                      # 重启期间这笔单成交了
+
+    fresh = StrategyMonitorService(store=ns.store, proposals=ns.app.state.proposals,
+                                   autonomy=ns.app.state.autonomy)
+    await fresh.spread_execution.recover_interrupted()
+    assert gateway.cancel_count == 0 and _draft_status(ns) == "monitoring"
+    assert _notices(ns.app, "Runtime 在跟进这笔委托时重启") == []
     ns.store.close()
 
 
