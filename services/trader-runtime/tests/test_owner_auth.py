@@ -207,13 +207,13 @@ async def test_owner_profile_can_be_loaded_from_secret_files(
             assert login.json()["bindings"] == {
                 "profileId": "owner-default",
                 "tqkqConfigured": True,
-                "tqkqMode": "simulation",
+                "tqkqMode": "read-only",  # 快期模拟彻底下线（2026-11-10）：没有本站模拟盘也不在快期下单
                 "paperConfigured": False,
                 "modelProvider": "deepseek",
                 "modelCredentialConfigured": True,
                 "liveTrading": False,
             }
-            assert application.state.simulation_orders.enabled is True
+            assert application.state.simulation_orders.enabled is False
     finally:
         application.state.store.close()
 

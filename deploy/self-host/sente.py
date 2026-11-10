@@ -163,7 +163,7 @@ def components(config: dict) -> dict[str, tuple[list[str], dict[str, str]]]:
     sidecar = venv_python("tqkq-sidecar")
     return {
         "sidecar": ([str(sidecar), "-m", "tqkq_readonly_sidecar.container_entry"],
-                    {**tqkq, "AI_TRADER_TQKQ_MODE": "tqkq-simulation",
+                    {**tqkq, "AI_TRADER_TQKQ_MODE": "tqkq-readonly",
                      "AI_TRADER_TQKQ_SIDECAR_PORT": str(SIDECAR_PORT)}),
         "paper": ([str(sidecar), "-m", "tqkq_readonly_sidecar.paper", "--serve"],
                   {**tqkq, "AI_TRADER_PAPER_PORT": str(PAPER_PORT),

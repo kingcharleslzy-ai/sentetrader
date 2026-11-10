@@ -14,7 +14,6 @@ const signingVariables = [
 ];
 const forbiddenExecutionSymbols = /\b(insert_order|cancel_order|submit_live_order|liquidate_account)\b/;
 const forbiddenRealTradingSymbols = /\b(TqAccount|TqCtp|TargetPosTask)\b/;
-const simulationGatewayFile = "services/tqkq-sidecar/src/tqkq_readonly_sidecar/main.py";
 const historicalSimulationGatewayFile = "services/tqkq-sidecar/src/tqkq_readonly_sidecar/replay.py";
 // 本站模拟盘撮合引擎 (2026-10-03): calls the local SimTrade matcher's insert_order /
 // cancel_order like the replay does — never a broker. It may not name a live order
@@ -175,7 +174,7 @@ export function validateReleaseConfiguration(root = defaultRoot) {
     for (const file of sourceFiles(root, relative)) {
       const source = readFileSync(join(root, file), "utf8");
       requireCondition(
-        file === simulationGatewayFile || authorizedSimulationOrchestrationFiles.has(file)
+        authorizedSimulationOrchestrationFiles.has(file)
           || (file === historicalSimulationGatewayFile
             && !/\b(submit_live_order|liquidate_account)\b/.test(source))
           || (paperEngineFiles.has(file) && !paperEngineForbidden.test(source))
@@ -189,19 +188,6 @@ export function validateReleaseConfiguration(root = defaultRoot) {
     }
   }
   validateMt5BridgeReadOnly(root);
-  const gatewaySource = readFileSync(join(root, simulationGatewayFile), "utf8");
-  requireCondition(gatewaySource.includes("TqApi(TqKq()"), "desktop_tqkq_simulation_account_missing");
-  requireCondition(
-    gatewaySource.includes('offset=request["offset"]') &&
-      gatewaySource.includes('{"OPEN", "CLOSE", "CLOSETODAY"}'),
-    "desktop_explicit_offset_boundary_missing",
-  );
-  requireCondition(
-    (gatewaySource.match(/self\.api\.insert_order\(/g) || []).length === 1 &&
-      (gatewaySource.match(/self\.api\.cancel_order\(/g) || []).length === 1,
-    "desktop_thin_simulation_gateway_boundary_invalid",
-  );
-  requireCondition(!gatewaySource.includes("TargetPosTask"), "desktop_target_position_task_forbidden");
   const autonomySource = readFileSync(
     join(root, "services/trader-runtime/src/trader_runtime/autonomy.py"), "utf8",
   );

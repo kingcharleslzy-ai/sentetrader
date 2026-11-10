@@ -6,7 +6,8 @@
 - 不在：整套解绑——停子进程、删托管口令、删授权、停用账户行（以前「解绑」按钮做的事）。
 两种都把持有人的默认账户和停在这个账户上的会话挪到他自己的本站模拟账户（没有就先开）。
 还有监控中的策略、已挂的止损或未完成委托的账户跳过并记日志，下次启动再看。
-历史（委托、成交、会话）一律保留。主人的静态主账号不在此列：它在 wiring.services 里失去下单网关。
+历史（委托、成交、会话）一律保留。主人的静态快期主账号（`tqkq-sidecar`）只供行情：它没有下单网关，
+快期模拟彻底下线（所有者 2026-11-10）后停在它上面的会话和以它为默认的用户同样挪到各自的本站模拟，账户行与授权不动。
 """
 from __future__ import annotations
 
@@ -43,21 +44,52 @@ async def retire_tqkq_account(ctx: Any, account_id: str, *, keep_credentials: bo
     if not keep_credentials:
         store.disable_trading_account(account_id)
     for user_id, paper_id in papers.items():
-        if store.get_user_default_account(user_id=user_id) in (None, account_id):
-            store.set_user_default_account(user_id=user_id, account_id=paper_id)
-        sessions = store.user_sessions_on_account(user_id=user_id, trading_account_id=account_id)
-        # All sessions rebind first (526-C2): a failing push must not leave the rest of them
-        # pointed at the retired account. A real move advances the session's account revision.
-        for session_id in sessions:
-            store.set_session_trading_account(session_id, paper_id, user_id=user_id)
-        for session_id in sessions:
+        await _move_to_paper(ctx, user_id=user_id, account_id=account_id, paper_id=paper_id)
+
+
+async def _move_to_paper(ctx: Any, *, user_id: str, account_id: str, paper_id: str) -> None:
+    """The user's default (when it is this account or unset) and active sessions move to their paper account."""
+    store = ctx.services.store
+    if store.get_user_default_account(user_id=user_id) in (None, account_id):
+        store.set_user_default_account(user_id=user_id, account_id=paper_id)
+    sessions = store.user_sessions_on_account(user_id=user_id, trading_account_id=account_id)
+    # All sessions rebind first (526-C2): a failing push must not leave the rest of them
+    # pointed at the retired account. A real move advances the session's account revision.
+    for session_id in sessions:
+        store.set_session_trading_account(session_id, paper_id, user_id=user_id)
+    for session_id in sessions:
+        try:
+            ctx.runtime_feed.session_account_changed(session_id, paper_id)
+            await ctx.services.broker.publish(
+                session_id, kind="result", name="runtime.status",
+                payload=ctx.status_for_session(session_id))
+        except Exception:  # noqa: BLE001 — best-effort: the client picks the rebind up on its next poll
+            log.warning("tqkq_retire_rebind_push_failed session=%s", session_id, exc_info=True)
+
+
+async def retire_static_tqkq_sessions(ctx: Any) -> list[str]:
+    """快期模拟彻底下线（所有者 2026-11-10）：静态快期主账号上的会话与默认账户挪到各自的本站模拟；
+    有监控中的策略、已挂的止损或未完成委托的账户跳过并记日志。返回挪动过的用户。"""
+    store = ctx.services.store
+    busy = set(store.list_busy_paper_accounts(provider_kind="tqkq-sidecar"))
+    moved = []
+    for record in store.list_trading_accounts():
+        account_id = str(record["id"])
+        if record["provider_kind"] != "tqkq-sidecar" or record["status"] != "active":
+            continue
+        if account_id in busy:
+            log.warning("tqkq_retire_skipped account=%s reason=busy", account_id)
+            continue
+        for user_id in store.users_on_account(account_id=account_id):
             try:
-                ctx.runtime_feed.session_account_changed(session_id, paper_id)
-                await ctx.services.broker.publish(
-                    session_id, kind="result", name="runtime.status",
-                    payload=ctx.status_for_session(session_id))
-            except Exception:  # noqa: BLE001 — best-effort: the client picks the rebind up on its next poll
-                log.warning("tqkq_retire_rebind_push_failed session=%s", session_id, exc_info=True)
+                paper = await ctx.paper_accounts.ensure_paper_account(user_id, make_default=False)
+                await _move_to_paper(ctx, user_id=user_id, account_id=account_id, paper_id=str(paper["id"]))
+            except Exception:
+                log.exception("tqkq_retire_failed account=%s user=%s", account_id, user_id)
+                continue
+            log.info("tqkq_static_sessions_moved account=%s user=%s", account_id, user_id)
+            moved.append(user_id)
+    return moved
 
 
 async def retire_tqkq_trading(ctx: Any, *, market_sources: list[str]) -> list[str]:
@@ -86,4 +118,5 @@ async def retire_tqkq_trading(ctx: Any, *, market_sources: list[str]) -> list[st
             continue
         log.info("tqkq_retired account=%s kept_for_market=%s", account_id, market_source)
         retired.append(account_id)
+    await retire_static_tqkq_sessions(ctx)
     return retired

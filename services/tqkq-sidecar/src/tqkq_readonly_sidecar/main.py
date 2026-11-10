@@ -83,10 +83,6 @@ REEXEC_AFTER_SAME_EXITS = 2
 REEXEC_MIN_INTERVAL_SECONDS = 600.0
 REEXEC_ENV = "AI_TRADER_SIDECAR_REEXEC_AT"
 FATAL_SESSION_CODES = frozenset({"tqkq_authentication_failed", "tqkq_permission_denied", "tqkq_credentials_missing"})
-# How long an order call waits for the actor. A submit still queued when the caller has given up
-# (gateway_command_timeout → the Runtime records UNKNOWN and asks by clientOrderId) is not sent
-# late at a price nobody is watching any more: it is answered "not dispatched" instead.
-ORDER_COMMAND_WAIT_SECONDS = 4.0
 # The full contract catalogue of a live session: after a failed load it is fetched again on the
 # same session with this backoff (the last step repeats) instead of never until the next rebuild.
 CATALOG_RETRY_BACKOFF_SECONDS = (15.0, 30.0, 60.0, 120.0, 300.0)
@@ -771,10 +767,6 @@ class SnapshotSession(Protocol):
     def query_cont_history(self, symbols: Sequence[str], days: int) -> dict[str, Any]: ...
     def query_ranking(self, symbol: str, ranking_type: str, days: int) -> dict[str, Any]: ...
 
-    def submit_order_once(self, request: dict[str, Any]) -> dict[str, Any]: ...
-    def query_order(self, client_order_id: str) -> dict[str, Any]: ...
-    def cancel_order_once(self, client_order_id: str) -> dict[str, Any]: ...
-
     def close(self) -> None: ...
 
 
@@ -828,7 +820,7 @@ class OfficialTqKqSession:
         self._dynamic_quotes: dict[str, Any] = {}
         self._kline_serials: dict[tuple[str, int], Any] = {}
         self._initial_snapshot_pending = True
-        self.orders_initialized, self._observed_order_ids = False, set()
+        self.orders_initialized = False
         self._on_stage("waiting_snapshot")
 
     def _trading_dates(self, start: datetime, end: datetime) -> set[str]:
@@ -1291,9 +1283,7 @@ class OfficialTqKqSession:
         entries = self.position_entities.items() if hasattr(self.position_entities, "items") else ()
         for full_symbol, position in entries:
             positions.extend(self._activity_position(str(full_symbol), position))
-        if not self.orders_initialized:
-            self._observed_order_ids.update(str(key) for key in self.orders)
-            self.orders_initialized = True
+        self.orders_initialized = True
         orders = [
             self._activity_order(order)
             for order in getattr(self, "orders", {}).values()
@@ -1403,6 +1393,7 @@ class OfficialTqKqSession:
             "commission": finite_number(getattr(trade, "commission", None)),
         }
 
+    # The order shape the paper engine (paper_book) and the replay session (replay.py) report with.
     @staticmethod
     def _order_report(order: Any, observed: bool = False) -> dict[str, Any]:
         order_id = str(getattr(order, "order_id", "") or "")
@@ -1441,47 +1432,6 @@ class OfficialTqKqSession:
                 "lastMsg": str(getattr(order, "last_msg", "") or ""),
             },
         }
-
-    def _wait_for_order(
-        self, order: Any, timeout_seconds: float = 2.0
-    ) -> dict[str, Any]:
-        deadline = time.time() + timeout_seconds
-        while time.time() < deadline:
-            if self.api.wait_update(deadline=min(deadline, time.time() + 0.25)) is True and self.api.is_changing(order):
-                self._observed_order_ids.add(str(getattr(order, "order_id", "")))
-            report = self._order_report(order, str(getattr(order, "order_id", "")) in self._observed_order_ids)
-            if report["found"]:
-                return report
-        return self._order_report(order, str(getattr(order, "order_id", "")) in self._observed_order_ids)
-
-    def submit_order_once(self, request: dict[str, Any]) -> dict[str, Any]:
-        order = self.api.insert_order(
-            symbol=request["symbol"],
-            direction=request["direction"],
-            offset=request["offset"],
-            volume=request["volume"],
-            limit_price=request["limitPrice"],
-            order_id=request["clientOrderId"],
-        )
-        return self._wait_for_order(order)
-
-    def query_order(self, client_order_id: str) -> dict[str, Any]:
-        order = self.api.get_order(client_order_id)
-        return self._wait_for_order(order, 0.2)
-
-    def cancel_order_once(self, client_order_id: str) -> dict[str, Any]:
-        order = self.api.get_order(client_order_id)
-        current = self._order_report(order, client_order_id in self._observed_order_ids)
-        if not current["found"]:
-            raise RuntimeError("order_not_confirmed")
-        remote = current["order"]
-        if remote["status"] != "ALIVE" or int(remote["volumeLeft"]) <= 0:
-            raise RuntimeError("order_not_cancelable")
-        self.api.cancel_order(order)
-        report = self._wait_for_order(order)
-        if report.get("order", {}).get("status") != "FINISHED":
-            report["commandStatus"] = "UNKNOWN"
-        return report
 
     def close(self) -> None:
         self.api.close()
@@ -1784,51 +1734,6 @@ class FixtureSession:
     def close(self) -> None:
         return None
 
-    def submit_order_once(self, request: dict[str, Any]) -> dict[str, Any]:
-        order = {
-            "clientOrderId": request["clientOrderId"],
-            "exchangeOrderId": "FIXTURE-ORDER",
-            "symbol": request["symbol"],
-            "direction": request["direction"],
-            "offset": request["offset"],
-            "volume": request["volume"],
-            "volumeLeft": request["volume"],
-            "filledVolume": 0,
-            "limitPrice": request["limitPrice"],
-            "priceType": "LIMIT",
-            "status": "ALIVE",
-            "insertDateTime": time.time_ns(),
-            "isOnline": True,
-            "isDead": False,
-            "isError": False,
-            "lastMsg": "fixture alive",
-        }
-        self.orders[request["clientOrderId"]] = order
-        return {"ordersInitialized": True, "found": True, "order": dict(order)}
-
-    def query_order(self, client_order_id: str) -> dict[str, Any]:
-        order = self.orders.get(client_order_id)
-        return {
-            "ordersInitialized": True,
-            "found": order is not None,
-            **({"order": dict(order)} if order else {}),
-        }
-
-    def cancel_order_once(self, client_order_id: str) -> dict[str, Any]:
-        order = self.orders.get(client_order_id)
-        if order is None or order["status"] != "ALIVE" or order["volumeLeft"] <= 0:
-            raise RuntimeError("order_not_cancelable")
-        order.update(
-            {
-                "status": "FINISHED",
-                "isOnline": False,
-                "isDead": True,
-                "lastMsg": "fixture canceled",
-            }
-        )
-        return {"ordersInitialized": True, "found": True, "order": dict(order)}
-
-
 @dataclass
 class ActorCommand:
     kind: str
@@ -1845,7 +1750,6 @@ class SnapshotService:
         self, *, username: str | None, password: str | None, symbols: Sequence[str],
         fixture: bool = False, stale_after_seconds: float = 15.0,
         initial_snapshot_timeout_seconds: float = 180.0,
-        trading_enabled: bool = False,
         market_only: bool = False,
         reexec_on_wedge: bool = False,
         session_factory: Callable[
@@ -1860,7 +1764,6 @@ class SnapshotService:
         # trading session), it never trades, and it serves no account, positions or orders —
         # only status, market and contract reads.
         self.market_only = market_only
-        self.trading_enabled = trading_enabled and not market_only
         self.stale_after_seconds = stale_after_seconds
         self.initial_snapshot_timeout_seconds = initial_snapshot_timeout_seconds
         self.session_factory = session_factory or partial(OfficialTqKqSession, market_only=market_only)
@@ -1894,13 +1797,6 @@ class SnapshotService:
         # Why the last worker ended on its own (exception class + message); the retry reason carries the class.
         self._worker_exit: dict[str, str] | None = None
         self._commands: queue.Queue[ActorCommand] = queue.Queue()
-        self._command_results: dict[str, dict[str, Any]] = {}
-        self._submitted_order_ids: set[str] = set()
-        # Submits answered without ever reaching TqSdk (expired in the queue, dropped by a session
-        # rebuild), by clientOrderId: the Runtime's follow-up query gets this definite answer
-        # instead of a bare "not found" it must keep treating as unknown.
-        self._undispatched_orders: dict[str, dict[str, Any]] = {}
-        self._cancelled_order_ids: set[str] = set()
         self._backtest_lock = threading.Lock()
         self._backtest_credentials = (username or "", password or "")
         from .replay import ReplayManager
@@ -2207,23 +2103,9 @@ class SnapshotService:
         with self._lock:
             self._command_timeouts = 0
 
-    def _not_dispatched(self, command: ActorCommand, code: str) -> dict[str, Any]:
-        """A submit/cancel that never reached TqSdk, said as such. A submit is also
-        remembered by its clientOrderId, so the Runtime's query for an order whose
-        call it gave up on learns that nothing was sent (and may send it again from
-        "not sent") instead of reading a bare "not found" as still unknown."""
-        result = {"ordersInitialized": True, "found": False,
-                  "commandStatus": "NOT_DISPATCHED", "errorCode": code}
-        if command.kind == "submit":
-            with self._lock:
-                if command.client_order_id not in self._submitted_order_ids:
-                    self._undispatched_orders[command.client_order_id] = dict(result)
-        return result
-
     def _answer_unhandled(self, command: ActorCommand, code: str) -> None:
         """Answer a queued command the actor will never run (session rebuild, stop)."""
-        result = (self._not_dispatched(command, code) if command.kind in {"submit", "cancel"}
-                  else {"errorCode": code})
+        result = {"errorCode": code}
         try:
             command.response.put_nowait(result)
         except queue.Full:
@@ -2275,64 +2157,7 @@ class SnapshotService:
                 result = {"errorCode": str(error) or type(error).__name__}
             command.response.put(result)
             return
-        cached = (
-            self._command_results.get(command.command_id)
-            if command.kind != "query"
-            else None
-        )
-        if cached is not None:
-            command.response.put(dict(cached))
-            return
-        if (command.kind == "submit" and command.client_order_id not in self._submitted_order_ids
-                and time.monotonic() - command.queued_at >= ORDER_COMMAND_WAIT_SECONDS):
-            # The caller stopped waiting (gateway_command_timeout) before the actor got here:
-            # never send it now, minutes late at its old price. Not cached by commandId — the
-            # Runtime's commandId is per order, and "not sent" must stay sendable from 未发送.
-            command.response.put(self._not_dispatched(command, "gateway_command_expired"))
-            return
-        if command.kind == "query":
-            with self._lock:
-                undispatched = (self._undispatched_orders.get(command.client_order_id)
-                                if command.client_order_id not in self._submitted_order_ids else None)
-            if undispatched is not None:
-                command.response.put(dict(undispatched))
-                return
-        try:
-            if command.kind == "submit":
-                if command.client_order_id in self._submitted_order_ids:
-                    result = session.query_order(command.client_order_id)
-                else:
-                    with self._lock:
-                        self._submitted_order_ids.add(command.client_order_id)
-                        self._undispatched_orders.pop(command.client_order_id, None)
-                    started = time.monotonic()
-                    result = session.submit_order_once(command.request)
-                    # Where an order's time goes: waiting for this actor, then insert → the
-                    # exchange's acknowledgement. The Runtime logs it with its own share.
-                    result = {**result, "timing": {
-                        "queuedMs": round((started - command.queued_at) * 1000),
-                        "exchangeMs": round((time.monotonic() - started) * 1000),
-                    }}
-            elif command.kind == "query":
-                result = session.query_order(command.client_order_id)
-            elif command.kind == "cancel":
-                if command.client_order_id in self._cancelled_order_ids:
-                    result = session.query_order(command.client_order_id)
-                else:
-                    self._cancelled_order_ids.add(command.client_order_id)
-                    result = session.cancel_order_once(command.client_order_id)
-            else:
-                raise RuntimeError("unknown_actor_command")
-        except Exception as error:
-            result = {
-                "ordersInitialized": self._orders_initialized,
-                "found": False,
-                "commandStatus": "UNKNOWN",
-                "errorCode": f"gateway_{type(error).__name__.lower()}",
-            }
-        if command.kind != "query":
-            self._command_results[command.command_id] = dict(result)
-        command.response.put(result)
+        command.response.put({"errorCode": "unknown_actor_command"})
 
     def _handle_backtest_request(
         self, request: dict[str, Any], response: queue.Queue[dict[str, Any]],
@@ -2406,59 +2231,6 @@ class SnapshotService:
             "orderCapabilities": [],
             "accountType": "TqSim",
         }
-
-    def _actor_call(
-        self,
-        *,
-        kind: str,
-        command_id: str,
-        client_order_id: str,
-        request: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        if not self.trading_enabled:
-            raise RuntimeError("simulation_trading_disabled")
-        with self._lock:
-            initialized = self._orders_initialized
-        if not initialized:
-            return {"ordersInitialized": False, "found": False, "commandStatus": "NOT_DISPATCHED"}
-        response: queue.Queue[dict[str, Any]] = queue.Queue(maxsize=1)
-        self._commands.put(
-            ActorCommand(
-                kind,
-                command_id,
-                client_order_id,
-                request or {},
-                response,
-            )
-        )
-        try:
-            return response.get(timeout=ORDER_COMMAND_WAIT_SECONDS)
-        except queue.Empty as error:
-            raise RuntimeError("gateway_command_timeout") from error
-
-    def submit_order_once(self, request: dict[str, Any]) -> dict[str, Any]:
-        return self._actor_call(
-            kind="submit",
-            command_id=str(request["commandId"]),
-            client_order_id=str(request["clientOrderId"]),
-            request=request,
-        )
-
-    def query_order(self, client_order_id: str) -> dict[str, Any]:
-        return self._actor_call(
-            kind="query",
-            command_id=f"query:{client_order_id}:{time.monotonic_ns()}",
-            client_order_id=client_order_id,
-        )
-
-    def cancel_order_once(
-        self, client_order_id: str, command_id: str
-    ) -> dict[str, Any]:
-        return self._actor_call(
-            kind="cancel",
-            command_id=command_id,
-            client_order_id=client_order_id,
-        )
 
     def historical_backtest(self, request: dict[str, Any]) -> dict[str, Any]:
         if not self._backtest_lock.acquire(blocking=False):
@@ -2751,14 +2523,6 @@ class SnapshotService:
         capabilities.extend([
             "settlements.read", "cont_history.read", "rankings.read",
         ])
-        if self.trading_enabled:
-            capabilities.extend(
-                [
-                    "simulation_order.submit",
-                    "simulation_order.query",
-                    "simulation_order.cancel",
-                ]
-            )
         return {
             "schemaVersion": 1,
             "service": "ai-trader-tqkq-readonly-sidecar",
@@ -2781,9 +2545,9 @@ class SnapshotService:
             "dataStartupTotalSeconds": startup_total_seconds,
             "hasSnapshot": has_snapshot,
             "ageSeconds": round(age, 3),
-            "readOnly": not self.trading_enabled,
+            "readOnly": True,
             "readOnlyData": True,
-            "simulationTrading": self.trading_enabled,
+            "simulationTrading": False,
             "marketOnly": self.market_only,
             "ordersInitialized": orders_initialized,
             # partial = only the configured contracts are known (the full load failed and is
@@ -3037,70 +2801,6 @@ class ReadOnlyHandler(BaseHTTPRequestHandler):
             raise ValueError("invalid_identifier")
         return result
 
-    def _submit_request(self) -> dict[str, Any]:
-        payload = self._body()
-        required = {
-            "commandId",
-            "clientOrderId",
-            "symbol",
-            "direction",
-            "offset",
-            "volume",
-            "priceType",
-            "limitPrice",
-        }
-        if set(payload) != required:
-            raise ValueError("invalid_submit_fields")
-        command_id = self._identifier(payload["commandId"], command=True)
-        client_order_id = self._identifier(payload["clientOrderId"])
-        if payload["direction"] not in {"BUY", "SELL"}:
-            raise ValueError("invalid_order_direction")
-        if payload["offset"] not in {"OPEN", "CLOSE", "CLOSETODAY"}:
-            raise ValueError("invalid_order_offset")
-        if payload["priceType"] != "LIMIT":
-            raise ValueError("limit_order_required")
-        if (
-            isinstance(payload["volume"], bool)
-            or not isinstance(payload["volume"], int)
-            or payload["volume"] <= 0
-        ):
-            raise ValueError("invalid_volume")
-        price = finite_number(payload["limitPrice"])
-        if price is None or price <= 0:
-            raise ValueError("invalid_limit_price")
-        market = self.server.service.market_quote(str(payload["symbol"]))
-        if market.get("marketSessionStatus") == "closed":
-            raise ValueError("market_session_closed")
-        exchange = str(market.get("symbol") or "").split(".", 1)[0].upper()
-        if payload["offset"] == "CLOSETODAY" and exchange not in {"SHFE", "INE"}:
-            raise ValueError("close_today_exchange_required")
-        if (
-            market.get("dataStatus") not in {"normal", "simulated"}
-            or float(market.get("ageSeconds", float("inf")))
-            > self.server.service.stale_after_seconds
-        ):
-            raise ValueError("market_snapshot_stale")
-        tick, lower, upper = (
-            finite_number(market.get(name))
-            for name in (
-                "priceTick",
-                "lowerLimit",
-                "upperLimit",
-            )
-        )
-        if tick is None or lower is None or upper is None or tick <= 0:
-            raise ValueError("market_metadata_unavailable")
-        steps = price / tick
-        if abs(steps - round(steps)) > 1e-8 or not lower <= price <= upper:
-            raise ValueError("invalid_limit_price")
-        return {
-            **payload,
-            "commandId": command_id,
-            "clientOrderId": client_order_id,
-            "symbol": str(market["symbol"]),
-            "limitPrice": price,
-        }
-
     def _backtest_request(self) -> dict[str, Any]:
         payload = self._body()
         required = {
@@ -3321,20 +3021,6 @@ class ReadOnlyHandler(BaseHTTPRequestHandler):
                 self._json(HTTPStatus.OK, self.server.service.market_quote(symbol))
             elif path.startswith("/v1/market/"):
                 self._json(HTTPStatus.OK, self.server.service.market(unquote(path.removeprefix("/v1/market/"))))
-            elif path.startswith("/v1/simulation/orders/") and not path.endswith(
-                "/cancel"
-            ):
-                if not self.server.service.trading_enabled:
-                    self._json(
-                        HTTPStatus.NOT_FOUND, {"error": "simulation_route_not_found"}
-                    )
-                    return
-                client_order_id = self._identifier(
-                    unquote(path.removeprefix("/v1/simulation/orders/"))
-                )
-                self._json(
-                    HTTPStatus.OK, self.server.service.query_order(client_order_id)
-                )
             else:
                 self._json(HTTPStatus.NOT_FOUND, {"error": "readonly_route_not_found"})
         except ReaderGone:
@@ -3405,40 +3091,7 @@ class ReadOnlyHandler(BaseHTTPRequestHandler):
             except RuntimeError as error:
                 self._json(HTTPStatus.CONFLICT, {"error": str(error)})
             return
-        if not self.server.service.trading_enabled:
-            self._json(HTTPStatus.METHOD_NOT_ALLOWED, {"error": "read_only_sidecar"})
-            return
-        try:
-            if path == "/v1/simulation/orders/submit":
-                self._json(
-                    HTTPStatus.OK,
-                    self.server.service.submit_order_once(self._submit_request()),
-                )
-                return
-            prefix, suffix = "/v1/simulation/orders/", "/cancel"
-            if path.startswith(prefix) and path.endswith(suffix):
-                client_order_id = self._identifier(
-                    unquote(path[len(prefix) : -len(suffix)])
-                )
-                payload = self._body()
-                if set(payload) != {"commandId"}:
-                    raise ValueError("invalid_cancel_fields")
-                command_id = self._identifier(payload["commandId"], command=True)
-                self._json(
-                    HTTPStatus.OK,
-                    self.server.service.cancel_order_once(client_order_id, command_id),
-                )
-                return
-            self._json(
-                HTTPStatus.METHOD_NOT_ALLOWED, {"error": "simulation_route_not_allowed"}
-            )
-        except (json.JSONDecodeError, ValueError):
-            self._json(
-                HTTPStatus.UNPROCESSABLE_ENTITY,
-                {"error": "invalid_simulation_order_request"},
-            )
-        except RuntimeError as error:
-            self._json(HTTPStatus.CONFLICT, {"error": str(error)})
+        self._json(HTTPStatus.METHOD_NOT_ALLOWED, {"error": "read_only_sidecar"})
 
     def _unsupported_write(self) -> None:
         self.close_connection = True
@@ -3497,7 +3150,7 @@ def read_config() -> dict[str, Any]:
         raise RuntimeError("sidecar_parent_invalid")
     if not isinstance(config["symbols"], list) or not config["symbols"]:
         raise RuntimeError("sidecar_symbols_invalid")
-    if config.get("mode") not in {"fixture", "tqkq-readonly", "tqkq-simulation"}:
+    if config.get("mode") not in {"fixture", "tqkq-readonly"}:
         raise RuntimeError("sidecar_mode_invalid")
     if not isinstance(config.get("marketOnly", False), bool):
         raise RuntimeError("sidecar_market_only_invalid")
@@ -3542,7 +3195,6 @@ def serve(config: dict[str, Any]) -> int:
         password=password,
         symbols=[str(item) for item in config["symbols"]],
         fixture=config.get("mode") == "fixture",
-        trading_enabled=config.get("mode") == "tqkq-simulation",
         market_only=bool(config.get("marketOnly", False)),
         stale_after_seconds=float(config.get("staleAfterSeconds", 15.0)),
         initial_snapshot_timeout_seconds=float(config.get("initialSnapshotTimeoutSeconds", 180.0)),

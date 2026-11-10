@@ -15,7 +15,7 @@ export function AccountsSection({ accounts, failed }: { accounts: AdminAccount[]
       ) : <>
         <AdminTiles label="交易账户汇总" items={[
           { label: "本站模拟", value: paper, note: "站内撮合" },
-          { label: "快期模拟", value: tqkq, note: "常驻或按需连接" },
+          { label: "快期行情", value: tqkq, note: "常驻或按需连接" },
           { label: "授权用户", value: grantees, note: "出现在授权里的账号" },
         ]} />
         <div className="fdw-admin-table-card">

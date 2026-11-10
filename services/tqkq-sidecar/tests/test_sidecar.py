@@ -440,123 +440,6 @@ def test_fixture_sidecar_exposes_only_authenticated_read_data():
         stop(process)
 
 
-def test_explicit_simulation_service_exposes_submit_query_and_cancel_once():
-    service = SnapshotService(
-        username=None,
-        password=None,
-        symbols=["SHFE.au2612"],
-        fixture=True,
-        trading_enabled=True,
-    )
-    server = ReadOnlyServer(("127.0.0.1", 0), TOKEN, service)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    service.start()
-    thread.start()
-    port = int(server.server_address[1])
-    try:
-        deadline = time.monotonic() + 2
-        while not service.status()["hasSnapshot"] and time.monotonic() < deadline:
-            time.sleep(0.01)
-        assert service.status()["simulationTrading"] is True
-        submission = {
-            "commandId": "submit:fixture-order-1",
-            "clientOrderId": "fixture-order-1",
-            "symbol": "SHFE.au2612",
-            "direction": "BUY",
-            "offset": "OPEN",
-            "volume": 1,
-            "priceType": "LIMIT",
-            "limitPrice": 823.0,
-        }
-        for invalid in (
-            {**submission, "offset": "INVALID"},
-            {**submission, "limitPrice": 823.11},
-            {**submission, "unexpected": True},
-        ):
-            try:
-                request(
-                    port, "/v1/simulation/orders/submit", method="POST", payload=invalid
-                )
-                raise AssertionError("invalid simulation order unexpectedly accepted")
-            except HTTPError as error:
-                assert error.code == 422
-        for method in ("PUT", "PATCH", "DELETE"):
-            try:
-                request(
-                    port, "/v1/simulation/orders/submit", method=method,
-                )
-                raise AssertionError(f"unsupported method accepted: {method}")
-            except HTTPError as error:
-                assert error.code == 405
-        with request(
-            port, "/v1/simulation/orders/submit", method="POST", payload=submission
-        ) as response:
-            accepted = json.load(response)
-        assert accepted["order"]["status"] == "ALIVE"
-        assert accepted["order"]["volumeLeft"] == 1
-        with request(
-            port, "/v1/simulation/orders/submit", method="POST", payload=submission
-        ) as response:
-            assert json.load(response) == accepted
-        with request(port, "/v1/simulation/orders/fixture-order-1") as response:
-            assert json.load(response)["order"]["clientOrderId"] == "fixture-order-1"
-
-        close_submission = {
-            **submission,
-            "commandId": "submit:fixture-close-1",
-            "clientOrderId": "fixture-close-1",
-            "direction": "SELL",
-            "offset": "CLOSETODAY",
-        }
-        with request(
-            port, "/v1/simulation/orders/submit", method="POST",
-            payload=close_submission,
-        ) as response:
-            close_report = json.load(response)
-        assert close_report["order"]["direction"] == "SELL"
-        assert close_report["order"]["offset"] == "CLOSETODAY"
-
-        dynamic_submission = {
-            **submission,
-            "commandId": "submit:fixture-iron-order-1",
-            "clientOrderId": "fixture-iron-order-1",
-            "symbol": "dce.i2609",
-            "limitPrice": 3499.5,
-        }
-        with request(
-            port, "/v1/simulation/orders/submit", method="POST",
-            payload=dynamic_submission,
-        ) as response:
-            dynamic_accepted = json.load(response)
-        assert dynamic_accepted["order"]["symbol"] == "DCE.i2609"
-        assert dynamic_accepted["order"]["status"] == "ALIVE"
-        try:
-            request(
-                port, "/v1/simulation/orders/submit", method="POST",
-                payload={
-                    **dynamic_submission,
-                    "commandId": "submit:fixture-bad-close-1",
-                    "clientOrderId": "fixture-bad-close-1",
-                    "offset": "CLOSETODAY",
-                },
-            )
-            raise AssertionError("DCE CLOSETODAY unexpectedly accepted")
-        except HTTPError as error:
-            assert error.code == 422
-        with request(
-            port,
-            "/v1/simulation/orders/fixture-order-1/cancel",
-            method="POST",
-            payload={"commandId": "cancel:fixture-order-1"},
-        ) as response:
-            assert json.load(response)["order"]["status"] == "FINISHED"
-    finally:
-        server.shutdown()
-        thread.join(timeout=2)
-        service.stop()
-        server.server_close()
-
-
 def test_config_is_received_over_stdin_not_process_arguments():
     source = (PROJECT / "src/tqkq_readonly_sidecar/main.py").read_text(encoding="utf-8")
     assert 'add_argument("--username"' not in source
@@ -1090,7 +973,6 @@ def test_official_snapshot_uses_complete_account_values_without_fallbacks():
     session._initial_snapshot_pending = True
     session.orders_initialized = False
     session.orders = {"history-order": object()}
-    session._observed_order_ids = set()
     session.account = SimpleNamespace(
         balance=1_000_000.0,
         static_balance=990_000.0,
@@ -1135,7 +1017,6 @@ def test_official_snapshot_uses_complete_account_values_without_fallbacks():
         "margin": 200_000.0,
     }
     assert session.orders_initialized is True
-    assert session._observed_order_ids == {"history-order"}
     assert stages[-1] == "ready"
     assert session._initial_snapshot_pending is False
     assert snapshot.markets["SHFE.au2612"]["marketSessionStatus"] == "closed"
@@ -1163,7 +1044,6 @@ def test_official_snapshot_distinguishes_network_disconnect_from_no_business_cha
     )
     session._initial_snapshot_pending = False
     session.orders_initialized = True
-    session._observed_order_ids = set()
     session.orders = {}
     session.trades = {}
     session.account = SimpleNamespace(
@@ -1299,7 +1179,6 @@ def test_snapshot_market_carries_per_lot_margin_and_commission():
     )
     session._initial_snapshot_pending = False
     session.orders_initialized = True
-    session._observed_order_ids = set()
     session.orders = {}
     session.account = SimpleNamespace(
         balance=1_000_000.0, static_balance=990_000.0, available=800_000.0,
@@ -1587,7 +1466,6 @@ def activity_session():
         get_trading_calendar=official_calendar,
     )
     session.orders_initialized = True
-    session._observed_order_ids = set()
     session.account = SimpleNamespace(
         balance=1_000_000.0, static_balance=1_000_000.0, available=900_000.0,
         float_profit=120.0, position_profit=120.0, close_profit=0.0,
@@ -1674,77 +1552,6 @@ def test_official_snapshot_preserves_a_legitimate_one_sided_book():
     assert snapshot is not None
     assert snapshot.markets["SHFE.au2612"]["bidPrice1"] == 999.5
     assert snapshot.markets["SHFE.au2612"]["askPrice1"] is None
-
-
-def test_local_prefilled_alive_order_is_not_server_confirmation():
-    order = SimpleNamespace(
-        order_id="local-order",
-        exchange_order_id="",
-        exchange_id="SHFE",
-        instrument_id="au2612",
-        direction="BUY",
-        offset="OPEN",
-        volume_orign=1,
-        volume_left=1,
-        limit_price=823.0,
-        price_type="LIMIT",
-        status="ALIVE",
-        is_online=True,
-        is_dead=False,
-        is_error=False,
-        last_msg="",
-    )
-    assert OfficialTqKqSession._order_report(order) == {
-        "ordersInitialized": True,
-        "found": False,
-    }
-
-
-def test_official_submit_forwards_the_explicit_close_offset_once():
-    captured: dict[str, object] = {}
-    order = object()
-    session = object.__new__(OfficialTqKqSession)
-
-    def insert_order(**kwargs):
-        captured.update(kwargs)
-        return order
-
-    session.api = SimpleNamespace(insert_order=insert_order)
-    session._wait_for_order = lambda actual: {  # type: ignore[method-assign]
-        "ordersInitialized": True, "found": actual is order,
-    }
-    report = session.submit_order_once({
-        "clientOrderId": "AIT-close-once",
-        "symbol": "SHFE.au2612",
-        "direction": "SELL",
-        "offset": "CLOSETODAY",
-        "volume": 1,
-        "limitPrice": 824.0,
-    })
-
-    assert report["found"] is True
-    assert captured == {
-        "symbol": "SHFE.au2612",
-        "direction": "SELL",
-        "offset": "CLOSETODAY",
-        "volume": 1,
-        "limit_price": 824.0,
-        "order_id": "AIT-close-once",
-    }
-
-
-def test_order_commands_are_not_consumed_before_history_initializes():
-    service = SnapshotService(
-        username=None, password=None, symbols=["SHFE.au2612"],
-        fixture=True, trading_enabled=True,
-    )
-    result = service.cancel_order_once("fixture-order", "cancel:fixture-order")
-    assert result == {
-        "ordersInitialized": False, "found": False,
-        "commandStatus": "NOT_DISPATCHED",
-    }
-    assert service._commands.empty()
-    assert service._cancelled_order_ids == set()
 
 
 def test_initial_snapshot_timeout_fails_closed_with_a_specific_stage():
@@ -2288,31 +2095,6 @@ def test_a_worker_that_exits_on_its_own_logs_the_exception_and_names_it_in_the_r
     err = capsys.readouterr().err
     assert "worker exit generation=1 error=ValueError: websocket closed by peer" in err
     assert "Traceback (most recent call last)" in err and 'raise ValueError("websocket closed by peer")' in err
-
-
-def test_a_queued_order_is_taken_at_once_and_reports_where_its_time_went() -> None:
-    # 2026-09-27 下单全程打点: the actor used to sleep 0.1 s after every read before looking
-    # for commands, so each order waited up to that long on top of the read.
-    service = SnapshotService(username=None, password=None, symbols=["SHFE.au2612"],
-                              fixture=True, trading_enabled=True)
-    service.start()
-    try:
-        deadline = time.monotonic() + 2
-        while service.status()["dataStatus"] != "simulated" and time.monotonic() < deadline:
-            time.sleep(0.01)
-        waits = []
-        for index in range(8):
-            time.sleep(0.013 * index)  # land at different points of the actor's loop
-            report = service.submit_order_once({
-                "commandId": f"timing-{index}", "clientOrderId": f"timing-{index}", "symbol": "SHFE.au2612",
-                "direction": "BUY", "offset": "OPEN", "volume": 1, "limitPrice": 500.0,
-            })
-            assert report["found"] is True
-            assert set(report["timing"]) == {"queuedMs", "exchangeMs"}
-            waits.append(report["timing"]["queuedMs"])
-        assert max(waits) < 60, waits
-    finally:
-        service.stop()
 
 
 def test_a_quiet_market_read_stops_waiting_once_a_command_is_queued() -> None:

@@ -55,12 +55,12 @@ export function AdminTiles({ items, label }: {
   </dl>;
 }
 
-// TqKq simulation accounts say how they are connected (the owner's resident
-// sidecar is always on, a member's pool connection starts on demand); a paper
+// 快期 accounts serve market data only (快期模拟彻底下线, owner 2026-11-10) and say how they are
+// connected (the owner's resident sidecar is always on, a pool connection starts on demand); a paper
 // account matches on the site engine (2026-10-03).
 const PROVIDER_LABELS: Record<string, string> = {
-  "tqkq-sidecar": "快期模拟 · 常驻连接",
-  "tqkq-pool": "快期模拟 · 按需连接",
+  "tqkq-sidecar": "快期行情 · 常驻连接",
+  "tqkq-pool": "快期行情 · 按需连接",
   "paper": "本站模拟 · 站内撮合",
 };
 // A grant role on ONE trading account — "owner" is that account's owner, not the owner login.

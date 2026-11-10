@@ -11,7 +11,7 @@ services:
     restart: unless-stopped
     network_mode: service:tqkq-sidecar
     environment:
-      AI_TRADER_TQKQ_MODE: tqkq-simulation
+      AI_TRADER_TQKQ_MODE: tqkq-readonly
       AI_TRADER_TQKQ_SYMBOLS: ${AI_TRADER_TQKQ_SYMBOLS:-SHFE.au2612,SHFE.rb2610}
       AI_TRADER_TQKQ_SIDECAR_PORT: "19002"
       AI_TRADER_READONLY_SIDECAR_TOKEN_FILE: /run/secrets/tqkq_sidecar_token_2

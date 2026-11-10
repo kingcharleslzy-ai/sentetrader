@@ -1418,7 +1418,7 @@ async def test_the_tqkq_main_account_places_no_orders_beside_the_paper_engine(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """#1205：配置了本站模拟盘时静态快期主账号（tqkq-sidecar）不再有下单网关——行情照旧，委托回
-    simulation_gateway_disabled；本站模拟账户照常下单。没有本站模拟盘的部署照旧（test_owner_auth 的 tqkqMode）。"""
+    simulation_gateway_disabled；本站模拟账户照常下单。没有本站模拟盘的部署同样不在快期下单（2026-11-10，test_owner_auth 的 tqkqMode）。"""
     application, _engine = paper_app(tmp_path, monkeypatch, "tqkq-no-gateway.sqlite3")
     try:
         assert application.state.accounts.default.simulation_orders.enabled is False

@@ -177,7 +177,7 @@ class PoolManager:
             # pool derives a stable per-account id instead.
             "instanceId": hashlib.sha256(f"tqkq-pool:{account_id}".encode()).hexdigest(),
             "parentPid": 0 if os.getpid() == 1 else os.getpid(),
-            "mode": "fixture" if self.fixture else "tqkq-simulation",
+            "mode": "fixture" if self.fixture else "tqkq-readonly",
             "marketOnly": market_only,
             "username": username,
             "password": password,

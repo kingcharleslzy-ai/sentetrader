@@ -374,7 +374,7 @@ test("档位分区：左列表右编辑器、预设与自定义额度、新建�
   // 交易账户：只读核对。
   fireEvent.click(within(console).getByRole("button", { name: "交易账户" }));
   const accountsTable = await within(console).findByRole("table", { name: "交易账户与授权" });
-  expect(accountsTable).toHaveTextContent("快期模拟");
+  expect(accountsTable).toHaveTextContent("快期行情");
   expect(accountsTable).toHaveTextContent("boss（所有者）");
   expect(accountsTable).toHaveTextContent("u1（只读）");
 });

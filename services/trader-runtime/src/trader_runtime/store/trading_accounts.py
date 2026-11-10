@@ -312,6 +312,16 @@ class TradingAccountStore(StoreBase):
             ).fetchall()
         return [str(row["id"]) for row in rows]
 
+    def users_on_account(self, *, account_id: str) -> list[str]:
+        """Users with an active session on the account or with it as their default."""
+        with self.lock:
+            rows = self.connection.execute(
+                """SELECT user_id FROM sessions WHERE trading_account_id = ? AND status = 'active'
+                UNION SELECT user_id FROM user_default_accounts WHERE account_id = ?""",
+                (account_id, account_id),
+            ).fetchall()
+        return sorted(str(row["user_id"]) for row in rows)
+
     def clear_user_default_account(self, *, user_id: str) -> None:
         with self.lock, self.connection:
             self.connection.execute(

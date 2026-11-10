@@ -70,11 +70,7 @@ def read_config() -> dict[str, Any]:
         raise RuntimeError("runtime_instance_invalid")
     if not isinstance(config["parentPid"], int) or config["parentPid"] <= 1:
         raise RuntimeError("runtime_parent_invalid")
-    if config.get("dataMode", "tqkq-readonly") not in {
-        "fixture",
-        "tqkq-readonly",
-        "tqkq-simulation",
-    }:
+    if config.get("dataMode", "tqkq-readonly") not in {"fixture", "tqkq-readonly"}:
         raise RuntimeError("runtime_data_mode_invalid")
     provider = config.get("agentProvider", "deepseek")
     if provider != "deepseek":
@@ -104,7 +100,6 @@ def serve(config: dict[str, Any]) -> int:
         symbols=tuple(str(item) for item in config["symbols"]),
         mode="fake" if config.get("dataMode") == "fixture" else "tqkq-readonly",
     )
-    gateway = provider if config.get("dataMode") == "tqkq-simulation" else None
     agent_model = str(config.get("agentModel", DEFAULT_DEEPSEEK_MODEL))
     agent_api_key = config.pop("agentApiKey", None)
     requested_mode = str(config.get("agentMode") or "native")
@@ -120,7 +115,6 @@ def serve(config: dict[str, Any]) -> int:
         runtime_state_root=Path(str(config["stateRoot"])),
         data_provider=provider,
         runtime_instance_id=str(config["instanceId"]),
-        simulation_gateway=gateway,
         agent_provider="deepseek",
     )
     listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

@@ -28,8 +28,8 @@ def _secret_file(name: str) -> str:
 
 
 def main() -> int:
-    mode = os.getenv("AI_TRADER_TQKQ_MODE", "tqkq-simulation")
-    if mode not in {"tqkq-readonly", "tqkq-simulation"}:
+    mode = os.getenv("AI_TRADER_TQKQ_MODE", "tqkq-readonly")
+    if mode != "tqkq-readonly":
         raise RuntimeError("sidecar_mode_invalid")
     symbols = [
         item.strip()

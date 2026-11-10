@@ -463,7 +463,7 @@ def test_snapshots_batch_matches_the_single_account_reads(http_service):
 def test_contract_shapes_cover_the_sidecar_fixture_fields(tmp_path):
     """引擎输出不得比 sidecar 假数据模式少字段：逐键集合对比（允许引擎多字段）。"""
     sidecar = SnapshotService(username=None, password=None,
-                              symbols=["SHFE.au2612"], fixture=True, trading_enabled=True)
+                              symbols=["SHFE.au2612"], fixture=True)
     server = ReadOnlyServer(("127.0.0.1", 0), TOKEN, sidecar)
     thread = threading.Thread(target=server.serve_forever,
                               kwargs={"poll_interval": 0.05}, daemon=True)
@@ -474,15 +474,10 @@ def test_contract_shapes_cover_the_sidecar_fixture_fields(tmp_path):
         deadline = time.monotonic() + 5
         while not sidecar.status()["hasSnapshot"] and time.monotonic() < deadline:
             time.sleep(0.01)
-        submission = submit_request("fixture-parity-1")
-        with request(port, "/v1/simulation/orders/submit", method="POST",
-                     payload=submission) as response:
-            expected_report = json.load(response)
         with request(port, "/v1/account") as response:
             expected_account = json.load(response)
         with request(port, "/v1/activity") as response:
             expected_activity = json.load(response)
-        assert expected_activity["orders"], "fixture sidecar exposes no activity order"
     finally:
         server.shutdown()
         server.server_close()
@@ -502,11 +497,17 @@ def test_contract_shapes_cover_the_sidecar_fixture_fields(tmp_path):
         activity = engine.activity(ACCOUNT)
         for key in set(expected_activity) - {"orders", "trades"}:
             assert key in activity
-        assert set(expected_activity["orders"][0]) <= set(activity["orders"][0])
+        # orders / positions / trades：sidecar 假数据模式不产出（快期下单 2026-11-10 已删），用同一份生产转换函数对齐键集合。
+        order_source = SimpleNamespace(
+            order_id="order-parity-1", exchange_order_id="x1", exchange_id="SHFE", instrument_id="au2612",
+            direction="BUY", offset="OPEN", volume_orign=1, volume_left=1, limit_price=820.0,
+            price_type="LIMIT", status="ALIVE", insert_date_time=1, last_msg="",
+            is_online=True, is_dead=False, is_error=False,
+        )
+        assert set(OfficialTqKqSession._activity_order(order_source)) <= set(activity["orders"][0])
         report = engine.query_order(ACCOUNT, "order-parity-1")
-        assert set(expected_report["order"]) <= set(report["order"])
+        assert set(OfficialTqKqSession._order_report(order_source, observed=True)["order"]) <= set(report["order"])
 
-        # positions / trades：sidecar 假数据模式不产出，用同一份生产转换函数对齐键集合。
         position_source = SimpleNamespace(
             pos_long=1, pos_short=0, pos_long_today=1, pos_long_his=0,
             pos_short_today=0, pos_short_his=0,

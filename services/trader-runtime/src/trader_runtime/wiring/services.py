@@ -113,17 +113,13 @@ def build_account_services(
     provider = build_account_provider(spec, injected=injected)
     resolved_gateway = simulation_gateway if is_default else None
     if simulation_trading:
-        # The sidecar-backed kinds trade through their own provider's order
-        # gateway: the owner's TqKq sidecar account and a paper account's
-        # site-hosted matching engine.
+        # Only a paper account trades, through the site-hosted matching engine. 快期模拟彻底下线
+        # (owner 2026-10-30 #1205, 2026-11-10): a 快期 account serves market data and history only,
+        # its orders and cancels answer simulation_gateway_disabled.
         if (spec.provider_kind not in ("tqkq-sidecar", "paper")
                 or not isinstance(provider, SidecarReadOnlyDataProvider)):
             raise RuntimeError("simulation_trading_requires_tqkq_sidecar")
-        # 快期模拟停用交易（所有者 2026-10-30，#1205）：配置了本站模拟盘（paper_accounts.
-        # PAPER_ENGINE_URL_ENV）时快期账户只供行情与历史，没有下单网关，委托与撤单回
-        # simulation_gateway_disabled；没有本站模拟盘的部署照旧。
-        retired = spec.provider_kind == "tqkq-sidecar" and bool(os.getenv("AI_TRADER_PAPER_ENGINE_URL", "").strip())
-        resolved_gateway = None if retired else provider
+        resolved_gateway = provider if spec.provider_kind == "paper" else None
     if fake_gateway:
         # Browser tests only: the gateway double may stand in solely for the
         # local, token-authenticated, fake-data runtime, never beside a real one.
