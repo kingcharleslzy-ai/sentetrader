@@ -109,7 +109,7 @@ class BacktestOptions(BaseModel):
     timeframe: ChartTimeframe | None = Field(default=None, description="跟随图表周期的策略用哪个周期回测")
     tradingDays: int | None = Field(default=None, ge=1, le=2000,
                                     description="只回测最近 N 个交易日；超过数据上限时用全部可取到的历史")
-    slippageTicks: int = Field(default=0, ge=0, le=5, description="开平各算几跳滑点，默认 0")
+    slippageTicks: int = Field(default=1, ge=0, le=5, description="开平各算几跳滑点，默认 1 跳（约等于按对手价成交）")
     initialBalance: float | None = Field(default=None, gt=0, le=1e12,
                                          description="初始资金；省略时取账户权益，读不到用 100 万")
     sessionId: str | None = Field(default=None, max_length=100, description="把结果卡发到这个对话")

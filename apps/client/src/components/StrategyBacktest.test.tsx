@@ -65,7 +65,7 @@ test("详情的回测直接调规则回测接口，结果卡显示核心数字�
   await openDetail();
   await backtestOnDetail();
   const card = await screen.findByTestId("strategy-backtest-card");
-  expect(posts()).toEqual([["http://main/api/strategies/library/backtest", {symbol:"SHFE.au2612", slippageTicks:0, tradingDays:120, fallbackReason:"unsupported"}]]);
+  expect(posts()).toEqual([["http://main/api/strategies/library/backtest", {symbol:"SHFE.au2612", slippageTicks:1, tradingDays:120, fallbackReason:"unsupported"}]]);   // 默认 1 跳
   expect(within(card).getByText("规则回测 · SHFE.au2612 · 5 分钟")).toBeVisible();
   const metrics = within(card).getAllByRole("definition").map(item => item.textContent);
   expect(metrics).toEqual(["-10", "1500.2%", "50.0%", "0.88", "2"]);   // 回撤 150（0.2%）

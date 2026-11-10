@@ -1145,8 +1145,8 @@ export interface components {
             tradingDays?: number | null;
             /**
              * Slippageticks
-             * @description 开平各算几跳滑点，默认 0
-             * @default 0
+             * @description 开平各算几跳滑点，默认 1 跳（约等于按对手价成交）
+             * @default 1
              */
             slippageTicks: number;
             /**
@@ -1555,8 +1555,8 @@ export interface components {
             tradingDays?: number | null;
             /**
              * Slippageticks
-             * @description 开平各算几跳滑点，默认 0
-             * @default 0
+             * @description 开平各算几跳滑点，默认 1 跳（约等于按对手价成交）
+             * @default 1
              */
             slippageTicks: number;
             /**
@@ -2600,8 +2600,8 @@ export interface components {
             tradingDays?: number | null;
             /**
              * Slippageticks
-             * @description 开平各算几跳滑点，默认 0
-             * @default 0
+             * @description 开平各算几跳滑点，默认 1 跳（约等于按对手价成交）
+             * @default 1
              */
             slippageTicks: number;
             /**
@@ -3724,8 +3724,8 @@ export interface components {
             tradingDays?: number | null;
             /**
              * Slippageticks
-             * @description 开平各算几跳滑点，默认 0
-             * @default 0
+             * @description 开平各算几跳滑点，默认 1 跳（约等于按对手价成交）
+             * @default 1
              */
             slippageTicks: number;
             /**

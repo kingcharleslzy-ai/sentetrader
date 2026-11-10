@@ -23,7 +23,7 @@ export interface BacktestSelection { strategyId: string; name: string }
 /** 策略页改版第八批 (2026-10-08): the one 回测 the page offers reads the last 6 months (≈120 trading
  *  days; a 1-minute strategy gets what the history holds and the 结果页 says the range it covered). */
 export const DEFAULT_TRADING_DAYS = 120;
-const DEFAULT_PARAMS: BacktestParams = { tradingDays: DEFAULT_TRADING_DAYS, slippageTicks: 0 };
+const DEFAULT_PARAMS: BacktestParams = { tradingDays: DEFAULT_TRADING_DAYS, slippageTicks: 1 };
 let selection: BacktestSelection | null = null;
 let cards: Record<string, BacktestCard> = {};
 const listeners = new Set<() => void>();

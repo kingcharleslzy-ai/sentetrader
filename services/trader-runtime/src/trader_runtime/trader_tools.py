@@ -562,7 +562,7 @@ class StrategyBacktestArguments(ToolArguments):
                                description="回测合约；策略库版本与 plan 必填")
     timeframe: Literal[60, 180, 300, 900, 3600, 86400] | None = Field(default=None, description="跟随图表周期的策略用哪个周期")
     tradingDays: int | None = Field(default=None, ge=1, le=2000, description="最近 N 个交易日；省略按周期取最近可取的历史")
-    slippageTicks: int = Field(default=0, ge=0, le=5)
+    slippageTicks: int = Field(default=1, ge=0, le=5, description="开平各算几跳滑点，默认 1 跳")
     initialBalance: float | None = Field(default=None, gt=0, le=1e12)
 
 
@@ -581,7 +581,7 @@ class StrategyTemplatePreviewArguments(ToolArguments):
     params: dict[str, float | None] = Field(default_factory=dict, description="要改的参数（键见模板 params）；省略取默认，可不填的参数（optional）给 null 即不设")
     timeframe: TemplateTimeframe | None = Field(default=None, description="执行周期；省略用推荐周期")
     tradingDays: int | None = Field(default=None, ge=1, le=2000, description="最近 N 个交易日；省略按周期取可取的历史")
-    slippageTicks: int = Field(default=0, ge=0, le=5)
+    slippageTicks: int = Field(default=1, ge=0, le=5, description="开平各算几跳滑点，默认 1 跳")
 
 
 class StrategyTemplateCreateArguments(ToolArguments):
@@ -609,7 +609,7 @@ class StrategyLabCreateArguments(ToolArguments):
     variants: list[StrategyLabVariantArguments] = Field(min_length=1, max_length=12,
         description="要对比的几组（同一合约上最多 12 组）：几组模板参数，或改前 / 改后的 plan")
     tradingDays: int | None = Field(default=None, ge=1, le=2000, description="只回测最近 N 个交易日；省略按周期取可取的历史")
-    slippageTicks: int = Field(default=0, ge=0, le=5, description="开平各算几跳滑点")
+    slippageTicks: int = Field(default=1, ge=0, le=5, description="开平各算几跳滑点，默认 1 跳")
     uiWindowId: str | None = Field(default=None, max_length=80, description="旧字段，接受但不再使用：比较一律在云端算")
 
 

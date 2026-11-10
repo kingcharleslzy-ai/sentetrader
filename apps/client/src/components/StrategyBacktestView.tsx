@@ -134,7 +134,7 @@ export function StrategyBacktestPanel({ params, running, queue, result, error, t
       <label>区间 · 交易日<input type="number" min="1" max="2000" placeholder="默认" value={params.tradingDays ?? ""} disabled={running}
         onChange={event => { const value = event.target.valueAsNumber; onParams({ tradingDays: Number.isFinite(value) && value >= 1 ? Math.min(2000, Math.floor(value)) : null }); }}/></label>
       <label>滑点<select aria-label="滑点" value={params.slippageTicks} disabled={running} onChange={event => onParams({ slippageTicks: Number(event.target.value) })}>
-        <option value={0}>0 跳</option><option value={1}>1 跳</option><option value={2}>2 跳</option></select></label>
+        <option value={0}>0 跳</option><option value={1}>1 跳（对手价）</option><option value={2}>2 跳</option></select></label>
       <button type="submit" disabled={running}><RotateCcw size={14}/>{running ? queue ? "排队中…" : "回测中…" : result ? "重跑" : "开始回测"}</button>
     </form>
     {error && <p className="strategy-backtest-error" role="alert">{error}</p>}

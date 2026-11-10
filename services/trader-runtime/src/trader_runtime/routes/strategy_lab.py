@@ -256,7 +256,7 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
                         if source["label"].endswith("（当前）")), None)
         symbol = await lab_symbol(request, user, body.symbol)
         lab = store.save_lab(lab_id=uuid4().hex, user_id=user, symbol=symbol,
-                             request={"symbol": symbol, "tradingDays": COMPARE_DAYS, "slippageTicks": 0,
+                             request={"symbol": symbol, "tradingDays": COMPARE_DAYS, "slippageTicks": 1,
                                       "strategyId": strategy_id, "currentVariant": current, **described},
                              variants=variants)
         if body.runOn == "server" or not browser_backtests_enabled():
