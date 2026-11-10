@@ -510,7 +510,7 @@ async def test_routes_run_saved_and_unsaved_plans_and_hide_other_users_strategie
 def test_backtest_card_command_validates_and_is_judged_by_the_reported_card():
     from pydantic import ValidationError
 
-    from trader_runtime.ui_control import UiChanges, changes_match
+    from trader_runtime.ui_control import UiChanges, changes_match, run_failure
     command = UiChanges.model_validate({"strategyBacktest": {"tradingDays": 20, "slippageTicks": 1}})
     assert command.strategyBacktest.run is None
     for bad in ({}, {"run": False}, {"slippageTicks": 9}, {"mark": None}, {"other": 1}):
@@ -522,6 +522,11 @@ def test_backtest_card_command_validates_and_is_judged_by_the_reported_card():
     assert changes_match({"strategyBacktest": card}, {"strategyBacktest": {"mark": True}})
     assert not changes_match({"strategyBacktest": card}, {"strategyBacktest": {"trades": True}})
     assert changes_match({"strategyBacktest": card}, {"strategyBacktest": {"run": True}})
+    # A run that ended in an error with nothing to show is a rejection with that error, not an unknown receipt.
+    failed = {**card, "running": False, "summary": None, "error": "回测未完成，请检查连接后重试"}
+    assert run_failure({"strategyBacktest": failed}, {"strategyBacktest": {"run": True}}) == failed["error"]
+    assert run_failure({"strategyBacktest": {**failed, "running": True}}, {"strategyBacktest": {"run": True}}) is None
+    assert run_failure({"strategyBacktest": failed}, {"strategyBacktest": {"mark": True}}) is None
     assert changes_match({}, {"strategyBacktest": {"mark": True}})   # an older client reports no card
     # 策略体检's 按这个改: applied once the card reports it applying or applied.
     assert UiChanges.model_validate({"strategyBacktest": {"applyAdvice": "drop-1"}}).strategyBacktest.applyAdvice == "drop-1"

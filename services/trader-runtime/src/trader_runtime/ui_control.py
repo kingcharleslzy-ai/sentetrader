@@ -1818,6 +1818,17 @@ def refused(state, changes) -> bool:
                 and center.get("moreError"))
 
 
+def run_failure(state, changes) -> str | None:
+    """strategyBacktest {run: true} whose run ended in an error with nothing to show (card.error, not running, no
+    result): the error text. Asked only at the receipt deadline — the card keeps an earlier run's error until the new
+    run starts, so an early heartbeat cannot tell the two apart."""
+    wanted = changes.get("strategyBacktest")
+    card = state.get("strategyBacktest")
+    if not (isinstance(wanted, dict) and wanted.get("run") and isinstance(card, dict)):
+        return None
+    return None if card.get("running") or card.get("summary") else (str(card.get("error") or "")[:300] or None)
+
+
 # Round-eleven surface commands are judged by the state they change. A client too old to report a
 # field is not contradicted: a missing key counts as matched.
 _SURFACE_COMMANDS = {"pinnedSymbols", "reviewExpand", "reviewFilter", "reviewSelect", "reviewDay", "reviewCurrency", "dialog",
@@ -2545,8 +2556,8 @@ def register_ui_control(app, current_user):
 
     def judge(command, pulse, *, final=False):
         """回执只在这里判 (owner 2026-11-01): a command the window says it ran is applied once the state it reports
-        shows the change (changes_match), rejected when its work finished without doing it, and — `final`, after
-        RECEIPT_SECONDS — unknown otherwise. A state change pulses at once, so the judgement follows it."""
+        shows the change (changes_match), rejected when its work finished without doing it (refused, or run_failure at the
+        deadline), and — `final`, after RECEIPT_SECONDS — unknown otherwise. A state change pulses at once, so the judgement follows it."""
         changes = command.request.changes.model_dump(exclude_unset=True)
         state = pulse.state.model_dump()
         try:
@@ -2556,7 +2567,8 @@ def register_ui_control(app, current_user):
             elif changes_match(state, changes):
                 command.status = "applied"
             elif final:
-                command.status = "unknown"
+                command.reason = run_failure(state, changes)
+                command.status = "rejected" if command.reason else "unknown"
             else:
                 return
         except Exception:
