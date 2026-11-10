@@ -54,7 +54,7 @@ def test_cci_matches_the_hand_calculation():
     # (13 − 11.333) ÷ (0.015 × 1.111) = 100. Bar 3: mean 12, TP 12 → 0.
     bars = series([(c, c, c, c) for c in (10, 11, 13, 12)])
     assert rounded(values(bars, indicator="cci", period=3)) == [None, None, 100.0, 0.0]
-    assert values(bars, indicator="cci")[-1] is None          # default N = 20 needs 20 bars
+    assert values(bars, indicator="cci")[-1] is None          # default N = 14 needs 14 bars
 
 
 def _wilder_sum(inputs: list[float], n: int) -> float:

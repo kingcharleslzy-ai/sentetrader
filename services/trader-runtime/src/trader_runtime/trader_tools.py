@@ -1037,7 +1037,6 @@ def _market_analysis(workbench: dict[str, Any], *, lookback: int) -> dict[str, A
     period_return = (closes[-1] / closes[0] - 1) * 100 if closes[0] else 0.0
     range_percent = ((max(highs) - min(lows)) / closes[0] * 100) if closes[0] else 0.0
     average_volume = sum(volumes) / len(volumes)
-    volume_ratio = volumes[-1] / average_volume if average_volume else None
     tolerance = max(abs(closes[-1]) * 0.0001, 1e-9)
     trend = (
         "up"
@@ -1048,7 +1047,7 @@ def _market_analysis(workbench: dict[str, Any], *, lookback: int) -> dict[str, A
     )
     quote = workbench["quote"]
     # BOLL(20,2)/ATR(14)/RSI(14)/CCI(14) from the strategy engine's one implementation, over the whole
-    # workbench (`lookback` only bounds the trend / mean / volume window): the same bar reads the same
+    # workbench (`lookback` only bounds the trend / mean window): the same bar reads the same
     # value here, on the chart and in a strategy rule. The readings stay qualitative.
     def series(indicator: str, period: int) -> list[float | None]:
         return indicator_values(every, Operand(indicator=indicator, period=period))
@@ -1060,6 +1059,8 @@ def _market_analysis(workbench: dict[str, Any], *, lookback: int) -> dict[str, A
     atr_baseline = (sum(atr_values) / len(atr_values)) if atr_values else None
     rsi_latest = series("rsi", 14)[-1]
     cci_latest = series("cci", 14)[-1]
+    # 量比 = the strategy engine's volume_ratio: this bar's volume ÷ the mean of the 20 bars before it.
+    volume_ratio = indicator_values(every, Operand(indicator="volume_ratio"))[-1]
     if boll_latest["top"] is not None and closes[-1] > boll_latest["top"]:
         boll_reading = "价格在布林上轨之上"
     elif boll_latest["bottom"] is not None and closes[-1] < boll_latest["bottom"]:
@@ -1464,7 +1465,7 @@ class TraderReadOnlyTools:
             {"type": "function", "name": "get_market_analysis",
              "description": (
                  "读取指定实际交割合约的最近 K 线，并由 Runtime 确定性计算涨跌、区间、"
-                 "5/20 均价、量比、持仓量变化和趋势。只读；这是行情事实摘要，不是收益预测。"
+                 "5/20 均价、量比（末根成交量 ÷ 前 20 根均量，与策略的放量倍数同一算法）、持仓量变化和趋势。只读；这是行情事实摘要，不是收益预测。"
                  "labels 是 Runtime 判定的放量缩量、增减仓、区间涨跌、趋势、RSI 定性，回答照抄（回答卡上写成对应的定性键）；区间涨跌不是当日涨跌，当日涨跌看行情快照 dayMove（对昨结算）。"
                  "解释走势、指标（KD/MACD/均线）、形态这类“讲图”问题用它（配合 get_chart_bars），秒级返回；不要为此调 get_futures_decision_context。"
              ),

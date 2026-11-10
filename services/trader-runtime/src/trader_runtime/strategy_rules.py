@@ -20,7 +20,8 @@ backtest's whole series (fixed lookbacks are sliced; SAR reuses the previous win
 国内口径 (owner 2026-11-10): ATR is the plain mean of N true ranges and Bollinger uses the sample
 standard deviation, as tqsdk.ta / 通达信-style software compute them — both fixed lookbacks, so the same
 in a live window and a whole series. SuperTrend keeps its own Wilder ATR (TradingView); SAR and
-ADX / DI are unchanged. This module is also what the AI's market reading calls (trader_tools).
+ADX / DI are unchanged. This module is also what the AI's market reading calls (trader_tools), its 量比
+included (`volume_ratio`). CCI's default period is 14 (owner 2026-11-10), the chart's and the AI reading's.
 """
 from __future__ import annotations
 
@@ -65,7 +66,7 @@ DAILY_ANCHORS = frozenset({"prev_high", "prev_low", "prev_close", "today_open", 
 DEFAULT_PERIODS = {"ema": 20, "atr": 14, "donchian_high": 20, "donchian_low": 20, "boll_mid": 20, "boll_up": 20,
                    "boll_down": 20, "keltner_mid": 20, "keltner_up": 20, "keltner_down": 20, "rsi": 14,
                    "supertrend": 10, "range_nday": 5, "opening_range_high": 1, "opening_range_low": 1,
-                   "cci": 20, "adx": 14, "plus_di": 14, "minus_di": 14, "oi_change": 1, "oi_quadrant": 1,
+                   "cci": 14, "adx": 14, "plus_di": 14, "minus_di": 14, "oi_change": 1, "oi_quadrant": 1,
                    "roc": 12, "trix": 12, "williams_r": 14, "bias": 6, "mfi": 14, "cmi": 30}
 WINDOWED = frozenset({"ma", "ema", "atr", "donchian_high", "donchian_low", "boll_mid", "boll_up", "boll_down",
                       "keltner_mid", "keltner_up", "keltner_down", "rsi", "supertrend", "cci", "adx", "plus_di", "minus_di", "trix",

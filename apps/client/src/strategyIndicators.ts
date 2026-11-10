@@ -89,7 +89,7 @@ export const PICKABLE: IndicatorName[] = [...ITEM_OF.keys()];
 /** DEFAULT_PERIODS, with `ma` at 20 (the card's habit; the engine's historical default is 5). */
 const DEFAULT_PERIODS: Partial<Record<IndicatorName, number>> = { ma: 20, ema: 20, atr: 14, donchian_high: 20, donchian_low: 20, boll_mid: 20,
   boll_up: 20, boll_down: 20, keltner_mid: 20, keltner_up: 20, keltner_down: 20, rsi: 14, supertrend: 10, range_nday: 5,
-  opening_range_high: 1, opening_range_low: 1, cci: 20, adx: 14, plus_di: 14, minus_di: 14, oi_change: 1, oi_quadrant: 1,
+  opening_range_high: 1, opening_range_low: 1, cci: 14, adx: 14, plus_di: 14, minus_di: 14, oi_change: 1, oi_quadrant: 1,
   roc: 12, trix: 12, williams_r: 14, bias: 6, mfi: 14, cmi: 30 };
 /** WINDOWED: a period of at least 2. */
 const WINDOWED = new Set<IndicatorName>(["ma", "ema", "atr", "donchian_high", "donchian_low", "boll_mid", "boll_up", "boll_down",

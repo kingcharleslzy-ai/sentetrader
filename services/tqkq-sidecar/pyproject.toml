@@ -14,6 +14,8 @@ tqkq = [
 [dependency-groups]
 dev = [
   "pandas>=3,<4",
+  # The tqsdk parity test (tests/test_indicator_parity.py) imports the Runtime's strategy engine, which needs pydantic.
+  "pydantic>=2.11,<3",
   "pytest>=8.4,<9",
   "pytest-timeout>=2.4,<3",
   "pytest-xdist>=3.8,<4",

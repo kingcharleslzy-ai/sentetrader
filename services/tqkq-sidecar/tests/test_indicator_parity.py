@@ -3,7 +3,7 @@ reading reports) must equal tqsdk.ta.
 
 tqsdk (and pandas, which tqsdk.ta is built on) only exists in the sidecar
 environment, so the parity test lives here and imports the Runtime source
-straight from its src tree. Tolerance 1e-6 pins the definitions: sample std
+straight from its src tree (its one third-party import, pydantic, is a sidecar dev dependency). Tolerance 1e-6 pins the definitions: sample std
 (ddof=1) for BOLL, the plain mean of true ranges with tr[0] undefined for ATR, mean absolute
 deviation for CCI — values and NaN placement over the whole series. RSI is the same recursion from
 another seed (Wilder's mean of the first N changes against tqsdk's sma(x, n, 1) from the first one),
@@ -18,14 +18,10 @@ from pathlib import Path
 
 import pytest
 
-# tqsdk is the sidecar's optional `tqsdk` extra: CI installs the project without
-# extras, so the parity check skips there and runs wherever the extra is present
-# (the developer sync `uv sync --all-extras`, and the release image).
+# tqsdk is the sidecar's optional `tqkq` extra, which the sidecar test environments (CI and
+# `npm run test:changed`) install; a sync without the extra skips the check.
 pd = pytest.importorskip("pandas", reason="tqsdk extra not installed")
 ta = pytest.importorskip("tqsdk.ta", reason="tqsdk extra not installed")
-# The engine module needs pydantic, a Runtime dependency the sidecar environment does not carry: the check
-# runs where both are importable (the Runtime's site-packages appended to PYTHONPATH) and skips elsewhere.
-pytest.importorskip("pydantic", reason="Runtime dependencies not importable from the sidecar environment")
 
 RUNTIME_SRC = Path(__file__).resolve().parents[2] / "trader-runtime" / "src"
 if str(RUNTIME_SRC) not in sys.path:

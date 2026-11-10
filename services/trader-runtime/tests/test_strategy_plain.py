@@ -101,7 +101,7 @@ def test_describe_plan_handwritten_combinations():
             "rearm": [cond({"indicator": "rsi", "timeframe": 300}, "lt", {"indicator": "constant", "value": 50, "timeframe": 300})]},
             "exitLong": {"conditions": [cond({"indicator": "oi_change", "timeframe": 300}, "falling", {"indicator": "constant", "value": 3})]}}})
     text = describe_plan(long_only, market="螺纹")
-    for piece in ("在螺纹 5 分钟图上", "5 根均线上穿 20 根均线且连续 3 根 CCI20 高于 100 就开多", "只做多", "只在 09:00–11:30 开仓",
+    for piece in ("在螺纹 5 分钟图上", "5 根均线上穿 20 根均线且连续 3 根 CCI14 高于 100 就开多", "只做多", "只在 09:00–11:30 开仓",
                   "夜盘不开新仓", "开多后要等 RSI14 低于 50 才再开多", "止损 30 跳", "赚到 1% 后，从持仓后的最高 / 最低价回撤 0.5% 就离场",
                   "赚到 20 跳后止损挪到开仓价盈利一侧 2 跳", "持仓满 10 根后赚到 40 跳就止盈", "多单在持仓量较 1 根前的变化比 3 根前低时平仓",
                   "持仓满 30 根K线就平仓", "持仓可以过夜", "手数按最近波动自动算（每笔按权益的 0.5% 定风险），最多 3 手"):
