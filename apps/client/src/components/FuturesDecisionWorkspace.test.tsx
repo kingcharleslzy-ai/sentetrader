@@ -3596,14 +3596,14 @@ test.each([
     command({ view: "review" });
     await screen.findByRole("radio", { name: "美元" });
     await waitFor(() => expect(state().review).toMatchObject({ currency: "CNY", currencies: ["CNY", "USD"] }));
-    // Readiness follows the actual registered handler, rather than only the page heading.
-    await waitFor(() => expect(uiSurface("review")?.apply).toBeDefined());
+    // A review command lands once the page's handler is registered, which follows each ledger's load a
+    // moment after the list is on screen: wait for what the command did, not for the list or the handler.
     command({ reviewCurrency: "USD" });
     await screen.findByRole("button", { name: new RegExp(historySymbol + " · 多 1 手") });
     command({ reviewSelect: trade.id });
+    await waitFor(() => expect(state().review).toMatchObject({ currency: "USD", selectedTradeId: trade.id, selectedNote: null }));
     expect(values.onSelectSymbol).toHaveBeenCalledTimes(chartSymbol ? 1 : 0);
     if (chartSymbol) expect(values.onSelectSymbol).toHaveBeenLastCalledWith(chartSymbol);
-    expect(state().review).toMatchObject({ currency: "USD", selectedTradeId: trade.id, selectedNote: null });
     view.rerender(<FuturesDecisionWorkspace {...values as any} selectedSymbol={chartSymbol ?? values.selectedSymbol} market={undefined} marketLoading={false} marketError="当前行情暂时不可用" />);
     const journal = screen.getByRole("region", { name: "这笔交易" });
     expect(journal).toHaveTextContent(historySymbol);
