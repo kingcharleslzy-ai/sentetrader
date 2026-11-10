@@ -2709,7 +2709,10 @@ def register_ui_control(app, current_user):
                     judge(command, body)
             await accept_capture(body, user)
             for command in commands.values():
-                if command.user != user or command.request.windowId != body.windowId or command.status != "queued":
+                # A dispatched command this heartbeat brings no receipt for never reached the window: the reply that
+                # carried it came after the window's request timed out (a busy page, 2026-11-10). Send it again.
+                lost = command.status == "dispatched" and command.claimed is None
+                if command.user != user or command.request.windowId != body.windowId or not (command.status == "queued" or lost):
                     continue
                 try:
                     await command.identity.verify()

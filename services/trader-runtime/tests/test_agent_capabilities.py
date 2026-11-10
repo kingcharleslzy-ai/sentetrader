@@ -263,6 +263,8 @@ async def test_ui_receipt_wait_allows_pulse_and_preserves_command_identity(tmp_p
                     if dispatched: break
                 assert dispatched['commandId'] == cid
                 assert not pending.done()  # Dispatch is not an acknowledgement.
+                # The window never saw that reply (its request timed out): a heartbeat without a receipt gets it again.
+                assert (await c.post(prefix + '/api/ui/pulse', json=pulse)).json()['command']['commandId'] == cid
                 acknowledged = {**pulse, 'revision': 1, 'state': {**state, 'theme': 'light'},
                     'receipt': {'commandId': cid, 'status': 'applied'}}
                 assert (await c.post(prefix + '/api/ui/pulse', json=acknowledged)).status_code == 200
