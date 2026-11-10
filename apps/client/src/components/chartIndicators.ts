@@ -208,7 +208,8 @@ export function emaSeries(values: number[], period: number): number[] {
   });
 }
 
-/** BOLL(period, width): mid = SMA, bands = mid ± width × population standard deviation. */
+/** BOLL(period, width): mid = SMA, bands = mid ± width × sample standard deviation (÷ N − 1, 国内口径 — the
+ *  strategy engine's `boll_up` / `boll_down`). */
 export function bollingerBands(bars: Array<Pick<IndicatorBar, "time" | "close">>, period: number, width: number): { mid: SeriesPoint[]; top: SeriesPoint[]; bottom: SeriesPoint[] } {
   const window = Math.max(2, Math.round(period));
   const multiplier = Math.max(0, width);
@@ -226,7 +227,7 @@ export function bollingerBands(bars: Array<Pick<IndicatorBar, "time" | "close">>
     }
     if (index < window - 1) return;
     const mean = sum / window;
-    const deviation = Math.sqrt(Math.max(squares / window - mean * mean, 0)) * multiplier;
+    const deviation = Math.sqrt(Math.max((squares - window * mean * mean) / (window - 1), 0)) * multiplier;
     mid.push({ time: bar.time, value: mean });
     top.push({ time: bar.time, value: mean + deviation });
     bottom.push({ time: bar.time, value: mean - deviation });
@@ -306,31 +307,38 @@ export function cciSeries(bars: Array<Pick<IndicatorBar, "time" | "high" | "low"
   return points;
 }
 
-/** Parabolic SAR (Wilder): starts long on bar 1 (short when it opens below bar 0's close), the extreme
- *  point and the acceleration reset on every reversal, and the stop never enters the last two bars. */
+/** Parabolic SAR, the strategy engine's algorithm (`_sar_advance` in strategy_rules.py, TradingView's ta.sar):
+ *  bar 1 seeds the trend from its close against bar 0's; a reversal restarts the stop at the extreme and the
+ *  acceleration at `step`; the stop never enters the last two bars. At 0.02 / 0.2 the values equal the engine's. */
 export function sarSeries(bars: Array<Pick<IndicatorBar, "time" | "high" | "low" | "close">>, step: number, max: number): SeriesPoint[] {
-  if (bars.length < 2) return [];
-  let long = bars[1].close >= bars[0].close;
-  let sar = long ? bars[0].low : bars[0].high;
-  let extreme = long ? bars[1].high : bars[1].low;
+  const points: SeriesPoint[] = [];
+  let rising = true;
+  let sar = 0;
+  let extreme = 0;
   let factor = step;
-  const points: SeriesPoint[] = [{ time: bars[1].time, value: sar }];
-  for (let index = 2; index < bars.length; index += 1) {
-    const bar = bars[index];
-    let next = sar + factor * (extreme - sar);
-    // The stop may not sit inside the previous two bars' range.
-    next = long ? Math.min(next, bars[index - 1].low, bars[index - 2].low) : Math.max(next, bars[index - 1].high, bars[index - 2].high);
-    if (long ? bar.low < next : bar.high > next) {
-      long = !long;
-      next = extreme;
-      extreme = long ? bar.high : bar.low;
-      factor = step;
-    } else if (long ? bar.high > extreme : bar.low < extreme) {
-      extreme = long ? bar.high : bar.low;
-      factor = Math.min(max, factor + step);
+  for (let index = 1; index < bars.length; index += 1) {
+    const { high, low } = bars[index];
+    const before = bars[index - 1];
+    let first = false;
+    if (index === 1) {
+      rising = bars[1].close > bars[0].close;
+      sar = rising ? before.low : before.high;
+      extreme = rising ? high : low;
+      first = true;
     }
-    sar = next;
-    points.push({ time: bar.time, value: sar });
+    sar += factor * (extreme - sar);
+    if (rising && sar > low) {
+      [first, rising, sar, extreme, factor] = [true, false, Math.max(high, extreme), low, step];
+    } else if (!rising && sar < high) {
+      [first, rising, sar, extreme, factor] = [true, true, Math.min(low, extreme), high, step];
+    }
+    if (!first) {
+      if (rising && high > extreme) [extreme, factor] = [high, Math.min(factor + step, max)];
+      else if (!rising && low < extreme) [extreme, factor] = [low, Math.min(factor + step, max)];
+    }
+    const earlier = index > 1 ? bars[index - 2] : before;
+    sar = rising ? Math.min(sar, before.low, earlier.low) : Math.max(sar, before.high, earlier.high);
+    points.push({ time: bars[index].time, value: sar });
   }
   return points;
 }

@@ -26,10 +26,6 @@ from .conversation_cards import (
 from .data_providers import ReadOnlyDataProvider, provider_read_snapshot
 from .delivery_rules import contract_payload, delivery_notice, trading_today
 from .exchange_calendar import calendar_trading_days
-from .indicators import atr as atr_series
-from .indicators import boll as boll_series
-from .indicators import cci as cci_series
-from .indicators import rsi as rsi_series
 from .instruments import (
     CONTEXT_SYMBOL_PATTERN,
     SYMBOL_PATTERN,
@@ -71,7 +67,7 @@ from .simulation_orders import (
     SimulationOrderError,
 )
 from .sina_market import BACKUP_NOTICE, BACKUP_STATUS
-from .strategy_rules import ProtectionTrailing
+from .strategy_rules import Operand, ProtectionTrailing, indicator_values
 from .strategy_validation import validate_strategy_history
 from .web_search import WebSearchClient, WebSearchError
 
@@ -1025,7 +1021,8 @@ def _market_analysis(workbench: dict[str, Any], *, lookback: int) -> dict[str, A
         or not isinstance(workbench.get("bars"), list)
     ):
         raise ValueError("invalid_market_workbench")
-    bars = [item for item in workbench["bars"] if isinstance(item, dict)][-lookback:]
+    every = [item for item in workbench["bars"] if isinstance(item, dict)]
+    bars = every[-lookback:]
     if len(bars) < 20:
         raise ValueError("insufficient_market_bars")
     closes = [_finite(item["close"]) for item in bars]
@@ -1050,16 +1047,19 @@ def _market_analysis(workbench: dict[str, Any], *, lookback: int) -> dict[str, A
         else "range"
     )
     quote = workbench["quote"]
-    # BOLL(20,2)/ATR(14)/RSI(14)/CCI(14) latest values, the same definitions
-    # tqsdk.ta uses (pinned by a parity test); the readings stay qualitative.
-    bands = boll_series(closes, 20, 2)
-    boll_latest = {name: round(values[-1], 6) if values[-1] is not None else None
-                   for name, values in bands.items()}
-    atr_values = [value for value in atr_series(highs, lows, closes, 14) if value is not None]
+    # BOLL(20,2)/ATR(14)/RSI(14)/CCI(14) from the strategy engine's one implementation, over the whole
+    # workbench (`lookback` only bounds the trend / mean / volume window): the same bar reads the same
+    # value here, on the chart and in a strategy rule. The readings stay qualitative.
+    def series(indicator: str, period: int) -> list[float | None]:
+        return indicator_values(every, Operand(indicator=indicator, period=period))
+    boll_latest = {name: round(value, 6) if value is not None else None
+                   for name, value in (("mid", series("boll_mid", 20)[-1]), ("top", series("boll_up", 20)[-1]),
+                                       ("bottom", series("boll_down", 20)[-1]))}
+    atr_values = [value for value in series("atr", 14)[-lookback:] if value is not None]
     atr_latest = atr_values[-1] if atr_values else None
     atr_baseline = (sum(atr_values) / len(atr_values)) if atr_values else None
-    rsi_latest = rsi_series(closes, 14)[-1]
-    cci_latest = cci_series(highs, lows, closes, 14)[-1]
+    rsi_latest = series("rsi", 14)[-1]
+    cci_latest = series("cci", 14)[-1]
     if boll_latest["top"] is not None and closes[-1] > boll_latest["top"]:
         boll_reading = "价格在布林上轨之上"
     elif boll_latest["bottom"] is not None and closes[-1] < boll_latest["bottom"]:

@@ -77,21 +77,18 @@ def test_ema_matches_pandas_ewm_adjust_false_after_warmup():
     assert got[2:] == pytest.approx(expected[2:])
 
 
-def test_atr_uses_wilder_smoothing_seeded_by_the_mean():
+def test_atr_is_the_plain_mean_of_the_true_ranges():
     bars = ohlc([(9, 10, 8, 9), (10, 11, 9, 10), (10, 12, 9, 11), (12, 13, 10, 12), (11, 12, 10, 11)])
-    # True ranges 2, 2, 3, 3, 2 → seed 7/3, then (prev × 2 + TR) / 3.
-    assert values(bars, "atr", period=3) == pytest.approx([None, None, 7 / 3, 23 / 9, 64 / 27])
+    # 国内口径 (tqsdk.ta.ATR): the first bar has no true range; then 2, 3, 3, 2 → the mean of the last three.
+    assert values(bars, "atr", period=3) == pytest.approx([None, None, None, 8 / 3, 8 / 3])
 
 
 def test_cci_of_a_flat_decimal_window_is_zero_not_a_rounding_residue():
     """#998: a flat window of decimal prices (4123.2 × 14) must read 0 in the strategy engine, never ±66.7 from a
-    rounding residue (the chart's and the AI reading's CCI had that residue; this guards the engine's)."""
-    from trader_runtime.indicators import cci
+    rounding residue (the chart's CCI had that residue; this guards the engine's, which the AI reading uses)."""
     for price in (4123.2, 3.1, 57.305, 6.602):  # 6.602 × 14 leaves a residue in a plain Python mean
         bars = ohlc([(price, price, price, price)] * 16)
         assert values(bars, "cci", period=14)[-3:] == [0.0, 0.0, 0.0]
-        flat = [price] * 16
-        assert cci(flat, flat, flat, 14)[-3:] == [0.0, 0.0, 0.0]  # the AI reading: the same 0, not 样本不足
 
 
 def test_donchian_excludes_the_current_bar():
@@ -100,9 +97,9 @@ def test_donchian_excludes_the_current_bar():
     assert values(bars, "donchian_low", period=2) == [None, None, 0, 1, 1]
 
 
-def test_bollinger_uses_population_standard_deviation():
+def test_bollinger_uses_sample_standard_deviation():
     bars = closes([1, 2, 3, 4])
-    deviation = math.sqrt(5 / 4)  # population; the sample deviation would be sqrt(5/3)
+    deviation = math.sqrt(5 / 3)  # sample (÷ N − 1, 国内口径); the population deviation would be sqrt(5/4)
     assert values(bars, "boll_mid", period=4)[-1] == pytest.approx(2.5)
     assert values(bars, "boll_up", period=4)[-1] == pytest.approx(2.5 + 2 * deviation)
     assert values(bars, "boll_down", period=4, k=1)[-1] == pytest.approx(2.5 - deviation)

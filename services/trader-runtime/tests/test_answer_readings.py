@@ -3,6 +3,8 @@ with the thresholds the tools' own labels use. How a card quotes them is tests/a
 from __future__ import annotations
 
 from trader_runtime.answer_readings import Facts, analysis_labels, day_move_label, move_values
+from trader_runtime.data_providers import fake_market_history
+from trader_runtime.strategy_rules import Operand, indicator_values
 from trader_runtime.trader_tools import _market_analysis
 
 
@@ -29,6 +31,22 @@ def test_the_tools_carry_the_same_labels_the_readings_use():
     facts.add(summary)
     assert facts.state("SHFE.au2612", "volumeState", 300) == {"up"} and facts.state("SHFE.au2612", "trend", 300) == {"up"}
     assert facts.detail("SHFE.au2612", "maOrder", 300) == "5 分钟线 MA5 高于 MA20"
+
+
+def test_the_reading_reports_the_strategy_engines_indicators_whatever_the_lookback():
+    """One implementation (2026-11-10): RSI / ATR / BOLL / CCI of the AI's reading are the engine's values on
+    the workbench's last bar, computed over the whole workbench — `lookback` (the trend window) changes none."""
+    bars = fake_market_history("SHFE.rb2610", 300, 255)["bars"]
+    workbench = {"schemaVersion": 1, "liveTrading": "disabled", "dataStatus": "normal",
+                 "quote": {"symbol": "SHFE.rb2610"}, "durationSeconds": 300, "bars": bars}
+    engine = {name: indicator_values(bars, Operand(indicator=name, period=period))[-1]
+              for name, period in (("rsi", 14), ("atr", 14), ("cci", 14), ("boll_mid", 20), ("boll_up", 20), ("boll_down", 20))}
+    for lookback in (20, 40, 120):
+        read = _market_analysis(workbench, lookback=lookback)["indicators"]
+        assert read["rsi"]["value"] == round(engine["rsi"], 4) and read["atr"]["value"] == round(engine["atr"], 6)
+        assert read["cci"]["value"] == round(engine["cci"], 6)
+        assert (read["boll"]["mid"], read["boll"]["top"], read["boll"]["bottom"]) == tuple(
+            round(engine[name], 6) for name in ("boll_mid", "boll_up", "boll_down"))
 
 
 def test_moves_flat_and_near_flat_keep_their_thresholds():

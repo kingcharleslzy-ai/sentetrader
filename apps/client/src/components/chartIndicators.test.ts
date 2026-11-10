@@ -31,8 +31,8 @@ test("movingAverage averages the trailing window and starts at bar period", () =
   ]);
 });
 
-test("bollingerBands uses the population standard deviation around the SMA mid", () => {
-  const deviation = Math.sqrt(2 / 3) * 2; // closes 10,11,12 (and each later window) spread ±1 around the mean
+test("bollingerBands uses the sample standard deviation around the SMA mid", () => {
+  const deviation = 2; // sample deviation 1 × width 2: // closes 10,11,12 (and each later window) spread ±1 around the mean
   const { mid, top, bottom } = bollingerBands(closes([10, 11, 12, 13, 14]), 3, 2);
   expect(mid.map(point => point.value)).toEqual([11, 12, 13]);
   expect(top.map(point => round9(point.value))).toEqual([11, 12, 13].map(mean => round9(mean + deviation)));

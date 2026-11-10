@@ -17,6 +17,10 @@ averaging down) and 分批止盈 (`scaleOut`: partial closes of the peak volume 
 the legs' closed K-lines joined into a spread series (see strategy_spread).
 Every new indicator's value at a bar is the same in the live 255-bar window and in a
 backtest's whole series (fixed lookbacks are sliced; SAR reuses the previous window's path).
+国内口径 (owner 2026-11-10): ATR is the plain mean of N true ranges and Bollinger uses the sample
+standard deviation, as tqsdk.ta / 通达信-style software compute them — both fixed lookbacks, so the same
+in a live window and a whole series. SuperTrend keeps its own Wilder ATR (TradingView); SAR and
+ADX / DI are unchanged. This module is also what the AI's market reading calls (trader_tools).
 """
 from __future__ import annotations
 
@@ -880,7 +884,7 @@ def _window_free_start(operand: OperandBase) -> int | None:
         return 0
     if name == "ma" or name.startswith("boll"):
         return period - 1
-    if name in {"donchian_high", "donchian_low", "oi_change", "oi_quadrant"}:
+    if name in {"donchian_high", "donchian_low", "oi_change", "oi_quadrant", "atr"}:
         return period
     if name == "volume_ratio":
         return 20
@@ -992,7 +996,9 @@ def _true_ranges(bars: list[dict]) -> list[float]:
 
 
 def _atr(bars: list[dict], period: int) -> list[float | None]:
-    return _wilder(_true_ranges(bars), period, 0)
+    """The plain mean of the last `period` true ranges (国内口径, tqsdk.ta.ATR): the first bar has no
+    previous close and so no true range, the first value sits at bar `period`."""
+    return _sma([None, *_true_ranges(bars)[1:]], period)
 
 
 def _optional_number(value: Any) -> float | None:
@@ -1155,7 +1161,7 @@ def _rsi(closes: list[float], period: int) -> list[float | None]:
 def _supertrend(bars: list[dict], period: int, k: float) -> list[float | None]:
     """The common (TradingView) SuperTrend: bands (H+L)/2 ∓ k×ATR ratchet while the previous close
     stays inside them; the trend starts up and flips when the close crosses the previous band."""
-    atr = _atr(bars, period)
+    atr = _wilder(_true_ranges(bars), period, 0)     # its own Wilder ATR, as TradingView's ta.supertrend
     result: list[float | None] = [None] * len(bars)
     previous_up: float | None = None
     previous_down: float | None = None
@@ -1517,7 +1523,8 @@ def _base_values(bars: list[dict], operand: OperandBase, context: SeriesContext 
             if center is None:
                 bands.append(None)
                 continue
-            deviation = math.sqrt(sum((v - center) ** 2 for v in values[i + 1 - period:i + 1]) / period)
+            # Sample standard deviation (÷ N − 1; 国内口径, tqsdk.ta.BOLL); a 1-bar band has no width.
+            deviation = math.sqrt(sum((v - center) ** 2 for v in values[i + 1 - period:i + 1]) / max(period - 1, 1))
             bands.append(center + sign * width * deviation)
         return bands
     if name.startswith("keltner"):
@@ -1542,9 +1549,11 @@ def _base_values(bars: list[dict], operand: OperandBase, context: SeriesContext 
 
 
 def indicator_values(bars: list[dict], operand: OperandBase, context: SeriesContext | None = None) -> list[float | None]:
-    """The single indicator implementation. KD(9,3,3), MACD(12,26,9) exactly match the product chart;
-    ATR / RSI use Wilder smoothing, Bollinger the population standard deviation, Donchian the
-    previous N bars (the current bar excluded). Daily anchors need `context.daily`."""
+    """The single indicator implementation (strategy rules, the AI's market reading; the chart computes the
+    same numbers). KD(9,3,3), MACD(12,26,9) exactly match the product chart; ATR is the plain mean of N true
+    ranges and Bollinger uses the sample standard deviation (国内口径 = tqsdk.ta, 2026-11-10); RSI uses Wilder
+    smoothing, SuperTrend TradingView's Wilder ATR, Donchian the previous N bars (the current bar excluded).
+    Daily anchors need `context.daily`."""
     values = _base_values(bars, operand, context)
     if operand.average:
         values = _sma(values, operand.average)
@@ -1565,9 +1574,9 @@ def indicator_values(bars: list[dict], operand: OperandBase, context: SeriesCont
 
 def _required_bars(name: str, period: int) -> int:
     return (35 if name.startswith("macd") else 9 if name.startswith("kd") else
-            period if name in {"ma", "ema", "atr", "cci"} or name.startswith(("boll", "keltner")) else
+            period if name in {"ma", "ema", "cci"} or name.startswith("boll") else
             period + 1 if name in {"donchian_high", "donchian_low", "rsi", "supertrend", "oi_change", "oi_quadrant",
-                                   "roc", "mfi"} else
+                                   "roc", "mfi", "atr"} or name.startswith("keltner") else
             period if name in {"williams_r", "bias", "cmi"} else BBI_PERIODS[-1] if name == "bbi" else
             3 * (period - 1) + 2 if name == "trix" else
             21 if name == "volume_ratio" else DI_HISTORY + 1 if name in {"plus_di", "minus_di"} else

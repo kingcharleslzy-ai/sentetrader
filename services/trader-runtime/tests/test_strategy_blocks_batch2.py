@@ -488,7 +488,7 @@ def blocks_plan() -> StrategyPlan:
         "direction": "both", "timeframeSeconds": 60, "maxPosition": 1, "stopLossTicks": 30, "takeProfitTicks": None,
         "cooldownBars": 0, "maxLoss": 1e8, "maxOrdersPerDay": 50,
         "breakeven": {"triggerAtr": 1.5, "offsetTicks": 1},
-        "timeTakeProfit": [{"afterBars": 0, "profitAtr": 6}, {"afterBars": 40, "profitTicks": 3}],
+        "timeTakeProfit": [{"afterBars": 0, "profitAtr": 5}, {"afterBars": 40, "profitTicks": 3}],
         "rules": {
             "entryLong": {"conditions": [
                 _condition("站上 SAR", _operand("close"), "gt", _operand("sar"), consecutive=2),
