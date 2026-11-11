@@ -419,6 +419,25 @@ def build_model_endpoints(
     return endpoints
 
 
+# 套餐 (Command Code) channel for the background news jobs: the same DeepSeek model through a flat-rate
+# plan. It never enters the conversation catalog; AI_TRADER_NEWS_SCREEN_PLAN_PERCENT=0 or no key turns it off.
+PLAN_USERS = frozenset({"platform:news-screen", "platform:news-analyst", "platform:news-translate",
+                        "platform:research-desk"})
+PLAN_MODEL = "deepseek/deepseek-v4.1-flash"
+
+
+def news_plan_endpoint() -> ModelEndpoint | None:
+    try:
+        if int(os.getenv("AI_TRADER_NEWS_SCREEN_PLAN_PERCENT", "0") or 0) <= 0:
+            return None
+        key = secret_value("AI_TRADER_NEWS_SCREEN_PLAN_API_KEY")
+    except (ValueError, RuntimeError):
+        return None
+    if not key:
+        return None
+    return ModelEndpoint("news-screen-plan", "commandcode", "https://api.commandcode.ai/provider/v1", key, PLAN_MODEL)
+
+
 def default_model_slug(endpoints: dict[str, ModelEndpoint], provider: str) -> str | None:
     configured = canonical_model_slug(os.getenv("AI_TRADER_AGENT_MODEL", ""))
     if configured and configured in endpoints:
@@ -2992,10 +3011,10 @@ class NativeAgentAdapter:
                      meter.run_id if meter else "-", endpoint.slug, status, (monotonic() - started) * 1000,
                      usage.get("input_tokens", 0), usage.get("output_tokens", 0), usage.get("cached_tokens", 0),
                      usage.get("reasoning_tokens", 0), len(request.get("tools") or ()))
-            if usage_user == "platform:news-screen":
+            if usage_user in PLAN_USERS:
                 try:
                     self.store.add_turn_usage(
-                        run_id=str(uuid4()), user_id=usage_user, session_id="", route="news-screen",
+                        run_id=str(uuid4()), user_id=usage_user, session_id="", route=usage_user.partition(":")[2],
                         origin=endpoint.provider, model=endpoint.upstream or endpoint.slug, status=status,
                         usage={**usage, "requests": requests}, first_text_ms=None,
                         elapsed_ms=round((monotonic() - started) * 1000))
@@ -3960,7 +3979,7 @@ class NativeAgentAdapter:
         on_progress: Callable[..., None] | None = None, json_schema: dict[str, Any] | None = None,
         usage_user: str | None = None,
         max_output_tokens: int | None = None, light_reasoning: bool = False,
-        endpoint: ModelEndpoint | None = None,
+        endpoint: ModelEndpoint | None = None, reasoning_effort: str | None = None,
     ) -> StructuredResult:
         """One bounded request/response without conversation history.
 
@@ -3977,11 +3996,23 @@ class NativeAgentAdapter:
         apart from `model_output_invalid` (text that does not fit the schema).
         """
         # A background caller may own a private endpoint; it never enters the conversation catalog.
-        if endpoint is not None and (usage_user != "platform:news-screen" or tools):
+        if endpoint is not None and (usage_user not in PLAN_USERS or tools):
             raise NativeAgentError("model_unavailable")
+        # The background news jobs go to the 套餐 first; the official model answers only when it fails.
+        # 资讯筛选 picks its own endpoint per batch (sampling, double judgment), so it is not routed here.
+        if endpoint is None and not tools and usage_user in PLAN_USERS - {"platform:news-screen"}:
+            plan = news_plan_endpoint()
+            if plan is not None:
+                try:
+                    return await self.complete_structured(
+                        instructions=instructions, input_text=input_text, schema=schema, timeout_seconds=timeout_seconds,
+                        json_schema=json_schema, usage_user=usage_user, max_output_tokens=max_output_tokens,
+                        light_reasoning=light_reasoning, endpoint=plan, reasoning_effort=reasoning_effort)
+                except Exception as error:  # noqa: BLE001 — no provider text: it may quote response headers
+                    log.info("news_plan_fallback user=%s error=%s", usage_user, type(error).__name__)
         private_client = self._make_client(endpoint) if endpoint is not None else None
         endpoint = endpoint or self._endpoint_for(model)
-        effort: str | None = "low" if private_client is not None else None
+        effort: str | None = reasoning_effort
         if light_reasoning:
             effort = (self._traits.get(endpoint.slug) or PROVIDER_TRAITS["deepseek"]).get("light_effort") or "minimal"
         allowed = {name for name in (tools or set()) if name == "web_search"}
@@ -4004,7 +4035,7 @@ class NativeAgentAdapter:
         tokens = 0
         corrected = False
         stream_options: dict[str, Any] = ({"client": private_client, "usage_user": usage_user}
-                                          if usage_user == "platform:news-screen" else {})
+                                          if usage_user in PLAN_USERS else {})
         try:
             async with asyncio.timeout(timeout_seconds):
                 for _ in range(5):

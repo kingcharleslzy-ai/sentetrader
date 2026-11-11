@@ -59,7 +59,6 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict
 
 from .daily_budget import DailyCallBudget
-from .secret_values import secret_value
 
 log = logging.getLogger("uvicorn.error.research")
 
@@ -80,7 +79,6 @@ DROP_GROUPS = ("无关国际新闻", "无关宏观数据", "其他品种新闻",
                DEFAULT_GROUP)
 # The judgments' tokens book against this marker, never the quota of whoever opened the page.
 USAGE_USER = "platform:news-screen"
-PLAN_MODEL = "deepseek/deepseek-v4.1-flash"
 BATCH_PAIRS = 24
 TEXT_CHARS = 200
 CALL_TIMEOUT_SECONDS = 60
@@ -155,17 +153,6 @@ def normalise_verdict(verdict: ScreenVerdict, groups: tuple[str, ...] = DROP_GRO
             "strength": verdict.strength if verdict.strength in STRENGTHS else "弱",
             "reason": (verdict.reason or "").strip()[:REASON_CHARS], "transmission": transmission,
             "eventLabel": (verdict.eventLabel or "").strip()[:LABEL_CHARS] or None}
-
-
-def _physical(pairs: Iterable[dict[str, Any]]) -> bool:
-    for pair in pairs:
-        for line in re.split(r"[。；;!?！？\n]|\.(?!\d)", pair["title"] + "。" + pair["text"]):
-            if re.search(r"停产|复产|停工|复工|禁运|(?:矿山|矿企|铜矿|油田).{0,20}罢工|production (?:halt|resum)|embargo", line, re.I):
-                return True
-            if re.search(r"产量|产销|销量|生产|销售|库存|产能|开采|出库|入库|减产|增产|停产|复产|production|sales volume|output|stockpiles?|inventor(?:y|ies)|capacity", line, re.I) and re.search(
-                r"\d[\d,.]*\s*(?:万|亿|千|百|万亿|百万|千万|[kKmM]|thousand |million )?\s*(?:公吨|吨|头|桶|磅|盎司|蒲式耳|公斤|千克|立方米|tonnes?\b|tons?\b|bbl\b|barrels?\b|ounces?\b|pounds?\b|bushels?\b|kg\b|kilograms?\b|cubic (?:meters?|metres?)\b|head\b|[%％])", line, re.I):
-                return True
-    return False
 
 
 def _guarded(pair: dict[str, Any]) -> bool:
@@ -637,33 +624,32 @@ class NewsScreener:
             return result
 
         digest = hashlib.sha256(json.dumps(sorted(key for key, _ in batch)).encode()).hexdigest()
+        from .native_agent import StructuredResult, news_plan_endpoint
+
         route = "official_disabled"
-        key = ""
+        endpoint = None
         try:
             percent = max(0, min(100, int(os.getenv("AI_TRADER_NEWS_SCREEN_PLAN_PERCENT", "0") or 0)))
             if percent:
-                if _physical(entry for _, entry in batch):
-                    route = "official_physical"
-                elif int(digest, 16) % 100 >= percent:
+                if int(digest, 16) % 100 >= percent:
                     route = "official_not_sampled"
                 else:
                     route = "official_unconfigured"
-                    key = secret_value("AI_TRADER_NEWS_SCREEN_PLAN_API_KEY")
-        except (ValueError, RuntimeError):
+                    endpoint = news_plan_endpoint()
+        except ValueError:
             route = "official_unconfigured"
-        if not key:
+        if endpoint is None:
             log.info("news_screen_route batch=%s route=%s pairs=%d", digest[:12], route, len(batch))
             return await official(payload), {}
 
-        from .native_agent import ModelEndpoint, StructuredResult
+        async def plan(part: dict[str, Any], effort: str | None) -> Any:
+            return await generator.complete_structured(
+                instructions=INSTRUCTIONS, input_text=json.dumps(part, ensure_ascii=False), schema=ScreenBatch,
+                timeout_seconds=CALL_TIMEOUT_SECONDS, usage_user=USAGE_USER, endpoint=endpoint, reasoning_effort=effort)
 
-        endpoint = ModelEndpoint("news-screen-plan", "commandcode", "https://api.commandcode.ai/provider/v1", key, PLAN_MODEL)
         try:
             # Wait for both requests even if one fails; no orphan can keep spending after fallback.
-            results = await asyncio.gather(*(generator.complete_structured(
-                instructions=INSTRUCTIONS, input_text=json.dumps(payload, ensure_ascii=False), schema=ScreenBatch,
-                timeout_seconds=CALL_TIMEOUT_SECONDS, usage_user=USAGE_USER, endpoint=endpoint)
-                for _ in range(2)), return_exceptions=True)
+            results = await asyncio.gather(*(plan(payload, "low") for _ in range(2)), return_exceptions=True)
             if any(isinstance(result, BaseException) for result in results):
                 raise ValueError("news_screen_plan_failed")
             first, second = (_complete_verdicts(result, payload) for result in results)
@@ -675,7 +661,7 @@ class NewsScreener:
 
         review = [pair for pair in payload["pairs"] if _decision(first[pair["key"]]) != _decision(second[pair["key"]])
                   or (not _decision(first[pair["key"]])[1] and _guarded(pair))]
-        sources = {label: "commandcode:" + PLAN_MODEL for label in first}
+        sources = {label: "commandcode:" + (endpoint.upstream or endpoint.slug) for label in first}
         tokens = sum(int(getattr(result, "tokens", 0) or 0) for result in results)
         if review:
             # Preserve original keys and all product context. No result is stored until review succeeds in full.
@@ -683,10 +669,18 @@ class NewsScreener:
             part = {**payload, "pairs": review,
                     **{name: {product: value for product, value in payload[name].items() if product in products}
                        for name in ("knownLabels", "productGroups")}}
-            checked = await official(part, complete=True)
+            # The 套餐 looks a third time at the model's usual reasoning depth; the official model only if that fails.
+            try:
+                checked = await plan(part, None)
+                _complete_verdicts(checked, part)
+            except asyncio.CancelledError:
+                raise
+            except Exception:  # noqa: BLE001
+                log.info("news_screen_route batch=%s route=official_review pairs=%d", digest[:12], len(review))
+                checked = await official(part, complete=True)
+                sources.update({pair["key"]: model or getattr(generator, "model", None) or "default" for pair in review})
             for verdict in checked.value.verdicts:
                 first[verdict.key] = verdict
-                sources[verdict.key] = model or getattr(generator, "model", None) or "default"
             tokens += int(getattr(checked, "tokens", 0) or 0)
         log.info("news_screen_route batch=%s route=plan pairs=%d review=%d", digest[:12], len(batch), len(review))
         return StructuredResult(ScreenBatch(verdicts=list(first.values())), [], tokens), sources
