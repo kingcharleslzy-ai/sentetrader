@@ -345,7 +345,7 @@ AI 球、对话面板与简讯的界面行为见帮助主题 voice-realtime、ac
 
 新闻只读入口 `GET /api/research/news?symbol=`（自动纳入能力目录）与内置研究工具共用 `ResearchBriefService`：品种名取正式合约目录，按交易所+品种共享缓存与在途请求；失败结果也共享缓存 60 秒，过期才重新请求来源，旧值保留原 fetchedAt / searchedAt 并返回真实错误。每次读取把缓存的搜索结果过一遍同品种的新闻筛选（排除词 + 已有的模型判断，未判的排队），只返回留下的；调研台的相关报道同样只用留下的。
 
-全网新闻后台复用调研台近 7 天阅读名单，每品种交易时段约 30 分钟一轮，日夜盘同规则，休市或日历未知跳过；`news_search.NEWS_DOMAINS` 是唯一来源白名单，只搜官方发布者与行业数据站，排除已直接采集的主流财经新闻站；3 站一组轮换以适应 128 字符限制，按开工检修、库存到港、利润成本、政策限产、进出口主题轮换，结果来源标“全网搜索”。官方轮次由 `web_search.official_query` 统一追加对应部门 / 交易所查询，普通结果保留、官方结果按 URL 去重追加。结果经 `research_live.ingest_search` 进入原有合并、`news_screen` 与事件方向流程，再供调研事实 / 新闻面读取。新闻要点生成前 Fetch 最多 3 篇、各 2000 字，失败保留标题摘要。新闻采集、调研与原文读取按 `model_call_days` 的 `news-search` scope 计尝试数，对话 AI 的 `web_search` 另按 `agent-search` scope 计（各自每日默认 600、跨重启 / 槽位共享；聊天搜索不挤占新闻采集额度）。
+全网新闻后台复用调研台近 7 天阅读名单，每品种交易时段约 30 分钟一轮，日夜盘同规则，休市或日历未知跳过；轮次按 30 分钟槽位三种交替：本交易所 + gov.cn、`news_search.INDUSTRY_SITES` 按品种类别给的行业数据站（至多 3 站，适应 128 字符限制；贵金属 / 股指国债无行业站时改走全网）、不限站点的全网搜索（剔除 `FEED_HOSTS` 中已直接采集的主流财经新闻站）；外盘（交易所不在官方域名表）不搜；主题按开工检修、库存到港、利润成本、政策限产、进出口轮换，结果来源标“全网搜索”。结果经 `research_live.ingest_search` 进入原有合并、`news_screen` 与事件方向流程，再供调研事实 / 新闻面读取。新闻要点生成前 Fetch 最多 3 篇、各 2000 字，失败保留标题摘要。新闻采集、调研与原文读取按 `model_call_days` 的 `news-search` scope 计尝试数，对话 AI 的 `web_search` 另按 `agent-search` scope 计（各自每日默认 600、跨重启 / 槽位共享；聊天搜索不挤占新闻采集额度）。
 
 调研汇总 `GET /api/research/desk?symbol=`（`ResearchDeskService`，`research_desk.py`；公开源在 `research_sources.py`）：
 

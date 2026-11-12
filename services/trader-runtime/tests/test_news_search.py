@@ -49,7 +49,8 @@ class Search:
             raise WebSearchError("web_search_unavailable")
         base = {"title": self.title, "content": self.title + "，需求改善。", "media": "我的钢铁",
                 "publishDate": self.now().isoformat(), "link": "https://news.mysteel.com/a/notice.html"}
-        return {"results": [base, {**base, "link": "https://unlisted.example/story"},
+        return {"results": [base, {**base, "link": "https://www.shfe.com.cn/notice/1.html"},
+                {**base, "link": "https://unlisted.example/story"}, {**base, "link": "https://www.cls.cn/detail/1"},
                 {**base, "title": "昨日螺纹钢旧闻", "publishDate": (self.now()-timedelta(days=1)).isoformat()}]}
 
 
@@ -71,6 +72,7 @@ def test_collect_reuses_merge_screening_and_persistent_half_hour_due():
     async def scenario():
         assert await service.run_once() == 1
         query = search.calls[0][0]
+        assert "上海期货" in query and query.endswith("site:shfe.com.cn OR site:gov.cn")  # the exchange round
         assert "after:2026-10-26" in query and "新闻" not in query  # a gap theme, not a generic news search
         assert any(theme in query for theme in GAP_THEMES)
         assert not any(feed in query for feed in ("eastmoney", "sina", "10jqka", "cls.cn", "jin10", "stcn"))
@@ -84,7 +86,7 @@ def test_collect_reuses_merge_screening_and_persistent_half_hour_due():
         assert await other.run_once() == 0 and len(search.calls) == 1
         clock.value += timedelta(minutes=1)
         await other.run_once()
-        assert len(search.calls) == 2 and search.calls[-1][1]["official"] is True
+        assert len(search.calls) == 2 and "site:mysteel.com" in search.calls[-1][0]  # 螺纹's own industry sites
         assert live.connection.execute("SELECT count(*) FROM news_flash").fetchone()[0] == 1
     asyncio.run(scenario())
 
@@ -112,16 +114,13 @@ def test_night_session_collects_and_failure_waits_five_minutes():
     clock.value += timedelta(minutes=1)
     search.fail = False
     assert asyncio.run(service.run_once()) == 1 and len(search.calls) == 2
+    assert "site:" not in search.calls[-1][0]  # the open-web round
 
 
-def test_foreign_reading_uses_its_existing_cme_calendar_not_chinese_holidays():
+def test_foreign_reading_is_not_searched_on_chinese_sites():
     service, live, search, clock = make()
-    service.desk.days = []
     service.desk.catalog = [{"symbol": "CME.NQZ26", "exchangeId": "CME", "productId": "NQ",
                              "tradingSchedule": {"dayRule": "cme", "cmeHours": "equity"}}]
     service.desk.recently_read = lambda: [("CME.NQZ26", "CME.NQZ26", "test-user")]
-    search.title = "纳指期货上涨"
     clock.value = datetime.fromisoformat("2026-10-26T22:00:00+08:00")
-    assert asyncio.run(service.run_once()) == 1 and len(search.calls) == 1
-    clock.value = datetime.fromisoformat("2026-10-24T22:00:00+08:00")
-    assert asyncio.run(service.run_once()) == 0 and len(search.calls) == 1
+    assert asyncio.run(service.run_once()) == 0 and not search.calls

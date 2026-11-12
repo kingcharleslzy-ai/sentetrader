@@ -10,8 +10,8 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 
 from .research_desk import debate_sessions
-from .research_live import product_key
-from .trading_calendar import cme_trading_day, sessions_of_day, trading_day_of
+from .research_live import CALENDAR_CATEGORY, product_key
+from .trading_calendar import trading_day_of
 from .web_search import CHINA, OFFICIAL_DOMAINS, WebSearchClient, WebSearchError
 
 if TYPE_CHECKING:
@@ -20,9 +20,23 @@ if TYPE_CHECKING:
 
 # 查漏补缺 (owner 2026-10-24): search only where the feeds we already read do not reach — official publishers and the
 # commodity-industry data sites (财联社 / 东方财富 / 新浪 / 同花顺 / 证券时报 / 金十 … are read directly and left out).
-# Sites rotate in groups of three to fit the search API's 128-character limit.
-NEWS_DOMAINS = (*OFFICIAL_DOMAINS, "mysteel.com", "smm.cn", "sci99.com", "oilchem.net", "cngrain.com",
-                "lgmi.com", "100ppi.com", "chinaccm.com", "ccf.com.cn", "feedtrade.com.cn")
+# 按品种对口 (owner 2026-11-12): rounds rotate through the product's own exchange (plus gov.cn), the industry sites of
+# its chain (at most three, for the search API's 128-character limit) and the open web, where only the outlets read
+# directly are dropped — rare or scattered news turns up on sites no list names. Rotating sites regardless of the
+# product had gold searched on steel sites and nearly every round came back empty.
+FEED_HOSTS = ("cls.cn", "eastmoney.com", "sina.com.cn", "sina.cn", "10jqka.com.cn", "stcn.com", "jin10.com")
+STEEL_SITES = ("mysteel.com", "lgmi.com", "100ppi.com")
+METAL_SITES = ("smm.cn", "chinaccm.com", "mysteel.com")
+CHEM_SITES = ("oilchem.net", "sci99.com", "ccf.com.cn")
+AGRI_SITES = ("cngrain.com", "feedtrade.com.cn", "100ppi.com")
+METALS = frozenset({"cu", "bc", "al", "ao", "ad", "zn", "pb", "ni", "sn", "si", "ps", "lc"})
+INDUSTRY_SITES: dict[str, tuple[str, ...]] = {
+    **{product: CHEM_SITES for product, category in CALENDAR_CATEGORY.items() if category == "energy"},
+    **{product: AGRI_SITES for product, category in CALENDAR_CATEGORY.items() if category == "agri"},
+    **{product: METAL_SITES if product in METALS else STEEL_SITES
+       for product, category in CALENDAR_CATEGORY.items() if category == "industrial"},
+    **{product: CHEM_SITES for product in ("fg", "sa", "px", "pf")},
+}
 # …and on the industry facts the headline feeds rarely carry, one theme per round instead of a generic “新闻”.
 GAP_THEMES = ("开工 检修 减产", "库存 到港 发货", "利润 成本 亏损", "政策 环保 限产", "进口 出口 海外")
 POLL_SECONDS = 60
@@ -49,8 +63,9 @@ class NewsSearchService:
         items = {str(item.get("symbol") or "").upper(): item for item in catalog}
         collected = 0
         slot = int(stamp // INTERVAL_SECONDS)
-        sites = [NEWS_DOMAINS[(slot * 3 + offset) % len(NEWS_DOMAINS)] for offset in range(3)]
-        suffix = " " + " OR ".join("site:" + site for site in sites)
+        kind = ("official", "industry", "open")[slot % 3]
+        official = kind == "official"
+        theme = GAP_THEMES[slot % len(GAP_THEMES)]
         for desk_key, symbol, _user in self.desk.recently_read():
             product = product_key(desk_key)
             if product is None:
@@ -58,31 +73,31 @@ class NewsSearchService:
             item = items.get(symbol.upper())
             if item is None:
                 continue
+            exchange = str(item.get("exchangeId") or "").lower()
+            domain = next((domain for domain in OFFICIAL_DOMAINS if domain.split(".")[0] == exchange), None)
+            if domain is None:
+                continue  # a foreign market: neither its exchange nor the Chinese industry sites carry its news
             schedule = item.get("tradingSchedule")
-            if isinstance(schedule, dict) and schedule.get("dayRule") == "cme":
-                sessions = sessions_of_day(cme_trading_day(ns), schedule)
-            else:
-                if day not in days:
-                    continue  # without the exchange calendar, do not guess that the market is open
-                sessions = debate_sessions(day, schedule, days) or []
+            if day not in days:
+                continue  # without the exchange calendar, do not guess that the market is open
+            sessions = debate_sessions(day, schedule, days) or []
             if not sessions or not any(session.start_ns <= ns < session.end_ns for session in sessions):
                 continue
+            # 贵金属 / 股指国债 have no industry site: that round searches the open web instead.
+            sites = (domain, "gov.cn") if official else INDUSTRY_SITES.get(product, ()) if kind == "industry" else ()
             cache_key = f"web_news:{product}"
             state = self.live._cache_get(cache_key) or {}
             if float(state.get("due", 0)) > stamp:
                 continue
             # Persist before the request: a crash or handoff cannot repeat a burst.
             self.live._cache_put(cache_key, {"due": stamp + INTERVAL_SECONDS})
-            official = slot % 2 == 0
-            exchange = str(item.get("exchangeId") or "").upper()
-            publisher = next((words[0] for domain, words in OFFICIAL_DOMAINS.items()
-                              if words and domain.split(".")[0].upper() == exchange), "") if official else ""
+            publisher = OFFICIAL_DOMAINS[domain][0] if official else ""
             name = self.live.product_name(product)
-            theme = GAP_THEMES[slot % len(GAP_THEMES)]
+            suffix = " " + " OR ".join("site:" + site for site in sites) if sites else ""
             query = f"{publisher} {name} {theme} after:{now.date().isoformat()}".strip()
             query = query[:128 - len(suffix)].rstrip() + suffix
             try:
-                result = await self.search.search(query, count=10, official=official)
+                result = await self.search.search(query, count=10)
             except WebSearchError:
                 self.live._cache_put(cache_key, {"due": stamp + FAILURE_SECONDS})
                 log.info("news_search_unavailable product=%s", product)
@@ -90,14 +105,14 @@ class NewsSearchService:
             rows = []
             for entry in result["results"]:
                 host = urlsplit(entry["link"]).hostname or ""
-                if not any(host == site or host.endswith("." + site) for site in NEWS_DOMAINS):
-                    continue
+                if any(host == site or host.endswith("." + site) for site in sites or FEED_HOSTS) != bool(sites):
+                    continue  # a listed round keeps its sites; an open round drops the outlets read directly
                 rows.append({"标题": entry["title"], "内容": entry["content"] or entry["title"],
                              "发布时间": entry["publishDate"], "链接": entry["link"], "_products": [product]})
             receipt = self.live.ingest_search(product, rows)
             collected += receipt["stored"]
-            log.info("news_search_collected provider=deepseek product=%s rows=%d stored=%d official=%s",
-                     product, len(rows), receipt["stored"], official)
+            log.info("news_search_collected provider=deepseek product=%s rows=%d stored=%d kind=%s",
+                     product, len(rows), receipt["stored"], kind if sites else "open")
         return collected
 
     def start(self) -> None:
