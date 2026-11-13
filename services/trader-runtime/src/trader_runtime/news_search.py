@@ -20,10 +20,11 @@ if TYPE_CHECKING:
 
 # 查漏补缺 (owner 2026-10-24): search only where the feeds we already read do not reach — official publishers and the
 # commodity-industry data sites (财联社 / 东方财富 / 新浪 / 同花顺 / 证券时报 / 金十 … are read directly and left out).
-# 按品种对口 (owner 2026-11-12): rounds rotate through the product's own exchange (plus gov.cn), the industry sites of
-# its chain (at most three, for the search API's 128-character limit) and the open web, where only the outlets read
-# directly are dropped — rare or scattered news turns up on sites no list names. Rotating sites regardless of the
-# product had gold searched on steel sites and nearly every round came back empty.
+# 按品种对口 (owner 2026-11-12): rounds alternate between the industry sites of the product's chain (at most three, for
+# the search API's 128-character limit) and the open web, where only the outlets read directly are dropped — rare or
+# scattered news turns up on sites no list names. Rotating sites regardless of the product had gold searched on steel
+# sites and nearly every round came back empty; the exchange + gov.cn round found nothing in 49 searches over a day
+# and night (owner 2026-11-13: dropped — exchange notices are read directly).
 FEED_HOSTS = ("cls.cn", "eastmoney.com", "sina.com.cn", "sina.cn", "10jqka.com.cn", "stcn.com", "jin10.com")
 STEEL_SITES = ("mysteel.com", "lgmi.com", "100ppi.com")
 METAL_SITES = ("smm.cn", "chinaccm.com", "mysteel.com")
@@ -63,8 +64,7 @@ class NewsSearchService:
         items = {str(item.get("symbol") or "").upper(): item for item in catalog}
         collected = 0
         slot = int(stamp // INTERVAL_SECONDS)
-        kind = ("official", "industry", "open")[slot % 3]
-        official = kind == "official"
+        kind = ("industry", "open")[slot % 2]
         theme = GAP_THEMES[slot % len(GAP_THEMES)]
         for desk_key, symbol, _user in self.desk.recently_read():
             product = product_key(desk_key)
@@ -74,8 +74,7 @@ class NewsSearchService:
             if item is None:
                 continue
             exchange = str(item.get("exchangeId") or "").lower()
-            domain = next((domain for domain in OFFICIAL_DOMAINS if domain.split(".")[0] == exchange), None)
-            if domain is None:
+            if not any(domain.split(".")[0] == exchange for domain in OFFICIAL_DOMAINS):
                 continue  # a foreign market: neither its exchange nor the Chinese industry sites carry its news
             schedule = item.get("tradingSchedule")
             if day not in days:
@@ -84,17 +83,16 @@ class NewsSearchService:
             if not sessions or not any(session.start_ns <= ns < session.end_ns for session in sessions):
                 continue
             # 贵金属 / 股指国债 have no industry site: that round searches the open web instead.
-            sites = (domain, "gov.cn") if official else INDUSTRY_SITES.get(product, ()) if kind == "industry" else ()
+            sites = INDUSTRY_SITES.get(product, ()) if kind == "industry" else ()
             cache_key = f"web_news:{product}"
             state = self.live._cache_get(cache_key) or {}
             if float(state.get("due", 0)) > stamp:
                 continue
             # Persist before the request: a crash or handoff cannot repeat a burst.
             self.live._cache_put(cache_key, {"due": stamp + INTERVAL_SECONDS})
-            publisher = OFFICIAL_DOMAINS[domain][0] if official else ""
             name = self.live.product_name(product)
             suffix = " " + " OR ".join("site:" + site for site in sites) if sites else ""
-            query = f"{publisher} {name} {theme} after:{now.date().isoformat()}".strip()
+            query = f"{name} {theme} after:{now.date().isoformat()}"
             query = query[:128 - len(suffix)].rstrip() + suffix
             try:
                 result = await self.search.search(query, count=10)
