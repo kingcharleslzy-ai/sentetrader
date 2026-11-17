@@ -154,7 +154,7 @@ def test_apple_view_drops_the_company_keeps_the_orchard_with_a_reading_and_judge
     orchard = view["items"][0]
     assert orchard["ai"] == {"event": "库存", "direction": "偏空", "strength": "中",
                              "reason": "冷库出库慢于去年，现货压力偏大，库存去化不及预期还会继续拖累价格"[:30], "product": "ap",
-                             "transmission": "冷库出库慢，现货压力传到期货", "eventLabel": "栖霞冷库出库偏慢"}
+                             "transmission": "冷库出库慢，现货压力传到期货", "eventLabel": "栖霞冷库出库偏慢", "revision": None}
     assert len(orchard["ai"]["reason"]) == 30
     assert view["count"] == 1 and view["screen"]["pending"] == 0 and "note" not in view["screen"]
     assert view["screen"]["dropped"]["count"] == 2
@@ -282,7 +282,7 @@ def test_drop_groups_are_the_fixed_names_or_the_products_own():
     loose = normalise_verdict(ScreenVerdict(key="1", relevant=True, event="天气", direction="利多", strength="很强",
                                             transmission="减产推高现货"))
     assert loose == {"relevant": True, "event": "天气·供给", "direction": "中性", "strength": "弱", "reason": "",
-                     "transmission": "减产推高现货", "eventLabel": None}
+                     "transmission": "减产推高现货", "eventLabel": None, "revision": None}
 
 
 def test_gold_futures_are_not_mistaken_for_the_golden_week():

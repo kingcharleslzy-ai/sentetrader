@@ -98,6 +98,11 @@ RETAIN_DAYS = 4
 # The research day turns at 08:30 Beijing (as the desk's 今日判断): events merge within one research day.
 RESEARCH_DAY_START = clock_time(8, 30)
 KNOWN_LABELS = 60
+# 更正与反转 (owner 2026-11-17, after the wire-service practice of IPTC NewsML-G2: an item is updated, corrected or
+# withdrawn, and the newest version replaces the old one while the old one stays as history): the model sees the
+# product's event names of the last few days and marks a report that updates, corrects or denies one of them.
+REVISIONS = ("更新", "更正", "辟谣")
+REVISION_DAYS = 3
 # 重要 = 中/强; 其他 = 弱 with a direction; 次要 = 弱 and 中性 (folded). An event whose sources disagree is 分歧.
 SPLIT = "分歧"
 MINOR_GROUPS_NAMED = 3
@@ -110,7 +115,8 @@ INSTRUCTIONS = """你是期货资讯筛选员。输入是若干条（新闻，�
 - strength：影响强度，弱 / 中 / 强。直接、确定、量大为强；间接、待确认为弱；官员的一般性表态、例行数据的前瞻与点评一律为弱。
 - reason：不超过 30 个字的一句话，说清这条新闻为什么影响该品种。
 - transmission：不超过 30 个字，说清这条新闻经过什么途径影响到该品种的价格（例如“美元走强，以美元计价的金价承压”“冷库出库慢，现货压力传到期货”）。说不出具体途径的，relevant 一律为 false，dropReason 选“说不清怎么影响”。
-- eventLabel：不超过 16 个字的规范事件名，写“发生了什么”，不写来源和观点（例如“现货黄金日内下跌”“美债收益率创新高”）。knownLabels 列出了该品种今天已有的事件名，讲的是同一件事就原样复用那个名字；同一批里讲同一件事的几条也用同一个名字。
+- eventLabel：不超过 16 个字的规范事件名，写“发生了什么”，不写来源和观点（例如“现货黄金日内下跌”“美债收益率创新高”）。knownLabels 列出了该品种最近几天已有的事件名，讲的是同一件事就原样复用那个名字；同一批里讲同一件事的几条也用同一个名字。
+- revision：只在这条新闻明确更新、更正或否认 knownLabels 里某件已有的事时填写，其余留空——更新（同一件事有了新进展或新数字）/ 更正（之前的说法有误，被纠正）/ 辟谣（事情本身被当事方或官方否认、证实不实）。填了 revision 时 eventLabel 必须原样用那件事的名字，direction 和 strength 按这条新消息本身判断。普通的后续报道、转载、评论不填。
 - dropReason：relevant 为 false 时从 groups 里选一个分组名。productGroups 是某品种的“同名但不是它”专属分组，只用于名字相同、讲的却是别的东西的新闻（苹果公司之于苹果、黄金周之于黄金）；宏观、国际、其他品种的新闻不要放进去。relevant 为 true 时留空。
 每个 key 都要回答一次。
 公司和产业消息要按原文事实区分：利润、回购、股价变动本身不是该商品的供需。即便标题是财报，如正文披露该商品真实的生产、销售、库存、开停工或已签署的矿山开发事实，也要单独评估这一实物信息。写清范围是单一公司、地区还是全国，不要把单家变化夸成全市场冲击；计划和已实现分开。"""
@@ -126,6 +132,7 @@ class ScreenVerdict(BaseModel):
     reason: str | None = None
     transmission: str | None = None
     eventLabel: str | None = None
+    revision: str | None = None
     dropReason: str | None = None
 
 
@@ -148,11 +155,14 @@ def normalise_verdict(verdict: ScreenVerdict, groups: tuple[str, ...] = DROP_GRO
     if not verdict.relevant:
         group = (verdict.dropReason or "").strip()
         return {"relevant": False, "dropReason": group if group in groups else DEFAULT_GROUP}
+    label = (verdict.eventLabel or "").strip()[:LABEL_CHARS] or None
+    marked = (verdict.revision or "").strip()
+    revision = marked if marked in REVISIONS and label else None
     return {"relevant": True, "event": _event(verdict.event),
             "direction": verdict.direction if verdict.direction in DIRECTIONS else "中性",
             "strength": verdict.strength if verdict.strength in STRENGTHS else "弱",
             "reason": (verdict.reason or "").strip()[:REASON_CHARS], "transmission": transmission,
-            "eventLabel": (verdict.eventLabel or "").strip()[:LABEL_CHARS] or None}
+            "eventLabel": label, "revision": revision}
 
 
 def _guarded(pair: dict[str, Any]) -> bool:
@@ -244,7 +254,7 @@ class NewsScreener:
             # 第六批 (2026-10-07): how the news reaches the product, the event name and the item's time.
             # Rows judged before carry NULLs: kept as they were, each its own event.
             columns = {row[1] for row in self.connection.execute("PRAGMA table_info(news_screen)")}
-            for column in ("transmission", "event_label", "published_at"):
+            for column in ("transmission", "event_label", "published_at", "revision"):
                 if column not in columns:
                     self.connection.execute(f"ALTER TABLE news_screen ADD COLUMN {column} TEXT")
             # 2026-10-12: the products readers looked at, shared by every process (wall-clock seconds).
@@ -287,17 +297,18 @@ class NewsScreener:
             for start in range(0, len(ids), 500):
                 chunk = ids[start:start + 500]
                 rows = self.connection.execute(
-                    "SELECT item_id, relevant, event, direction, strength, reason, drop_reason, transmission, event_label"
-                    f" FROM news_screen WHERE product = ? AND item_id IN ({','.join('?' * len(chunk))})",
+                    "SELECT item_id, relevant, event, direction, strength, reason, drop_reason, transmission, event_label,"
+                    f" revision FROM news_screen WHERE product = ? AND item_id IN ({','.join('?' * len(chunk))})",
                     (product, *chunk)).fetchall()
-                for item_id, relevant, event, direction, strength, reason, drop_reason, transmission, label in rows:
+                for item_id, relevant, event, direction, strength, reason, drop_reason, transmission, label, revision in rows:
                     found[item_id] = ({"relevant": True, "event": event, "direction": direction, "strength": strength,
-                                       "reason": reason or "", "transmission": transmission or "", "eventLabel": label or None}
+                                       "reason": reason or "", "transmission": transmission or "", "eventLabel": label or None,
+                                       "revision": revision or None}
                                       if relevant else {"relevant": False, "dropReason": drop_reason})
         return found
 
     def event_labels(self, product: str, day: str) -> list[str]:
-        """The product's event names of this research day (newest first): the prompt asks the model to reuse them."""
+        """The product's event names since this research day began (newest first): the prompt asks the model to reuse them."""
         with self.lock:
             rows = self.connection.execute(
                 "SELECT event_label, MAX(judged_at) AS last FROM news_screen WHERE product = ? AND relevant = 1"
@@ -561,7 +572,8 @@ class NewsScreener:
         keyed = {str(index + 1): (key, entry) for index, (key, entry) in enumerate(batch)}
         labels = {key[1]: f"{entry['name']}（{key[1]}）" for _, (key, entry) in keyed.items()}
         own = {product: self.product_groups(product) for product in labels}
-        known = {product: self.event_labels(product, today_research) for product in labels}
+        since = (datetime.fromisoformat(today_research) - timedelta(days=REVISION_DAYS)).date().isoformat()
+        known = {product: self.event_labels(product, since) for product in labels}
         payload = {"groups": list(DROP_GROUPS),
                    "productGroups": {labels[product]: list(groups) for product, groups in own.items() if groups},
                    "knownLabels": {labels[product]: names for product, names in known.items() if names},
@@ -594,16 +606,17 @@ class NewsScreener:
             for (item_id, product), value in answered.items():
                 self.connection.execute(
                     "INSERT INTO news_screen (item_id, product, relevant, event, direction, strength, reason, drop_reason,"
-                    " model, judged_at, transmission, event_label, published_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                    " model, judged_at, transmission, event_label, published_at, revision)"
+                    " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
                     " ON CONFLICT(item_id, product) DO UPDATE SET"
                     " relevant = excluded.relevant, event = excluded.event, direction = excluded.direction,"
                     " strength = excluded.strength, reason = excluded.reason, drop_reason = excluded.drop_reason,"
                     " model = excluded.model, judged_at = excluded.judged_at, transmission = excluded.transmission,"
-                    " event_label = excluded.event_label, published_at = excluded.published_at",
+                    " event_label = excluded.event_label, published_at = excluded.published_at, revision = excluded.revision",
                     (item_id, product, int(value["relevant"]), value.get("event"), value.get("direction"),
                      value.get("strength"), value.get("reason"), value.get("dropReason"),
                      source_models[(item_id, product)], judged_at, value.get("transmission"),
-                     value.get("eventLabel"), keyed_entries[(item_id, product)]["publishedAt"] or None))
+                     value.get("eventLabel"), keyed_entries[(item_id, product)]["publishedAt"] or None, value.get("revision")))
         self._settled(set(answered))  # stored first: a reader never sees a judged pair as unseen
         self._requeue([(key, entry) for key, entry in batch if key not in answered], count=True)
         if answered and self.on_judged is not None:
@@ -738,7 +751,7 @@ def screen_summary(view: dict[str, Any], dropped: list[dict[str, Any]],
     return screen
 
 
-AI_KEYS = ("event", "direction", "strength", "reason", "transmission", "eventLabel")
+AI_KEYS = ("event", "direction", "strength", "reason", "transmission", "eventLabel", "revision")
 
 
 def screen_view(screener: NewsScreener | None, product: str, name: str, candidates: list[tuple[dict[str, Any], bool]],
@@ -763,7 +776,7 @@ def screen_view(screener: NewsScreener | None, product: str, name: str, candidat
         verdict = verdicts.get(item["id"])
         if verdict is not None:
             if verdict["relevant"]:
-                kept.append({**item, "ai": {**{key: verdict[key] for key in AI_KEYS}, "product": product}, "direct": direct})
+                kept.append({**item, "ai": {**{key: verdict.get(key) for key in AI_KEYS}, "product": product}, "direct": direct})
             else:
                 dropped.append({**item, "ai": None, "dropReason": verdict["dropReason"], "droppedBy": "ai"})
             continue
@@ -925,6 +938,17 @@ def build_events(items: list[dict[str, Any]], *, hide_pending: bool) -> list[dic
         newest = members[0]
         headline = _headline(members, group_key[2] if group_key[0] != "item" else None)
         readings = [member["ai"] for member in members if member.get("ai")]
+        # 更正与反转: the newest report that updates, corrects or denies the story is the event's reading; the
+        # readings before it stay as history (`revision.before`), no longer the strongest-of or a 分歧.
+        reviser = next((member for member in members if (member.get("ai") or {}).get("revision")), None)
+        revision = None
+        if reviser is not None:
+            at = reviser.get("publishedAt") or ""
+            before = [{key: member["ai"].get(key) for key in ("direction", "strength", "reason")}
+                      | {"publishedAt": member.get("publishedAt")}
+                      for member in members if member.get("ai") and (member.get("publishedAt") or "") < at]
+            revision = {"kind": reviser["ai"]["revision"], "at": at, "before": before[:3]}
+            readings = [reviser["ai"]]
         strongest = max(readings, key=lambda ai: _STRENGTH_RANK.get(ai.get("strength") or "", 0)) if readings else None
         ai = None
         if strongest is not None:
@@ -947,6 +971,7 @@ def build_events(items: list[dict[str, Any]], *, hide_pending: bool) -> list[dic
             "title": headline.get("title") or "", "text": headline.get("text") or "",
             "origTitle": headline.get("origTitle"), "tags": tags,
             "ai": ai, "tier": _tier(ai), "reports": max(len(sources), 1), "sources": sources,
+            "revision": revision, "superseded": None, "_story": (group_key[0], group_key[2]) if group_key[0] != "item" else None,
             "direct": any(member.get("direct", True) for member in members),
             "items": [{"id": member["id"], "source": member.get("source") or "",
                        "sources": member.get("sources") or [member.get("source") or ""],
@@ -955,6 +980,25 @@ def build_events(items: list[dict[str, Any]], *, hide_pending: bool) -> list[dic
                        "origTitle": member.get("origTitle"), "tags": member.get("tags") or []}
                       for member in members],
         })
+    # An older event of the same story (same product and name, another research day or another wording) that a
+    # later report revised is history now: it folds into 次要 and points to the event that revised it.
+    for event in events:
+        revision = event["revision"]
+        if revision is None or event["_story"] is None:
+            continue
+        for older in events:
+            if (older is not event and older["_story"] == event["_story"] and older["revision"] is None
+                    and (older["publishedAt"] or "") < revision["at"]):
+                older["superseded"] = {"kind": revision["kind"], "by": event["id"]}
+                older["tier"] = "minor"
+                if older["ai"] and len(revision["before"]) < 3:
+                    revision["before"].append({key: older["ai"].get(key) for key in ("direction", "strength", "reason")}
+                                              | {"publishedAt": older["publishedAt"]})
+    revised = {event["superseded"]["by"] for event in events if event["superseded"]}
+    for event in events:
+        del event["_story"]
+        if event["revision"] is not None and not event["revision"]["before"] and event["id"] not in revised:
+            event["revision"] = None  # nothing it revises is on the list: an ordinary report of its story
     events.sort(key=lambda event: (event["publishedAt"] or "", event["id"]), reverse=True)
     return events
 

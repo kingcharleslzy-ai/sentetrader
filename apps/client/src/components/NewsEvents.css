@@ -62,6 +62,8 @@
 /* An exchange notice's 交易所 badge: the spacing scale and the label font token, so the pill
  * follows the user's large-font preference like the folded original beside it. */
 .news-ev-tag { display: inline-block; margin-left: var(--space-1); padding: 0 var(--space-1); border: 1px solid var(--line); border-radius: var(--radius-pill); color: var(--muted); font-size: var(--font-md); line-height: 18px; vertical-align: 1px; }
+.news-ev-tag[data-revision] { border-color: var(--line-strong); color: var(--ink); }
+.news-ev-before { grid-column: 2; min-width: 0; color: var(--muted); font-size: var(--font-md); line-height: 1.6; overflow-wrap: anywhere; }
 
 .news-fold { display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-3); border: 1px dashed var(--line-strong); border-radius: var(--radius-control); color: var(--muted); font-size: var(--font-md); line-height: 1.5; }
 .news-fold-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); }

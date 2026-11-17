@@ -284,7 +284,9 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
         `product` (or `products`, comma-separated, ≤ 30 — 持仓与自选) answers the AI-screened view:
         kept items with their `ai` reading and `screen` (mode, pending, dropped groups and items), the
         same items merged into `events` (one per event and research day, tiered major / other / minor) with
-        `layers` counts; a single `product` also answers its `brief` (今日新闻要点) and `tonight` (related
+        `layers` counts (an event a later report updated, corrected or denied carries `revision` {kind 更新 / 更正 / 辟谣,
+        at, before: the readings it replaced}; the older event it replaced carries `superseded` {kind, by} and is minor);
+        a single `product` also answers its `brief` (今日新闻要点) and `tonight` (related
         calendar events until 08:30).
 
         `since` (快讯游标增量, 2026-10-12; "0" the first time) asks for the compact feed: items reduced to

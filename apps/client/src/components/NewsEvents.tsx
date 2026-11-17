@@ -23,7 +23,15 @@ export type NewsEvent = {
   /** The strongest reading of its reports; direction 分歧 when they point both ways. null: not AI-screened (keywords only). */
   ai: (NewsAi & { transmission?: string; eventLabel?: string | null }) | null;
   tier: "major" | "other" | "minor" | "unscreened"; reports: number; sources: string[]; direct: boolean; items: EventReport[];
+  /** 更正与反转 (2026-11-17): a later report updated, corrected or denied the story — the event reads as that report;
+   * `before` are the readings it replaced (newest Runtime only; older payloads have none). */
+  revision?: { kind: Revision; at: string; before: { direction: string; strength: string; reason?: string | null; publishedAt: string }[] } | null;
+  /** This older event of the story was revised by event `by`: folded into 次要. */
+  superseded?: { kind: Revision; by: string } | null;
 };
+export type Revision = "更新" | "更正" | "辟谣";
+const REVISED: Record<Revision, string> = { 更新: "有更新", 更正: "已更正", 辟谣: "已辟谣" };
+const REPLACED: Record<Revision, string> = { 更新: "已有更新", 更正: "已被更正", 辟谣: "已被辟谣" };
 export type NewsLayers = { major: number; other: number; minor: number; unscreened: number; minorReports: number; minorGroups: { label: string; count: number }[] };
 export type BriefPoint = { text: string; direction: string; eventLabel: string; eventId: string; reports: number };
 /** 今日新闻要点: ready / stale (the last rewrite failed: the previous one, `failedAt`) / writing (none yet) / none. */
@@ -174,6 +182,8 @@ export function EventRow({ event, surface, timeOf, compact = false, extras }: { 
       {!full && multi && !compact ? <> <button type="button" className="news-ev-count" aria-expanded={open} aria-label={label}
         onClick={() => setOpen(!open)}>{event.reports} 家</button></> : null}
       {(event.tags ?? []).includes("交易所") ? <span className="news-ev-tag">交易所</span> : null}
+      {event.revision ? <span className="news-ev-tag" data-revision={event.revision.kind}>{REVISED[event.revision.kind]}</span> : null}
+      {event.superseded ? <span className="news-ev-tag">{REPLACED[event.superseded.kind]}</span> : null}
       {/* 原始来源（Runtime news_origin 的 `据:` 标签），与 FlashRow 同一小标签。 */}
       {(event.tags ?? []).filter(tag => tag.startsWith("据:")).map(tag => <span key={tag} className="news-ev-tag">据{tag.slice(2)}</span>)}
       {/* A single translated report folds its original here; several fold theirs in the reports —
@@ -185,6 +195,8 @@ export function EventRow({ event, surface, timeOf, compact = false, extras }: { 
     {debate ? <span className="news-ev-side">{debate}{event.ai ? <Direction ai={event.ai} compact={compact} /> : null}</span>
       : event.ai ? <Direction ai={event.ai} compact={compact} /> : <span />}
     {full && why && !compact ? <div className="news-ev-why">{why}</div> : null}
+    {event.revision?.before.length && !compact ? <div className="news-ev-before">此前：{event.revision.before.map((old, index) =>
+      <span key={index}>{index ? "；" : ""}<s>{old.direction} · {old.strength}</s> {timeOf(old.publishedAt)}</span>)}</div> : null}
     {compact ? (multi ? <div className="news-ev-src">{event.reports} 家报道</div> : null)
       : full ? <div className="news-ev-src">
         {multi ? <>{clockOf(event.firstAt) !== clockOf(event.publishedAt) ? `${timeOf(event.firstAt)} 起 ` : ""}{event.reports} 家报道：{sourceNames.slice(0, 4).join("、")}{sourceNames.length > 4 ? "……" : ""}{" "}

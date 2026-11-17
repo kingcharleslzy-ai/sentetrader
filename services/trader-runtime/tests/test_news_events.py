@@ -168,7 +168,7 @@ def test_rows_judged_before_labels_existed_still_read_each_as_its_own_event(tmp_
     screener = NewsScreener(connection=connection, lock=threading.Lock(), now=lambda: NOW)
     verdicts = screener.verdicts("au", ["a", "b"])
     assert verdicts["a"] == {"relevant": True, "event": "价格", "direction": "偏空", "strength": "中", "reason": "旧理由",
-                             "transmission": "", "eventLabel": None}
+                             "transmission": "", "eventLabel": None, "revision": None}
     assert screener.event_labels("au", "2026-10-07") == []
     kept = [item(item_id, "2026-10-07T18:00:00+08:00", label=None) for item_id in ("a", "b")]
     assert [event["id"] for event in build_events(kept, hide_pending=True)] == ["b", "a"]
