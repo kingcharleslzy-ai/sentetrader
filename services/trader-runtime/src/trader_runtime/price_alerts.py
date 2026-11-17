@@ -155,7 +155,7 @@ def line_target(drawing: dict[str, Any], now: int, schedules: dict[str, Any], da
     """The price a drawing's alert watches at `now` (seconds), or None where the line is not on the chart."""
     schedule = schedules.get(str(drawing.get("symbol") or "").upper())
     price = line_price_at(drawing, now, lambda start, end: trading_seconds(start * NS, end * NS, schedule, days))
-    return None if price is None else Decimal(str(round(price, 6)))
+    return None if price is None else Decimal(str(price))
 
 
 async def create_alert(app: Any, *, user_id: str, symbol: str, price: Any,
@@ -239,7 +239,8 @@ async def create_alert(app: Any, *, user_id: str, symbol: str, price: Any,
     created = app.state.store.create_price_alert(
         user_id=user_id, symbol=symbol, name=name, direction=direction, price=target,
         note=note.strip(), via=via, session_id=session_id, max_active=MAX_ACTIVE_ALERTS,
-        drawing_id=drawing["id"] if drawing is not None else None)
+        drawing_id=drawing["id"] if drawing is not None else None,
+        drawing_updated_at=drawing["updatedAt"] if drawing is not None else None)
     if isinstance(created, str):
         raise ValueError(created)
     return created

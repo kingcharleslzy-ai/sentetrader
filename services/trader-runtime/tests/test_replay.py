@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import json
 from datetime import datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
@@ -809,3 +810,75 @@ async def test_a_cloud_user_owns_their_replay_account(tmp_path):
         child.state.store.close()
         again.state.store.close()
         app.state.store.close()
+
+
+@pytest.mark.parametrize("broken_report", ["write_failure", "empty", "wrong_identity"])
+async def test_replay_finish_is_recoverable_without_reopening_entries(tmp_path, monkeypatch, broken_report):
+    import trader_runtime.replay as replay_module
+
+    source = HistoricalSource()
+    headers = {"Origin": "http://127.0.0.1:5173", "Authorization": "Bearer test-replay-token"}
+    slot_a = build_slot(tmp_path / "finish-a.sqlite3", source)
+    root = tmp_path / "replays" / IDENTIFIER
+    async with slot_a.router.lifespan_context(slot_a):
+        async with AsyncClient(transport=ASGITransport(slot_a), base_url="http://runtime", headers=headers) as client:
+            assert (await client.post("/api/replays", json={"symbol": SYMBOL, "tradingDay": "2026-09-04", "initialBalance": 1_000_000})).status_code == 201
+            with monkeypatch.context() as failed:
+                if broken_report == "write_failure":
+                    original = replay_module.write_json_atomic
+                    def broken(path, payload):
+                        if path.name == "review.json":
+                            raise OSError("disk unavailable")
+                        original(path, payload)
+                    failed.setattr(replay_module, "write_json_atomic", broken)
+                result = (await client.post(f"/api/replays/{IDENTIFIER}/control", json={"action": "finish"})).json()
+            assert result["entriesPaused"] and not result["playing"]
+            assert result["ended"] is (broken_report != "write_failure")
+            if broken_report == "write_failure":
+                assert result["ending"] and not (root / "review.json").exists()
+    if broken_report == "empty":
+        (root / "review.json").write_text("")
+        # An old build left a partial file without the new finish intent: still never reopen entries.
+        metadata = json.loads((root / "replay.json").read_text())
+        metadata.pop("finish")
+        (root / "replay.json").write_text(json.dumps(metadata))
+    elif broken_report == "wrong_identity":
+        report = json.loads((root / "review.json").read_text())
+        report["snapshot"]["replayId"] = "wrong-replay"
+        (root / "review.json").write_text(json.dumps(report))
+    slot_b = build_slot(tmp_path / "finish-b.sqlite3", source)
+    async with slot_b.router.lifespan_context(slot_b):
+        async with AsyncClient(transport=ASGITransport(slot_b), base_url="http://runtime", headers=headers) as client:
+            listed = (await client.get("/api/replays")).json()["items"][0]
+            assert listed["ending"] and listed["entriesPaused"] and not listed["ended"]
+            detail = (await client.get(f"/api/replays/{IDENTIFIER}")).json()
+            assert detail["ending"] and detail["entriesPaused"] and not detail["ended"]
+            denied = await client.post(f"/api/replays/{IDENTIFIER}/control", json={"action": "resume_entries"})
+            assert denied.status_code == 409
+            finished = (await client.post(f"/api/replays/{IDENTIFIER}/control", json={"action": "finish"})).json()
+            assert finished["ended"] and not finished["playing"]
+            assert replay_module.completed_review(root, json.loads((root / "replay.json").read_text()))
+            assert source.submits == []
+
+
+async def test_ending_replay_keeps_advancing_while_an_original_order_is_alive(tmp_path, monkeypatch):
+    from unittest.mock import AsyncMock
+
+    source = HistoricalSource()
+    app = build_slot(tmp_path / "alive-finish.sqlite3", source)
+    headers = {"Origin": "http://127.0.0.1:5173", "Authorization": "Bearer test-replay-token"}
+    async with app.router.lifespan_context(app):
+        async with AsyncClient(transport=ASGITransport(app), base_url="http://runtime", headers=headers) as client:
+            assert (await client.post("/api/replays", json={"symbol": SYMBOL, "tradingDay": "2026-09-04", "initialBalance": 1_000_000})).status_code == 201
+            context = app.state.replay_router.owned(IDENTIFIER, "local-user")
+            async with context.lock:
+                await context.provider.command("state")
+                context.ending = True
+                context.provider.snapshot = {**context.provider.snapshot,
+                    "orders": [{"clientOrderId": "original-close", "status": "ALIVE", "volumeLeft": 1}]}
+                context.end_close_ids.add("original-close")
+                cancel = AsyncMock()
+                monkeypatch.setattr(context.child.state.simulation_orders, "cancel", cancel)
+                await context._after_step()
+                assert context.ending and context.playing and not context.ended
+                cancel.assert_not_called()

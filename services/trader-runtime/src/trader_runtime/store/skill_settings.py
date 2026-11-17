@@ -20,14 +20,19 @@ class SkillSettingsStore(StoreBase):
         return row is None or bool(row["enabled"])
 
     def set_skill_enabled(self, skill_id: str, enabled: bool) -> dict[str, Any]:
-        with self.lock, self.connection:
-            self.connection.execute(
+        self.set_skills_enabled({skill_id: enabled})
+        return {"skillId": skill_id, "enabled": enabled}
+
+    def set_skills_enabled(self, skills: dict[str, bool]) -> None:
+        """One administrative change: all switches commit or all roll back."""
+        with self.transaction() as connection:
+            now = utc_now()
+            connection.executemany(
                 "INSERT INTO skill_settings (skill_id, enabled, updated_at) VALUES (?, ?, ?)"
                 " ON CONFLICT(skill_id) DO UPDATE SET enabled = excluded.enabled,"
                 " updated_at = excluded.updated_at",
-                (skill_id, 1 if enabled else 0, utc_now()),
+                [(skill_id, int(enabled), now) for skill_id, enabled in skills.items()],
             )
-        return {"skillId": skill_id, "enabled": enabled}
 
     def skill_settings_all(self) -> dict[str, bool]:
         """Only the rows that exist; `skill_enabled` fills the enabled default

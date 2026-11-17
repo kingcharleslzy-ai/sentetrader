@@ -347,7 +347,9 @@ def test_the_models_slots_must_rest_on_the_users_words_or_the_context():
                          ("平掉沪金一手，别动沪金", OrderIntent(act="close", symbol="SHFE.au2612", vol=1)),
                          ("平掉沪银一手，别动ag2702", closing),
                          ("平掉沪银2702一手，别动沪金，也别动这个合约", closing),
-                         ("平掉沪银2702一手，别动沪金和这个合约", closing)):
+                         ("平掉沪银2702一手，别动沪金和这个合约", closing),
+                         ("平掉沪银2702一手，别动沪金和那笔", closing),
+                         ("平掉沪银2702一手，别动沪金以及不存在的合约", closing)):
         assert isinstance(ground(intent, said, products=("沪银", "沪金"), chart="SHFE.ag2702", positions=[], items=catalogs), Ask)
     context = ParseContext(products=("沪银",))
     assert mentions(first, ParseContext(products=("沪银", "沪金"))).acts == {"close"}

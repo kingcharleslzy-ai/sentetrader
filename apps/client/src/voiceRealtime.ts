@@ -590,11 +590,12 @@ class VoiceCallStore {
     // later status, so the call bar's mm:ss survives a re-render or a re-mount of the panel.
     const connected = !["idle", "error", "connecting"].includes(status.state);
     const live = status.state !== "idle" && status.state !== "error";
+    const newError = status.state === "error" && (this.status.state !== "error" || status.error !== this.status.error);
     this.status = { ...status, startedAt: connected ? this.status.startedAt ?? Date.now() : undefined, review: live && this.reviewing };
     // A failed call (no microphone, say) is said for a moment, then the orb and call bar are back to standby;
     // the AI itself is fine, and a retry with nothing changed only fails again.
-    window.clearTimeout(this.errorTimer);
-    if (status.state === "error") this.errorTimer = window.setTimeout(() => this.dismissError(), CALL_ERROR_MS);
+    if (status.state !== "error" || newError) window.clearTimeout(this.errorTimer);
+    if (newError) this.errorTimer = window.setTimeout(() => this.dismissError(), CALL_ERROR_MS);
     this.listeners.forEach(listener => listener());
   }
   private errorTimer: number | undefined;
@@ -658,7 +659,7 @@ class VoiceCallStore {
   /** The live call's microphone / playback level taps (empty when no call has audio). */
   analysers(): { input?: AnalyserNode; output?: AnalyserNode } { return this.call?.analysers() ?? {}; }
   /** Clear a failed start so the orb returns to standby. */
-  dismissError() { if (this.status.state === "error") this.publish({ state: "idle" }); }
+  dismissError() { if (this.status.state === "error") { this.stop(); this.publish({ state: "idle" }); } }
   /** Tests only. */
   reset() { this.call = null; this.publish({ state: "idle" }); }
 }

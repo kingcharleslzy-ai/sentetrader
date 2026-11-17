@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useIdentityFence, type FenceContext } from "./useIdentityFence";
 import { requestJson } from "../api";
 import { onFeedNudge, onPriceAlert } from "../runtimeFeed";
 
@@ -63,24 +64,28 @@ export interface PriceAlertsHandle {
 }
 
 export function usePriceAlerts(baseUrl: string | undefined, enabled: boolean): PriceAlertsHandle {
-  const [doc, setDoc] = useState<AlertsDocument>();
+  const fence = useIdentityFence([baseUrl, enabled]);
+  const [stored, setDoc] = useState<{ context: FenceContext; value: AlertsDocument }>();
+  const doc = stored?.context === fence.context ? stored.value : undefined;
   const [createError, setCreateError] = useState("");
   const [notice, setNotice] = useState("");
   const [readKey, setReadKey] = useState(0);
 
   useEffect(() => {
     if (!baseUrl || !enabled) { setDoc(undefined); return; }
+    const current = fence.channel("alerts").beginRead();
     let cancelled = false;
     requestJson<AlertsDocument>(`${baseUrl}/api/market/alerts`)
-      .then(result => { if (!cancelled) setDoc(result); })
+      .then(result => { if (!cancelled && current()) setDoc({ context: fence.context, value: result }); })
       .catch(() => undefined); // keep the last lists; the next feed event or action re-reads
     return () => { cancelled = true; };
-  }, [baseUrl, enabled, readKey]);
+  }, [baseUrl, enabled, readKey, fence]);
 
-  const refresh = useCallback(() => setReadKey(key => key + 1), []);
+  const refresh = useCallback(() => { if (fence.isCurrent()) { fence.channel("alerts").noteWrite(); setReadKey(key => key + 1); } }, [fence]);
+  useEffect(() => { setCreateError(""); setNotice(""); }, [fence]);
   useEffect(() => (!baseUrl || !enabled) ? undefined : onPriceAlert(() => refresh()), [baseUrl, enabled, refresh]);
   // A drawing deleted or moved (here, by the AI or on another device) takes or re-arms its line alert.
-  useEffect(() => (!baseUrl || !enabled) ? undefined : onFeedNudge(reason => { if (reason === "drawings") refresh(); }),
+  useEffect(() => (!baseUrl || !enabled) ? undefined : onFeedNudge(reason => { if (reason === "drawings" || reason === "price-alerts") refresh(); }),
     [baseUrl, enabled, refresh]);
 
   useEffect(() => {
@@ -90,30 +95,33 @@ export function usePriceAlerts(baseUrl: string | undefined, enabled: boolean): P
   }, [notice]);
 
   const create = useCallback(async (symbol: string, price: number, note?: string, drawingId?: string) => {
+    if (!fence.isCurrent() || !enabled) return false;
     if (!baseUrl) { setCreateError("连接后可设置"); return false; }
     try {
       const result = await requestJson<{ alert: PriceAlert }>(`${baseUrl}/api/market/alerts`, {
         method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({ symbol, via: "ui", ...(drawingId ? { drawingId } : { price }), ...(note ? { note } : {}) })
       });
+      if (!fence.isCurrent()) return false;
       setCreateError("");
       setNotice(`已设${alertLine(result.alert)}`);
       refresh();
       return true;
     } catch (error) {
+      if (!fence.isCurrent()) return false;
       // The market bar says it too: a chart right-click or a line's 提醒 has no form to show the reason in.
       setCreateError(alertErrorText(error));
       setNotice(alertErrorText(error));
       return false;
     }
-  }, [baseUrl, refresh]);
+  }, [baseUrl, refresh, fence, enabled]);
 
   const cancel = useCallback((id: string) => {
-    if (!baseUrl) return;
+    if (!baseUrl || !enabled || !fence.isCurrent()) return;
     requestJson<{ alert: PriceAlert }>(`${baseUrl}/api/market/alerts/${id}`, { method: "DELETE" })
-      .then(result => { setNotice(`已删除${alertLine(result.alert)}`); refresh(); })
-      .catch(error => setNotice(alertErrorText(error)));
-  }, [baseUrl, refresh]);
+      .then(result => { if (!fence.isCurrent()) return; setNotice(`已删除${alertLine(result.alert)}`); refresh(); })
+      .catch(error => { if (fence.isCurrent()) setNotice(alertErrorText(error)); });
+  }, [baseUrl, refresh, fence, enabled]);
 
   return {
     available: Boolean(baseUrl) && enabled,

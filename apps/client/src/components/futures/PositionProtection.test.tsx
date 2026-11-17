@@ -169,3 +169,20 @@ describe("持仓行的保护（下单顺带保护 · 持仓补挂）", () => {
     expect(screen.getByTestId("row-protect-submit")).toBeDisabled();
   });
 });
+
+
+test("protection never borrows a different chart contract's tick", () => {
+  rows([], { quote: { ...quote, symbol: "SHFE.rb2610", priceTick: 1 } });
+  fireEvent.click(screen.getByRole("button", { name: "给 SHFE.au2612 多仓挂保护" }));
+  fireEvent.change(screen.getByTestId("row-stop-input"), { target: { value: "823.5" } });
+  expect(screen.getByText("这个合约的最小变动价位尚不可用")).toBeVisible();
+  expect(screen.queryByText(/止损 823.5 不在/)).toBeNull();
+});
+
+test("switching from protected yesterday lots to empty today lots keeps the typed draft", () => {
+  rows([stop({ positionBucket: "historical", triggerPrice: 823.5, takeProfitPrice: 826 })]);
+  fireEvent.click(screen.getByTestId("row-protect-toggle"));
+  fireEvent.change(screen.getByTestId("row-stop-input"), { target: { value: "823.4" } });
+  fireEvent.click(screen.getByRole("button", { name: "今 2" }));
+  expect(screen.getByTestId("row-stop-input")).toHaveValue(823.4);
+});

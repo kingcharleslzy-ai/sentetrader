@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import json
 from datetime import datetime, timedelta
 
 import pytest
@@ -295,6 +296,7 @@ def test_strategy_loss_limit_blocks_entries_but_never_its_exits():
 
 async def test_finish_cancels_pending_order_through_shared_order_service(tmp_path):
     from trader_runtime.replay import ReplayContext
+    (tmp_path / "replay.json").write_text(json.dumps({"replayId": IDENTIFIER, "userId": "local-user", "symbol": SYMBOL}))
     source = CycleSource()
     provider = ReplayProvider(source, IDENTIFIER)
     await provider.command('state')

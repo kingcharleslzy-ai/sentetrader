@@ -127,7 +127,7 @@ export function MobileMarket({ market: shownMarket, name, decimals, chartView, o
   const settings = useMemo(() => shown === "volume" && chartSettings.volume ? { ...chartSettings, volume: false } : chartSettings, [chartSettings, shown]);
   // 到价提醒 on this contract stay visible as the chart's dashed lines (as on the desktop).
   const conditionLines = useConditionReminderLines(guest ? undefined : baseUrl, quote?.symbol);
-  const alertLines = useMemo(() => [...(alerts?.active ?? []).filter(alert => sameContract(alert.symbol, quote?.symbol))
+  const alertLines = useMemo(() => [...(alerts?.active ?? []).filter(alert => !alert.drawingId && sameContract(alert.symbol, quote?.symbol))
     .map(alert => ({ id: alert.id, price: Number(alert.price) })), ...conditionLines], [alerts, quote?.symbol, conditionLines]);
   const rows = useMemo(() => marketRows({ positions, watchlist, board, instruments, quote }), [positions, watchlist, board, instruments, quote]);
   const autoSymbols = useMemo(() => autoChartSymbols(rows, board), [rows, board]);
@@ -159,8 +159,10 @@ export function MobileMarket({ market: shownMarket, name, decimals, chartView, o
   const [loupe, setLoupe] = useState<HandleDrag | null>(null);
   const [drawingError, setDrawingError] = useState("");
   useEffect(() => { if (!drawingError) return; const timer = window.setTimeout(() => setDrawingError(""), 6000); return () => window.clearTimeout(timer); }, [drawingError]);
+  const alertedDrawings = useMemo(() => new Set((alerts?.active ?? []).flatMap(alert => alert.drawingId ? [alert.drawingId] : [])), [alerts]);
+  const shownDrawings = useMemo(() => desk.shown.map(item => alertedDrawings.has(item.id) ? { ...item, alerted: true } : item), [desk.shown, alertedDrawings]);
   const drawingProps = {
-    userDrawings: desk.available ? desk.shown : [], drawingTool: desk.available ? desk.tool : null, selectedDrawingId: desk.selected?.id ?? null,
+    userDrawings: desk.available ? shownDrawings : [], drawingTool: desk.available ? desk.tool : null, selectedDrawingId: desk.selected?.id ?? null,
     selectedDrawingHandle: desk.handle, drawingsLocked: desk.locked, drawingMagnet: desk.magnet,
     onPlaceDrawing: desk.place, onMoveDrawing: desk.move, onDrawingSelect: desk.select,
     onDrawingHandleDrag: setLoupe, onDrawingDraft: setDraftCount, drawingFinish: finishSignal,

@@ -1043,7 +1043,11 @@ class PreferenceChange(BaseModel):
         if isinstance(trade, dict) and TRADE_CONTROL_KEYS & set(trade):
             raise ValueError(TRADE_CONTROL_REFUSED)
         try:
-            merge_preferences(UserPreferences(), patch)
+            validated = merge_preferences(UserPreferences(), patch).model_dump()
+            leaf: Any = validated
+            for part in self.key.split("."):
+                leaf = leaf[part]
+            self.value = leaf
         except HTTPException as error:
             raise ValueError(str(error.detail)) from None
         return self
@@ -1688,6 +1692,7 @@ class UiWindowsSnapshot(BaseModel):
 
 
 class UiPulseResult(BaseModel):
+    receiptProtocol: Literal[2] = 2
     command: UiCommandResult | None
     capture: CaptureRequest | None = None
 
@@ -2643,6 +2648,12 @@ def register_ui_control(app, current_user):
     # Kept outside /api/app: agents cannot forge a browser heartbeat or receipt.
     @app.post("/api/ui/pulse", response_model=UiPulseResult, response_model_exclude_unset=True)
     async def pulse(request: Request, body: UiPulse):
+        """Browser heartbeat. receiptProtocol=2 accepts execution notifications and refusal reasons.
+
+        Clients must negotiate this response before applying commands. Without it they report unknown
+        without executing or adding newer receipt fields. Only an explicit pre-execution revision
+        refusal permits a new command; a legacy rejection or missing state never proves no execution.
+        """
         from .guest import guest_request
         async with lock:
             user, caller = await identity(request)
@@ -2665,7 +2676,7 @@ def register_ui_control(app, current_user):
                             command.status = "expired"
                         elif command.status == "dispatched":
                             command.status = "unknown"
-                return {"command": None}
+                return {"receiptProtocol": 2, "command": None}
             if window is None:
                 if sum(w.user == user and not w.pulse.closing for w in windows.values()) >= 8:
                     # Reloads get a fresh consumer id. Retained offline snapshots
@@ -2708,10 +2719,8 @@ def register_ui_control(app, current_user):
                         command.status, command.claimed = "dispatched", monotonic()
                     else:
                         command.status = body.receipt.status if authorized else "unknown"
-                        command.reason = (body.receipt.reason or (
-                            UI_REVISION_CHANGED
-                            if body.revision != command.request.expectedRevision else "窗口未能执行命令，请检查当前状态"
-                        )) if command.status == "rejected" else None
+                        command.reason = (body.receipt.reason or "窗口未能执行命令，请检查当前状态") \
+                            if command.status == "rejected" else None
                         command.state = body.state.model_dump()
                         command.observed_revision = body.revision
                         log_result(command)
@@ -2741,8 +2750,8 @@ def register_ui_control(app, current_user):
                     log_result(command)
                     continue
                 command.status = "dispatched"
-                return {"command": command.result()}
-            return {"command": None, "capture": await dispatch_capture(body, user)}
+                return {"receiptProtocol": 2, "command": command.result()}
+            return {"receiptProtocol": 2, "command": None, "capture": await dispatch_capture(body, user)}
 
     @app.get("/api/app/ui/windows", response_model=UiWindowsSnapshot)
     async def list_windows(request: Request, deviceId: str | None = Query(default=None, max_length=100),

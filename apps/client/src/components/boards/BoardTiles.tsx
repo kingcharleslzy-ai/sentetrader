@@ -166,14 +166,14 @@ export function PositionsSmall({ positions, instruments, account, quality = NO_Q
     <span className="board-tile-head"><strong>持仓</strong><small>{positionCount(positions, quality)} 个</small></span>
     <QualityNote text={quality.note} />
     {positions.length ? <>
-      <small className="board-caption">浮动盈亏</small>
+      <small className="board-caption">浮动盈亏 · 人民币</small>
       <BoardMoney className={signClass(total)} text={formatSigned(total, 0)} />
-      <span className="board-split"><span className="positive">{winning} 个赚</span><span className="negative">{losing} 个亏</span></span>
+      <span className="board-split" aria-label="人民币持仓盈亏数量"><span className="positive">{winning} 个赚</span><span className="negative">{losing} 个亏</span></span>
       <AccountFigures account={account} />
       {/* A tall block lists the positions below, as many as the height holds (the rest is cut, never squeezed). */}
       <span className="board-more-rows" aria-hidden="true">{positions.map(position => <span key={`${position.accountId ?? ""}:${position.symbol}:${position.direction}`}>
         <span className="board-ellipsis">{positionName(position, instruments)} <i className={`board-side ${position.direction}`}>{position.direction === "long" ? "多" : "空"}</i>{position.volume}手</span>
-        <strong className={signClass(position.unrealizedPnl)}>{formatSigned(position.unrealizedPnl, 0)}</strong>
+        <strong className={signClass(position.unrealizedPnl)}>{formatSigned(position.unrealizedPnl, 0)}{position.currency === "USD" ? " 美元" : ""}</strong>
       </span>)}</span>
     </> : quality.unknown ? null : <span className="board-empty">没有持仓</span>}
   </button>;
@@ -186,7 +186,7 @@ export function PositionsMedium({ positions, instruments, account, quality = NO_
   return <div className="board-positions-medium">
     <button type="button" className="board-tile-head board-tile-link" aria-label="打开持仓面板" onClick={onOpen}>
       <strong>持仓</strong><small>{positionCount(positions, quality)}</small><span className="board-grow" />
-      {positions.length ? <><small>浮动盈亏</small><strong className={signClass(total)}>{formatSigned(total, 0)}</strong></> : null}
+      {positions.length ? <><small>浮动盈亏 · 人民币</small><strong className={signClass(total)}>{formatSigned(total, 0)}</strong></> : null}
     </button>
     <QualityNote text={quality.note} />
     <AccountFigures account={account} />
@@ -195,8 +195,8 @@ export function PositionsMedium({ positions, instruments, account, quality = NO_
         <button type="button" onClick={onOpen} aria-label={`${positionName(position, instruments)} ${position.direction === "long" ? "多" : "空"} ${position.volume} 手，打开持仓面板`}>
           <strong>{positionName(position, instruments)}</strong>
           <span><i className={`board-side ${position.direction}`}>{position.direction === "long" ? "多" : "空"}</i>{position.volume}手</span>
-          <small>均价 {formatNumber(position.openPrice, 2).replace(/\.?0+$/, "")}</small>
-          <small>现价 {formatNumber(position.lastPrice, 2).replace(/\.?0+$/, "")}</small>
+          <small>均价 {boardPrice(position.openPrice, position.symbol, instruments)}</small>
+          <small>现价 {boardPrice(position.lastPrice, position.symbol, instruments)}</small>
           <strong className={signClass(position.unrealizedPnl)}>{formatSigned(position.unrealizedPnl, 0)}{position.currency === "USD" ? " 美元" : ""}</strong>
         </button>
       </li>)}
@@ -206,17 +206,22 @@ export function PositionsMedium({ positions, instruments, account, quality = NO_
 
 /** 持仓 · 大 (owner 2026-11-05): the tile's own head (no panel title bar), the positions table with 平仓, then the working
  *  orders (撤单) and today's fills side by side. Every row scrolls inside the tile. */
+function boardPrice(value: number | null | undefined, symbol: string, instruments?: InstrumentCatalog) {
+  if (value == null) return "—";
+  const tick = instruments?.items.find(item => sameContract(item.symbol, symbol))?.priceTick;
+  return tick ? formatNumber(value, decimalsForTick(tick)) : String(value);
+}
+
 export function PositionsLarge({ positions, instruments, orders, fills, quality = NO_QUALITY, busy, onOpen, onOpenOrders, onClose, onOrderAction }: { positions: AccountPosition[];
   instruments?: InstrumentCatalog; orders: SimulationOrder[]; fills: RemoteTradeSnapshot[]; quality?: PositionsQuality; busy?: boolean; onOpen: () => void;
   onOpenOrders: () => void; onClose: (position: AccountPosition) => void; onOrderAction: OrderActionHandler }) {
   const total = yuan(positions).reduce((sum, position) => sum + position.unrealizedPnl, 0);
-  const price = (value?: number | null) => value == null ? "—" : formatNumber(value, 2).replace(/\.?0+$/, "");
   const time = (ns: number) => new Date(ns / 1e6).toLocaleTimeString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false, hour: "2-digit", minute: "2-digit" });
   const side = (direction: string, offset: string) => `${direction === "BUY" ? "买" : "卖"}${offset === "OPEN" ? "开" : "平"}`;
   return <div className="board-positions-large">
     <div className="board-tile-head board-large-head">
       <strong>持仓</strong><small>{positionCount(positions, quality)}</small>
-      {positions.length ? <><small>浮动盈亏</small><strong className={signClass(total)}>{formatSigned(total, 0)}</strong></> : null}
+      {positions.length ? <><small>浮动盈亏 · 人民币</small><strong className={signClass(total)}>{formatSigned(total, 0)}</strong></> : null}
       <span className="board-grow" /><button type="button" className="board-text-button" onClick={onOpen}>打开持仓面板</button>
     </div>
     <div className="board-large-scroll">
@@ -226,7 +231,7 @@ export function PositionsLarge({ positions, instruments, orders, fills, quality 
         <tbody>{positions.map(position => <tr key={`${position.accountId ?? ""}:${position.symbol}:${position.direction}`}>
           <td><strong>{positionName(position, instruments)}</strong></td>
           <td><i className={`board-side ${position.direction}`}>{position.direction === "long" ? "多" : "空"}</i>{position.volume}手</td>
-          <td>{price(position.openPrice)}</td><td>{price(position.lastPrice)}</td>
+          <td>{boardPrice(position.openPrice, position.symbol, instruments)}</td><td>{boardPrice(position.lastPrice, position.symbol, instruments)}</td>
           <td className={`num ${signClass(position.unrealizedPnl)}`}><strong>{formatSigned(position.unrealizedPnl, 0)}{position.currency === "USD" ? " 美元" : ""}</strong></td>
           <td className="num"><button type="button" className="app-button" onClick={() => onClose(position)}>平仓</button></td>
         </tr>)}</tbody>
@@ -237,7 +242,7 @@ export function PositionsLarge({ positions, instruments, orders, fills, quality 
           {fills.length ? fills.slice(-6).reverse().map(fill => <div key={fill.tradeId} className="board-large-line">
             <small>{time(fill.tradeDateTime)}</small><strong>{contractLabel(fill.symbol, instruments)}</strong>
             <span className={fill.direction === "BUY" ? "positive" : "negative"}>{side(fill.direction, fill.offset)} {fill.volume}手</span>
-            <span className="board-grow" /><span>{price(fill.price)}</span>
+            <span className="board-grow" /><span>{boardPrice(fill.price, fill.symbol, instruments)}</span>
           </div>) : <small className="board-caption">今天还没有成交</small>}
         </section>
       </div>
@@ -470,7 +475,6 @@ export function AccountCompact({ account, foreign, onOpen, medium }: { account?:
  */
 function BoardOrders({ orders, instruments, busy, onOrderAction, onOpen }: { orders: SimulationOrder[]; instruments?: InstrumentCatalog; busy?: boolean;
   onOrderAction: OrderActionHandler; onOpen: () => void }) {
-  const price = (value?: number | null) => value == null ? "—" : formatNumber(value, 2).replace(/\.?0+$/, "");
   return <section><h4>在途委托<small>{orders.length}</small></h4>
     {orders.length ? orders.map(order => {
       const unknown = orderIsUnknown(order);
@@ -478,7 +482,7 @@ function BoardOrders({ orders, instruments, busy, onOrderAction, onOpen }: { ord
       return <div key={order.id} className="board-large-line">
         <strong>{contractLabel(order.request.symbol, instruments)}</strong>
         <span className={order.request.direction === "BUY" ? "positive" : "negative"}>{`${order.request.direction === "BUY" ? "买" : "卖"}${order.request.offset === "OPEN" ? "开" : "平"}`} {order.request.volume}手</span>
-        <small>@{price(order.request.limitPrice)}</small><small>{orderStatusText(order)}</small><span className="board-grow" />
+        <small>@{boardPrice(order.request.limitPrice, order.request.symbol, instruments)}</small><small>{orderStatusText(order)}</small><span className="board-grow" />
         {order.submitPhase === "PREPARED" ? <button type="button" className="app-button" onClick={onOpen}>打开委托</button>
           : unknown ? <button type="button" className="app-button" disabled={busy} onClick={() => onOrderAction(order, "query")}>查询</button>
           : alive ? <button type="button" className="app-button" disabled={busy} onClick={() => onOrderAction(order, "cancel")}>撤单</button> : null}
@@ -490,14 +494,13 @@ function BoardOrders({ orders, instruments, busy, onOrderAction, onOpen }: { ord
 /** 委托与成交 · 小 (在途几笔、今天成交几笔) / 中 · 大 (在途委托和各自能做的，今日成交): the 持仓 panel's 委托 / 成交 tabs. */
 export function OrdersCompact({ orders, fills, instruments, busy, onOpen, onOrderAction, medium }: { orders: SimulationOrder[]; fills: RemoteTradeSnapshot[];
   instruments?: InstrumentCatalog; busy?: boolean; onOpen: () => void; onOrderAction: OrderActionHandler; medium?: boolean }) {
-  const price = (value?: number | null) => value == null ? "—" : formatNumber(value, 2).replace(/\.?0+$/, "");
   const side = (direction: string, offset: string) => `${direction === "BUY" ? "买" : "卖"}${offset === "OPEN" ? "开" : "平"}`;
   const time = (ns: number) => new Date(ns / 1e6).toLocaleTimeString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false, hour: "2-digit", minute: "2-digit" });
   if (!medium) return <button type="button" className="board-tile-open board-orders-small" aria-label={`在途委托 ${orders.length} 笔，今日成交 ${fills.length} 笔，打开委托`} onClick={onOpen}>
     <span className="board-tile-head"><strong>委托与成交</strong></span>
     <span className="board-split"><span><strong className="board-figure">{orders.length}</strong> 笔在途</span><span><strong className="board-figure">{fills.length}</strong> 笔成交</span></span>
     <span className="board-more-rows" aria-hidden="true">{[...fills].reverse().map(fill => <span key={fill.tradeId}><small>{time(fill.tradeDateTime)}</small>
-      <span className="board-ellipsis">{contractLabel(fill.symbol, instruments)} {side(fill.direction, fill.offset)} {fill.volume}手</span><strong>{price(fill.price)}</strong></span>)}</span>
+      <span className="board-ellipsis">{contractLabel(fill.symbol, instruments)} {side(fill.direction, fill.offset)} {fill.volume}手</span><strong>{boardPrice(fill.price, fill.symbol, instruments)}</strong></span>)}</span>
   </button>;
   return <div className="board-orders-medium">
     <button type="button" className="board-tile-head board-tile-link" aria-label="委托与成交，打开委托" onClick={onOpen}><strong>委托与成交</strong>
@@ -508,7 +511,7 @@ export function OrdersCompact({ orders, fills, instruments, busy, onOpen, onOrde
         {fills.length ? [...fills].reverse().map(fill => <div key={fill.tradeId} className="board-large-line">
           <small>{time(fill.tradeDateTime)}</small><strong>{contractLabel(fill.symbol, instruments)}</strong>
           <span className={fill.direction === "BUY" ? "positive" : "negative"}>{side(fill.direction, fill.offset)} {fill.volume}手</span>
-          <span className="board-grow" /><span>{price(fill.price)}</span>
+          <span className="board-grow" /><span>{boardPrice(fill.price, fill.symbol, instruments)}</span>
         </div>) : <small className="board-caption">今天还没有成交</small>}
       </section>
     </div>

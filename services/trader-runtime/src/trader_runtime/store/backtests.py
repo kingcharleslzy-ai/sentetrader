@@ -10,6 +10,7 @@ Rows are per user: another user's result reads as missing.
 from __future__ import annotations
 
 import json
+import sqlite3
 from typing import Any
 
 from .base import StoreBase
@@ -23,8 +24,13 @@ def _payload(row: Any) -> dict[str, Any]:
 
 
 class StrategyBacktestStore(StoreBase):
-    def save_backtest_result(self, *, user_id: str, result: dict[str, Any], keep: int = KEEP) -> None:
+    def save_backtest_result(self, *, user_id: str, result: dict[str, Any], keep: int = KEEP,
+                             connection: sqlite3.Connection | None = None) -> None:
         """Store one result (``result["backtestId"]`` is the row id) and trim the owner's older rows."""
+        if connection is None:
+            with self.transaction() as owned:
+                self.save_backtest_result(user_id=user_id, result=result, keep=keep, connection=owned)
+            return
         strategy_id = result.get("strategyId")
         trades = result.get("trades") or []
         stored = {**result, "trades": trades[-TRADES_PERSISTED:],
@@ -35,12 +41,11 @@ class StrategyBacktestStore(StoreBase):
                               "timeframeSeconds": result.get("timeframeSeconds")}, ensure_ascii=False, default=str)
         owner = "strategy_id = ?" if strategy_id else "strategy_id IS NULL"
         owner_args: tuple[Any, ...] = (user_id, strategy_id) if strategy_id else (user_id,)
-        with self.lock, self.connection:
-            self.connection.execute(
+        connection.execute(
                 """INSERT OR REPLACE INTO strategy_backtest_results
                    (id, user_id, strategy_id, created_at, summary_json, payload_json) VALUES (?, ?, ?, ?, ?, ?)""",
                 (str(result["backtestId"]), user_id, strategy_id, str(result.get("createdAt") or ""), summary, text))
-            self.connection.execute(
+        connection.execute(
                 f"""DELETE FROM strategy_backtest_results WHERE user_id = ? AND {owner} AND id NOT IN (
                     SELECT id FROM strategy_backtest_results WHERE user_id = ? AND {owner}
                     ORDER BY created_at DESC, rowid DESC LIMIT ?)""",

@@ -435,8 +435,9 @@ class SessionStore(StoreBase):
             guard = f" AND COALESCE({_LAST_USER_TURN}, s.created_at) < ?"
             values = (session_id, stale_before)
         with self.transaction() as connection:
-            connection.execute("DELETE FROM outbox_events WHERE session_id = ?", (session_id,))
             cursor = connection.execute(f"DELETE FROM sessions AS s WHERE s.id = ?{guard}", values)
+            if cursor.rowcount == 1:
+                connection.execute("DELETE FROM outbox_events WHERE session_id = ?", (session_id,))
         return cursor.rowcount == 1
 
     def reject_pending_proposals_for_session(self, session_id: str) -> None:

@@ -108,6 +108,7 @@ class FakeMt5:
                 SimpleNamespace(type=2, price=4180.5, volume_dbl=2.0), SimpleNamespace(type=2, price=4180.6, volume_dbl=4.0))
 
     def market_book_release(self, name):
+        self._log("market_book_release", name)
         return True
 
     # Present on the real module; the bridge must never reach them.
@@ -198,6 +199,24 @@ class TerminalTest(unittest.TestCase):
         depth = self.terminal.depth("GCEZ26")
         self.assertEqual(depth["asks"], [[4180.7, 1.0], [4180.8, 3.0]])
         self.assertEqual(depth["bids"], [[4180.6, 4.0], [4180.5, 2.0]])
+
+    def test_depth_recycles_the_least_recent_subscription_and_shutdown_releases_the_rest(self):
+        from mt5_bridge.terminal import MAX_DEPTH_SUBSCRIPTIONS
+        for index in range(MAX_DEPTH_SUBSCRIPTIONS + 1):
+            name = f"GC{index}"
+            self.mt5.symbols[name] = symbol(name)
+        for index in range(MAX_DEPTH_SUBSCRIPTIONS):
+            self.terminal.depth(f"GC{index}")
+        self.terminal.depth("GC0")  # still used, so GC1 is the oldest
+        self.terminal.depth(f"GC{MAX_DEPTH_SUBSCRIPTIONS}")
+        self.assertIn(("market_book_release", "GC1"), self.mt5.calls)
+        self.assertEqual(len(self.terminal._books), MAX_DEPTH_SUBSCRIPTIONS)
+        self.terminal.close()
+        self.terminal.close()  # idempotent, no duplicate releases
+        releases = [call[1] for call in self.mt5.calls if call[0] == "market_book_release"]
+        self.assertEqual(len(releases), MAX_DEPTH_SUBSCRIPTIONS + 1)
+        self.assertEqual(len(set(releases)), len(releases))
+        self.assertEqual(self.mt5.calls[-1], ("shutdown",))
 
     def test_failed_reads_are_unavailable_not_empty(self):
         # MT5 returns None on a failed read; that must not look like an empty, fresh answer.

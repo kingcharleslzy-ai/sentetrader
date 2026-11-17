@@ -377,6 +377,11 @@ export function useFeedReportEntries(): Readonly<Record<string, FeedReportEntry>
   return useSyncExternalStore(subscribe, () => states.get(activeSessionId ?? "")?.reports);
 }
 
+/** The current report object is also the version fence for an overlapping HTTP fallback read. */
+export function feedReportEntry(key: string | undefined): FeedReportEntry | undefined {
+  return key ? states.get(activeSessionId ?? "")?.reports?.[key] : undefined;
+}
+
 /** Non-reactive: does the active session's push deliver the report `key` now? A report is pushed on change only, so an
  *  ok one stays current while the session's stream is alive. */
 export function feedReportLiveNow(key: string, now = Date.now()): boolean {

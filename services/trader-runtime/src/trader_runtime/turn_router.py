@@ -289,6 +289,10 @@ def answer_route(text: str, *, said: str, question: str, basis: OrderIntent | No
         slots: dict[str, Any] = {}
         if len(sides) == 1:
             slots["dir"] = next(iter(sides))
+        if len(words.buckets) > 1:
+            return replace(ORDER_ROUTE, hint=hint, said=both)
+        if len(words.buckets) == 1 and basis.act == "close":
+            slots["bucket"] = next(iter(words.buckets))
         if len(words.counts) == 1:
             slots["vol"] = next(iter(words.counts))
         if len(words.modes) == 1:
@@ -297,7 +301,7 @@ def answer_route(text: str, *, said: str, question: str, basis: OrderIntent | No
             slots["bare"] = True  # “买” against a held short: the entry still asks 平空还是开多
         if slots:
             return TurnRoute("order_intent", order=replace(basis, **slots), said=both, hint=hint)
-    if isinstance(parsed, OrderIntent) and front_order(parsed) is not None:
+    if contract and isinstance(parsed, OrderIntent) and front_order(parsed) is not None:
         return None  # a whole order on its own: a new sentence
     if contract and words.counts and words.acts:
         both = text  # An explicit restatement supplies its own slots; the earlier ambiguity is no longer evidence.
@@ -475,7 +479,7 @@ async def send_ui_command(call: Callable[..., Awaitable[dict[str, Any]]], window
     if not ui_command_moved_on(result):
         return result
     # The window moved on before it saw the command (the phone opens the chat as the hold ends, 11-01): nothing ran
-    # and every change is absolute, so it goes once more at the window's latest revision.
+    # so it goes once more at the window's latest revision. An attempted operation is never replayed.
     fresh = await call("GET /api/app/ui/windows/{window_id}", path={"window_id": window["windowId"]})
     latest = (fresh.get("data") or {}).get("revision") if fresh.get("ok") else None
     if not isinstance(latest, int) or latest == body["expectedRevision"]:
@@ -486,14 +490,14 @@ async def send_ui_command(call: Callable[..., Awaitable[dict[str, Any]]], window
 
 def ui_command_moved_on(result: dict[str, Any]) -> bool:
     """A UI command refused only because the window's revision moved on — before queueing (409 界面已变化, nothing
-    attempted) or by the window / at dispatch (explicit reason; older servers omit state). Safe to send again."""
+    attempted) or by the window / at dispatch (explicit reason; an old empty-state refusal is ambiguous). Safe to send again."""
     from .ui_control import UI_REVISION_CHANGED
     data = result.get("data")
     if not isinstance(data, dict):
         data = {}
     if not result.get("ok"):
         return result.get("uiCommandAttempted") is False and "界面已变化" in str(data.get("detail") or "")
-    return data.get("status") == "rejected" and (data.get("reason") == UI_REVISION_CHANGED or data.get("state") is None)
+    return data.get("status") == "rejected" and data.get("reason") == UI_REVISION_CHANGED
 
 
 async def run_tour_step(op: str, *, window: dict[str, Any], call: Callable[..., Awaitable[dict[str, Any]]]) -> dict[str, Any]:

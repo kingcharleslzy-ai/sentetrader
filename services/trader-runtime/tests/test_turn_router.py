@@ -543,7 +543,7 @@ async def test_run_window_intent_resends_once_when_the_window_moved_on():
             return {"ok": True, "data": {"windowId": "w", "revision": 9}}
         bodies.append(body)
         if body["expectedRevision"] == 2:
-            return {"ok": True, "data": {"status": "rejected", "state": None}}
+            return {"ok": True, "data": {"status": "rejected", "state": None, "reason": "界面已变化，命令未执行；请读取最新状态后再操作"}}
         return {"ok": True, "data": {"status": "applied", "observedRevision": 10, "state": {"mobileTab": "market"}}}
 
     outcome = await run_window_intent(Intent(kind="mobileTab", changes={"mobileTab": "market"}, say="到看盘了"),
@@ -923,3 +923,24 @@ def test_a_command_beside_a_question_and_a_bare_price_reach_the_tools_that_do_th
     assert route("螺纹钢做到多 2 手 3066").tool_names == ORDER_TOOLS
     assert commands_start("直接启动，不用问我") and commands_start("启动螺纹策略，不用再确认了")
     assert not commands_start("别启动，不用问我") and not commands_start("先别上线")
+
+
+@pytest.mark.parametrize("bucket,answer,wanted", [("auto", "卖出平今一手", "today"), ("yesterday", "卖出平今一手", "today"), ("auto", "卖出平昨一手", "yesterday")])
+def test_short_answer_preserves_the_contract_and_overrides_only_the_explicit_bucket(bucket, answer, wanted):
+    from trader_runtime.order_intent import OrderIntent
+    from trader_runtime.turn_router import answer_route
+    basis = OrderIntent(act="close", symbol="SHFE.ag2702", bucket=bucket)
+    route = answer_route(answer, said="把沪银2702平掉", question="平几手？", basis=basis, catalog=FAKE_CATALOG)
+    assert route.order.symbol == "SHFE.ag2702"
+    assert route.order.bucket == wanted and route.order.vol == 1
+
+
+def test_short_answer_without_basis_keeps_the_original_contract_for_grounding():
+    from trader_runtime.turn_router import answer_route
+    route = answer_route("卖出平今一手", said="沪银2702平仓", question="几手？", basis=None, catalog=FAKE_CATALOG)
+    assert route is not None and route.said == "沪银2702平仓，卖出平今一手"
+
+
+def test_legacy_empty_state_refusal_does_not_prove_no_execution():
+    from trader_runtime.turn_router import ui_command_moved_on
+    assert not ui_command_moved_on({"ok": True, "data": {"status": "rejected", "state": None}})

@@ -144,3 +144,4 @@ def main() -> None:
         server.serve_forever()
     finally:
         server.server_close()
+        terminal.close()

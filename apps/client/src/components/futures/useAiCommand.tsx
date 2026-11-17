@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, Undo2, X } from "lucide-react";
 import type { AgentTask } from "@ai-trader/ui-events";
 import { requestJson } from "../../api";
 import type { ConversationTurn } from "../../state/conversation";
 import { useDisclosureSurface } from "../../uiSurfaces";
+import { useIdentityFence, type FenceContext } from "../../hooks/useIdentityFence";
 
 const ORDER_CARDS = new Set(["trade", "close-batch", "spread"]);
 const ANSWER_CHARS = 140;
@@ -21,8 +22,9 @@ const FADE_MS = 300;
  * `ai-command-result` disclosure. Both fade the same way (owner 2026-11-02): LINGER_MS after the answer, LINGER_LONG_MS
  * with a card to confirm or something to undo, held while a pointer, finger or focus is on it (`hold` / `release`).
  */
-export function useAiCommand({ baseUrl, turns, busy, blockedReason, onSend, failed, available = true }: {
+export function useAiCommand({ baseUrl, sessionId, turns, busy, blockedReason, onSend, failed, available = true }: {
   baseUrl: string | undefined;
+  sessionId: string | undefined;
   turns: readonly ConversationTurn[];
   /** The chat is answering or sending: a new line waits. */
   busy: boolean;
@@ -34,7 +36,11 @@ export function useAiCommand({ baseUrl, turns, busy, blockedReason, onSend, fail
   failed?: string;
   available?: boolean;
 }) {
-  const [asked, setAsked] = useState<{ text: string; after: number } | null>(null);
+  const fence = useIdentityFence([baseUrl, sessionId]);
+  const [storedAsked, setAsked] = useState<{ text: string; after: number; context: FenceContext } | null>(null);
+  const asked = storedAsked?.context === fence.context ? storedAsked : null;
+  const latestAsked = useRef(asked);
+  latestAsked.current = asked;
   const [undone, setUndone] = useState<Record<string, "busy" | "done" | string>>({});
   const [open, setOpen] = useDisclosureSurface("ai-command-result", { available: available && asked !== null });
   const [held, setHeld] = useState(false);
@@ -62,7 +68,7 @@ export function useAiCommand({ baseUrl, turns, busy, blockedReason, onSend, fail
   /** Sends the line and opens the result; false (nothing sent) while busy or blocked. */
   const send = (line: string, spoken = false) => {
     if (!line || busy || blockedReason) return false;
-    setAsked({ text: line, after: turns.length });
+    setAsked({ text: line, after: turns.length, context: fence.context });
     setUndone({});
     setHeld(false);
     setOpen(true);
@@ -70,19 +76,20 @@ export function useAiCommand({ baseUrl, turns, busy, blockedReason, onSend, fail
     return true;
   };
   const undo = async (id: string, path: string) => {
-    if (!baseUrl) return;
+    if (!baseUrl || !asked || !fence.isCurrent() || latestAsked.current !== asked) return;
+    const current = () => fence.isCurrent() && latestAsked.current === asked;
     setUndone(previous => ({ ...previous, [id]: "busy" }));
     try {
       await requestJson(`${baseUrl}${path}`, { method: "DELETE" });
-      setUndone(previous => ({ ...previous, [id]: "done" }));
+      if (current()) setUndone(previous => ({ ...previous, [id]: "done" }));
     } catch (cause) {
-      setUndone(previous => ({ ...previous, [id]: cause instanceof Error ? cause.message : "没撤成，请重试" }));
+      if (current()) setUndone(previous => ({ ...previous, [id]: cause instanceof Error ? cause.message : "没撤成，请重试" }));
     }
   };
   const clear = () => { setOpen(false); setAsked(null); };
   const hold = () => setHeld(true);
   const release = () => setHeld(false);
-  return { asked, open, setOpen, actions, working, lost, hasCard, answer, undone, fading, hold, release, send, undo, clear };
+  return { asked, open: open && asked !== null, setOpen, actions, working, lost, hasCard, answer, undone, fading, hold, release, send, undo, clear };
 }
 
 export type AiCommand = ReturnType<typeof useAiCommand>;

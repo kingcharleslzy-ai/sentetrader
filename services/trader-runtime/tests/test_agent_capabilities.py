@@ -340,8 +340,8 @@ async def test_window_refusing_an_outdated_command_reads_as_moved_on(tmp_path):
             assert (await c.post('/api/ui/pulse', json=moved)).status_code == 200
             result = (await c.get('/api/app/ui/commands/' + cid)).json()
             assert result['status'] == 'rejected' and result['state']['theme'] == 'dark'
-            assert result['observedRevision'] == 1 and '界面已变化' in result['reason']
-            assert ui_command_moved_on({'ok': True, 'data': result})
+            assert result['observedRevision'] == 1 and '未能执行' in result['reason']
+            assert not ui_command_moved_on({'ok': True, 'data': result})
             assert not ui_command_moved_on({'ok': True, 'data': {**result, 'reason': '窗口未能执行命令'}})
             # The same race before dispatch must be just as observable.
             queued = {**body, 'commandId': str(uuid4()), 'expectedRevision': 1}

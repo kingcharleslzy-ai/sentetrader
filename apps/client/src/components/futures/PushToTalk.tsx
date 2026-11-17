@@ -4,6 +4,7 @@ import { currentPttTarget, pushToTalkStore, usePushToTalkStatus, type PttStatus,
 import { xiaomiRemoteStore } from "../../xiaomiRemote/store";
 import { runRemoteAction } from "../../xiaomiRemote/actions";
 import { holdKeyLabel, isModifierCode, useShortcuts } from "../../shortcuts";
+import { useIdentityFence } from "../../hooks/useIdentityFence";
 
 interface Options {
   guest?: boolean;
@@ -44,11 +45,12 @@ export interface PushToTalk {
 export function usePushToTalk({ baseUrl, blockedReason, sendOnRelease, onSend, onFill, onKeyPress, guest, chatSessionId }: Options): PushToTalk {
   const status = usePushToTalkStatus();
   const binding = useShortcuts().ptt;
-  const latest = useRef({ baseUrl, blockedReason, sendOnRelease, onSend, onFill, onKeyPress, guest, chatSessionId });
-  latest.current = { baseUrl, blockedReason, sendOnRelease, onSend, onFill, onKeyPress, guest, chatSessionId };
+  const fence = useIdentityFence([baseUrl, chatSessionId]);
+  const latest = useRef({ baseUrl, blockedReason, sendOnRelease, onSend, onFill, onKeyPress, guest, chatSessionId, fence });
+  latest.current = { baseUrl, blockedReason, sendOnRelease, onSend, onFill, onKeyPress, guest, chatSessionId, fence };
   const start = useCallback((fromKey: boolean, explicit?: (text: string) => void, input?: PttCaptureFactory) => {
     if (input && pushToTalkStore.snapshot().state !== "idle") return false;
-    const { baseUrl: url, blockedReason: blocked, chatSessionId: pressedChat } = latest.current;
+    const { baseUrl: url, blockedReason: blocked, chatSessionId: pressedChat, fence: pressedFence } = latest.current;
     // Only the hold key answers a surface that asks (the guide card): a hold on the composer's own
     // microphone speaks to the chat it sits under (10-08: it answered an open guide card instead).
     // A button that names its own target (the phone editor's 补一句 microphone) gets the words.
@@ -57,6 +59,10 @@ export function usePushToTalk({ baseUrl, blockedReason, sendOnRelease, onSend, o
       if (fromKey) pushToTalkStore.showNotice(blocked || "连接后可用", target);
     } else {
       const final = (text: string) => {
+        if (!pressedFence.isCurrent()) {
+          if (pressedFence.context.identity === latest.current.fence.context.identity) latest.current.onFill(text);
+          return;
+        }
         if (target) return target(text);
         const { sendOnRelease: send, onSend: sendText, onFill: fill, chatSessionId: shownChat } = latest.current;
         (send && shownChat === pressedChat ? sendText : fill)(text);

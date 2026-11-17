@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any
 
 TABLE = "research_live_cache"
+_UNCONDITIONAL = object()
 
 
 @dataclass(frozen=True)
@@ -103,17 +104,34 @@ class LastGood:
         saved = self.saved(key)
         return None if saved is None else saved[1]
 
-    def put(self, key: str, value: Any) -> None:
-        """Store a good value (no schedule change)."""
+    def put(self, key: str, value: Any, *, expected: Any = _UNCONDITIONAL) -> bool:
+        """Store a good value; a fetch may replace only the snapshot it started from.
+
+        The SQL comparison is atomic across instances; no lock spans the network fetch.
+        Comparing both time and payload also covers two results stamped at the same clock tick.
+        """
         at = self.wall()
         if self.connection is None:
+            if expected is not _UNCONDITIONAL and self._memory.get(key) != expected:
+                return False
             self._memory[key] = (at, value)
-            return
+            return True
+        encoded = json.dumps(value, ensure_ascii=False, default=str)
         with self._locked(), self.connection:
-            self.connection.execute(
-                f"INSERT INTO {TABLE} (key, fetched_at, payload_json) VALUES (?, ?, ?)"
-                " ON CONFLICT(key) DO UPDATE SET fetched_at = excluded.fetched_at, payload_json = excluded.payload_json",
-                (self.prefix + key, at, json.dumps(value, ensure_ascii=False, default=str)))
+            if expected is None:
+                cursor = self.connection.execute(
+                    f"INSERT OR IGNORE INTO {TABLE} (key, fetched_at, payload_json) VALUES (?, ?, ?)",
+                    (self.prefix + key, at, encoded))
+            elif expected is not _UNCONDITIONAL:
+                cursor = self.connection.execute(
+                    f"UPDATE {TABLE} SET fetched_at = ?, payload_json = ? WHERE key = ? AND fetched_at = ? AND payload_json = ?",
+                    (at, encoded, self.prefix + key, expected[0], json.dumps(expected[1], ensure_ascii=False, default=str)))
+            else:
+                cursor = self.connection.execute(
+                    f"INSERT INTO {TABLE} (key, fetched_at, payload_json) VALUES (?, ?, ?)"
+                    " ON CONFLICT(key) DO UPDATE SET fetched_at = excluded.fetched_at, payload_json = excluded.payload_json",
+                    (self.prefix + key, at, encoded))
+            return cursor.rowcount > 0
 
     def due(self, key: str, ttl: float, retry: float | None = None) -> bool:
         """Whether a fetch may start: its TTL / retry interval has passed. A key this process has not tried yet
@@ -140,8 +158,11 @@ class LastGood:
     def error(self, key: str) -> str | None:
         return self._errors.get(key)
 
-    def succeeded(self, key: str, value: Any, ttl: float) -> Kept:
-        self.put(key, value)
+    def succeeded(self, key: str, value: Any, ttl: float, *, expected: Any = _UNCONDITIONAL) -> Kept:
+        if not self.put(key, value, expected=expected):
+            self._due.pop(key, None)
+            self._errors.pop(key, None)
+            return self.get(key) or Kept(None, 0, "refresh_superseded")
         self._due[key] = self.clock() + ttl
         self._errors.pop(key, None)
         return Kept(value, self.wall())

@@ -77,7 +77,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Pulse */
+        /**
+         * Pulse
+         * @description Browser heartbeat. receiptProtocol=2 accepts execution notifications and refusal reasons.
+         *
+         *     Clients must negotiate this response before applying commands. Without it they report unknown
+         *     without executing or adding newer receipt fields. Only an explicit pre-execution revision
+         *     refusal permits a new command; a legacy rejection or missing state never proves no execution.
+         */
         post: operations["pulse_api_ui_pulse_post"];
         delete?: never;
         options?: never;
@@ -4107,6 +4114,12 @@ export interface components {
         };
         /** UiPulseResult */
         UiPulseResult: {
+            /**
+             * Receiptprotocol
+             * @default 2
+             * @constant
+             */
+            receiptProtocol: 2;
             command: components["schemas"]["UiCommandResult"] | null;
             capture?: components["schemas"]["CaptureRequest"] | null;
         };

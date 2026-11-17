@@ -1429,7 +1429,7 @@ class TraderReadOnlyTools:
         ) + ("今天平仓盈亏、持仓盈亏、浮动盈亏、手续费、今日净盈亏都用这里返回的 pnlFields 原值报数并说明口径，"
              "不要从成交或交易日志加总，也不要用“今日 − 浮动”推算。")
         market_description = (
-            "读取指定合约经 Runtime 校验的只读行情快照与时效。价格来自 TqSdk/TqKq 当前期货行情源；"
+            "读取指定合约经 Runtime 校验的只读行情快照与时效。国内价格来自 TqSdk，外盘来自 MT5 行情源；"
             "账户为模拟账户；本工具只读，模拟委托与撤单使用各自正式能力，实盘始终关闭。contract 带合约乘数/每跳/每手保证金手续费/交易时段，"
             "deliveryNotice 带个人账户交割月最后可持仓日与剩余交易日——“一手多少钱”“什么时候要平仓”用它答。"
             "contract.commissionPerLot 与下单票、estimate_order 同一个估算（元/手，开仓一手按现价），commissionSource 标来源。"
@@ -1455,7 +1455,7 @@ class TraderReadOnlyTools:
              "inputSchema": TOOL_ARGUMENT_MODELS["get_account_activity"].model_json_schema()},
             {"type": "function", "name": "search_instruments",
              "description": (
-                 "从官方 TqSdk 合约目录搜索当前未到期的实际交割合约和主力映射。"
+                 "搜索国内 TqSdk 与外盘 MT5 合约目录的实际交割合约和主力映射。"
                  "返回最多 20 项；主连代码只用于发现，交易候选必须使用实际交割合约。"
              ),
              "inputSchema": TOOL_ARGUMENT_MODELS["search_instruments"].model_json_schema()},

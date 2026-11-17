@@ -8,7 +8,14 @@ from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
 from trader_runtime.instruments import cme_hours_of
-from trader_runtime.trading_calendar import NS, cme_session, cme_trading_day, session_position
+from trader_runtime.trading_calendar import (
+    NS,
+    cme_session,
+    cme_sessions,
+    cme_trading_day,
+    session_position,
+    trading_seconds,
+)
 
 CHICAGO = ZoneInfo("America/Chicago")
 
@@ -63,3 +70,27 @@ def test_an_ordinary_day_keeps_its_regular_hours():
     assert cme_session(at("2026-10-21T12:30"), "equity") == {"status": "trading"}
     assert cme_session(at("2026-10-21T16:30"), "equity") == {
         "status": "closed", "closedFor": "break", "reopensAt": "2026-10-22T06:00+08:00"}
+
+
+def test_trading_time_counts_the_extended_holiday_session_once():
+    schedule = {"dayRule": "cme", "cmeHours": "equity"}
+    start, middle, end = map(at, ("2026-11-25T09:00", "2026-11-26T09:00", "2026-11-27T09:00"))
+    assert cme_sessions("2026-11-26", "equity") == ()
+    assert trading_seconds(start, end, schedule) == 42 * 3600
+    assert trading_seconds(end, start, schedule) == -42 * 3600
+    assert trading_seconds(start, middle, schedule) + trading_seconds(middle, end, schedule) == 42 * 3600
+
+
+def test_holidays_and_dst_preserve_elapsed_time_bounds_and_additivity():
+    from datetime import timedelta
+
+    from trader_runtime.trading_calendar import CME_HOURS
+
+    for date in ("2026-01-19", "2026-03-08", "2026-11-01", "2026-11-26", "2026-12-25"):
+        center = datetime.fromisoformat(date)
+        start, middle, end = [at((center + timedelta(days=offset)).isoformat()) for offset in (-2, 0, 2)]
+        for hours in CME_HOURS:
+            schedule = {"dayRule": "cme", "cmeHours": hours}
+            total = trading_seconds(start, end, schedule)
+            assert 0 <= total <= (end - start) // NS
+            assert total == trading_seconds(start, middle, schedule) + trading_seconds(middle, end, schedule)

@@ -38,7 +38,8 @@ def test_only_the_reachable_push_services_are_accepted():
     assert endpoint_refusal("https://android.googleapis.com/gcm/send/abc") == "push_endpoint_unsupported"
     # The server POSTs to this URL: anything else (internal hosts, http, odd ports, userinfo) is refused.
     for bad in ("http://web.push.apple.com/x", "https://127.0.0.1/x", "https://evil.example/push",
-                "https://web.push.apple.com:8443/x", "https://user@web.push.apple.com/x", "not a url"):
+                "https://web.push.apple.com:8443/x", "https://user@web.push.apple.com/x", "not a url",
+                "https://web.push.apple.com:bad/x", "https://web.push.apple.com:65536/x", "https://[invalid]/x"):
         assert endpoint_refusal(bad) == "push_endpoint_invalid", bad
 
 

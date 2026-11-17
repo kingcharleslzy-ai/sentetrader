@@ -1207,7 +1207,8 @@ class SimulationOrderService:
         for row in rows:
             await self.query(row["client_order_id"], user_id=row["user_id"])
 
-    async def cancel(self, client_order_id: str, *, user_id: str) -> dict[str, Any]:
+    async def cancel(self, client_order_id: str, *, user_id: str,
+                     require_own_request: bool = False) -> dict[str, Any]:
         if self.gateway is None:
             raise SimulationOrderError("simulation_gateway_disabled")
         current = self.get(client_order_id, user_id=user_id)
@@ -1221,10 +1222,13 @@ class SimulationOrderService:
         with self.store.lock, self.store.connection:
             cursor = self.store.connection.execute(
                 """UPDATE tqkq_sim_order_links SET cancel_phase = 'CALL_STARTED', updated_at = ?
-                WHERE client_order_id = ? AND user_id = ? AND cancel_phase = 'NONE'""",
+                WHERE client_order_id = ? AND user_id = ? AND cancel_phase = 'NONE'
+                AND submit_phase = 'CONFIRMED' AND last_remote_status = 'ALIVE'""",
                 (utc_now(), client_order_id, user_id),
             )
         if cursor.rowcount != 1:
+            if require_own_request:
+                raise SimulationOrderError("cancel_already_requested")
             return self.get(client_order_id, user_id=user_id)
         from .operations import owned_operation
         return await owned_operation(

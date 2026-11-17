@@ -210,6 +210,26 @@ class ReminderStore(StoreBase):
             row = self.connection.execute("SELECT value FROM reminder_meta WHERE key = 'epoch'").fetchone()
         return str(row["value"]) if row else ""
 
+    def activity_reminder_pending(self, account_id: str) -> list[dict[str, Any]]:
+        """Retry payloads in the existing reminder metadata, scoped to the detector's account."""
+        prefix = "activity-pending:" + json.dumps(account_id) + ":"
+        with self.lock:
+            rows = self.connection.execute(
+                "SELECT value FROM reminder_meta WHERE substr(key, 1, ?) = ?", (len(prefix), prefix)).fetchall()
+        return [json.loads(row["value"]) for row in rows]
+
+    def stage_activity_reminders(self, account_id: str, events: list[dict[str, Any]]) -> None:
+        prefix = "activity-pending:" + json.dumps(account_id) + ":"
+        with self.transaction() as connection:
+            connection.executemany("INSERT OR IGNORE INTO reminder_meta (key, value) VALUES (?, ?)",
+                [(prefix + json.dumps([event["kind"], event["id"]]), json.dumps(event)) for event in events])
+
+    def finish_activity_reminders(self, account_id: str, kind: str, ids: set[str]) -> None:
+        prefix = "activity-pending:" + json.dumps(account_id) + ":"
+        with self.transaction() as connection:
+            connection.executemany("DELETE FROM reminder_meta WHERE key = ?",
+                                   [(prefix + json.dumps([kind, identifier]),) for identifier in ids])
+
     def migrate_reminders_schema(self) -> None:
         """Inside the schema migration's transaction: a reminders table made by an earlier build of this table
         (or this one) is kept — the columns are checked one by one and the missing ones added, never assumed

@@ -136,6 +136,25 @@ test("识别期间切换了对话：说的话回填输入框，不发到任何�
   expect(onFill).toHaveBeenCalledWith("螺纹钢买两手。");
 });
 
+test.each([false, true])("切换对话后迟到的卡片回答不调用旧目标（切回原对话：%s）", async returnToOriginal => {
+  const answer = vi.fn(), onSend = vi.fn(), onFill = vi.fn();
+  const view = render(<Harness onSend={onSend} onFill={onFill} chatSessionId="chat-a" />);
+  const release = setPttTarget(answer);
+  try {
+    key("keydown", "AltRight");
+    await holdAndSay("迟到的回答", () => {
+      key("keyup", "AltRight");
+      view.rerender(<Harness onSend={onSend} onFill={onFill} chatSessionId="chat-b" />);
+      if (returnToOriginal) view.rerender(<Harness onSend={onSend} onFill={onFill} chatSessionId="chat-a" />);
+    });
+    expect(answer).not.toHaveBeenCalled();
+    expect(onSend).not.toHaveBeenCalled();
+    expect(onFill).toHaveBeenCalledWith("迟到的回答");
+  } finally {
+    release();
+  }
+});
+
 test("松开后直接发送关闭时回填输入框", async () => {
   const onSend = vi.fn(), onFill = vi.fn();
   render(<Harness sendOnRelease={false} onSend={onSend} onFill={onFill} />);

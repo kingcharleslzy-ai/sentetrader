@@ -33,7 +33,7 @@ class ChartDrawingStore(StoreBase):
         """Insert one drawing. Returns the row view, or the Chinese refusal reason (the
         per-user-and-contract cap) — the check and the insert share one locked transaction."""
         drawing_id, now = uuid4().hex, utc_now()
-        with self.lock, self.connection:
+        with self.transaction():
             held = self.connection.execute(
                 "SELECT COUNT(*) FROM chart_drawings WHERE user_id = ? AND symbol = ?",
                 (user_id, symbol)).fetchone()[0]
@@ -44,7 +44,7 @@ class ChartDrawingStore(StoreBase):
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (drawing_id, user_id, symbol, kind, json.dumps(points, ensure_ascii=False), label,
                  json.dumps(style or {}, ensure_ascii=False), now, now))
-        row = self.connection.execute("SELECT * FROM chart_drawings WHERE id = ?", (drawing_id,)).fetchone()
+            row = self.connection.execute("SELECT * FROM chart_drawings WHERE id = ?", (drawing_id,)).fetchone()
         return drawing_view(row)
 
     def list_chart_drawings(self, *, user_id: str, symbol: str | None = None) -> list[dict[str, Any]]:

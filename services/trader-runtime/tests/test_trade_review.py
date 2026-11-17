@@ -84,6 +84,8 @@ async def test_review_pairs_yesterday_open_with_today_close_across_symbols(tmp_p
             partial = (await http.get("/api/trade-review")).json()
             assert [t["symbol"] for t in partial["trades"]] == [AU, RB]
             assert partial["skippedSymbols"] == ["SHFE.cu2612"]
+            habits = (await http.get("/api/account/habits")).json()
+            assert habits["skippedSymbols"] == ["SHFE.cu2612"]
             assert (await http.get("/api/trade-review", params={"symbol": "SHFE.cu2612"})).status_code == 409
     finally:
         app.state.store.close()

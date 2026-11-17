@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { requestJson } from "../api";
 import type { AccountPnlData } from "../accountPnl";
 import { feedReportServes, REPORT_RECHECK_MS, reportKey, useFeedReport } from "../feedView";
+import { feedReportEntry } from "../runtimeFeed";
 
 /** Account-wide P&L from `/api/account/pnl`, every 5 s while `enabled`. The session's own account's comes over the push
  *  (通用报告推送 2026-11-03); the read runs only while the push does not serve it (the USD sub-account, an older Runtime). */
@@ -16,13 +17,15 @@ export function useAccountPnl({ baseUrl, accountId, enabled = true }: { baseUrl:
     let cancelled = false; let timer: ReturnType<typeof setTimeout>;
     const poll = async () => {
       if (feedReportServes(baseUrl, report)) { timer = setTimeout(poll, REPORT_RECHECK_MS); return; }
+      const before = feedReportEntry(report);
+      const current = () => !cancelled && feedReportEntry(report) === before && !feedReportServes(baseUrl, report);
       try {
         const next = await requestJson<AccountPnlData>(`${baseUrl}/api/account/pnl`, {
           headers: accountId === undefined ? undefined : { "X-AI-Trader-Account": accountId }
         });
-        if (!cancelled) setResult({ baseUrl, accountId, pnl: next, error: "" });
+        if (current()) setResult({ baseUrl, accountId, pnl: next, error: "" });
       }
-      catch { if (!cancelled) setResult(previous => ({ baseUrl, accountId, pnl: previous?.pnl, error: "账户盈亏暂不可用" })); }
+      catch { if (current()) setResult(previous => ({ baseUrl, accountId, pnl: previous?.pnl, error: "账户盈亏暂不可用" })); }
       finally { if (!cancelled) timer = setTimeout(poll, 5000); }
     };
     void poll();

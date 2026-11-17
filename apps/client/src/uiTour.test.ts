@@ -34,3 +34,17 @@ it("a tour refuses an empty course, more than twenty steps, and a first step who
   expect(() => startTour([{ target: "nowhere", label: "x" }])).toThrow("界面上没有这个目标");
   vi.useRealTimers();
 });
+
+
+it("replacing a course retires its pending highlight even at the same step number", () => {
+  vi.useFakeTimers();
+  try {
+    registerTourFocus(() => undefined);
+    startTour([{ target: "rail:order", label: "旧课", focus: { panel: "order" } }]);
+    document.body.innerHTML = '<button data-agent-target="positions-bar"></button>';
+    startTour([{ target: "positions-bar", label: "新课" }]);
+    document.body.insertAdjacentHTML("beforeend", '<button data-agent-target="rail:order"></button>');
+    vi.advanceTimersByTime(350);
+    expect(currentHighlights().map(item => item.target)).toEqual(["positions-bar"]);
+  } finally { vi.useRealTimers(); }
+});

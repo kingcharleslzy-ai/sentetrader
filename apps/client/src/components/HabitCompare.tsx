@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { feedReportEntry } from "../runtimeFeed";
+import { useReadIdentity } from "../runtimeClient";
 import { requestJson } from "../api";
 import type { ReviewTag } from "../dailyReview";
 import { feedReportServes, REPORT_RECHECK_MS, reportKey, useFeedReport } from "../feedView";
@@ -12,6 +14,7 @@ type Side = { count: number; pnl: number };
 type Pick = { id: string; tradingDay: string | null; symbol: string; direction: "long" | "short"; volume: number;
   tag: ReviewTag | null; pnl: number; reason: string };
 export type HabitCompareData = {
+  skippedSymbols?: string[]; currency?: string;
   status: "ok" | "insufficient"; basis: "net" | "gross"; days: number; rules: string[];
   planned: Side | number; needed?: number; actual?: Side; gap?: number;
   split?: { tag: ReviewTag | null; label: string; count: number; pnl: number }[];
@@ -27,7 +30,8 @@ const plain = (value: number) => Math.round(Math.abs(value)).toLocaleString("zh-
  *  block simply never appears. Checked once a minute: it is a 90-day look, not a live figure. The session's own account's
  *  comes over the push (通用报告推送 2026-11-03); the read runs only while the push does not serve it. */
 export function useHabitCompare({ baseUrl, accountId }: { baseUrl: string | undefined; accountId?: string | null }) {
-  const key = `${baseUrl}|${accountId ?? ""}`;
+  const identity = useReadIdentity();
+  const key = `${identity}|${baseUrl}|${accountId ?? ""}`;
   const [data, setData] = useState<{ key: string; value: HabitCompareData }>();
   const report = accountId ? reportKey("habits", { account: accountId }) : undefined;
   const pushed = useFeedReport<HabitCompareData>(baseUrl, report);
@@ -37,10 +41,11 @@ export function useHabitCompare({ baseUrl, accountId }: { baseUrl: string | unde
     let cancelled = false; let timer: ReturnType<typeof setTimeout>;
     const read = async () => {
       if (feedReportServes(baseUrl, report)) { timer = setTimeout(read, REPORT_RECHECK_MS); return; }
+      const before = feedReportEntry(report);
       try {
         const value = await requestJson<HabitCompareData>(`${baseUrl}/api/account/habits`, {
           headers: accountId ? { "X-AI-Trader-Account": accountId } : undefined });
-        if (!cancelled && value && (value.status === "ok" || value.status === "insufficient")) setData({ key, value });
+        if (!cancelled && feedReportEntry(report) === before && !feedReportServes(baseUrl, report) && value && (value.status === "ok" || value.status === "insufficient")) setData({ key, value });
       } catch { /* an older Runtime or a passing failure: the block stays as it was */ }
       finally { if (!cancelled) timer = setTimeout(read, POLL_MS); }
     };
@@ -52,8 +57,9 @@ export function useHabitCompare({ baseUrl, accountId }: { baseUrl: string | unde
 
 /** The snapshot's `review.habits`: what the block shows, in numbers. */
 export function habitState(data: HabitCompareData) {
-  if (data.status !== "ok") return { status: data.status, planned: data.planned, needed: data.needed ?? null };
-  return { status: data.status, actual: data.actual, planned: data.planned, gap: data.gap,
+  const coverage = { skippedSymbols: data.skippedSymbols ?? [], currency: data.currency };
+  if (data.status !== "ok") return { ...coverage, status: data.status, planned: data.planned, needed: data.needed ?? null };
+  return { ...coverage, status: data.status, actual: data.actual, planned: data.planned, gap: data.gap,
     picks: (data.picks ?? []).map(pick => pick.id) };
 }
 
@@ -65,11 +71,14 @@ export function habitState(data: HabitCompareData) {
 export function HabitCompareBlock({ data, onSelect }: { data: HabitCompareData | undefined; onSelect: (id: string) => void }) {
   const [howOpen, setHowOpen] = useDisclosureSurface("habits-how", { available: data?.status === "ok" });
   if (!data) return null;
+  const coverage = data.skippedSymbols?.length ? <p role="status">以下合约缺少计算资料，未计入对照：{data.skippedSymbols.join("、")}。这里只包含可计算的成交。</p> : null;
+  const unit = data.currency === "USD" ? "美元" : "人民币";
   const basis = data.basis === "gross" ? "毛收益" : "扣费后";
   const hint = "只做计划内：同一段时间只留开仓标为“计划内”的单，和你实际的全部平仓比。下面的“拿单习惯”是估算，不和相差的钱相加。";
   if (data.status !== "ok" || !data.actual || typeof data.planned === "number") {
     return <div className="habit-compare-wrap" data-agent-target="review:habits">
       <SectionCard title="习惯对照" className="habit-compare" testId="habit-compare" hint={hint} note={`近 ${data.days} 天`}>
+        {coverage}
         <p className="section-card-body habit-compare-empty">计划内的单还不到 {data.needed ?? 5} 笔（现在 {typeof data.planned === "number" ? data.planned : data.planned.count} 笔），攒够了再对照</p>
       </SectionCard>
     </div>;
@@ -77,7 +86,8 @@ export function HabitCompareBlock({ data, onSelect }: { data: HabitCompareData |
   const { actual, planned, gap = 0, split = [], holding, picks = [] } = data;
   const late = holding?.lateLosers, early = holding?.earlyWinners;
   return <div className="habit-compare-wrap" data-agent-target="review:habits"><SectionCard title="习惯对照" className="habit-compare"
-    testId="habit-compare" hint={hint} note={`近 ${data.days} 天 · ${basis} · ${actual.count} 笔平仓`}>
+    testId="habit-compare" hint={hint} note={`近 ${data.days} 天 · ${basis} · ${unit} · ${actual.count} 笔平仓`}>
+    {coverage}
     <SideBySide>
       <div className="habit-compare-side"><small>你实际</small><b className={signClass(actual.pnl)}>{money(actual.pnl)}</b><small>{actual.count} 笔</small></div>
       <div className="habit-compare-side"><small>只做计划内</small><b className={signClass(planned.pnl)}>{money(planned.pnl)}</b>

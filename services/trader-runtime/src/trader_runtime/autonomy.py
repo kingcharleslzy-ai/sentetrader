@@ -1683,9 +1683,11 @@ class AutonomousSimulationService:
     async def query_order(self, *, user_id: str, client_order_id: str) -> dict[str, Any]:
         return await self.simulation_orders.query(client_order_id, user_id=user_id)
 
-    async def cancel_order(self, *, user_id: str, client_order_id: str) -> dict[str, Any]:
+    async def cancel_order(self, *, user_id: str, client_order_id: str,
+                           require_own_request: bool = False) -> dict[str, Any]:
         self.simulation_orders.get(client_order_id, user_id=user_id)
-        result = await self.simulation_orders.cancel(client_order_id, user_id=user_id)
+        result = await self.simulation_orders.cancel(
+            client_order_id, user_id=user_id, require_own_request=require_own_request)
         self.store.audit(
             str(result["proposalId"]),
             "delegated-cancel",

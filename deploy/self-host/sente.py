@@ -86,7 +86,8 @@ def setup() -> int:
         if re.fullmatch(r"[A-Za-z0-9_.@+-]{3,64}", username):
             break
         print("用户名需 3-64 位字母、数字或 _ . @ + - 组合。")
-    if saved_secret("owner_password_hash") and ask("修改登录密码？(y/N)", "n").lower() != "y":
+    password_changed = not saved_secret("owner_password_hash") or ask("修改登录密码？(y/N)", "n").lower() == "y"
+    if not password_changed:
         password_hash = saved_secret("owner_password_hash") or ""
     else:
         while True:
@@ -104,6 +105,21 @@ def setup() -> int:
     deepseek = deepseek or saved_secret("deepseek_api_key") or ""
     port = int(ask("网页端口", str(config.get("port", 8787))))
 
+    if password_changed:
+        # Once the owner changed their password in the web UI, SQLite is the
+        # authority. Explicit setup resets that same authority; normal startup
+        # and "keep password" never import the older bootstrap file over it.
+        database = HOME / "data" / "ai-trader.sqlite3"
+        if database.exists():
+            from trader_runtime.store import RuntimeStore
+            from trader_runtime.store.trading_accounts import scoped_owner_user_id
+
+            store = RuntimeStore(database)
+            try:
+                store.set_owner_password_hash(password_hash)
+                store.delete_push_subscriptions(user_id=scoped_owner_user_id(config.get("username", username)))
+            finally:
+                store.close()
     write_secret("owner_password_hash", password_hash)
     write_secret("owner_session_secret", saved_secret("owner_session_secret") or secrets.token_urlsafe(48))
     write_secret("sidecar_token", saved_secret("sidecar_token") or secrets.token_urlsafe(48))
@@ -265,6 +281,15 @@ def kill_marked_serve() -> None:
     marker.unlink(missing_ok=True)
 
 
+def systemd_argument(value: str, *, command: bool = False) -> str:
+    """Quote one unit-file value; ExecStart also expands dollar variables without a shell."""
+    escaped = value.replace("\\", "\\\\").replace('"', '\\"').replace("%", "%%")
+    escaped = escaped.replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
+    if command:
+        escaped = escaped.replace("$", "$$")
+    return f'"{escaped}"'
+
+
 def service(action: str) -> int:
     python = venv_python("trader-runtime")
     command = [str(python.with_name("pythonw.exe") if WINDOWS else python), str(Path(__file__).resolve()), "serve"]
@@ -312,7 +337,8 @@ def service(action: str) -> int:
         unit.parent.mkdir(parents=True, exist_ok=True)
         unit.write_text(
             "[Unit]\nDescription=Sente 自建版\nAfter=network-online.target\n\n"
-            f"[Service]\nEnvironment=SENTE_HOME={HOME}\nExecStart={subprocess.list2cmdline(command)}\n"
+            f"[Service]\nEnvironment={systemd_argument(f'SENTE_HOME={HOME}')}\n"
+            f"ExecStart={' '.join(systemd_argument(arg, command=True) for arg in command)}\n"
             "Restart=always\nRestartSec=5\n\n[Install]\nWantedBy=default.target\n", encoding="utf-8")
         subprocess.run(["systemctl", "--user", "daemon-reload"], check=True)
         subprocess.run(["systemctl", "--user", "enable", "--now", "sente.service"], check=True)

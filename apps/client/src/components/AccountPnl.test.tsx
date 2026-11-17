@@ -538,7 +538,7 @@ it("keeps history chart focus on its mapped chart, but clears it across account 
 });
 
 it("习惯对照: 实际 vs 只做计划内, the gap by tag, the holding estimates apart, and a pick selects its trade", async () => {
-  const habits = { status: "ok", basis: "gross", days: 90, currency: "CNY", rules: ["只做计划内：只留开仓标为计划内的单"],
+  const habits = { status: "ok", basis: "gross", days: 90, currency: "CNY", skippedSymbols: ["SHFE.cu2612"], rules: ["只做计划内：只留开仓标为计划内的单"],
     actual: { count: 9, pnl: -720 }, planned: { count: 6, pnl: 1420 }, gap: 2140,
     split: [{ tag: "remind", label: "提醒后", count: 1, pnl: -960 }, { tag: "adhoc", label: "临时", count: 2, pnl: -1180 }],
     holding: { lateLosers: { count: 1, extra: 746.67, limitMinutes: 40 }, earlyWinners: null },
@@ -552,14 +552,15 @@ it("习惯对照: 实际 vs 只做计划内, the gap by tag, the holding estimat
   }));
   const { onFocus } = renderPnl();
   const block = await screen.findByTestId("habit-compare");
-  expect(block).toHaveTextContent("近 90 天 · 毛收益 · 9 笔平仓");
+  expect(block).toHaveTextContent("以下合约缺少计算资料，未计入对照：SHFE.cu2612");
+  expect(block).toHaveTextContent("近 90 天 · 毛收益 · 人民币 · 9 笔平仓");
   expect(block).toHaveTextContent("你实际-720");
   expect(block).toHaveTextContent("只做计划内+1,4206 笔 · 相差 2,140");
   expect(block.querySelector('dl[aria-label="计划外的单"]')).toHaveTextContent("提醒后 1 笔-960临时 2 笔-1,180");
   expect(block.querySelector('dl[aria-label="拿单习惯"]')).toHaveTextContent("亏单拿太久 1 笔多亏约 747");
   expect(within(block).queryByText(/赚单拿太短/)).toBeNull();
   await waitFor(() => expect((uiSurface("review")!.state as { habits?: unknown }).habits).toEqual(
-    { status: "ok", actual: { count: 9, pnl: -720 }, planned: { count: 6, pnl: 1420 }, gap: 2140, picks: ["au"] }));
+    { skippedSymbols: ["SHFE.cu2612"], currency: "CNY", status: "ok", actual: { count: 9, pnl: -720 }, planned: { count: 6, pnl: 1420 }, gap: 2140, picks: ["au"] }));
   fireEvent.click(within(block).getByRole("button", { name: /au2612 多 1 手/ }));
   expect(onFocus).toHaveBeenLastCalledWith(expect.objectContaining({ id: "au" }));
   expect((uiSurface("review")!.state as { selectedTradeId: string }).selectedTradeId).toBe("au");

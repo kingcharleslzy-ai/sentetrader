@@ -12,6 +12,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
+import pytest
 from httpx import ASGITransport, AsyncClient
 
 from test_simulation_orders import SHANGHAI, USER, Gateway, NormalProvider, application, quote_now
@@ -423,6 +424,53 @@ def assert_no_order_action(card: dict) -> None:
     assert card["actions"] and {action["kind"] for action in card["actions"]} <= {"ask", "ui"}
     for action in card["actions"]:
         assert set(action.get("changes") or {}) <= {"panel", "news", "positionsTab", "symbol", "view"}
+
+
+@pytest.mark.parametrize("change", ["delete", "clear", "move"])
+async def test_drawing_alert_rechecks_the_drawing_after_market_reads(tmp_path, monkeypatch, change):
+    app = application(tmp_path / "drawing-race.sqlite3", Gateway(), AlertProvider())
+    http = await login(app)
+    try:
+        line = (await http.post("/api/market/drawings", json={
+            "symbol": "SHFE.au2612", "kind": "hline", "points": {"price": 826}})).json()["drawing"]
+        quotes = app.state.shared_market.quotes
+
+        async def change_during_read(symbols):
+            result = await quotes(symbols)
+            store = app.state.store
+            if change == "delete":
+                store.delete_chart_drawing(user_id=USER, drawing_id=line["id"])
+            elif change == "clear":
+                store.clear_chart_drawings(user_id=USER, symbol=line["symbol"])
+            else:
+                store.update_chart_drawing(user_id=USER, drawing_id=line["id"], points={"price": 820})
+            return result
+
+        monkeypatch.setattr(app.state.shared_market, "quotes", change_during_read)
+        response = await http.post("/api/market/alerts", json={"drawingId": line["id"]})
+        assert response.status_code == 422, response.text
+        assert (await http.get("/api/market/alerts")).json()["active"] == []
+    finally:
+        await http.aclose()
+        app.state.store.close()
+
+
+@pytest.mark.parametrize("kind", ["ray", "extended"])
+def test_explicit_extension_switches_override_the_line_kind(kind):
+    from trader_runtime.chart_drawings import line_price_at
+
+    line = {"kind": kind, "points": {"anchors": [{"t": 10, "p": 1}, {"t": 20, "p": 2}]}}
+    def clock(start, end):
+        return end - start
+    assert line_price_at(line, 30, clock) == 3
+    assert line_price_at({**line, "style": {"extendRight": False}}, 30, clock) is None
+    assert line_price_at({**line, "style": {"extendLeft": False}}, 0, clock) is None
+
+
+def test_drawing_target_preserves_a_seven_decimal_tick():
+    from trader_runtime.price_alerts import line_target
+
+    assert line_target({"kind": "hline", "points": {"price": 0.0000007}}, 1, {}, []) == Decimal("0.0000007")
 
 
 async def test_a_line_alert_goes_with_its_drawing_and_a_trend_line_runs_on_trading_time(tmp_path: Path) -> None:

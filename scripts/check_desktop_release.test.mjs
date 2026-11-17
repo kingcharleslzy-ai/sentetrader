@@ -149,6 +149,9 @@ test("release:all --scope auto: runtime/web by paths, desktop only when the vers
   assert.deepEqual(client.segments, ["web-deploy"]);
   assert.deepEqual(client.deferred, ["apps/client/src/components/VoiceOrb.tsx", "packages/ui-events/src/index.ts"]);
   assert.deepEqual(client.reasons["desktop-update"], []);
+  for (const dependency of ["package.json", "package-lock.json"]) {
+    assert.deepEqual(releaseScope([dependency]).segments, ["web-deploy"]);
+  }
   // The same change after a version-prep PR merged: desktop ships it (with the version set) alongside web.
   const bumped = releaseScope(["apps/client/src/components/VoiceOrb.tsx", "package.json", "package-lock.json", "apps/client/public/version.json"], undefined, { desktopVersionChanged: true });
   assert.deepEqual(bumped.segments, ["desktop-update", "web-deploy"]);

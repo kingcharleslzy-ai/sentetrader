@@ -26,7 +26,7 @@ test.each(["f59f39ecf7aabbf111600f2cd669049f1facab7e", null, undefined])(
   "the window heartbeat reports its build without MCP configuration (%s)", async build => {
     vi.mocked(agentConnectionInfo).mockResolvedValueOnce({ deviceId: "local-device", platform: "macos",
       version: "test", build, nativeCapture: true, mcp: { command: "runtime", args: ["mcp"] } });
-    vi.mocked(requestJson).mockResolvedValue({ command: null });
+    vi.mocked(requestJson).mockResolvedValue({ receiptProtocol: 2, command: null });
     const view = renderHook(() => useUiControl("http://runtime.test", "owner", state, () => undefined, {}));
     await vi.advanceTimersByTimeAsync(50);
     const device = vi.mocked(requestJson).mock.calls.map(([, init]) => JSON.parse(String(init?.body ?? "{}")))
@@ -46,7 +46,7 @@ test("the heartbeat keeps beating while a native capture is stuck", async () => 
     if (body.closing) return {};
     pulses += 1;
     // The first pulse dispatches a capture; the client must not wait for it.
-    return pulses === 1 ? { command: null, capture: { requestId: "cap", expectedRevision: 0 } } : { command: null };
+    return pulses === 1 ? { receiptProtocol: 2, command: null, capture: { requestId: "cap", expectedRevision: 0 } } : { receiptProtocol: 2, command: null };
   });
   vi.mocked(captureNativeWindow).mockImplementation(() => new Promise(() => undefined)); // never resolves
   const view = renderHook(() => useUiControl("http://runtime.test", "owner", state, () => undefined, {}));
@@ -71,7 +71,7 @@ test("a finished capture receipt rides on the next heartbeat", async () => {
     const body = JSON.parse(String(init?.body ?? "{}"));
     if (body.closing) return {};
     bodies.push(body);
-    return bodies.length === 1 ? { command: null, capture: { requestId: "cap", expectedRevision: 0 } } : { command: null };
+    return bodies.length === 1 ? { receiptProtocol: 2, command: null, capture: { requestId: "cap", expectedRevision: 0 } } : { receiptProtocol: 2, command: null };
   });
   vi.mocked(captureNativeWindow).mockResolvedValue({ requestId: "cap", observedRevision: 0, capturedAt: "now", image: { mimeType: "image/png", data: "px" } });
   const view = renderHook(() => useUiControl("http://runtime.test", "owner", state, () => undefined, {}));
@@ -88,7 +88,7 @@ test("panel: positions is receipted as applied once the window reports the 持�
     if (body.closing) return {};
     pulses += 1;
     if (body.receipt) receipts.push(body.receipt);
-    return pulses === 1 ? { command: { commandId: "c1", expectedRevision: 0, changes: { panel: "positions" } } } : { command: null };
+    return pulses === 1 ? { receiptProtocol: 2, command: { commandId: "c1", expectedRevision: 0, changes: { panel: "positions" } } } : { receiptProtocol: 2, command: null };
   });
   const applied: unknown[] = [];
   const barState = { ...state, panel: "positions", positionsBar: "collapsed" } as unknown as UiState;
@@ -106,7 +106,7 @@ test("a state change pulses after it settles instead of waiting for the idle hea
     const body = JSON.parse(String(init?.body ?? "{}"));
     if (body.closing) return {};
     revisions.push(body.revision);
-    return { command: null };
+    return { receiptProtocol: 2, command: null };
   });
   const view = renderHook(({ current }) => useUiControl("http://runtime.test", "owner", current, () => undefined, {}),
     { initialProps: { current: { ...state, positionsBar: "expanded" } as unknown as UiState } });
@@ -120,7 +120,7 @@ test("a state change pulses after it settles instead of waiting for the idle hea
   vi.mocked(requestJson).mockImplementation(async (_url, init) => {
     bodies.push(JSON.parse(String(init?.body ?? "{}")));
     if (bodies.length === 1) throw Object.assign(new Error("窗口已关闭"), { status: 410 });
-    return { command: null };
+    return { receiptProtocol: 2, command: null };
   });
   window.dispatchEvent(new Event("online"));
   await vi.advanceTimersByTimeAsync(600);
@@ -138,7 +138,7 @@ test("a drag's run of state changes collapses into one pulse", async () => {
     const body = JSON.parse(String(init?.body ?? "{}"));
     if (body.closing) return {};
     revisions.push(body.revision);
-    return { command: null };
+    return { receiptProtocol: 2, command: null };
   });
   const view = renderHook(({ current }) => useUiControl("http://runtime.test", "owner", current, () => undefined, {}),
     { initialProps: { current: { ...state, dockWidth: 340 } as unknown as UiState } });
@@ -160,17 +160,49 @@ test("three consecutive 422 heartbeats surface as an unregistered window (and re
     if (body.closing) return {};
     pulses += 1;
     if (pulses <= 3) throw Object.assign(new Error("422 ..."), { status: 422, detail: { detail: [{ loc: ["body", "state", "chartAnnotations", 0, "label"], msg: "String should have at most 8 characters" }] } });
-    return { command: null };
+    return { receiptProtocol: 2, command: null };
   });
   const view = renderHook(() => ({ control: useUiControl("http://runtime.test", "owner", state, () => undefined, {}), health: useUiControlHealth() }));
   await vi.advanceTimersByTimeAsync(50);
   expect(view.result.current.health.registered).toBe(true);
-  await vi.advanceTimersByTimeAsync(1200);
+  await vi.advanceTimersByTimeAsync(1500);
   expect(pulses).toBeGreaterThanOrEqual(3);
   expect(view.result.current.health.registered).toBe(false);
   expect(view.result.current.health.detail).toContain("chartAnnotations");
   expect(logDesktop).toHaveBeenCalledWith("ui-pulse", expect.stringContaining("422"), expect.stringContaining("chartAnnotations"));
-  await vi.advanceTimersByTimeAsync(1500);
+  await vi.advanceTimersByTimeAsync(2100);
   expect(view.result.current.health.registered).toBe(true);
+  view.unmount();
+});
+
+
+test("an older Runtime never executes a command under the new receipt meaning", async () => {
+  const apply = vi.fn();
+  const receipts: unknown[] = [];
+  vi.mocked(requestJson).mockImplementation(async (_url, init) => {
+    const body = JSON.parse(String(init?.body ?? "{}"));
+    if (body.closing) return {};
+    if (body.receipt) { receipts.push(body.receipt); return { command: null }; }
+    return { command: { commandId: "old-command", expectedRevision: 0, changes: { panel: "positions" } } };
+  });
+  const view = renderHook(() => useUiControl("http://runtime.test", "owner", state, apply, {}));
+  await vi.advanceTimersByTimeAsync(100);
+  expect(apply).not.toHaveBeenCalled();
+  expect(receipts).toEqual([{ commandId: "old-command", status: "unknown" }]);
+  view.unmount();
+});
+
+test("a rejected receipt retries with backoff and never re-executes the command", async () => {
+  const apply = vi.fn(() => { throw new Error("not available"); });
+  let pulses = 0;
+  vi.mocked(requestJson).mockImplementation(async (_url, init) => {
+    if (JSON.parse(String(init?.body ?? "{}")).closing) return {};
+    if (++pulses === 1) return { receiptProtocol: 2, command: { commandId: "c", expectedRevision: 0, changes: { panel: "positions" } } };
+    throw Object.assign(new Error("invalid"), { status: 422 });
+  });
+  const view = renderHook(() => useUiControl("http://runtime.test", "owner", state, apply, {}));
+  await vi.advanceTimersByTimeAsync(3000);
+  expect(apply).toHaveBeenCalledTimes(1);
+  expect(pulses).toBe(4);
   view.unmount();
 });

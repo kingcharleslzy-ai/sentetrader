@@ -990,8 +990,7 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
         unknown = [skill_id for skill_id in body.skills if skill_by_id(skill_id) is None]
         if unknown:
             raise HTTPException(status_code=400, detail="skill_unknown")
-        for skill_id, enabled in body.skills.items():
-            store.set_skill_enabled(skill_id, enabled)
+        store.set_skills_enabled(body.skills)
         return {"items": _skill_admin_items()}
 
     @application.put("/api/admin/skills/{skill_id}")

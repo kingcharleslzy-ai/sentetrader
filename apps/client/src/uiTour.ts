@@ -19,6 +19,7 @@ const STEP_HIGHLIGHT_MS = 120_000;
 const IDLE: TourState = { active: false, step: 0, total: 0, current: null };
 let steps: TourStep[] = [];
 let index = -1;
+let highlightRetry: ReturnType<typeof setTimeout> | undefined;
 let state: TourState = IDLE;
 let runFocus: ((focus: TourFocus) => void) | undefined;
 const listeners = new Set<() => void>();
@@ -36,6 +37,7 @@ export function registerTourFocus(apply: ((focus: TourFocus) => void) | undefine
 const lightStep = (step: TourStep) => showHighlight({ target: step.target, label: null, style: "pulse", durationMs: STEP_HIGHLIGHT_MS });
 
 function show(at: number) {
+  clearTimeout(highlightRetry);
   const step = steps[at];
   if (step.focus && runFocus) runFocus(step.focus);
   clearHighlights();
@@ -44,7 +46,7 @@ function show(at: number) {
   try { lightStep(step); }
   catch (error) {
     if (!step.focus) throw error;
-    setTimeout(() => { if (index === at && state.active) try { lightStep(step); } catch { /* the indicator still names the step */ } }, 350);
+    highlightRetry = setTimeout(() => { if (index === at && state.active && state.current === step) try { lightStep(step); } catch { /* the indicator still names the step */ } }, 350);
   }
   index = at;
   state = { active: true, step: at + 1, total: steps.length, current: step };
@@ -74,6 +76,7 @@ export function prevTourStep() {
 }
 
 export function stopTour() {
+  clearTimeout(highlightRetry);
   if (!state.active && !steps.length) return;
   steps = []; index = -1; state = IDLE;
   clearHighlights();
@@ -87,4 +90,4 @@ export function relightTourStep() {
 }
 
 /** Test helper. */
-export function resetTour() { steps = []; index = -1; state = IDLE; runFocus = undefined; notify(); }
+export function resetTour() { clearTimeout(highlightRetry); steps = []; index = -1; state = IDLE; runFocus = undefined; notify(); }

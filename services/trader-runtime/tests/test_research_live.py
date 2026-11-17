@@ -699,6 +699,32 @@ async def test_flash_and_calendar_routes_precede_the_dataset_fallback(tmp_path):
         app.state.store.close()
 
 
+@pytest.mark.parametrize("zone", ["UTC", "Asia/Shanghai", "America/Los_Angeles"])
+def test_fake_flash_process_local_stamps_keep_the_same_instant(monkeypatch, zone):
+    import time as process_time
+
+    from trader_runtime.testing.fake_research_live import FakeLiveSources
+
+    if not hasattr(process_time, "tzset"):
+        pytest.skip("tzset unavailable")
+    try:
+        with monkeypatch.context() as environment:
+            environment.setenv("TZ", zone)
+            process_time.tzset()
+            sources = FakeLiveSources()
+            sources.started = datetime(2026, 11, 16, 17, 0, tzinfo=live.CHINA)
+            sources._scale = 1.0
+            for name, fetch in (("同花顺", sources.flash_ths), ("富途", sources.flash_futu)):
+                raw = fetch()
+                rows = live.normalise_flash_rows(name, raw)
+                assert len(rows) == len(raw)
+                assert all(datetime.fromisoformat(row["publishedAt"]) < sources.started for row in rows)
+                expected_age = 12 if name == "同花顺" else 48
+                assert (sources.started - datetime.fromisoformat(rows[0]["publishedAt"])).total_seconds() == expected_age * 60
+    finally:
+        process_time.tzset()
+
+
 def test_fake_research_live_samples_feed_the_fake_runtime(tmp_path, monkeypatch):
     """The browser tests' 快讯/日历 samples go through the real normalise, tag, merge and calendar code."""
     from trader_runtime.testing.fake_research_live import ENV_FLAG
@@ -736,10 +762,14 @@ def _payload(result: dict[str, Any]) -> dict[str, Any]:
 
 
 async def test_the_four_ai_tools_dispatch_through_the_wired_service(tmp_path):
+    from trader_runtime.foreign_market import SinaForeignSource
+
     app = create_app(tmp_path / "tools.sqlite3", runtime_state_root=tmp_path / "state", local_token=TOKEN,
                      agent_mode="native", agent_provider="deepseek", data_mode="fake")
     app.state.research_live.sources._module = RecordedLive()
     app.state.research_live.now = lambda: NOW  # the recorded rows are dated 10-03, not the wall clock
+    # The wired foreign service has its own source; recording AKShare does not replace it.
+    app.state.research_live.foreign.sources = [SinaForeignSource(fetch_text=lambda url: SINA_FOREIGN)]
     adapter = app.state.adapter
     adapter = adapter.adapter_for_user("local-user") if hasattr(adapter, "adapter_for_user") else adapter
     tools = adapter.trader_tools

@@ -114,6 +114,7 @@ test("a rerun only uploads the assets an earlier run missed", () => withAssets("
   const gh = (cmd, args) => {
     calls.push(args);
     if (args[1] === "view") return { code: 0, out: `https://github.com/${PUBLIC_REPO}/releases/tag/v1.8.0 AI-Trader_1.8.0_aarch64.dmg`, err: "" };
+    if (args[1] === "download") writeFileSync(join(args.at(-1), "AI-Trader_1.8.0_aarch64.dmg"), "dmg-bytes");
     return { code: 0, out: "", err: "" };
   };
   syncPublicRelease({ version: "1.8.0", assetsDir: dir, attribution: ATTRIBUTION, gh });
@@ -137,3 +138,17 @@ test("a missing installer stops the public release before anything is published"
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+for (const name of publicAssets("1.8.0")) {
+  test(`a rerun refuses different bytes already published as ${name}`, () => withAssets("1.8.0", dir => {
+    const calls = [];
+    const gh = (cmd, args) => {
+      calls.push(args);
+      if (args[1] === "view") return { code: 0, out: `https://github.com/${PUBLIC_REPO}/releases/tag/v1.8.0 ${name}`, err: "" };
+      if (args[1] === "download") writeFileSync(join(args.at(-1), name), "different-build");
+      return { code: 0, out: "", err: "" };
+    };
+    assert.throws(() => syncPublicRelease({ version: "1.8.0", assetsDir: dir, attribution: ATTRIBUTION, gh }), /sync_public_repo_existing_asset_mismatch/);
+    assert.equal(calls.some(args => ["upload", "edit", "create"].includes(args[1])), false);
+  }));
+}

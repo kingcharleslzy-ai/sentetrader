@@ -134,6 +134,7 @@ for (const area of ["runtime", "sidecar"]) {
     "pytest", ...files, ...parallel, "-x", "--durations=15", "--durations-min=2"], root, project]);
 }
 if (selection.full) {
+  steps.push(["mt5", "全量（标准库）", "python", ["-m", "unittest", "discover", "-s", "services/mt5-bridge/tests", "-f"]]);
   // The release tooling's Node tests (scripts/ changes select full).
   steps.push(["release", "全量", "npm", ["run", "test:release"]]);
 }

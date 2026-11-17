@@ -170,7 +170,7 @@ def test_failed_refresh_keeps_the_old_cache_and_marks_it_stale(tmp_path: Path,
 def test_refresher_loop_covers_the_day_then_idles(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(exchange_fees, "_fetch_html", _page)
     stop = threading.Event()
-    stop.set()  # 已停止：正好跑一轮就退出，不真实等待 30 分钟。
+    monkeypatch.setattr(stop, "wait", lambda timeout: True)  # One round without a real wait.
     exchange_fees._refresher_loop(tmp_path, stop)
     assert exchange_fee_schedule("SHFE.rb2701", root=tmp_path) is not None
     # 当天已有成功的表就不再抓。
@@ -189,6 +189,9 @@ class _Waits:
     def wait(self, seconds: float) -> bool:
         self.waits.append(seconds)
         return True
+
+    def is_set(self) -> bool:
+        return False
 
 
 def test_cold_refresher_retries_soon_until_it_has_any_table(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
@@ -238,7 +241,7 @@ def test_start_refresher_is_idempotent_and_disabled_by_env(tmp_path: Path,
 
 
 def test_stop_refresher_waits_for_a_fetch_in_flight(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    """失租移交：stop 带 wait 时等正在抓取的线程写完再返回，新持有者不与它并行写缓存；等待有上限。"""
+    """失租移交：stop 撤销发布资格，带 wait 时有界等待抓取线程退出。"""
     import threading
     entered, release = threading.Event(), threading.Event()
 
@@ -253,7 +256,7 @@ def test_stop_refresher_waits_for_a_fetch_in_flight(tmp_path: Path, monkeypatch:
     assert entered.wait(5)
     threading.Timer(0.1, release.set).start()
     exchange_fees.stop_refresher(tmp_path, wait=5)
-    assert not thread.is_alive() and (tmp_path / exchange_fees.CACHE_NAME).exists()
+    assert not thread.is_alive() and not (tmp_path / exchange_fees.CACHE_NAME).exists()
     entered.clear(), release.clear()
     exchange_fees.start_refresher(tmp_path / "other")
     thread = next(iter(exchange_fees._refreshers.values()))[0]
@@ -262,3 +265,33 @@ def test_stop_refresher_waits_for_a_fetch_in_flight(tmp_path: Path, monkeypatch:
     assert thread.is_alive()
     release.set()
     thread.join(5)
+
+
+@pytest.mark.parametrize("fails", [False, True])
+def test_stopped_fetch_cannot_publish_over_its_successor(tmp_path, monkeypatch, fails):
+    entered, release = threading.Event(), threading.Event()
+
+    def delayed():
+        entered.set()
+        assert release.wait(5)
+        if fails:
+            raise OSError("old source failed")
+        return _page()
+
+    monkeypatch.setattr(exchange_fees, "_network_allowed", lambda: True)
+    monkeypatch.setattr(exchange_fees, "_fetch_html", delayed)
+    exchange_fees.start_refresher(tmp_path)
+    assert entered.wait(5)
+    with exchange_fees._refresher_lock:
+        old = exchange_fees._refreshers[exchange_fees._key(tmp_path)][0]
+    exchange_fees.stop_refresher(tmp_path, wait=0.01)
+    try:
+        monkeypatch.setattr(exchange_fees, "_fetch_html", lambda: _page().replace("20261008", "20261009"))
+        assert exchange_fees.refresh(tmp_path)
+        before = (tmp_path / "exchange-fees.json").read_bytes()
+    finally:
+        release.set()
+        old.join(5)
+    assert not old.is_alive()
+    assert exchange_fees.exchange_fee_schedule("SHFE.rb2701", root=tmp_path)["reference"]["asOf"] == "2026-10-09"
+    assert (tmp_path / "exchange-fees.json").read_bytes() == before

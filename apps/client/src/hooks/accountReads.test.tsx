@@ -1,5 +1,8 @@
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { setActiveTradingAccount } from "../api";
+import type { UiEvent } from "@ai-trader/ui-events";
+import { reportKey, resetFeedViewForTests } from "../feedView";
+import { applyFeedEvent, resetFeed } from "../runtimeFeed";
 import { useAccountPnl } from "./useAccountPnl";
 import { useTradeReview } from "./useTradeReview";
 
@@ -25,17 +28,45 @@ function deferred() {
 
 beforeEach(() => {
   vi.useFakeTimers();
+  resetFeedViewForTests();
+  resetFeed("report-session");
   // Explicit read scope must win even before the workspace's global header effect runs.
   setActiveTradingAccount("previous-global-account");
 });
 afterEach(() => {
   cleanup();
+  resetFeedViewForTests();
+  resetFeed();
   setActiveTradingAccount(null);
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });
 
 describe.each(readers)("$name 读取的账户归属", ({ useRead }) => {
+  it.each(["success", "failure"])("keeps a newer same-account push when the old HTTP read ends with %s", async outcome => {
+    const old = deferred();
+    const fetch = vi.fn().mockReturnValueOnce(old.promise).mockResolvedValue(response("recovered"));
+    vi.stubGlobal("fetch", fetch);
+    const { result } = renderHook(() => useRead({ baseUrl, accountId: "A" }));
+    await act(async () => {});
+    act(() => {
+      applyFeedEvent("report-session", {
+        schemaVersion: 1, id: "new-report", sessionId: "report-session", kind: "result", name: "feed.report", timestamp: "now",
+        payload: { key: reportKey(useRead === useReviewRead ? "trade-review" : "account-pnl", { account: "A" }),
+          status: "ok", report: payload("pushed") },
+      } as UiEvent);
+    });
+    expect(result.current.data).toEqual(payload("pushed"));
+    await act(async () => {
+      if (outcome === "success") old.resolve(response("old"));
+      else old.reject(new Error("old request failed"));
+    });
+    expect(result.current).toEqual({ data: payload("pushed"), error: "" });
+    // The stream is not live: a new fallback read can still recover normally.
+    await act(async () => { vi.advanceTimersByTime(5000); });
+    expect(result.current.data).toEqual(payload("recovered"));
+  });
+
   it.each(["success", "failure"])("switches immediately and ignores a late old-account %s", async outcome => {
     const lateA = deferred(), pendingB = deferred();
     const fetch = vi.fn().mockResolvedValueOnce(response("A"))

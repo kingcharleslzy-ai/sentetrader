@@ -260,6 +260,13 @@ async def test_live_state_counts_bars_held_for_max_hold(tmp_path):
     both = live_position_state(app.state.store, provider, strategy=strategy, symbol="SHFE.au2612",
                                account=provider.account_summary(""))
     assert (both.entry_price, both.bars_held) == (823.0, 9)
+    # FIFO drains the original fill. The held lot's cost changes, but the
+    # original position's clock and exit identity survive that row count.
+    app.state.store.connection.execute("UPDATE ai_stop_orders SET remaining_volume = 0 WHERE id = ?", (first["id"],))
+    app.state.store.connection.commit()
+    remaining = live_position_state(app.state.store, provider, strategy=strategy, symbol="SHFE.au2612",
+                                    account=provider.account_summary(""))
+    assert (remaining.entry_price, remaining.bars_held, remaining.position_key) == (824.0, 9, both.position_key)
     app.state.store.close()
 
 

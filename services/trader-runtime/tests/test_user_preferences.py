@@ -555,3 +555,22 @@ async def test_quick_voice_turns_count_as_activity_for_chat_retention(tmp_path):
     texts = [event["payload"]["text"] for _, event in store.list_events(spoken) if event["name"] == "message.completed"]
     assert texts == ["看一下黄金", "黄金现价六百"]
     store.close()
+
+
+def test_an_explicit_empty_watchlist_survives_migration_regardless_of_age(tmp_path):
+    from trader_runtime.store import RuntimeStore
+
+    path = tmp_path / "empty-watchlist.sqlite3"
+    store = RuntimeStore(path)
+    with store.lock, store.connection:
+        store.connection.execute(
+            "INSERT INTO user_preferences (user_id, preferences_json, version, updated_at) VALUES (?, ?, 7, ?)",
+            ("empty-owner", '{"watchlist":{"products":[]}}', "2026-10-01T00:00:00+00:00"))
+    store.close()
+    reopened = RuntimeStore(path)
+    try:
+        row = reopened.connection.execute("SELECT * FROM user_preferences WHERE user_id = ?", ("empty-owner",)).fetchone()
+        assert row["version"] == 7
+        assert reopened.user_preferences("empty-owner").watchlist.products == []
+    finally:
+        reopened.close()

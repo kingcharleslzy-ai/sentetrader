@@ -80,10 +80,10 @@ export function openSseStream(options: SseStreamOptions): () => void {
       const requestHeaders = new Headers({ Accept: "text/event-stream", ...headers });
       if (lastEventId) requestHeaders.set("Last-Event-ID", lastEventId);
       const response = await fetchImpl(url, { credentials: "include", headers: requestHeaders, signal: abort.signal });
-      if (!response.ok || !response.body) throw new Error(`sse_${response.status}`);
+      reader = response.body?.getReader();
+      if (!response.ok || !reader) throw new Error(`sse_${response.status}`);
       rumStreamUp();
       onOpen?.();
-      reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
       while (!stopped) {
@@ -105,6 +105,15 @@ export function openSseStream(options: SseStreamOptions): () => void {
       rumStreamDown(silent ? lastAlive : undefined);
       onClose?.();
       retryTimer = setTimeout(() => void connect(), retryMs);
+    } finally {
+      // A consumer callback can throw while the response is still streaming.
+      // Every attempt owns and releases its transport before a retry starts.
+      if (idleTimer !== undefined) clearTimeout(idleTimer);
+      attempt.abort();
+      if (reader) {
+        void reader.cancel().catch(() => undefined);
+        reader.releaseLock();
+      }
     }
   };
 

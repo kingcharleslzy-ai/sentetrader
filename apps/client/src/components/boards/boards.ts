@@ -529,6 +529,7 @@ export function useBoards({ document, connected, update }: {
   const [arrangement, arrange] = useState<BoardPreview | null>(null);
   // Undo steps: the board a block change changed, as it was (only its blocks and their settings come back, never its name).
   const [history, setHistory] = useState<Board[]>([]);
+  const historyEpoch = useRef(0);
   const [save, setSave] = useState<"pending" | "failed" | null>(null);
   const saved = useMemo(() => pending ?? normalizeBoards(document), [pending, document]);
   const latest = useRef(saved);
@@ -558,13 +559,14 @@ export function useBoards({ document, connected, update }: {
   const boards = board !== stored ? { ...saved, items: saved.items.map(item => item.id === stored.id ? board : item) } : saved;
   const undo = history.length ? () => {
     const previous = history.at(-1)!;
+    const epoch = historyEpoch.current;
     setHistory(list => list.slice(0, -1));
     const { layout, locks, links, charts } = previous;
     void write({ ...latest.current, items: latest.current.items.map(item => item.id === previous.id ? { ...item, layout, locks, links, charts } : item) })
       // Not saved: the step stays to be undone again.
-      .catch(() => setHistory(list => [...list, previous]));
+      .catch(() => { if (historyEpoch.current === epoch && latest.current.current === previous.id) setHistory(list => [...list, previous]); });
   } : undefined;
-  const resetUndo = useCallback(() => setHistory([]), []);
+  const resetUndo = useCallback(() => { historyEpoch.current += 1; setHistory([]); }, []);
   const preview = useCallback((layout: BoardNode | null) => setDragging(layout), []);
   return { boards, board, apply, undo, resetUndo, preview, arrangement: shownArrangement, arrange, save };
 }

@@ -18,7 +18,7 @@ from . import __version__
 MIN_CLIENT_VERSION = "1.6.5"
 CompatState = Literal["ok", "outdated", "unknown"]
 _PLATFORMS = "web|desktop|cli|mcp|agent"
-_HEADER = re.compile(rf"^({_PLATFORMS})/(\d+)\.(\d+)\.(\d+)(?:\+([0-9a-f]{{7,40}}))?$")
+_HEADER = re.compile(rf"^({_PLATFORMS})/([0-9]{{1,16}})\.([0-9]{{1,16}})\.([0-9]{{1,16}})(?:\+([0-9a-f]{{7,40}}))?$")
 
 
 @dataclass(frozen=True)

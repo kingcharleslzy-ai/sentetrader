@@ -14,6 +14,7 @@ from typing import Any
 from uuid import uuid4
 
 import httpx
+import pytest
 
 from test_account_reminders import ReminderProvider, login, reminder_notices
 from test_ai_annotations import HEADERS, _acknowledge, observation, ui_state
@@ -203,12 +204,21 @@ def test_a_foreign_month_expiry_notice_counts_cme_trading_days() -> None:
     assert foreign_expiry_notice(expire, date(2026, 12, 29)) is None
 
 
-async def test_a_foreign_position_gets_its_expiry_reminder(tmp_path: Path) -> None:
+@pytest.mark.parametrize("failed_source", [None, "instruments", "trading_days", "missing"])
+async def test_a_foreign_position_gets_its_expiry_reminder(tmp_path: Path, monkeypatch, failed_source) -> None:
     app = application(tmp_path / "delivery-cme.sqlite3", Gateway(), ReminderProvider())
     install(app, FakeForeign(expire=date.fromisoformat(cme_trading_day(time.time_ns()))))  # a CME day even on weekends
     http = await login(app)
     session_id = (await http.post("/api/sessions", json={"mode": "local", "agentId": "native"})).json()["sessionId"]
     positions = [{"symbol": GOLD_MONTH, "direction": "long", "volume": 1}]
+    if failed_source:
+        positions.append({"symbol": "SHFE.au2612", "direction": "long", "volume": 1})
+        if failed_source == "missing":
+            app.state.shared_market = None
+        else:
+            async def unavailable():
+                raise RuntimeError("domestic source unavailable")
+            monkeypatch.setattr(app.state.shared_market, failed_source, unavailable)
     sent = await delivery_reminders.check_positions(app, user_id=USER, positions=positions, account_id="paperusd:test")
     assert sent == 1
     notices = reminder_notices(app, session_id, f"delivery-{GOLD_MONTH}")

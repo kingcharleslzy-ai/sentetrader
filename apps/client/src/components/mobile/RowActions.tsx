@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type HTMLAttributes, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
+import { readIdentityGeneration, useReadIdentity } from "../../runtimeClient";
 import { createPortal } from "react-dom";
 import { Presence, usePresence } from "../motion";
 import { useMobileLayout } from "../../hooks/useMobileLayout";
@@ -16,7 +17,7 @@ const UNDO_MS = 5000;
 
 export interface RowAction {
   label: string;
-  run: () => void;
+  run: () => unknown;
   /** 删除 / 移出 / 放弃: the danger look; with `confirm`, the first tap only arms it (the button then reads `confirm`). */
   danger?: boolean;
   confirm?: string;
@@ -26,14 +27,14 @@ export interface RowAction {
   short?: string;
   disabled?: boolean;
   /** After it ran: a 5 s bar with 撤销 (an action that is undone in one step, like 移出自选). */
-  undo?: { text: string; run: () => void };
+  undo?: { text: string; run: () => unknown; valid?: () => boolean };
 }
 
 // One row open at a time: opening another closes this one.
 let closeOpen: (() => void) | null = null;
 
 // The 撤销 bar outlives the row it came from (a removed 自选 row unmounts), so it lives here and <RowUndo> shows it.
-type Undo = { text: string; run: () => void; key: number };
+type Undo = { text: string; run: () => unknown; key: number; identity: number; valid?: () => boolean };
 let undo: Undo | null = null;
 let undoTimer = 0;
 const undoListeners = new Set<() => void>();
@@ -46,10 +47,12 @@ const setUndo = (next: Undo | null) => {
 
 /** The 撤销 bar (once, in the phone layout's foot). */
 export function RowUndo() {
+  const identity = useReadIdentity();
+  useEffect(() => { if (undo && undo.identity !== identity) setUndo(null); }, [identity]);
   const current = useSyncExternalStore(listener => { undoListeners.add(listener); return () => { undoListeners.delete(listener); }; }, () => undo, () => undo);
-  return <Presence>{current ? <div className="fdm-row-undo" role="status" data-agent-target="mobile-row-undo" key={current.key}>
+  return <Presence>{current && current.identity === identity && (current.valid?.() ?? true) ? <div className="fdm-row-undo" role="status" data-agent-target="mobile-row-undo" key={current.key}>
     <span>{current.text}</span>
-    <button type="button" onClick={() => { setUndo(null); current.run(); }}>撤销</button>
+    <button type="button" onClick={() => { setUndo(null); void Promise.resolve(current.run()).catch(() => undefined); }}>撤销</button>
   </div> : null}</Presence>;
 }
 
@@ -166,8 +169,13 @@ export function useRowActions({ id, title, subtitle, actions }: { id: string; ti
     if (action.disabled) return;
     if (action.confirm && armed !== action.label) { setArmed(action.label); return; }
     close();
-    action.run();
-    if (action.undo) setUndo({ ...action.undo, key: Date.now() });
+    const identity = readIdentityGeneration();
+    const landed = (result: unknown) => {
+      if (result !== false && action.undo && identity === readIdentityGeneration()) setUndo({ ...action.undo, key: Date.now(), identity });
+    };
+    const result = action.run();
+    if (result instanceof Promise) void result.then(landed).catch(() => undefined);
+    else landed(result);
   };
   const button = (action: RowAction, place: "tray" | "sheet") => <button type="button" key={action.label} role={place === "sheet" ? "menuitem" : undefined}
     data-tone={action.danger ? "danger" : undefined} disabled={action.disabled} onClick={event => { event.stopPropagation(); pick(action); }}>

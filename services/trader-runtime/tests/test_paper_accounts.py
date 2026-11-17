@@ -1979,3 +1979,33 @@ async def test_tqkq_positions_http_still_returns_503_without_snapshot(tmp_path):
     finally:
         await provider._http.close()
         application.state.store.close()
+
+
+@pytest.mark.parametrize("market_source", [False, True])
+async def test_retirement_retries_a_failed_rebind_before_discarding_its_work_marker(tmp_path, monkeypatch, market_source):
+    application, _engine = unbind_app(tmp_path, monkeypatch, "retire-retry.sqlite3")
+    store, pool = application.state.store, application.state.account_pool
+    account_id = store_tqkq_pool_account(store, pool, owner_user_id="member-a", username="kq-source", password="pw-a")
+    store.set_user_default_account(user_id="member-a", account_id=account_id)
+    session = application.state.broker.create_session("local", "native", "member-a")
+    store.set_session_trading_account(session.session_id, account_id, user_id="member-a")
+    sources = [account_id] if market_source else []
+    real_move = store.set_session_trading_account
+    try:
+        def failed_move(*args, **kwargs):
+            raise RuntimeError("database write interrupted")
+        monkeypatch.setattr(store, "set_session_trading_account", failed_move)
+        assert await retire_tqkq_trading(application.state.ctx, market_sources=sources) == []
+        assert store.list_account_grantees(account_id=account_id) == ["member-a"]
+        assert store.get_trading_account(account_id)["status"] == "active"
+        assert store.load_tqkq_credentials(user_id="member-a") is not None
+        monkeypatch.setattr(store, "set_session_trading_account", real_move)
+        # Re-enter through the boot scanner, not a retained in-memory list of unfinished accounts.
+        assert await retire_tqkq_trading(application.state.ctx, market_sources=sources) == [account_id]
+        paper_id = str(store.find_user_paper_account(user_id="member-a")["id"])
+        assert store.get_session(session.session_id)["tradingAccountId"] == paper_id
+        assert store.get_user_default_account(user_id="member-a") == paper_id
+        assert store.list_account_grantees(account_id=account_id) == []
+        assert await retire_tqkq_trading(application.state.ctx, market_sources=sources) == []
+    finally:
+        await close_paper_app(application)

@@ -111,15 +111,34 @@ class AccountLedger:
         try:
             from .web_push import CANCEL_RECENT_SECONDS, FILL_RECENT_SECONDS, activity_events
             now = self.clock()
+            activity = {**activity, "trades": list(activity.get("trades") or []), "orders": list(activity.get("orders") or [])}
+            for entry in self.store.activity_reminder_pending(self.account_id):
+                kind, key = entry["kind"], entry["id"]
+                self._pending[(kind, key)] = entry["first"]
+                if self._push_seen is not None:
+                    self._push_seen[kind].discard(key)
+                field, identifier = ("trades", "tradeId") if kind == "trades" else ("orders", "clientOrderId")
+                if not any(str(item.get(identifier)) == key for item in activity[field]):
+                    activity[field].append(entry["item"])
             since = self._since_ns() if self._push_seen is None else None
             self._expire_pending(now)
             retrying = {key for (name, key) in self._pending if name == "trades"}
-            self._push_seen, fills, cancels = activity_events(self._push_seen, activity, now_ns=now, since_ns=since,
-                                                              retrying=retrying)
+            next_seen, fills, cancels = activity_events(self._push_seen, activity, now_ns=now, since_ns=since,
+                                                              retrying=retrying, retrying_cancels={key for kind, key in self._pending if kind == "cancelled"})
             if not (fills or cancels):
+                self._push_seen = next_seen
                 return
             trade_ids = {trade_id for fill in fills for trade_id in fill["tradeIds"]}
             order_ids = {str(cancel["orderId"]) for cancel in cancels}
+            # Persist the source event before any asynchronous delivery; the existing reminder claims
+            # make a crash after delivery but before retiring this retry safe as well.
+            self.store.stage_activity_reminders(self.account_id, [
+                {"kind": kind, "id": str(item[field]), "first": now, "item": item}
+                for kind, field, items, identifiers in (
+                    ("trades", "tradeId", activity["trades"], trade_ids),
+                    ("cancelled", "clientOrderId", activity["orders"], order_ids))
+                for item in items if str(item.get(field)) in identifiers])
+            self._push_seen = next_seen
             try:
                 failed_trades, failed_orders = await self._remind_activity(fills, cancels)
             except Exception:  # noqa: BLE001 — nothing of this read is known told: all of it stays pending
@@ -136,6 +155,7 @@ class AccountLedger:
         for (name, key), first in list(self._pending.items()):
             window = FILL_RECENT_SECONDS if name == "trades" else CANCEL_RECENT_SECONDS
             if now - first > window * 1_000_000_000:
+                self.store.finish_activity_reminders(self.account_id, name, {key})
                 del self._pending[(name, key)]
                 if self._push_seen is not None:
                     self._push_seen[name].add(key)
@@ -146,6 +166,7 @@ class AccountLedger:
         seen = self._push_seen
         if seen is None:
             return
+        self.store.finish_activity_reminders(self.account_id, name, attempted - failed)
         for key in attempted - failed:
             self._pending.pop((name, key), None)
         for key in failed:
@@ -153,6 +174,7 @@ class AccountLedger:
             if now - first <= window * 1_000_000_000:
                 seen[name].discard(key)
             else:
+                self.store.finish_activity_reminders(self.account_id, name, {key})
                 self._pending.pop((name, key), None)
                 log.info("account_ledger_reminder_given_up kind=%s", name)
 
@@ -168,7 +190,7 @@ class AccountLedger:
         hub = getattr(self.store, "push_hub", None)
         if hub is not None:
             try:
-                return str(await hub.instrument_name(symbol))
+                return str(await asyncio.wait_for(hub.instrument_name(symbol), timeout=1.0))
             except Exception:  # noqa: BLE001
                 pass
         return foreign_display_name(symbol) or symbol.split(".", 1)[-1]

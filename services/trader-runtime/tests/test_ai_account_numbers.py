@@ -144,5 +144,5 @@ def test_paper_account_market_tool_is_not_described_as_synthetic() -> None:
     模型会对用户说行情是假数据。只有假数据提供方才用那句说明。"""
     for provider in (_PaperModeProvider(), _TqkqModeProvider()):
         description = _market_description(provider)
-        assert "合成假行情" not in description and "TqSdk/TqKq" in description
+        assert "合成假行情" not in description and "国内价格来自 TqSdk，外盘来自 MT5" in description
     assert "合成假行情" in _market_description(FakeReadOnlyDataProvider())

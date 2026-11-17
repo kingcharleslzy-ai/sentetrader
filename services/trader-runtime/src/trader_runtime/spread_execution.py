@@ -24,7 +24,7 @@ from uuid import uuid4
 
 from .data_providers import provider_read_snapshot
 from .order_planner import close_legs, prefs_for
-from .simulation_orders import SimulationOrderError, close_batch_execution
+from .simulation_orders import SimulationOrderError, close_batch_execution, order_is_working
 
 if TYPE_CHECKING:
     from .strategy_monitor import StrategyMonitorService
@@ -106,10 +106,17 @@ class _Leg:
     status: str = "RESERVED"
     detail: str = ""
     filled: int = 0
+    working: bool | None = None
     parent: _Leg | None = field(default=None, repr=False)
     # 单合约策略单 (#1454): the execute_trade arguments its entry carried (保护价位、所属尝试、发单前复核),
     # so a 补单 goes out exactly like the order it replaces. Empty = a spread leg.
     extra: dict[str, Any] = field(default_factory=dict, repr=False)
+
+    @property
+    def is_working(self) -> bool:
+        # PARTIAL describes fills, not whether the remainder still exists.
+        # Preserve the spread's existing leg recovery contract.
+        return self.status in LEG_ALIVE_STATUSES and (not self.extra or self.working is not False)
 
     @property
     def root(self) -> _Leg:
@@ -296,6 +303,22 @@ class SpreadExecutionService:
             view["executionConclusion"] = {"code": outcome, "text": CARD_CONCLUSIONS.get(outcome, "结果未知请核对")}
         return view
 
+    async def _recovery_notice(self, strategy: dict[str, Any], attempt_id: str, text: str, *,
+                               detail: str, pause: bool = True) -> None:
+        def complete(connection: Any) -> None:
+            current = self.store.get_strategy_draft(strategy["strategyId"], user_id=strategy["userId"])
+            if pause and current["status"] == "monitoring":
+                self.proposals.transition_strategy_status(strategy_id=strategy["strategyId"],
+                    user_id=strategy["userId"], target="paused", connection=connection)
+            self.store.update_strategy_execution_attempt(attempt_id=attempt_id,
+                status="UNKNOWN" if pause else "FAILED", outcome="unknown" if pause else None,
+                detail=detail, connection=connection)
+            self.store.mark_strategy_execution_follow(attempt_id=attempt_id, state="done", connection=connection)
+
+        if not await self.monitor._session_notice(strategy, text, kind="strategy-paused" if pause else "strategy-signal",
+                dedupe_key=f"recovery:{attempt_id}", commit=complete):
+            raise RuntimeError("strategy_recovery_notice_not_recorded")
+
     async def recover_interrupted(self) -> None:
         """Restart sweep: a spread attempt whose follow was still running is UNKNOWN — the legs'
         true state cannot be rebuilt from here — and the strategy pauses for the user to verify
@@ -311,22 +334,17 @@ class SpreadExecutionService:
             (self.monitor.account_id,),
         ).fetchall()
         for row in rows:
-            self.store.update_strategy_execution_attempt(
-                attempt_id=str(row["id"]), status="UNKNOWN", outcome="unknown",
-                detail="Runtime 在价差执行中途重启，两腿执行状态未知，请核对两腿持仓后手动处理。")
-            # Swept once: without this the next restart finds the same row 'following' and pauses and notifies again.
-            self.store.mark_strategy_execution_follow(attempt_id=str(row["id"]), state="done")
             try:
                 strategy = self.store.get_strategy_draft(str(row["strategy_id"]), user_id=str(row["user_id"]))
             except KeyError:
                 continue
-            self._pause_strategy(strategy)
             from .strategy_rules import SpreadSpec
             from .strategy_spread import spread_words
             spec = SpreadSpec.model_validate((strategy["definition"].get("plan") or {}).get("spread") or {})
             text = (f"{self.monitor._display_name(strategy)} · {spread_words(spec)}：Runtime 在价差执行中途重启，"
                     "两腿执行状态未知，已暂停策略；请核对两腿持仓后手动处理，再决定是否继续。")
-            await self.monitor._session_notice(strategy, text, kind="strategy-paused")
+            await self._recovery_notice(strategy, str(row["id"]), text,
+                detail="Runtime 在价差执行中途重启，两腿执行状态未知，请核对两腿持仓后手动处理。")
         # 单合约策略单 (#1454): its follow died with the process. Orders that filled meanwhile need
         # nothing; otherwise cancel what may still be working (an order nobody follows is the fault
         # this follow exists to end), then pause and say so.
@@ -361,18 +379,14 @@ class SpreadExecutionService:
                     await self.autonomy.cancel_order(user_id=user_id, client_order_id=client_id)
                 except Exception:      # already ended, or the account is not readable yet: the user verifies
                     LOGGER.debug("single_follow_recover_cancel_skipped", exc_info=True)
-            self.store.update_strategy_execution_attempt(
-                attempt_id=str(row["id"]), status="UNKNOWN", outcome="unknown",
-                detail="Runtime 在跟进这笔委托时重启，未成交部分已尝试撤销，请核对持仓与委托。")
-            self.store.mark_strategy_execution_follow(attempt_id=str(row["id"]), state="done")
             try:
                 strategy = self.store.get_strategy_draft(str(row["strategy_id"]), user_id=user_id)
             except KeyError:
                 continue
-            self._pause_strategy(strategy)
-            await self.monitor._session_notice(
-                strategy, f"{self.monitor._display_name(strategy)} · {strategy['symbol']}：Runtime 在跟进这笔委托时重启，"
-                          "未成交部分已尝试撤销，已暂停策略；请核对持仓与委托后再继续。", kind="strategy-paused")
+            await self._recovery_notice(
+                strategy, str(row["id"]), f"{self.monitor._display_name(strategy)} · {strategy['symbol']}：Runtime 在跟进这笔委托时重启，"
+                          "未成交部分已尝试撤销，已暂停策略；请核对持仓与委托后再继续。",
+                detail="Runtime 在跟进这笔委托时重启，未成交部分已尝试撤销，请核对持仓与委托。")
         # #518: a confirmed card's attempt reopened (SKIPPED → RESERVED, signal_action set) but killed before
         # `_dispatch_and_follow` marked it 'following'. That marker is written before any leg is reserved or
         # sent, so no leg went out: the attempt ends FAILED like the confirm path's own interruption (518-F),
@@ -386,15 +400,13 @@ class SpreadExecutionService:
             (self.monitor.account_id,),
         ).fetchall()
         for row in unsent:
-            self.store.update_strategy_execution_attempt(
-                attempt_id=str(row["id"]), status="FAILED", detail=CONFIRM_INTERRUPTED_DETAIL)
             try:
                 strategy = self.store.get_strategy_draft(str(row["strategy_id"]), user_id=str(row["user_id"]))
             except KeyError:
                 continue
-            await self.monitor._session_notice(
-                strategy, f"{self.monitor._display_name(strategy)}：价差卡确认后 Runtime 重启，两腿没有发出；"
-                          "请核对持仓后重新确认。", kind="strategy-signal")
+            await self._recovery_notice(
+                strategy, str(row["id"]), f"{self.monitor._display_name(strategy)}：价差卡确认后 Runtime 重启，两腿没有发出；"
+                          "请核对持仓后重新确认。", detail=CONFIRM_INTERRUPTED_DETAIL, pause=False)
 
     # -- one attempt -------------------------------------------------------------------
 
@@ -524,13 +536,13 @@ class SpreadExecutionService:
             deadline = monotonic() + SPREAD_FILL_WAIT_SECONDS
             while True:
                 for leg in [leg for leg in legs
-                            if leg.status in LEG_ALIVE_STATUSES and leg.client_order_id]:
+                            if leg.is_working and leg.client_order_id]:
                     await self._poll_leg(leg, user_id=user_id)
                 if self._primaries_filled(legs):
                     return "filled"
                 if any(leg.status == "UNKNOWN" for leg in legs):
                     return "unknown"
-                if legs[0].extra and not any(leg.status in LEG_ALIVE_STATUSES for leg in legs):
+                if legs[0].extra and not any(leg.is_working for leg in legs):
                     return "short"      # 单合约: every order was ended by someone else — nothing to wait for or chase
                 remaining = deadline - monotonic()
                 if remaining <= 0:
@@ -587,6 +599,7 @@ class SpreadExecutionService:
             self._settle_leg(leg, status=status, detail=detail, client_order_id=client_order_id)
             return
         order = result["simulationOrder"]
+        leg.working = order_is_working(order)
         status, detail, _ = _execution_status(str(order.get("displayStatus") or ""))
         leg.filled = max(leg.filled, int(order.get("filledVolume") or 0))
         self._settle_leg(leg, status=status, detail=detail,
@@ -603,28 +616,33 @@ class SpreadExecutionService:
             return
         status, detail, _ = _execution_status(str(order.get("displayStatus") or ""))
         leg.filled = max(leg.filled, int(order.get("filledVolume") or 0))
+        leg.working = order_is_working(order)
         self._settle_leg(leg, status=status, detail=detail)
 
     async def _cancel_remainder(self, leg: _Leg, *, user_id: str) -> str:
-        """Cancel what is still working on this leg: ``ok`` (the view is final) or ``unknown``."""
-        from .simulation_orders import order_is_working
+        """Return ``cancelled`` only for our request, ``ended`` for another finality, or ``unknown``."""
         from .strategy_monitor import _execution_status
         if leg.client_order_id is None:
-            return "ok"
+            return "ended"
         try:
-            view = await self.autonomy.cancel_order(user_id=user_id, client_order_id=leg.client_order_id)
+            view = await self.autonomy.cancel_order(
+                user_id=user_id, client_order_id=leg.client_order_id, require_own_request=bool(leg.extra))
         except SimulationOrderError:
             await self._poll_leg(leg, user_id=user_id)
-            return "unknown" if leg.status == "UNKNOWN" else "ok"
+            if leg.status == "UNKNOWN" or leg.working:
+                self._settle_leg(leg, status="UNKNOWN", detail="撤单未确认，只回读原委托。")
+                return "unknown"
+            return "ended"
         status, detail, _ = _execution_status(str(view.get("displayStatus") or ""))
         leg.filled = max(leg.filled, int(view.get("filledVolume") or 0))
+        leg.working = order_is_working(view)
         if status == "UNKNOWN" or order_is_working(view):
             # 撤单回执 NOT_DISPATCHED 等情况: 命令没派发出去，原单仍挂在场上 —— 不是“已撤”
             # (#518)。按结果未知收尾: 不补单、不回退，停下让人核对。
             self._settle_leg(leg, status="UNKNOWN", detail="撤单未派发，原单仍在场，只回读原委托。")
             return "unknown"
         self._settle_leg(leg, status=status, detail=detail)
-        return "ok"
+        return "cancelled" if view.get("cancelPhase") == "CONFIRMED" else "ended"
 
     async def _chase_leg(
         self, *, attempt_id: str, leg: _Leg, legs: list[_Leg], strategy: dict[str, Any],
@@ -635,10 +653,11 @@ class SpreadExecutionService:
         order somebody else already ended (the user's 撤单, a protective stop taking the position
         out) is not chased: only the remainder this follow cancelled itself is re-ordered."""
         user_id = strategy["userId"]
-        if leg.extra and leg.status not in LEG_ALIVE_STATUSES:
+        if leg.extra and not leg.is_working:
             return
-        if leg.client_order_id and leg.status in LEG_ALIVE_STATUSES:
-            if await self._cancel_remainder(leg, user_id=user_id) == "unknown":
+        if leg.client_order_id and leg.is_working:
+            cancelled = await self._cancel_remainder(leg, user_id=user_id)
+            if cancelled == "unknown" or (leg.extra and cancelled != "cancelled"):
                 return
         remainder = leg.volume - _group_filled(legs, leg)
         if remainder <= 0:
@@ -683,7 +702,7 @@ class SpreadExecutionService:
                                             ai_initiated=True, chase=chase)
             if outcome == "short":
                 for leg in [leg for leg in legs
-                            if leg.status in LEG_ALIVE_STATUSES and leg.client_order_id]:
+                            if leg.is_working and leg.client_order_id]:
                     if await self._cancel_remainder(leg, user_id=strategy["userId"]) == "unknown":
                         outcome = "unknown"
                         break

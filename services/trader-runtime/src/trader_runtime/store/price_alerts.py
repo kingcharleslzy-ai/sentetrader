@@ -26,11 +26,21 @@ class PriceAlertStore(StoreBase):
 
     def create_price_alert(self, *, user_id: str, symbol: str, name: str, direction: str,
                            price: Decimal, note: str, via: str, session_id: str | None,
-                           max_active: int, drawing_id: str | None = None) -> dict[str, Any] | str:
+                           max_active: int, drawing_id: str | None = None,
+                           drawing_updated_at: str | None = None) -> dict[str, Any] | str:
         """Insert one active alert. Returns the row view, or the Chinese refusal reason
         (the per-user active cap, a drawing already watched) — the checks and the insert share one locked transaction."""
         alert_id, now = uuid4().hex, utc_now()
-        with self.lock, self.connection:
+        with self.transaction():
+            if drawing_id:
+                drawing = self.connection.execute(
+                    "SELECT updated_at, symbol FROM chart_drawings WHERE id = ? AND user_id = ?",
+                    (drawing_id, user_id)).fetchone()
+                if drawing is None:
+                    return "这条线已经不在了"
+                if drawing["symbol"].upper() != symbol.upper() or (
+                        drawing_updated_at is not None and drawing["updated_at"] != drawing_updated_at):
+                    return "这条线刚刚改过，请按现在的位置重新设提醒"
             active = self.connection.execute(
                 "SELECT COUNT(*) FROM price_alerts WHERE user_id = ? AND status = 'active'",
                 (user_id,)).fetchone()[0]
@@ -45,7 +55,7 @@ class PriceAlertStore(StoreBase):
                 (id, user_id, symbol, name, direction, price, note, status, created_via, session_id, created_at, drawing_id)
                 VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?)""",
                 (alert_id, user_id, symbol, name, direction, str(price), note, via, session_id, now, drawing_id))
-        row = self.connection.execute("SELECT * FROM price_alerts WHERE id = ?", (alert_id,)).fetchone()
+            row = self.connection.execute("SELECT * FROM price_alerts WHERE id = ?", (alert_id,)).fetchone()
         return alert_view(row)
 
     def list_price_alerts(self, *, user_id: str, triggered_limit: int = 20) -> dict[str, Any]:

@@ -225,7 +225,7 @@ def test_trader_tools_fail_closed_when_unavailable_and_label_stale_data() -> Non
         "dataErrorCode": provider.runtime_status()["dataErrorCode"], "version": "0.4.0",
     })
     definitions = {definition["name"]: definition for definition in tools.definitions()}
-    assert "TqSdk/TqKq 当前期货行情源" in definitions["get_market_snapshot"]["description"]
+    assert "国内价格来自 TqSdk，外盘来自 MT5" in definitions["get_market_snapshot"]["description"]
     assert "TqKq 模拟账户" in definitions["get_account_summary"]["description"]
     unavailable, _ = tools.call(tool="get_account_summary", arguments={}, turn_id="turn", mode="local")
     assert unavailable["success"] is False

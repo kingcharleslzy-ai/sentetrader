@@ -175,6 +175,53 @@ async def test_a_concurrent_second_hand_in_of_one_ticket_gets_the_first_result(t
             assert [item["backtestId"] for item in stored] == [one.json()["backtestId"]]
 
 
+@pytest.mark.parametrize("failure", ["stage_card", "flush"])
+@pytest.mark.parametrize("preview", [False, True])
+async def test_result_and_notifications_retry_without_partial_commits(tmp_path, monkeypatch, failure, preview):
+    app = app_for(tmp_path)
+    async with app.router.lifespan_context(app):
+        async with AsyncClient(transport=ASGITransport(app, raise_app_exceptions=False),
+                               base_url="http://runtime", headers=HEADERS) as client:
+            session = (await client.post("/api/sessions", json={"mode": "local", "agentId": "native"})).json()["sessionId"]
+            served = await fetch_inputs(client, plan=CROSS, symbol="SHFE.au2612", sessionId=session, preview=preview)
+            body = {"inputDigest": served["inputDigest"], "ticketId": served["ticketId"],
+                    "engineDigest": served["engineDigest"], "result": run_rule(served["inputs"])}
+            broker, store = app.state.broker, app.state.store
+            original_stage, original_flush = broker.stage, broker.flush
+
+            def failing_stage(*args, **kwargs):
+                if kwargs["name"] == "card.strategy_backtest":
+                    raise RuntimeError("card staging unavailable")
+                return original_stage(*args, **kwargs)
+
+            async def failing_flush():
+                raise RuntimeError("transport unavailable")
+
+            monkeypatch.setattr(broker, "stage" if failure == "stage_card" else "flush",
+                                failing_stage if failure == "stage_card" else failing_flush)
+            first = await client.post("/api/strategy-backtests/browser-result", json=body)
+            assert first.status_code == (500 if failure == "stage_card" else 200)
+            count = store.connection.execute("SELECT COUNT(*) FROM strategy_backtest_results").fetchone()[0]
+            assert count == (0 if preview or failure == "stage_card" else 1)
+            if failure == "stage_card":
+                assert store.connection.execute("SELECT COUNT(*) FROM outbox_events WHERE session_id = ?", (session,)).fetchone()[0] == 0
+            monkeypatch.setattr(broker, "stage", original_stage)
+            monkeypatch.setattr(broker, "flush", original_flush)
+            again = await client.post("/api/strategy-backtests/browser-result", json=body)
+            assert again.status_code == 200, again.text
+            if failure == "flush":
+                assert first.json() == again.json()
+            await broker.flush()
+            await broker.flush()
+            events = [event for _, event in store.list_events(session)]
+            cards = [event for event in events if event["name"] == "card.strategy_backtest"]
+            messages = [event for event in events if event["name"] == "message.completed"
+                        and "规则回测已完成" in event["payload"].get("text", "")]
+            assert len(cards) == len(messages) == 1
+            assert cards[0]["payload"]["turnId"] == messages[0]["payload"]["turnId"]
+            assert store.connection.execute("SELECT COUNT(*) FROM strategy_backtest_results").fetchone()[0] == (0 if preview else 1)
+
+
 @pytest.mark.asyncio
 async def test_the_inputs_route_takes_a_backtest_queue_slot(tmp_path):
     """#510：读历史的 inputs 与服务端回测同一并发上限；没有空位排队超时是 429，不绕过队列。"""

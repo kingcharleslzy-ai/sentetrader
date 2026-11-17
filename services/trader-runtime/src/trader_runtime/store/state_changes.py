@@ -106,8 +106,20 @@ def trigger_sql(spec: Spec) -> list[str]:
 
 def install(connection: sqlite3.Connection) -> None:
     """The table and every spec's triggers, replaced in one transaction (startup, after all migrations)."""
-    connection.executescript(SCHEMA)
-    with connection:
+    # DDL does not start Python sqlite3's implicit transaction. A savepoint
+    # owns the entire replacement and also composes with a migration's outer
+    # transaction without executescript() committing that caller's work.
+    connection.execute("SAVEPOINT install_state_changes")
+    try:
+        for statement in SCHEMA.split(";"):
+            if statement.strip():
+                connection.execute(statement)
         for spec in SPECS:
             for statement in trigger_sql(spec):
                 connection.execute(statement)
+    except BaseException:
+        connection.execute("ROLLBACK TO install_state_changes")
+        connection.execute("RELEASE install_state_changes")
+        raise
+    else:
+        connection.execute("RELEASE install_state_changes")

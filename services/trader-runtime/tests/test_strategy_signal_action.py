@@ -675,3 +675,40 @@ async def test_starting_a_reminder_refuses_cards_and_orders_and_sets_alert(tmp_p
     assert refused.status_code == 409 and refused.json()["detail"]["code"] == "strategy_reminder_only", refused.text
     assert started.status_code == 200 and started.json()["signalAction"] == "alert" and started.json()["status"] == "monitoring"
     store.close()
+
+
+@pytest.mark.parametrize("failure", ["stage", "business", "cancel_name"])
+async def test_once_reminder_retries_without_consuming_the_signal_before_durable_delivery(tmp_path, monkeypatch, failure):
+    import asyncio
+
+    env = _setup(tmp_path, signal_action="alert")
+    env.monitor.proposals.transition_strategy_status = env.app.state.proposals.transition_strategy_status
+    with env.store.lock, env.store.connection:
+        env.store.connection.execute("UPDATE strategy_drafts SET definition_json = ? WHERE id = ?",
+            (json.dumps({**_definition(), "plan": {"reminderOnly": True, "reminder": {"repeat": "once"}}}), STRATEGY_ID))
+    try:
+        with monkeypatch.context() as failed:
+            if failure == "cancel_name":
+                async def cancelled(*args, **kwargs):
+                    raise asyncio.CancelledError()
+                failed.setattr(env.app.state.push, "instrument_name", cancelled)
+                with pytest.raises(asyncio.CancelledError):
+                    await env.monitor.run_once()
+            else:
+                owner = env.app.state.broker if failure == "stage" else env.store
+                method = "stage" if failure == "stage" else "finish_strategy_execution_attempt"
+                original = getattr(owner, method)
+                def broken(*args, **kwargs):
+                    original(*args, **kwargs)
+                    raise RuntimeError("interrupted before commit")
+                failed.setattr(owner, method, broken)
+                assert (await env.monitor.run_once())[0]["status"] == "waiting"
+        assert env.store.connection.execute("SELECT count(*) FROM strategy_execution_attempts").fetchone()[0] == 0
+        assert env.store.get_strategy_draft(STRATEGY_ID, user_id=USER)["status"] == "monitoring"
+        assert _events(env.store, env.session, "message.completed") == []
+        assert (await env.monitor.run_once())[0]["status"] == "alerted"
+        assert env.store.get_strategy_draft(STRATEGY_ID, user_id=USER)["status"] == "ready"
+        assert len(_events(env.store, env.session, "message.completed")) == 1
+        assert await env.monitor.run_once() == []
+    finally:
+        env.store.close()

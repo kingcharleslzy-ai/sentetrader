@@ -222,7 +222,7 @@ def _table(root: Path | None) -> dict[str, Any] | None:
 # -- 后台刷新 -------------------------------------------------------------------------
 
 
-def refresh(root: Path) -> bool:
+def refresh(root: Path, *, stopped: threading.Event | None = None) -> bool:
     """联网抓一次、解析、原子写缓存文件并更新进程内缓存；成功 True。网络请求在锁外，
     只在更新内存缓存时短暂持锁。失败保留旧缓存并标 stale（只降级非当天的表）。"""
     resolved = Path(root)
@@ -231,26 +231,31 @@ def refresh(root: Path) -> bool:
         as_of, contracts = parse_fees_page(_fetch_html())
     except Exception:  # noqa: BLE001 — 网络失败走缓存降级，不让后台线程死掉
         contracts, as_of = {}, None
-    if not (contracts and as_of):
-        today = _today()
+    # Publication and lease revocation share one lock, including the disk write. A timed-out
+    # worker may finish its fetch, but cannot publish after stop_refresher returns.
+    with _refresher_lock:
+        if stopped is not None and stopped.is_set():
+            return False
+        if not (contracts and as_of):
+            today = _today()
+            with _lock:
+                cached = _tables.get(key)
+                if cached is None:
+                    loaded = _read_cache(resolved)
+                    if loaded is not None:
+                        cached = loaded
+                        _tables[key] = cached
+                if cached is not None and cached.get("fetchedDay") != today and not cached.get("stale"):
+                    _tables[key] = {**cached, "stale": True}
+            return False
+        fresh = {"asOf": as_of, "fetchedDay": _today(), "contracts": contracts, "stale": False}
+        try:
+            _write_cache(resolved, fresh)
+        except OSError:
+            pass
         with _lock:
-            cached = _tables.get(key)
-            if cached is None:
-                loaded = _read_cache(resolved)
-                if loaded is not None:
-                    cached = loaded
-                    _tables[key] = cached
-            if cached is not None and cached.get("fetchedDay") != today and not cached.get("stale"):
-                _tables[key] = {**cached, "stale": True}
-        return False
-    fresh = {"asOf": as_of, "fetchedDay": _today(), "contracts": contracts, "stale": False}
-    try:
-        _write_cache(resolved, fresh)
-    except OSError:
-        pass
-    with _lock:
-        _tables[key] = fresh
-    return True
+            _tables[key] = fresh
+        return True
 
 
 def _needs_fetch(root: Path) -> bool:
@@ -273,9 +278,9 @@ def _has_table(root: Path) -> bool:
 
 
 def _refresher_loop(root: Path, stop: threading.Event) -> None:
-    while True:
+    while not stop.is_set():
         if _needs_fetch(root):
-            refresh(root)
+            refresh(root, stopped=stop)
         if stop.wait(REFRESH_INTERVAL_SECONDS if _has_table(root) else COLD_RETRY_SECONDS):
             break
 
@@ -305,8 +310,8 @@ def stop_refresher(root: Path | None = None, wait: float = 0.0) -> None:
         keys = list(_refreshers) if root is None else [
             key for key in _refreshers if key == _key(root)]
         entries = [_refreshers.pop(key) for key in keys]
-    for _thread, stop in entries:
-        stop.set()
+        for _thread, stop in entries:
+            stop.set()
     if wait > 0:
         deadline = time.monotonic() + wait
         for thread, _stop in entries:

@@ -21,6 +21,8 @@ def _live_wal_database(path: Path) -> sqlite3.Connection:
     """A database whose last committed row is still only in the -wal, as a running Runtime leaves it."""
     connection = sqlite3.connect(path, isolation_level=None)
     connection.execute("PRAGMA journal_mode = WAL")
+    connection.execute("CREATE TABLE sessions (id TEXT PRIMARY KEY)")
+    connection.execute("CREATE TABLE events (id TEXT PRIMARY KEY)")
     connection.execute("CREATE TABLE proposals (id TEXT PRIMARY KEY)")
     # Fold the schema into the main file first, so the row below is the only thing the -wal holds.
     connection.execute("PRAGMA wal_checkpoint(TRUNCATE)")
@@ -76,9 +78,47 @@ def test_the_deploy_script_backs_up_and_verifies_a_live_wal_database(tmp_path: P
         [sys.executable, str(_shipped_verifier(tmp_path)), str(source), str(backup)],
         capture_output=True, text=True, check=False)
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "backup verified: proposals=1" in result.stdout
+    assert "backup verified: events=0, proposals=1, sessions=0" in result.stdout
     writer.close()
 
     restored = sqlite3.connect(backup)
     assert restored.execute("SELECT count(*) FROM proposals").fetchone()[0] == 1
     restored.close()
+
+
+def test_backup_rejects_missing_empty_wrong_and_incomplete_sources(tmp_path: Path) -> None:
+    checker = _shipped_verifier(tmp_path)
+    for case in ("missing", "empty", "unrelated", "missing_core", "corrupt"):
+        source = tmp_path / f"{case}.sqlite3"
+        backup = tmp_path / f"{case}-backup.sqlite3"
+        if case == "empty":
+            source.touch()
+        elif case == "corrupt":
+            source.write_bytes(b"not a sqlite database")
+        elif case in ("unrelated", "missing_core"):
+            with sqlite3.connect(source) as connection:
+                connection.execute("CREATE TABLE sessions (id TEXT)" if case == "missing_core"
+                                   else "CREATE TABLE unrelated (id TEXT)")
+        before = source.read_bytes() if source.exists() else None
+        result = subprocess.run([sys.executable, str(checker), str(source), str(backup)],
+                                capture_output=True, text=True, check=False)
+        assert result.returncode != 0, (case, result.stdout, result.stderr)
+        assert "backup verified:" not in result.stdout
+        assert not backup.exists(), case
+        assert (source.read_bytes() if source.exists() else None) == before
+
+
+def test_backup_accepts_initialized_database_with_no_business_rows(tmp_path: Path) -> None:
+    source = tmp_path / "empty-runtime #1.sqlite3"
+    writer = _live_wal_database(source)
+    writer.execute("DELETE FROM proposals")
+    backup = tmp_path / "empty-runtime-backup.sqlite3"
+    result = subprocess.run([sys.executable, str(_shipped_verifier(tmp_path)), str(source), str(backup)],
+                            capture_output=True, text=True, check=False)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "events=0, proposals=0, sessions=0" in result.stdout
+    writer.close()
+    restored = sqlite3.connect(backup)
+    assert restored.execute("SELECT count(*) FROM proposals").fetchone()[0] == 0
+    restored.close()
+

@@ -31,7 +31,7 @@ from ..news_screen import ScreenBatch
 from ..news_translate import TranslationBatch
 from ..research_data import CHINA, ResearchDataService
 from ..research_desk import DeskJudgment
-from ..research_live import LiveSources
+from ..research_live import PROCESS_LOCAL_STAMPS, LiveSources
 
 ENV_FLAG = "AI_TRADER_FAKE_RESEARCH_LIVE"
 
@@ -124,7 +124,8 @@ class FakeLiveSources(LiveSources):
                 continue
             scale = self._scale if minutes <= RECENT_MINUTES else 1.0
             moment = self.started - timedelta(seconds=minutes * 60 * scale)
-            stamp = moment.strftime("%Y-%m-%d %H:%M:%S")
+            # Match the SDK boundary: these sources format epoch times in the process timezone.
+            stamp = (moment.astimezone() if source in PROCESS_LOCAL_STAMPS else moment).strftime("%Y-%m-%d %H:%M:%S")
             # 财联社 splits 发布日期 / 发布时间; 东方财富 and 上海金属网 give one 发布时间, 新浪 a 时间.
             clock = moment.strftime("%H:%M:%S") if source == "财联社" else stamp
             rows.append({"发布日期": moment.strftime("%Y-%m-%d"), "发布时间": clock, "时间": stamp,

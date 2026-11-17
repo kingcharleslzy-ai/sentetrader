@@ -1,0 +1,22 @@
+{
+  "about": "Issue 根因修复批次手机版：报价、下单填价界面、提醒和复盘，检查窄屏数字、币种及画线提醒展示；不提交订单、不改自选。交错保存、重复同价点击与身份切换由本地回归覆盖。",
+  "device": "phone",
+  "steps": [
+    {"ui": {"mobileTab": "market"}, "expect": {"mobileTab": "market"}},
+    {"ui": {"mobileMarket": {"view": "quotes"}}, "expect": {"mobileTab": "market"}},
+    {"ui": {"mobileMarket": {"board": "watchlist"}}, "expect": {"mobileTab": "market"}},
+    {"screenshot": "01-watchlist"},
+    {"ui": {"mobilePage": "order"}, "expect": {"mobilePage": "order"}},
+    {"screenshot": "02-order"},
+    {"ui": {"mobilePage": null}},
+    {"ui": {"reminderCenter": {"open": true}}, "expect": {"reminderCenter.open": true}},
+    {"screenshot": "03-reminders"},
+    {"ui": {"reminderCenter": {"open": false}}},
+    {"ui": {"mobilePage": "review"}, "expect": {"mobilePage": "review"}},
+    {"screenshot": "04-review"}
+  ],
+  "cleanup": [
+    {"ui": {"mobilePage": null}},
+    {"ui": {"mobileTab": "ai"}}
+  ]
+}

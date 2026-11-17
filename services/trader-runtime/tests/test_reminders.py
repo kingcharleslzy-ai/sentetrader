@@ -459,7 +459,11 @@ async def test_a_fill_that_failed_near_the_end_of_its_age_window_is_retried_from
     await ledger._push_activity({"trades": [fill], "orders": []})
     broken["on"] = False
     clock["now"] += 60 * 1_000_000_000          # the trade is now 650 s old, the failure 60 s
-    await ledger._push_activity({"trades": [fill], "orders": []})
+    # A new detector has no in-memory retries; even if the source rolled to another day, the
+    # durable retry retains the original fill and its original bounded retry deadline.
+    ledger = AccountLedger(store=store, provider=None, trading_account_id=store.default_trading_account_id)
+    ledger.clock = lambda: clock["now"]
+    await ledger._push_activity({"trades": [], "orders": []})
     items = store.reminders_page(USER, trading_day=reminders.current_trading_day(), scope="today")[0]
     assert [item["kind"] for item in items] == ["fill"] and ledger._pending == {}
     store.close()

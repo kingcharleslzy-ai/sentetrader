@@ -16,7 +16,7 @@ const IDLE_PULSE_MS = 30_000;
 const STATE_CHANGE_DEBOUNCE_MS = 250;
 type Command = { commandId: string; expectedRevision: number; changes: UiChanges };
 /** `reason`: why the window could not run it (the error it threw), for the AI and the readback to say. */
-type Receipt = { commandId: string; status: "applied" | "rejected"; reason?: string };
+type Receipt = { commandId: string; status: "applied" | "rejected" | "unknown"; reason?: string };
 /** Whether this window's heartbeat is accepted; false after three consecutive 422s (shown in the workspace). */
 export interface UiControlHealth { registered: boolean; detail: string }
 let health: UiControlHealth = { registered: true, detail: "" };
@@ -59,18 +59,21 @@ export function useUiControl(baseUrl: string | undefined, workspace: string | un
     const current = () => !stopped && fence.isCurrent();
     let inFlight = false;
     let rejected = 0;
+    let failures = 0;
+    let retryAt = 0;
+    let protocol = false;
     const pulse = async () => {
       if (!current() || inFlight) return;
       inFlight = true;
       clearTimeout(timer);
       // The window says only whether it ran the command; the Runtime judges from the state this heartbeat
       // and the next ones carry whether it took effect (ui_control.changes_match).
-      const receipt: Receipt | undefined = pending && { commandId: pending.command.commandId, status: pending.rejected ? "rejected" : "applied",
-        ...(pending.rejected && pending.reason ? { reason: pending.reason.slice(0, 300) } : {}) };
+      const receipt: Receipt | undefined = pending && { commandId: pending.command.commandId, status: !protocol ? "unknown" : pending.rejected ? "rejected" : "applied",
+        ...(protocol && pending.rejected && pending.reason ? { reason: pending.reason.slice(0, 300) } : {}) };
       controller = new AbortController();
       let succeeded = false;
       try {
-        const result = await requestJson<{ command: Command | null }>(`${baseUrl}/api/ui/pulse`, {
+        const result = await requestJson<{ command: Command | null; receiptProtocol?: number }>(`${baseUrl}/api/ui/pulse`, {
           method: "POST", signal: controller.signal, timeoutMs: 3000,
           // visible (锁屏推送, 2026-10-06): a device whose page is in front gets no lock-screen push.
           body: JSON.stringify({ windowId, revision: latest.current.revision, state: latest.current.state, receipt,
@@ -79,7 +82,10 @@ export function useUiControl(baseUrl: string | undefined, workspace: string | un
         });
         if (!current()) return;
         succeeded = true;
-        if (rejected >= 3) setUiControlHealth({ registered: true, detail: "" });
+        failures = 0; retryAt = 0;
+        protocol = result.receiptProtocol === 2;
+        setUiControlHealth(protocol ? { registered: true, detail: "" }
+          : { registered: false, detail: "当前服务不支持安全的界面命令回执，请升级服务后重试" });
         rejected = 0;
         registerAgentWindow(baseUrl, windowId);
         captureReceipt = undefined;
@@ -87,7 +93,10 @@ export function useUiControl(baseUrl: string | undefined, workspace: string | un
         if (result.command && !pending) {
           const command = result.command;
           pending = { command, rejected: false };
-          if (command.expectedRevision !== latest.current.revision) pending.rejected = true;
+          if (!protocol) pending.rejected = true;
+          else if (command.expectedRevision !== latest.current.revision) {
+            pending.rejected = true; pending.reason = "界面已变化，命令未执行；请读取最新状态后再操作";
+          }
           else {
             try { latest.current.apply(command.changes); }
             catch (error) { pending.rejected = true; if (error instanceof Error && error.message) pending.reason = error.message; }
@@ -104,6 +113,8 @@ export function useUiControl(baseUrl: string | undefined, workspace: string | un
             .finally(() => { capturing = undefined; wake(); });
         }
       } catch (error) {
+        failures += 1;
+        retryAt = Date.now() + Math.min(5000, 500 * 2 ** Math.min(failures - 1, 4));
         const status = (error as { status?: number }).status;
         if (status === 401 || status === 403) stopped = true;
         if (status === 410) {
@@ -132,12 +143,12 @@ export function useUiControl(baseUrl: string | undefined, workspace: string | un
         // capture waits, so the idle heartbeat only has to keep the window registered.
         const soon = pending || captureReceipt || dirty;
         dirty = false;
-        if (current()) timer = setTimeout(() => void pulse(), soon ? 16 : !succeeded || !feedLiveNow() ? 500 : IDLE_PULSE_MS);
+        if (current()) timer = setTimeout(() => void pulse(), !succeeded ? Math.max(500, retryAt - Date.now()) : soon ? 16 : !feedLiveNow() ? 500 : IDLE_PULSE_MS);
       }
     };
     let dirty = false;
     const wake = () => {
-      if (!current()) return;
+      if (!current() || Date.now() < retryAt) return;
       if (inFlight) { dirty = true; return; }  // carried by the pulse right after the current one
       void pulse();
     };

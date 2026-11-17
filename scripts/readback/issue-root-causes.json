@@ -1,0 +1,25 @@
+{
+  "about": "Issue 根因修复批次：测试账号窗口的回执协议、交易笔记编辑器、持仓保护入口、提醒与复盘可见性。只打开界面，不创建订单或策略。并发、故障恢复与持久化由对应回归测试覆盖；截图仍须人工检查。",
+  "steps": [
+    {"ui": {"view": "trade"}, "expect": {"view": "trade"}},
+    {"ui": {"panel": "positions"}, "expect": {"panel": "positions"}},
+    {"screenshot": "01-positions"},
+    {"ui": {"strategyTab": "playbooks"}, "expect": {"view": "review"}},
+    {"ui": {"disclosure": {"name": "playbook-editor", "open": true}}, "expect": {"disclosures.playbook-editor": true}},
+    {"screenshot": "02-playbook-editor"},
+    {"ui": {"disclosure": {"name": "playbook-editor", "open": false}}, "expect": {"disclosures.playbook-editor": false}},
+    {"ui": {"panel": "reminders"}, "expect": {"panel": "reminders"}},
+    {"ui": {"reminders": {"tab": "mine"}}, "expect": {"reminders.tab": "mine"}},
+    {"screenshot": "03-reminders"},
+    {"ui": {"panel": null}, "expect": {"panel": null}},
+    {"ui": {"view": "review"}, "expect": {"view": "review"}},
+    {"screenshot": "04-review"},
+    {"ui": {"panel": "ai"}, "expect": {"panel": "ai"}},
+    {"screenshot": "05-chat"}
+  ],
+  "cleanup": [
+    {"ui": {"disclosure": {"name": "playbook-editor", "open": false}}},
+    {"ui": {"panel": null}},
+    {"ui": {"view": "trade"}}
+  ]
+}

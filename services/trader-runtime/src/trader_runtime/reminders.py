@@ -121,6 +121,8 @@ class ReminderSpec:
     # voice_key, push) built from exactly what it claimed — the record and every channel then say only that;
     # None = it claimed nothing, nothing goes out.
     claim: Callable[[Any], dict[str, Any] | None] | None = None
+    # Business completion shares the reminder/outbox commit. No await or external operation here.
+    commit: Callable[[Any], None] | None = None
     replay_id: str | None = None
     feed_extra: dict[str, Any] = field(default_factory=dict)
 
@@ -188,6 +190,12 @@ async def deliver_reminder(store: Any, broker: Any, spec: ReminderSpec, *, voice
         session_id = None
     message = {"turnId": turn_id, "role": "assistant", "agentId": "native", "text": spec.message, "at": at}
     if not reminder_enabled(preferences, kind):
+        if spec.commit is not None:
+            try:
+                with store.transaction() as connection:
+                    spec.commit(connection)
+            except Exception:  # noqa: BLE001 — business state remains retryable
+                return Delivery(None, session_id, False, "failed")
         if spec.essential and session_id and spec.message is not None and broker is not None:
             try:  # the business card still lands; only the reminder (record and channels) is off
                 await broker.publish(session_id, kind="message", name="message.completed", payload=message)
@@ -199,7 +207,7 @@ async def deliver_reminder(store: Any, broker: Any, spec: ReminderSpec, *, voice
         return Delivery(None, session_id, False, "off")
     if spec.symbol and not spec.name and push is not None:
         try:  # the record names the contract the way the user reads it (沪金2612), never SHFE.au2612
-            spec = replace(spec, name=await push.instrument_name(spec.symbol))
+            spec = replace(spec, name=await asyncio.wait_for(push.instrument_name(spec.symbol), timeout=1.0))
         except Exception:  # noqa: BLE001 — a missing name never stops the reminder
             pass
     try:
@@ -235,6 +243,8 @@ async def deliver_reminder(store: Any, broker: Any, spec: ReminderSpec, *, voice
                 for name, payload in spec.cards:
                     broker.stage(str(session_id), kind=event_kind(name), name=name, connection=connection,
                                  payload={**payload, "turnId": turn_id})
+            if spec.commit is not None:
+                spec.commit(connection)
     except Exception as error:  # noqa: BLE001 — rolled back together; the caller's next round retries
         log.warning("reminder_not_recorded kind=%s error=%s", kind, type(error).__name__)
         log.debug("reminder_not_recorded detail", exc_info=True)

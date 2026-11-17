@@ -138,7 +138,11 @@ def replay_fixture(tmp_path, symbol):
     app = application(tmp_path / 'replay-end.sqlite3', gateway, provider)
     app.state.simulation_orders.policies.default_allowed_symbols = (symbol.split('.')[1].upper(),)
     snapshot = {'status':'ready', 'symbol':symbol, 'orders':[], 'trades':[], 'positions':provider.positions()}
-    replay = SimpleNamespace(_current=lambda:snapshot, entries_paused=False)
+    identifier = "b" * 32
+    root = app.state.runtime_state_root
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "replay.json").write_text(json.dumps({"replayId": identifier, "userId": USER, "symbol": symbol}))
+    replay = SimpleNamespace(_current=lambda:snapshot, entries_paused=False, identifier=identifier)
     return app, provider, gateway, snapshot, ReplayContext(USER, app, replay)
 
 

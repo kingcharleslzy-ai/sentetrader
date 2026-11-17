@@ -260,7 +260,7 @@ class LabVariantResult(BaseModel):
 
     @model_validator(mode="after")
     def segments_or_error(self):
-        if self.error is None and (self.inSample is None or self.outSample is None):
+        if not self.error and (self.inSample is None or self.outSample is None):
             raise ValueError("没有 error 的结果必须带样本内与样本外统计")
         return self
 

@@ -125,3 +125,39 @@ test("a request that never gets its headers is also abandoned after the idle lim
     vi.useRealTimers();
   }
 });
+
+test.each(["open", "frame"])("releases a still-streaming response when the %s callback throws", async kind => {
+  vi.useFakeTimers();
+  const cancel = vi.fn();
+  const signals: AbortSignal[] = [];
+  const bodies: ReadableStream<Uint8Array>[] = [];
+  const fetchImpl = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+    signals.push(init!.signal!);
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) { controller.enqueue(new TextEncoder().encode("id: 1\ndata: first\n\n")); },
+      cancel,
+    });
+    bodies.push(body);
+    return new Response(body);
+  });
+  const fail = () => { throw new Error("consumer failed"); };
+  const stop = openSseStream({ url: "http://runtime.test/events", fetchImpl: fetchImpl as typeof fetch,
+    onOpen: kind === "open" ? fail : undefined, onFrame: kind === "frame" ? fail : () => undefined, retryMs: 100 });
+  try {
+    await vi.advanceTimersByTimeAsync(1);
+    expect(signals[0].aborted).toBe(true);
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(bodies[0].locked).toBe(false);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(cancel).toHaveBeenCalledTimes(2);
+    expect(signals.every(signal => signal.aborted)).toBe(true);
+    expect(bodies.every(body => !body.locked)).toBe(true);
+    stop();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  } finally {
+    stop();
+    vi.useRealTimers();
+  }
+});

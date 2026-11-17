@@ -47,6 +47,8 @@ test("assistant turn is marked complete only after the terminal message event", 
   expect(streaming.turns[0].completed).toBe(false);
   const final = conversationReducer(streaming, { type: "event", event: completed });
   expect(final.turns[0]).toMatchObject({ completed: true, text: "模拟委托已受理" });
+  const late = conversationReducer(final, { type: "event", event: { ...delta, id: "late-delta" } });
+  expect(late.turns[0]).toMatchObject({ completed: true, text: "模拟委托已受理" });
 });
 
 test("card events attach backend data to the correct conversation turn", () => {

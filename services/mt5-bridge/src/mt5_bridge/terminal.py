@@ -187,11 +187,16 @@ class Terminal:
         self._lock = threading.Lock()
         self._attached = False
         self._selected: set[str] = set()
-        self._books: set[str] = set()
+        self._books: dict[str, None] = {}  # insertion order is the depth subscription's last use
 
     # -- attachment -----------------------------------------------------------------------
     def _detach(self) -> None:
         if self._attached:
+            for name in self._books:
+                try:
+                    self._mt5.market_book_release(name)
+                except Exception:
+                    pass
             try:
                 self._mt5.shutdown()
             except Exception:  # detaching a dead IPC link may fail; state resets anyway
@@ -199,6 +204,10 @@ class Terminal:
         self._attached = False
         self._selected.clear()
         self._books.clear()
+
+    def close(self) -> None:
+        with self._lock:
+            self._detach()
 
     def _ready(self) -> Any:
         """Returns terminal_info of an attached, broker-connected terminal or raises Unavailable."""
@@ -323,10 +332,14 @@ class Terminal:
                 raise BadRequest("unknown_symbol")
             if name not in self._books:
                 if len(self._books) >= MAX_DEPTH_SUBSCRIPTIONS:
-                    raise BadRequest("too_many_depth_subscriptions")
+                    oldest = next(iter(self._books))
+                    if not self._mt5.market_book_release(oldest):
+                        raise Unavailable("depth_release_failed")
+                    del self._books[oldest]
                 if not self._mt5.market_book_add(name):
                     raise Unavailable("depth_subscribe_failed")
-                self._books.add(name)
+            self._books.pop(name, None)
+            self._books[name] = None
             book = _read(self._mt5.market_book_get(name), self._mt5)
             sell, buy = self._mt5.BOOK_TYPE_SELL, self._mt5.BOOK_TYPE_BUY
             asks = sorted(([e.price, e.volume_dbl] for e in book if e.type == sell), key=lambda e: e[0])

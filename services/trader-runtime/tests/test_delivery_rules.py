@@ -31,6 +31,15 @@ def test_commodity_deadline_is_the_prior_months_last_trading_day():
     assert "9 月 30 日" in notice["text"] and "强平" in notice["text"]
 
 
+def test_estimated_calendar_is_named_in_the_reminder_text_and_card():
+    from trader_runtime.delivery_reminders import _notice_parts
+
+    notice = delivery_notice(RB2610, date(2026, 9, 17))
+    assert notice["estimated"]
+    text, _, _, card = _notice_parts("螺纹2610", "SHFE.rb2610", notice, "2026-09-17")
+    assert "按工作日估算" in text and "按工作日估算" in card["summary"]
+
+
 def test_holiday_months_roll_the_deadline_back_to_a_weekday():
     # 2027-01 交割 → 前一个月是 2026-12，月末 12-31 本身是周四；再往前 2027-04-30 是周五、
     # 2027-05-31 周一。跨年与跨节假日（国庆、春节所在月）都只按“月末最后一个工作日”取。

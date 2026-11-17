@@ -131,3 +131,30 @@ it("rows split by contract: delete here, switch from 其他合约; a crossing is
   fireEvent.click(screen.getAllByRole("button", { name: /^删除提醒：/ })[0]);
   expect(alerts.cancel).toHaveBeenCalledWith("mine");
 });
+
+
+it("a create on an old Runtime cannot close the new form or publish its receipt", async () => {
+  let finish!: (value: Response) => void;
+  vi.stubGlobal("fetch", vi.fn((_url: string, init?: RequestInit) => init?.method === "POST"
+    ? new Promise<Response>(resolve => { finish = resolve; }) : Promise.resolve(json({ active: [], triggered: [] }))));
+  const view = renderHook(({ url }) => usePriceAlerts(url, true), { initialProps: { url: "http://old" } });
+  let submitted!: Promise<boolean>;
+  act(() => { submitted = view.result.current.create("SHFE.au2612", 8000); });
+  view.rerender({ url: "http://new" });
+  view.rerender({ url: "http://old" });
+  await act(async () => { finish(json({ alert: alert() }, 201)); expect(await submitted).toBe(false); });
+  expect(view.result.current.notice).toBe("");
+});
+
+it("another window's alert mutation invalidates an outstanding read", async () => {
+  let finish!: (value: Response) => void;
+  let reads = 0;
+  vi.stubGlobal("fetch", vi.fn(() => ++reads === 1 ? new Promise<Response>(resolve => { finish = resolve; })
+    : Promise.resolve(json({ active: [alert()], triggered: [] }))));
+  const view = renderHook(() => usePriceAlerts("http://runtime", true));
+  act(() => { applyFeedEvent("s", { schemaVersion: 1, id: "nudge", sessionId: "s", kind: "result", name: "feed.ui",
+    timestamp: "now", payload: { reason: "price-alerts" } } as unknown as UiEvent); });
+  await waitFor(() => expect(view.result.current.active).toHaveLength(1));
+  await act(async () => { finish(json({ active: [], triggered: [] })); });
+  expect(view.result.current.active).toHaveLength(1);
+});

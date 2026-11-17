@@ -12,10 +12,23 @@ const task = (status: "running" | "completed") => ({ id: "task-1", type: "task" 
     { id: "s3", label: "读取行情", tool: "get_market_snapshot", status: "done" as const, detail: "已完成" },
   ] } });
 
-function Bubble({ turns, onSend, onOpenChat }: { turns: ConversationTurn[]; onSend: () => Promise<void>; onOpenChat: () => void }) {
-  const command = useAiCommand({ baseUrl: "https://test", turns, busy: false, blockedReason: null, onSend });
+function Bubble({ turns, onSend, onOpenChat, sessionId = "chat-a" }: { turns: ConversationTurn[]; onSend: () => Promise<void>; onOpenChat: () => void; sessionId?: string }) {
+  const command = useAiCommand({ baseUrl: "https://test", sessionId, turns, busy: false, blockedReason: null, onSend });
   return <><button type="button" onClick={() => command.send("突破 3036 提醒我，打开调研")}>发</button><AiCommandBubble command={command} onOpenChat={onOpenChat} /></>;
 }
+
+test("switching chats discards the command receipt and its undo actions, including A to B to A", () => {
+  const onSend = vi.fn(async () => undefined), onOpenChat = vi.fn();
+  const view = render(<Bubble turns={[]} onSend={onSend} onOpenChat={onOpenChat} sessionId="a" />);
+  fireEvent.click(screen.getByRole("button", { name: "发" }));
+  const turns: ConversationTurn[] = [{ id: "other-answer", role: "assistant", text: "另一段对话的结果",
+    timestamp: "", completed: true, cards: [task("completed")] }];
+  view.rerender(<Bubble turns={turns} onSend={onSend} onOpenChat={onOpenChat} sessionId="b" />);
+  expect(screen.queryByRole("button", { name: /撤销/ })).not.toBeInTheDocument();
+  expect(screen.queryByText("另一段对话的结果")).not.toBeInTheDocument();
+  view.rerender(<Bubble turns={turns} onSend={onSend} onOpenChat={onOpenChat} sessionId="a" />);
+  expect(screen.queryByRole("button", { name: /撤销/ })).not.toBeInTheDocument();
+});
 
 test("AI 指令栏：回车发出、Shift+回车不发；结果在 AI 球旁：AI 做的事一句话，撤销走同一个删除接口；有确认卡时提示去对话里确认", async () => {
   const fetcher = vi.fn(async () => new Response("{}"));

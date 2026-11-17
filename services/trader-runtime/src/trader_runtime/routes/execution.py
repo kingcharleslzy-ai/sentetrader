@@ -244,7 +244,8 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
     @application.post("/api/ai-execution/resume")
     async def resume_ai_execution(request: Request, body: AiExecutionResumeRequest) -> dict[str, object]:
         """界面“恢复执行”按钮（用户本人点的）：同 resume_simulation_execution 的恢复，再解除美元子账户被一并停下的
-        停止（#932，所有者 10-30）。AI 自己发起的恢复仍走工具，不替美元子账户解除。"""
+        停止（#932，所有者 10-30）。外部受托 agent 可按同一接口操作；内置 AI 的 app_call 禁止此入口，
+        自己发起的恢复走 resume_simulation_execution 工具，不替美元子账户解除。"""
         user_id = await current_user(request)
         require_session(body.sessionId, user_id)
         autonomy = (await ctx.account_context(request, user_id, session_id=body.sessionId)).account.autonomy

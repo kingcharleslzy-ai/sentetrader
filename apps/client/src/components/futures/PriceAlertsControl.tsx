@@ -73,7 +73,7 @@ function PriceAlertsPopover({ alerts, symbol, name, priceTick, lastPrice, formKe
         {mine.length ? <ul className="fdw-alert-list">
           {mine.map(alert => (
             <li key={alert.id}>
-              <span className="fdw-alert-line"><b data-direction={alert.direction}>{alert.direction === "above" ? "涨到" : "跌到"}</b> {alert.price}{alert.note ? <i>{alert.note}</i> : null}</span>
+              <span className="fdw-alert-line"><b data-direction={alert.direction}>{alert.drawingId ? "碰到画的线" : alert.direction === "above" ? "涨到" : "跌到"}</b> {alert.drawingId ? null : alert.price}{alert.note ? <i>{alert.note}</i> : null}</span>
               <button type="button" aria-label={`删除提醒：${alertLine(alert)}`} title={`删除：${alertLine(alert)}`} onClick={() => alerts.cancel(alert.id)}>×</button>
             </li>
           ))}
@@ -86,8 +86,8 @@ function PriceAlertsPopover({ alerts, symbol, name, priceTick, lastPrice, formKe
               {others.map(alert => (
                 <li key={alert.id}>
                   <button type="button" className="fdw-alert-switch" aria-label={`${alert.name} ${alert.symbol}`}
-                    title={`切到 ${alert.symbol}（价 ${alert.price}）`} onClick={() => onSwitchContract?.(chartSymbolOf(alert.symbol))}>
-                    {alert.name} {alert.direction === "above" ? "涨到" : "跌到"} {alert.price}
+                    title={`切到 ${alert.symbol}${alert.drawingId ? "（画线提醒）" : `（价 ${alert.price}）`}`} onClick={() => onSwitchContract?.(chartSymbolOf(alert.symbol))}>
+                    {alert.name} {alert.drawingId ? "碰到画的线" : `${alert.direction === "above" ? "涨到" : "跌到"} ${alert.price}`}
                   </button>
                   <button type="button" aria-label={`删除提醒：${alertLine(alert)}`} title={`删除：${alertLine(alert)}`} onClick={() => alerts.cancel(alert.id)}>×</button>
                 </li>

@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse
 
 from .data_providers import SidecarReadOnlyDataProvider
 from .fake_agent import FakeAgentAdapter
+from .last_good import write_json_atomic
 from .operations import owned_operation
 from .replay_retention import (
     CLOSED_NAME,
@@ -42,6 +43,24 @@ UNCONFIRMED_LEGACY_NOTICE = "回放这一步的结果无法确认，已暂停交
 DEFINITE_ADVANCE_ERRORS = frozenset({"replay_command_failed", "replay_not_ready", "invalid_replay_request"})
 # Backoff between resends of a pending step (seconds).
 STEP_RESEND_SECONDS = (0.75, 1.5, 3.0, 6.0)
+
+
+def completed_review(root: Path, metadata: dict[str, Any]) -> bool:
+    """A complete report for this replay, not merely a file left by an interrupted writer."""
+    try:
+        report = json.loads((root / "review.json").read_text())
+        snapshot = report["snapshot"]
+        return (isinstance(snapshot, dict) and snapshot.get("replayId") == metadata.get("replayId")
+                and snapshot.get("accountType") == "TqSim" and snapshot.get("liveTrading") == "disabled"
+                and snapshot.get("symbol") == metadata.get("symbol")
+                and snapshot.get("tradingDay") == metadata.get("tradingDay")
+                and isinstance(snapshot.get("account"), dict) and bool(snapshot["account"])
+                and isinstance(snapshot.get("positions"), list) and isinstance(snapshot.get("orders"), list)
+                and isinstance(snapshot.get("trades"), list) and bool(snapshot.get("clock"))
+                and (snapshot.get("status") == "finished" or (snapshot.get("status") == "ready"
+                     and not snapshot["positions"] and not any(order.get("status") == "ALIVE" for order in snapshot["orders"]))))
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return False
 
 
 def replay_account(source: dict[str, Any], commission: float | None = None) -> dict[str, Any]:
@@ -477,6 +496,7 @@ class ReplayContext:
                 await state.simulation_orders.query(link["clientOrderId"], user_id=self.user_id)
         if self.ending:
             await self.finish()
+            return  # finish owns whether another step is needed to settle its original close.
         else:
             await state.autonomy.run_once(force_reconcile=True)
         if self.provider.snapshot["status"] == "ready" and not self.ending and not self.ended:
@@ -512,6 +532,16 @@ class ReplayContext:
         except Exception as error:  # noqa: BLE001
             log.debug("replay advance reminder check failed: %s", error)
 
+    def _save_finish(self) -> None:
+        path = self.child.state.runtime_state_root / "replay.json"
+        metadata = json.loads(path.read_text())
+        if metadata.get("replayId") != self.provider.identifier or metadata.get("userId") != self.user_id:
+            raise ValueError("invalid_replay_identity")
+        write_json_atomic(path, {**metadata, "finish": {"sessionId": self.end_session,
+            "orders": [{"direction": direction, "bucket": bucket, "clientOrderId": identifier}
+                       for (direction, bucket), identifier in self.end_orders.items()],
+            "closeIds": sorted(self.end_close_ids)}})
+
     async def finish(self):
         """Flatten using original order identities until each close is settled."""
         from .order_planner import close_legs
@@ -521,9 +551,16 @@ class ReplayContext:
         self.ending = True
         self.provider.entries_paused = True
         state = self.child.state
+        try:
+            self._save_finish()  # Durable intent precedes any cancel/close or terminal-state change.
+        except (OSError, ValueError, TypeError):
+            self.playing = False
+            self.error = "停盘状态尚未保存，已暂停；请检查磁盘后重试结束。"
+            return
+        completed = False
         if snapshot["status"] == "finished":
             self.error = "行情已结束，剩余持仓按浮盈亏列示，未伪造成交。" if snapshot["positions"] else None
-            self.ending, self.ended, self.playing = False, True, False
+            completed, self.playing = True, False
         else:
             active = [o for o in snapshot["orders"] if o.get("status") == "ALIVE"]
             for order in active:
@@ -572,6 +609,7 @@ class ReplayContext:
                     def record_identity(_, client_order_id, key=key):
                         self.end_orders[key] = client_order_id
                         self.end_close_ids.add(client_order_id)
+                        self._save_finish()
 
                     # Reservation starts only when the order service has a
                     # durable identity. Pre-send validation failures remain retryable.
@@ -591,15 +629,21 @@ class ReplayContext:
                     # until the next step fills it (#932 11-02): keep playing — that step's query
                     # settles it, and one still unknown after it pauses at the check above.
             if not snapshot["positions"]:
-                self.ending, self.ended, self.playing = False, True, False
+                completed, self.playing = True, False
             else:
                 self.playing = True
-        if self.ended:
-            self.provider.stopped = True
+        if completed:
             for strategy in state.store.list_monitoring_strategies():
                 state.proposals.transition_strategy_status(strategy_id=strategy["strategyId"], user_id=self.user_id, target="paused")
             path = state.runtime_state_root / "review.json"
-            path.write_text(json.dumps({"snapshot": snapshot, "feeSchedule": self.provider.fee_schedule}, ensure_ascii=False))
+            try:
+                write_json_atomic(path, {"snapshot": snapshot, "feeSchedule": self.provider.fee_schedule})
+            except OSError:
+                self.playing = False
+                self.error = "停盘报告尚未保存，已暂停；请检查磁盘后重试结束。"
+                return
+            self.ending, self.ended, self.playing = False, True, False
+            self.provider.stopped = True
 
     async def _loop(self):
         while True:
@@ -721,9 +765,10 @@ def adoptable_public(metadata):
     looking finished before adoption too — it is not reopened (R2)."""
     identifier = metadata.get("replayId")
     ended = bool(metadata.get("ended"))
+    ending = bool(metadata.get("ending"))
     return {"replayId": identifier, "status": "loading", "symbol": metadata.get("symbol"),
             "tradingDay": metadata.get("tradingDay"), "clock": None, "precision": None, "error": None,
-            "playing": False, "speed": 1, "notice": None, "entriesPaused": ended, "ending": False,
+            "playing": False, "speed": 1, "notice": None, "entriesPaused": ended or ending, "ending": ending,
             "ended": ended, "feeSchedule": metadata.get("feeSchedule"),
             "runtimePath": f"/api/replays/{identifier}/runtime"}
 
@@ -800,7 +845,9 @@ class ReplayRuntimeRouter:
             if metadata is not None and metadata.get("userId") == user_id:
                 # review.json on disk marks a replay an earlier process flattened to
                 # its end; the listing shows it ended instead of reopening it (R2).
-                items.append({**metadata, "ended": (path.parent / "review.json").exists()})
+                ended = completed_review(path.parent, metadata)
+                ending = not ended and ("finish" in metadata or (path.parent / "review.json").exists())
+                items.append({**metadata, "ended": ended, "ending": ending})
         return items
 
     async def _probe(self, identifier):
@@ -895,12 +942,12 @@ class ReplayRuntimeRouter:
     def _write_metadata(self, identifier, user_id, body, schedule):
         self._metadata_path(identifier).parent.mkdir(parents=True, exist_ok=True)
         (self._metadata_path(identifier).parent / CLOSED_NAME).unlink(missing_ok=True)
-        self._metadata_path(identifier).write_text(json.dumps({
+        write_json_atomic(self._metadata_path(identifier), {
             "replayId": identifier, "userId": user_id, "symbol": body.get("symbol"),
             "tradingDay": body.get("tradingDay"), "initialBalance": body.get("initialBalance"),
             "defaultDurationSeconds": body.get("defaultDurationSeconds"), "feeSchedule": schedule,
             "createdAt": datetime.now().isoformat(timespec="seconds"),
-        }, ensure_ascii=False))
+        })
 
     async def resolve(self, identifier, user_id) -> ReplayContext:
         """The context for this replay, lazily adopting one an earlier process
@@ -949,12 +996,20 @@ class ReplayRuntimeRouter:
                 child = self.create_child(root, provider, user_id, configure=False)
                 context = ReplayContext(user_id, child, provider, parent=self.parent)
                 context.directory_descriptor = descriptor
-                if (root / "review.json").exists():
+                if completed_review(root, metadata):
                     # An earlier process flattened this replay to its end (R2): adoption
                     # restores the terminal state — ended, entries paused, nothing plays.
                     context.ended, provider.entries_paused, provider.stopped = True, True, True
                 else:
                     context.adopt_step()
+                    if "finish" in metadata or (root / "review.json").exists():
+                        context.ending, provider.entries_paused = True, True
+                        finish = metadata.get("finish") or {}
+                        context.end_session = finish.get("sessionId")
+                        context.end_orders = {(item["direction"], item["bucket"]): item["clientOrderId"]
+                                              for item in finish.get("orders", [])}
+                        context.end_close_ids = set(finish.get("closeIds", []))
+                        context.error = "停盘尚未完成；请检查原委托后重试结束。"
                 await context.start()
             except BaseException:
                 if context is not None:

@@ -134,7 +134,7 @@ function PhoneHarness({ onSend }: { onSend: (text: string, spoken?: boolean) => 
   const [tab, setTab] = useState<MobileTab>("ai");
   const ptt = usePushToTalk({ baseUrl: "http://runtime", blockedReason: "", sendOnRelease: true, onSend: vi.fn(), onFill: vi.fn() });
   // As in the workspace (方案 B): the bar's key sends from the page on screen through the AI 指令栏's result.
-  const command = useAiCommand({ baseUrl: "http://runtime", turns: [], busy: false, blockedReason: null, onSend: async (text, spoken) => onSend(text, spoken) });
+  const command = useAiCommand({ baseUrl: "http://runtime", sessionId: "chat-a", turns: [], busy: false, blockedReason: null, onSend: async (text, spoken) => onSend(text, spoken) });
   return <MobileWorkspace tab={tab} onTab={setTab} onOpenChat={() => setTab("chat")} onBell={vi.fn()} quote={undefined} decimals={0} feed={null} ptt={ptt} unread={0}
     command={command} context="今天" chat={<section className="fdm-chat">对话</section>} pages={{ research: null, market: null, strategy: null, me: null }} />;
 }

@@ -972,3 +972,10 @@ def test_quick_volume_is_a_local_ui_setting_and_receipt_matches():
         assert not changes_match({"quickVolume": 3}, command)
     with pytest.raises(ValidationError):
         UiChanges(quickVolume=3)
+
+
+def test_legacy_avatar_command_uses_the_saved_preference_value_for_receipts():
+    from trader_runtime.ui_control import PreferenceChange, changes_match
+    change = PreferenceChange(key="ui.aiAvatar", value="kline")
+    assert change.value == "stone"
+    assert changes_match({"preferences": {"ui": {"aiAvatar": "stone"}}}, {"preference": change.model_dump()})

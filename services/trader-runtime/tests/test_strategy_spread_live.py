@@ -937,7 +937,8 @@ async def test_an_emergency_stop_orders_nothing(tmp_path):
 # -- (9) 重启清扫 ------------------------------------------------------------------------------------
 
 
-async def test_a_restart_mid_execution_sweeps_the_attempt_to_unknown(tmp_path, monkeypatch):
+@pytest.mark.parametrize("interrupted", [False, True])
+async def test_a_restart_mid_execution_sweeps_the_attempt_to_unknown(tmp_path, monkeypatch, interrupted):
     provider, gateway = LiveProvider(), MultiGateway()
     ns = _app(tmp_path / "spread-restart.sqlite3", provider, gateway, _plan())
     gateway.on_submit(SYMBOL_A, FILL)
@@ -954,6 +955,20 @@ async def test_a_restart_mid_execution_sweeps_the_attempt_to_unknown(tmp_path, m
 
     fresh = StrategyMonitorService(store=ns.store, proposals=ns.app.state.proposals,
                                    autonomy=ns.app.state.autonomy)
+    if interrupted:
+        original = ns.store.mark_strategy_execution_follow
+        with monkeypatch.context() as failed:
+            def broken(**kwargs):
+                original(**kwargs)
+                raise RuntimeError("recovery commit failed")
+            failed.setattr(ns.store, "mark_strategy_execution_follow", broken)
+            with pytest.raises(RuntimeError, match="strategy_recovery_notice_not_recorded"):
+                await fresh.run_once()
+        assert not fresh._spread_recovered
+        assert _draft_status(ns) == "monitoring"
+        assert ns.store.connection.execute("SELECT follow_state FROM strategy_execution_attempts WHERE id = ?",
+            (attempt_id,)).fetchone()[0] == "following"
+        assert not _notices(ns.app, "Runtime 在价差执行中途重启")
     await fresh.run_once()                                # 首轮先跑重启清扫
     attempt = _attempts(ns)[0]
     assert attempt["status"] == "UNKNOWN"
@@ -1120,6 +1135,55 @@ async def test_an_order_somebody_else_ended_is_not_chased(tmp_path):
 
     assert gateway.submit_count == 1 and gateway.cancel_count == 0
     assert _attempts(ns)[0]["status"] == "CANCELLED" and _draft_status(ns) == "monitoring"
+    ns.store.close()
+
+
+@pytest.mark.parametrize("filled", [0, 1])
+@pytest.mark.parametrize("during_cancel", [False, True])
+async def test_external_end_never_grants_single_follow_permission_to_resend(tmp_path, monkeypatch, filled, during_cancel):
+    provider, gateway = LiveProvider(), MultiGateway()
+    plan = _plan(rules={"entryLong": {"conditions": [GT_ZERO]},
+                        "exitLong": {"conditions": [NEVER]}}, spread=None, maxPosition=2)
+    ns = _app(tmp_path / "external-end.sqlite3", provider, gateway, plan)
+    ended = {"status": "FINISHED", "volume_left": 2 - filled}
+    if during_cancel:
+        original = ns.app.state.autonomy.cancel_order
+
+        async def end_before_cancel(**kwargs):
+            gateway.on_query(SYMBOL_A, ended)
+            await ns.app.state.autonomy.query_order(user_id=USER, client_order_id=kwargs["client_order_id"])
+            return await original(**kwargs)
+
+        monkeypatch.setattr(ns.app.state.autonomy, "cancel_order", end_before_cancel)
+    else:
+        gateway.on_query(SYMBOL_A, ended)
+    _walk_open_signal(provider)
+    await ns.monitor.run_once()
+    await asyncio.wait_for(ns.executor.drain(), timeout=2)
+    assert gateway.submit_count == 1 and gateway.cancel_count == 0
+    assert len(_attempts(ns)[0]["legs"]) == 1
+    ns.store.close()
+
+
+async def test_single_follow_does_not_adopt_another_cancel_request(tmp_path, monkeypatch):
+    provider, gateway, ns = _single(tmp_path, "cancel-ownership")
+    original = ns.app.state.simulation_orders.cancel
+
+    async def competing_cancel(client_order_id, *, user_id, require_own_request=False):
+        # Another caller claimed cancellation after our read but before the
+        # compare-and-set. The original ALIVE view cannot grant ownership.
+        ns.store.connection.execute(
+            "UPDATE tqkq_sim_order_links SET cancel_phase = 'CALL_STARTED' WHERE client_order_id = ?",
+            (client_order_id,))
+        ns.store.connection.commit()
+        return await original(client_order_id, user_id=user_id, require_own_request=require_own_request)
+
+    monkeypatch.setattr(ns.app.state.simulation_orders, "cancel", competing_cancel)
+    _walk_open_signal(provider)
+    await ns.monitor.run_once()
+    await ns.executor.drain()
+    assert gateway.submit_count == 1 and gateway.cancel_count == 0
+    assert _attempts(ns)[0]["outcome"] == "unknown"
     ns.store.close()
 
 

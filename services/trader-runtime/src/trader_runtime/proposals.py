@@ -702,7 +702,7 @@ class ProposalService:
 
     def transition_strategy_status(
         self, *, strategy_id: str, user_id: str, target: str,
-        validation_report_id: str | None = None,
+        validation_report_id: str | None = None, connection: sqlite3.Connection | None = None,
     ) -> dict[str, Any]:
         strategy = self.store.get_strategy_draft(strategy_id, user_id=user_id)
         current = str(strategy["status"])
@@ -739,7 +739,7 @@ class ProposalService:
             strategy_id,
             user_id=user_id,
             expected_status=current,
-            status=target,
+            status=target, connection=connection,
         )
 
     def pause_monitoring_strategies(self, *, user_id: str | None, trading_account_id: str) -> list[str]:

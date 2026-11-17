@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { deletePlaybook, listPlaybooks, savePlaybook, type Playbook, type PlaybookFields } from "../../api";
 import { readNetworkMode, readQueryClient, useReadIdentity } from "../../runtimeClient";
+import { useIdentityFence } from "../../hooks/useIdentityFence";
 import { useStrategies } from "../../strategyApi";
 import { useDisclosureSurface } from "../../uiSurfaces";
 import { SectionCard } from "../Blocks";
@@ -9,7 +10,11 @@ import { Button, Select, TextInput } from "../settings/controls";
 import "./PlaybookPage.css";
 
 const NO_PLAYBOOKS: Playbook[] = [];
-const playbooksChanged = () => readQueryClient.invalidateQueries({ queryKey: ["playbooks"] });
+const playbooksChanged = async (identity: number, baseUrl: string) => {
+  const queryKey = ["playbooks", identity, baseUrl];
+  await readQueryClient.cancelQueries({ queryKey });
+  await readQueryClient.invalidateQueries({ queryKey });
+};
 
 /** 打法本 (2026-10-25): the user's setups, one cache entry per Runtime, re-read whenever one is saved or deleted
  *  here (the ticket's 打法 choice reads the same entry). */
@@ -34,6 +39,9 @@ function Rules({ label, value, onChange, max }: { label: string; value: string; 
 /** 交易笔记 (was the 策略 panel's 打法 tab; on 复盘 since 改版第一步 2026-10-31): one block per setup with its three rule
  *  lines; 新建笔记 / 改 open the editor (`disclosure: playbook-editor`); 删 asks once more. */
 export function PlaybookPage({ baseUrl }: { baseUrl: string }) {
+  const fence = useIdentityFence([baseUrl]);
+  const revision = useRef(0);
+  const saveSequence = useRef(0);
   const { items, max, error, loaded } = usePlaybooks(baseUrl);
   // 关联策略: the user's strategies, not the 只提醒 ones; a failed read only leaves the choice at 不关联.
   const strategies = (useStrategies(baseUrl).data?.items ?? []).filter(item => !item.definition.plan?.reminderOnly);
@@ -43,28 +51,39 @@ export function PlaybookPage({ baseUrl }: { baseUrl: string }) {
   const [saving, setSaving] = useState(false);
   const [problem, setProblem] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  useEffect(() => {
+    revision.current += 1; saveSequence.current += 1;
+    setSaving(false); setProblem(""); setConfirmDelete(null); setFields(EMPTY); setEditing(null); setEditorOpen(false);
+  }, [fence, setEditorOpen]);
+  useEffect(() => { revision.current += 1; }, [editorOpen]);
   const strategyName = (id: string | null) => strategies.find(item => item.strategyId === id)?.name;
   const open = (playbook?: Playbook) => {
+    revision.current += 1; saveSequence.current += 1;
+    setSaving(false);
     setEditing(playbook?.id ?? null);
     setFields(playbook ? { name: playbook.name, entryRules: playbook.entryRules, exitRules: playbook.exitRules, stopRules: playbook.stopRules, strategyId: playbook.strategyId } : EMPTY);
     setProblem("");
     setEditorOpen(true);
   };
   const save = async () => {
+    const version = revision.current;
+    const request = ++saveSequence.current;
+    const current = () => fence.isCurrent() && revision.current === version;
     setSaving(true); setProblem("");
     try {
       await savePlaybook(baseUrl, { ...fields, strategyId: fields.strategyId || null }, editing ?? undefined);
-      setEditorOpen(false);
-      void playbooksChanged();
-    } catch (cause) { setProblem(cause instanceof Error ? cause.message : "没有保存，请重试"); }
-    finally { setSaving(false); }
+      if (!fence.isCurrent()) return;
+      void playbooksChanged(fence.context.identity, baseUrl);
+      if (current()) setEditorOpen(false);
+    } catch (cause) { if (current()) setProblem(cause instanceof Error ? cause.message : "没有保存，请重试"); }
+    finally { if (fence.isCurrent() && saveSequence.current === request) setSaving(false); }
   };
   const remove = async (id: string) => {
     setConfirmDelete(null);
-    try { await deletePlaybook(baseUrl, id); void playbooksChanged(); }
-    catch (cause) { setProblem(cause instanceof Error ? cause.message : "没有删掉，请重试"); }
+    try { await deletePlaybook(baseUrl, id); if (fence.isCurrent()) void playbooksChanged(fence.context.identity, baseUrl); }
+    catch (cause) { if (fence.isCurrent()) setProblem(cause instanceof Error ? cause.message : "没有删掉，请重试"); }
   };
-  const set = (key: keyof PlaybookFields) => (value: string) => setFields(current => ({ ...current, [key]: value }));
+  const set = (key: keyof PlaybookFields) => (value: string) => { revision.current += 1; setFields(current => ({ ...current, [key]: value })); };
   return <div className="playbook-page" data-agent-target="review-playbooks">
     <SectionCard title="交易笔记" hint={HINT} helpKey="playbooks"
       actions={editorOpen ? undefined : <Button primary disabled={items.length >= max} onClick={() => open()}>新建笔记</Button>}>
@@ -79,12 +98,12 @@ export function PlaybookPage({ baseUrl }: { baseUrl: string }) {
         <Rules label="出场规则" value={fields.exitRules} max={300} onChange={set("exitRules")} />
         <Rules label="止损规则" value={fields.stopRules} max={200} onChange={set("stopRules")} />
         <label className="playbook-field"><span>关联策略</span>
-          <Select label="关联策略" value={fields.strategyId ?? ""} onChange={value => setFields(current => ({ ...current, strategyId: value || null }))}
+          <Select label="关联策略" value={fields.strategyId ?? ""} onChange={set("strategyId")}
             options={[{ value: "", label: "不关联" }, ...strategies.map(item => ({ value: item.strategyId, label: item.name }))]} /></label>
         {problem ? <p role="alert">{problem}</p> : null}
         <div className="playbook-actions">
           <Button primary disabled={saving || !fields.name.trim()} onClick={() => void save()}>保存</Button>
-          <Button disabled={saving} onClick={() => setEditorOpen(false)}>取消</Button>
+          <Button disabled={saving} onClick={() => { revision.current += 1; setEditorOpen(false); }}>取消</Button>
         </div>
       </div>
     </SectionCard> : null}

@@ -125,6 +125,21 @@ function publishRelease({ tag, files, notes, gh }) {
   const existing = gh("gh", ["release", "view", tag, "--repo", PUBLIC_REPO, "--json", "url,assets", "-q", "[.url, (.assets|map(.name)|join(\",\"))]|join(\" \")"]);
   if (existing.code === 0) {
     const [url, names = ""] = existing.out.split(" ");
+    // A same-name installer can come from another build. Verify all existing bytes before filling
+    // a partial release, so neither its installers nor its checksum file mix provenance on retry.
+    const verify = mkdtempSync(join(tmpdir(), "sente-public-verify-"));
+    try {
+      for (const file of files.filter(file => names.split(",").includes(file.split("/").pop()))) {
+        const name = file.split("/").pop();
+        const downloaded = gh("gh", ["release", "download", tag, "--repo", PUBLIC_REPO, "--pattern", name, "--dir", verify]);
+        if (downloaded.code !== 0) throw new Error(`sync_public_repo_verify_failed:${name}`);
+        const remote = createHash("sha256").update(readFileSync(join(verify, name))).digest("hex");
+        const local = createHash("sha256").update(readFileSync(file)).digest("hex");
+        if (remote !== local) throw new Error(`sync_public_repo_existing_asset_mismatch:${name}`);
+      }
+    } finally {
+      rmSync(verify, { recursive: true, force: true });
+    }
     const missing = files.filter((file) => !names.split(",").includes(file.split("/").pop()));
     if (missing.length) {
       const up = gh("gh", ["release", "upload", tag, "--repo", PUBLIC_REPO, ...missing]);

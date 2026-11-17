@@ -32,7 +32,7 @@ class PlaybookStore(StoreBase):
         """Insert one setup. Returns its view, or the Chinese refusal (the per-user cap, a name already
         used) — checked and written in one locked transaction."""
         playbook_id, now = uuid4().hex, utc_now()
-        with self.lock, self.connection:
+        with self.transaction():
             held = self.connection.execute("SELECT COUNT(*) FROM playbooks WHERE user_id = ?", (user_id,)).fetchone()[0]
             if held >= max_count:
                 return f"交易笔记最多 {max_count} 条，先删掉一条再加"
@@ -49,7 +49,7 @@ class PlaybookStore(StoreBase):
 
     def update_playbook(self, playbook_id: str, *, user_id: str, fields: dict[str, Any]) -> dict[str, Any] | str | None:
         """Replace one setup's fields. None = not the user's; a string = the Chinese refusal (name taken)."""
-        with self.lock, self.connection:
+        with self.transaction():
             if self.connection.execute("SELECT 1 FROM playbooks WHERE id = ? AND user_id = ?",
                                        (playbook_id, user_id)).fetchone() is None:
                 return None

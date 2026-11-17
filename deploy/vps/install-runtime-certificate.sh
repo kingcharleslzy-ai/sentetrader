@@ -20,28 +20,44 @@ listener_serial() {
   timeout 15 openssl s_client -connect 127.0.0.1:8443 -servername "$domain" \
     </dev/null 2>/dev/null | openssl x509 -noout -serial
 }
-if [ "$new_serial" != "$old_serial" ]; then
+# A matching leaf serial alone does not prove an interrupted install completed.
+cp "$tmp/$domain.issuer.crt" "$tmp/chain.pem"
+cp "$tmp/$domain.crt" "$tmp/fullchain.pem"
+files_changed=false
+for name in cert chain fullchain; do
+  if ! cmp -s "$tmp/$name.pem" "$live/$name.pem"; then files_changed=true; fi
+done
+if [ "$files_changed" = true ]; then
   backup=/opt/ai-trader/backups/cert-dns-$(date -u +%Y%m%dT%H%M%SZ)
   mkdir -m 700 "$backup"
   for name in cert chain fullchain; do cp -L "$live/$name.pem" "$backup/$name.pem"; done
   rollback() {
     for name in cert chain fullchain; do
-      dest=$(readlink -f "$live/$name.pem")
-      install -m 644 "$backup/$name.pem" "$dest.pending"
-      mv -f "$dest.pending" "$dest"
+      dest=$(readlink -f "$live/$name.pem") || return
+      install -m 644 "$backup/$name.pem" "$dest.pending" || return
+      mv -f "$dest.pending" "$dest" || return
     done
     nginx -t && systemctl reload nginx
   }
-  trap 'rollback; rm -rf "$tmp"' ERR
-  cp "$tmp/$domain.issuer.crt" "$tmp/chain.pem"
-  cp "$tmp/$domain.crt" "$tmp/fullchain.pem"
+  fail_install() {
+    status=$1
+    trap - ERR HUP INT TERM
+    if ! rollback; then
+      echo "Certificate rollback incomplete; backup retained at $backup" >&2
+    fi
+    exit "$status"
+  }
+  trap 'fail_install $?' ERR
+  trap 'fail_install 129' HUP
+  trap 'fail_install 130' INT
+  trap 'fail_install 143' TERM
   for name in cert chain fullchain; do
     dest=$(readlink -f "$live/$name.pem")
     install -m 644 "$tmp/$name.pem" "$dest.pending"
     mv -f "$dest.pending" "$dest"
   done
 fi
-if [ "$new_serial" != "$old_serial" ] || [ "$(listener_serial)" != "$new_serial" ]; then
+if [ "$files_changed" = true ] || [ "$(listener_serial)" != "$new_serial" ]; then
   nginx -t
   systemctl reload nginx
   echo 'Certificate loaded with nginx reload'
@@ -56,6 +72,6 @@ done
 [ "$loaded" = true ] || { echo 'Listener certificate mismatch' >&2; false; }
 curl --noproxy '*' -fsS --max-time 15 --resolve "$domain:8443:127.0.0.1" \
   "https://$domain:8443/healthz" >/dev/null
-trap - ERR
+trap - ERR HUP INT TERM
 echo 'Listener certificate and health verified'
 openssl x509 -in "$live/cert.pem" -noout -serial -enddate

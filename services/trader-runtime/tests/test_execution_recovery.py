@@ -295,3 +295,22 @@ async def test_limits_conflict_and_update_preserve_stop_and_consumption(tmp_path
     assert current["status"] == "EMERGENCY_STOP" and current["usedOrders"] == 1
     assert current["authorizationId"] == auth["authorizationId"]
     app.state.store.close()
+
+
+async def test_embedded_resume_cannot_dispatch_the_human_cross_account_route(tmp_path):
+    from fastapi import HTTPException
+
+    from trader_runtime.agent_api import AppCall
+
+    app = application(tmp_path / "embedded-resume.sqlite3", Gateway())
+    session = app.state.broker.create_session("local", "native", USER)
+    try:
+        before = app.state.store.connection.total_changes
+        with pytest.raises(HTTPException, match="human_resume_forbidden") as denied:
+            await app.state.app_capabilities.call(AppCall(operation="POST /api/ai-execution/resume",
+                body={"sessionId": session.session_id, "symbol": "SHFE.au2612"}),
+                user=USER, session_id=session.session_id)
+        assert denied.value.status_code == 409
+        assert app.state.store.connection.total_changes == before
+    finally:
+        app.state.store.close()

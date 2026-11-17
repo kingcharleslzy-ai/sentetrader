@@ -64,6 +64,7 @@ class Collector:
     timeout_error: str = FETCH_TIMEOUT  # the error a reader that stopped waiting sees (the fetch keeps running)
     _pool: ThreadPoolExecutor = field(init=False, repr=False)
     _inflight: dict[str, Future[dict[str, Any]]] = field(default_factory=dict, init=False, repr=False)
+    _snapshots: dict[str, Any] = field(default_factory=dict, init=False, repr=False)
     _epochs: dict[str, object] = field(default_factory=dict, init=False, repr=False)  # the epoch each fetch started in
     _closed: bool = field(default=False, init=False, repr=False)
     # Re-entrant: a future that is already done runs its done-callback (which takes the guard) inline.
@@ -105,6 +106,7 @@ class Collector:
                         continue
                     future = self._inflight.get(key)
                     if future is None:
+                        self._snapshots[key] = self.kept.saved(key)
                         future = self._inflight[key] = self._pool.submit(request.fetch)
                         self._epochs[key] = epoch
                         # Recorded the moment it finishes, whether or not anyone still waits on it.
@@ -159,6 +161,7 @@ class Collector:
         with self._guard:
             self._closed = True
             self._inflight.clear()
+            self._snapshots.clear()
         self._pool.shutdown(wait=False, cancel_futures=True)
 
     def _settled(self, key: str, ttl: float, retry: float, unavailable: str, _done: object = None) -> None:
@@ -178,6 +181,7 @@ class Collector:
         if future is None or not future.done() or self._closed:
             return
         del self._inflight[key]
+        before = self._snapshots.pop(key, None)
         if future.cancelled():  # the lane closed under it
             return
         passed = self._passthrough(future)
@@ -194,7 +198,7 @@ class Collector:
         if payload.get("status") != "ok":
             self.kept.failed(key, payload.get("error") or unavailable, retry)
             return
-        self.kept.succeeded(key, payload, retry if payload.get("partial") else ttl)
+        self.kept.succeeded(key, payload, retry if payload.get("partial") else ttl, expected=before)
 
 
 class SourceFailed(Exception):
@@ -259,6 +263,7 @@ class AsyncCollector:
 
     async def _fill_many(self, keys: list[str], fetch: Callable[[list[str]], Awaitable[dict[str, Any]]], ttl: float,
                          retry: float, timeout: float | None, timeout_error: str) -> None:
+        before = {key: self.kept.saved(key) for key in keys}
         try:
             values = await (asyncio.wait_for(fetch(keys), timeout) if timeout is not None else fetch(keys))
         except TimeoutError:
@@ -269,7 +274,7 @@ class AsyncCollector:
             code, wait = f"{self.lane}:{type(error).__name__}", retry
         else:
             for key in keys:
-                self.kept.succeeded(key, values.get(key), ttl)
+                self.kept.succeeded(key, values.get(key), ttl, expected=before[key])
             return
         log.warning("collect_failed lane=%s keys=%d error=%s", self.lane, len(keys), code)
         for key in keys:
@@ -281,6 +286,7 @@ class AsyncCollector:
 
     async def _fill(self, key: str, fetch: Callable[[], Awaitable[Any]], ttl: float, retry: float,
                     timeout: float | None, timeout_error: str, unavailable: str) -> Kept:
+        before = self.kept.saved(key)
         try:
             value = await (asyncio.wait_for(fetch(), timeout) if timeout is not None else fetch())
         except TimeoutError:
@@ -288,7 +294,7 @@ class AsyncCollector:
         except SourceFailed as failure:
             code, wait = failure.code, retry if failure.retry is None else failure.retry
         else:
-            return self.kept.succeeded(key, value, ttl)
+            return self.kept.succeeded(key, value, ttl, expected=before)
         log.warning("collect_failed lane=%s key=%s error=%s", self.lane, key, code)
         self.kept.failed(key, code, wait)
         return self._kept_or_raise(key, unavailable)

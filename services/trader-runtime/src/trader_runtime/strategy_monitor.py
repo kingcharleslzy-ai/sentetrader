@@ -255,8 +255,8 @@ class StrategyMonitorService:
         if not self._spread_recovered:
             # One sweep on the first cycle after a (re)start: a spread attempt that was mid-flight
             # is UNKNOWN — its legs' true state cannot be rebuilt — the strategy pauses for the user.
-            self._spread_recovered = True
             await self.spread_execution.recover_interrupted()
+            self._spread_recovered = True
         results = []
         monitoring = self.store.list_monitoring_strategies(trading_account_id=self.account_id)
         # 等待行情: a paused / stopped strategy's wait ends with its monitoring — a later resume
@@ -1171,9 +1171,9 @@ class StrategyMonitorService:
 
     # -- 执行方式 (2026-09-25) ------------------------------------------------------------------
 
-    def forget_offer(self, strategy_id: str, user_id: str) -> None:
+    def forget_offer(self, strategy_id: str, user_id: str, *, connection: Any = None) -> None:
         """A changed 执行方式 or a stop: the current signal is offered afresh next time."""
-        self.store.reset_strategy_signal(strategy_id=strategy_id, user_id=user_id)
+        self.store.reset_strategy_signal(strategy_id=strategy_id, user_id=user_id, connection=connection)
 
     def signal_mode(self, strategy: dict[str, Any]) -> str:
         """The instance's own 执行方式; auto degrades to confirm while AI 自主执行 is off. A 只提醒 strategy
@@ -1260,6 +1260,7 @@ class StrategyMonitorService:
         self, strategy: dict[str, Any], text: str, *, kind: str, session_id: str | None = None,
         cards: list[tuple[str, dict[str, Any]]] | None = None, turn_id: str | None = None,
         speak: bool = True, dedupe_key: str | None = None,
+        commit: Callable[[Any], None] | None = None,
     ) -> bool:
         """One message (plus the given cards) in the instance's conversation through the one reminder entry
         (#932): the 策略 switch (notify.strategySignalAlerts) over every channel, the 提醒中心 row, the desktop
@@ -1287,12 +1288,12 @@ class StrategyMonitorService:
             title=f"{'条件提醒' if reminder else '策略'} · {self._display_name(strategy)}", body=text, symbol=str(strategy.get("symbol") or ""),
             message=text, turn_id=turn, cards=list(cards or []), session_id=session_id, auto_landing=False,
             essential=kind in ESSENTIAL_NOTICE_KINDS, speech=text if speak else None, voice_kind=kind,
-            voice_key=str(strategy["strategyId"]),
+            voice_key=str(strategy["strategyId"]), commit=commit,
             push=(strategy_message(name=self._display_name(strategy), text=text,
                                    card_id=str(card_id) if card_id else None)
                   if kind in PUSHED_NOTICE_KINDS else None)),
             broker=broker, voice=voice)
-        return delivery.landed
+        return delivery.outcome != "failed" if commit is not None else delivery.landed
 
     async def _alert_signal(
         self, *, strategy: dict[str, Any], intent: dict[str, Any], action: str, volume: int, bar_time: str,
@@ -1304,12 +1305,6 @@ class StrategyMonitorService:
         from .strategy_intents import signal_action_label
         strategy_id = strategy["strategyId"]
         attempt_id = str(uuid4())
-        if not self.store.reserve_strategy_execution_attempt(
-            attempt_id=attempt_id, strategy_id=strategy_id, user_id=strategy["userId"],
-            intent_id=intent["intentId"], signal_bar_time=bar_time, trading_day=trading_day,
-            action=action, volume=volume, trading_account_id=self.account_id, signal_action="alert",
-        ):
-            return {"strategyId": strategy_id, "status": "duplicate", "detail": "该已完成K线已提醒。"}
         label = signal_action_label(intent, action)
         act = "加仓" if (intent["signalSnapshot"] or {}).get("add") else label
         # 提醒页的提醒 (改版第一步 2026-10-31) asks no 做多 / 做空: its message names no side.
@@ -1332,21 +1327,34 @@ class StrategyMonitorService:
                 f"{signal + '，' if signal else ''}{act}条件满足（只提醒，未下单）")
         if legs_text is not None:
             text += f"：{legs_text}"
-        self.store.finish_strategy_execution_attempt(attempt_id=attempt_id, status="SKIPPED",
-                                                     detail=f"只提醒，未下单：{act}条件满足")
-        if _reminder_options(strategy).get("repeat") == "once" and self._stop_reminder(strategy):
+        once = _reminder_options(strategy).get("repeat") == "once"
+        if once:
             text += "；只响一次，这条提醒已自动停了"
-        await self._session_notice(strategy, text, kind="strategy-signal")
+        def complete(_connection: Any) -> None:
+            if not self.store.reserve_strategy_execution_attempt(
+                attempt_id=attempt_id, strategy_id=strategy_id, user_id=strategy["userId"],
+                intent_id=intent["intentId"], signal_bar_time=bar_time, trading_day=trading_day,
+                action=action, volume=volume, trading_account_id=self.account_id, signal_action="alert", connection=_connection,
+            ):
+                raise RuntimeError("strategy_signal_already_consumed")
+            self.store.finish_strategy_execution_attempt(attempt_id=attempt_id, status="SKIPPED",
+                                                         detail=f"只提醒，未下单：{act}条件满足", connection=_connection)
+            if once:
+                self._stop_reminder(strategy, connection=_connection)
+
+        if not await self._session_notice(strategy, text, kind="strategy-signal",
+                                          dedupe_key=f"signal:{bar_time}:{action}", commit=complete):
+            return {"strategyId": strategy_id, "status": "waiting", "detail": "提醒尚未保存，下轮重试。"}
         return {"strategyId": strategy_id, "status": "alerted", "action": action, "detail": text}
 
-    def _stop_reminder(self, strategy: dict[str, Any]) -> bool:
+    def _stop_reminder(self, strategy: dict[str, Any], *, connection: Any = None) -> bool:
         """A 提醒 that is done (响过一次 / 到期) stops itself like 停止: back to ready, its history kept."""
         strategy_id, user_id = str(strategy["strategyId"]), str(strategy["userId"])
         try:
-            self.proposals.transition_strategy_status(strategy_id=strategy_id, user_id=user_id, target="ready")
+            self.proposals.transition_strategy_status(strategy_id=strategy_id, user_id=user_id, target="ready", connection=connection)
         except (KeyError, ProposalConflict):
             return False   # already stopped or paused meanwhile
-        self.forget_offer(strategy_id, user_id)
+        self.forget_offer(strategy_id, user_id, connection=connection)
         return True
 
     def _reminder_expired(self, strategy: dict[str, Any]) -> bool:

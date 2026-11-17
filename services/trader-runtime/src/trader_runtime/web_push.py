@@ -75,10 +75,11 @@ def endpoint_refusal(endpoint: str) -> str | None:
     (unreachable from here); `push_endpoint_invalid` for anything else."""
     try:
         url = urlparse(str(endpoint))
+        host = (url.hostname or "").lower()
+        port = url.port
     except ValueError:
         return "push_endpoint_invalid"
-    host = (url.hostname or "").lower()
-    if url.scheme != "https" or not host or url.username or url.password or url.port not in (None, 443):
+    if url.scheme != "https" or not host or url.username or url.password or port not in (None, 443):
         return "push_endpoint_invalid"
     if host in _FCM_HOSTS or host.endswith(".googleapis.com"):
         return "push_endpoint_unsupported"
@@ -248,6 +249,7 @@ def morning_message(*, lines: list[str]) -> PushMessage:
 
 def activity_events(seen: dict[str, set[str]] | None, activity: dict[str, Any], *, now_ns: int,
                     since_ns: int | None = None, retrying: set[str] | frozenset[str] = frozenset(),
+                    retrying_cancels: set[str] | frozenset[str] = frozenset(),
                     ) -> tuple[dict[str, set[str]], list[dict[str, Any]], list[dict[str, Any]]]:
     """成交与撤单's one detector (the account ledger calls it on every activity read): the fills and
     the cancelled orders this read shows for the first time. A fill older than FILL_RECENT_SECONDS when
@@ -267,9 +269,10 @@ def activity_events(seen: dict[str, set[str]] | None, activity: dict[str, Any], 
                      "cancelled": {str(item["clientOrderId"]) for item in cancelled}}, [], [])
         recent = now_ns - CANCEL_RECENT_SECONDS * 1_000_000_000
         seen = {"trades": {str(item["tradeId"]) for item in trades
-                           if int(_number(item.get("tradeDateTime")) or 0) < since_ns},
+                           if int(_number(item.get("tradeDateTime")) or 0) < since_ns and str(item["tradeId"]) not in retrying},
                 "cancelled": {str(item["clientOrderId"]) for item in cancelled
-                              if int(_number(item.get("insertDateTime")) or 0) < max(since_ns, recent)}}
+                              if int(_number(item.get("insertDateTime")) or 0) < max(since_ns, recent)
+                              and str(item["clientOrderId"]) not in retrying_cancels}}
     fresh = [item for item in trades if str(item["tradeId"]) not in seen["trades"]]
     grouped: dict[str, dict[str, Any]] = {}
     for trade in fresh:

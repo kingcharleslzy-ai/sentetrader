@@ -62,6 +62,10 @@ def regimes(density: list[float | None], smooth: int = SMOOTH) -> list[tuple[flo
     fused = False
     out: list[tuple[float | None, bool]] = []
     for index in range(len(density)):
+        if density[index] is None:
+            fused = False
+            out.append((None, False))
+            continue
         seen = [value for value in density[max(0, index - smooth + 1):index + 1] if value is not None]
         smoothed = sum(seen) / len(seen) if seen else None
         if smoothed is not None:

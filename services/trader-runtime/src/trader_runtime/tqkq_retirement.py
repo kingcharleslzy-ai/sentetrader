@@ -36,6 +36,10 @@ async def retire_tqkq_account(ctx: Any, account_id: str, *, keep_credentials: bo
             await pool.detach(account_id, reason="tqkq_retired")
         else:
             await pool.release(account_id, reason="tqkq_retired")
+    # Grants and the active row are the boot scanner's unfinished-work marker. Retain them
+    # until every rebind succeeds, so a failed move is rediscovered on the next boot.
+    for user_id, paper_id in papers.items():
+        await _move_to_paper(ctx, user_id=user_id, account_id=account_id, paper_id=paper_id)
     if not keep_credentials:
         credentials = store.load_tqkq_credentials(user_id=owner)
         if credentials is not None and str(credentials["account_id"]) == account_id:
@@ -43,8 +47,7 @@ async def retire_tqkq_account(ctx: Any, account_id: str, *, keep_credentials: bo
     store.delete_account_grants(account_id=account_id)
     if not keep_credentials:
         store.disable_trading_account(account_id)
-    for user_id, paper_id in papers.items():
-        await _move_to_paper(ctx, user_id=user_id, account_id=account_id, paper_id=paper_id)
+
 
 
 async def _move_to_paper(ctx: Any, *, user_id: str, account_id: str, paper_id: str) -> None:

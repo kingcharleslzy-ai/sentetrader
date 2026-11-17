@@ -276,7 +276,7 @@ def build_legs(fills: list[dict[str, Any]], *, trading_day: str, sources: dict[s
         code = symbol.split(".", 1)[-1].upper()
         legs.append({
             "id": f"L{index}", "orderId": key, "tradeIds": trade_ids, "symbol": symbol, "name": name,
-            "time": datetime.fromtimestamp(at / NS, UTC).astimezone(CHINA).isoformat(timespec="minutes"),
+            "time": datetime.fromtimestamp(at / NS, UTC).astimezone(CHINA).isoformat(), "atNs": str(at),
             "clock": _clock(at), "side": side, "volume": volume, "price": round(price, 4),
             "action": " ".join(part for part in (side, name, code) if part) + f" × {volume} @ {price_text(round(price, 4))}",
             "source": source, "sourceLabel": str(info.get("strategyName") or SOURCE_LABELS.get(source, source)),
@@ -495,7 +495,7 @@ class DailyReviewService:
             except KeyError:
                 continue
             long = leg["side"] == OPEN_SIDES["BUY"]
-            filled = int(datetime.fromisoformat(leg["time"]).timestamp() * NS)
+            filled = trade_autopsy._leg_ns(leg)
             at = min(placed.get(leg["orderId"], filled), filled)
             fits = await asyncio.to_thread(trade_autopsy.strategy_entry_fit, services.provider, strategy["definition"],
                                            leg["symbol"], at_ns=at, long=long)
@@ -541,6 +541,10 @@ class DailyReviewService:
                                             days=30, trading_account_id=account_id, desk=desk, now=review_at)
         sources = await asyncio.to_thread(order_sources, store, user_id)
         reminders = await asyncio.to_thread(load_reminders, store, user_id=user_id, account_id=account_id)
+        # No later trade date's reminders may enter an historical review (including its model facts).
+        end = datetime.combine(date.fromisoformat(trading_day), clock_time(17 if is_foreign_paper(account_id) else 18),
+                               tzinfo=NEW_YORK if is_foreign_paper(account_id) else CHINA)
+        reminders = [item for item in reminders if item.at_ns < int(end.timestamp() * NS)]
         placed = await asyncio.to_thread(order_placed_times, store, user_id)
         names = await asyncio.to_thread(self._names, services.provider, {str(item["symbol"]).upper() for item in fills})
         legs = build_legs(fills, trading_day=trading_day, sources=sources, placed=placed, reminders=reminders,
@@ -600,7 +604,7 @@ class DailyReviewService:
         if picked is None:
             return None
         adapter, model = picked
-        start = min(int(datetime.fromisoformat(leg["time"]).timestamp() * NS) for leg in legs) - 3600 * NS
+        start = min(trade_autopsy._leg_ns(leg) for leg in legs) - 3600 * NS
         facts = {
             "tradingDay": trading_day, "stats": stats, "dayNetPnl": pnl, "commission": commission,
             "legs": [{**{key: leg[key] for key in ("id", "clock", "action", "tagLabel", "reason", "sourceLabel", "pnl")},

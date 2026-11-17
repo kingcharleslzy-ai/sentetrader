@@ -681,3 +681,28 @@ async def test_a_pushed_review_is_corrected_quietly_once_the_day_settles(tmp_pat
     finally:
         await http.aclose()
         app.state.store.close()
+
+
+def test_leg_retains_the_exact_fill_instant_for_protection_history():
+    at = ns(bj(10, 48, 39)) + 123456789
+    item = fill("precise", RB, "SELL", "CLOSE", 3188, bj(10, 48), order="close")
+    item["tradeDateTime"] = at
+    leg = build_legs([item], trading_day=DAY, sources={}, placed={}, reminders=[], rounds=[], names={})[0]
+    assert leg["clock"] == "10:48"
+    assert trade_autopsy._leg_ns(leg) == at
+    stops = [{"symbol": RB.upper(), "direction": "long", "created": at - 1, "updated": at + 1, "armed": True}]
+    assert trade_autopsy._armed_at(stops, RB.upper(), "long", trade_autopsy._leg_ns(leg)) is stops[0]
+
+
+async def test_historical_review_model_never_receives_later_trade_date_reminders(tmp_path, monkeypatch):
+    import trader_runtime.daily_review as daily_review
+
+    app, _provider, model, service, _clock = setup(tmp_path)
+    earlier = Reminder(ns(bj(10, 47)), "movement", "当日事实", None)
+    later = Reminder(ns(bj(21, 5)), "movement", "下一交易日事实", None)
+    monkeypatch.setattr(daily_review, "load_reminders", lambda *args, **kwargs: [earlier, later])
+    try:
+        assert await service.build(USER, app.state.accounts.default, DAY, reason="manual")
+        assert [item["text"] for item in model.calls[-1]["input"]["reminders"]] == ["当日事实"]
+    finally:
+        app.state.store.close()

@@ -477,3 +477,22 @@ test("换人登录后诊断导出不含上一人的通话（#523）：A 自己�
   expect(JSON.parse(text).lastVoiceTimeline).toEqual([]);
   click.mockRestore();
 });
+
+
+test("dismissing a nonterminal call error retires its resources before returning to idle", async () => {
+  voiceCallStore.reset();
+  FakeWebSocket.latest = undefined;
+  const starting = voiceCallStore.start("http://runtime", "chat-error");
+  await vi.waitFor(() => expect(FakeWebSocket.latest).toBeDefined());
+  FakeWebSocket.latest!.onopen?.();
+  await starting;
+  const old = FakeWebSocket.latest!;
+  receive(JSON.stringify({ type: "error", error: { message: "临时错误" } }));
+  voiceCallStore.dismissError();
+  expect(voiceCallStore.snapshot().state).toBe("idle");
+  const next = voiceCallStore.start("http://runtime", "chat-error");
+  await vi.waitFor(() => expect(FakeWebSocket.latest).not.toBe(old));
+  FakeWebSocket.latest!.onopen?.();
+  await next;
+  voiceCallStore.stop();
+});

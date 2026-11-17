@@ -183,7 +183,10 @@ function hideSupersededRounds(turns: ConversationTurn[]): ConversationTurn[] {
 }
 
 function upsertMessage(state: ConversationState, event: Extract<UiEvent, { name: "message.delta" | "message.completed" }>): ConversationState {
-  const existing = state.turns.some((turn) => turn.id === event.payload.turnId);
+  const existing = state.turns.find((turn) => turn.id === event.payload.turnId);
+  // Durable completion may replay before a delayed transient delta. Final
+  // text and completion are monotonic; only another completed event may edit it.
+  if (event.name === "message.delta" && existing?.completed) return state;
   if (!existing) {
     const preceding = event.payload.role === "user" ? closeSupersededTurns(state.turns) : state.turns;
     return {

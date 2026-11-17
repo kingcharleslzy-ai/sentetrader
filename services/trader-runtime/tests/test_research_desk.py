@@ -1581,3 +1581,5 @@ def test_linkage_fact_correlates_each_related_product_and_reads_the_basket_state
     # Hysteresis: opens at 0.65, holds through 0.5, closes at 0.45.
     states = linkage.regimes([None, 0.7, 0.5, 0.5, 0.4, 0.4], smooth=1)
     assert [fused for _, fused in states] == [False, True, True, True, False, False]
+    # An unmeasurable current sample is not yesterday's basket state, even inside the smoothing window.
+    assert linkage.regimes([0.9, 0.9, None])[-1] == (None, False)

@@ -1,4 +1,5 @@
 import { useRef, useState, type ComponentProps } from "react";
+import { applyUiSurface } from "../../uiSurfaces";
 import { X } from "lucide-react";
 import { sameContract, type SimulationOrder } from "../../api";
 import { TradeTicket } from "../futures/TradeTicket";
@@ -61,7 +62,7 @@ export function MobileOrder({ name, accountLabel, available, orders, onClose, ti
           <button type="button" aria-label="关闭下单" onClick={onClose}><X aria-hidden="true" /></button>
         </header>
         <div className="fdm-sheet-body">
-          <OrderDepth quote={quote} selectedPrice={selectedPrice} onPriceSelect={price => setPicked({ price, symbol: quote.symbol })} />
+          <OrderDepth quote={quote} selectedPrice={selectedPrice} onPriceSelect={price => { setPicked({ price, symbol: quote.symbol }); applyUiSurface("ticketPrice", price); }} />
           <TradeTicket {...ticket} selectedPrice={selectedPrice} onSubmit={submit} variant="mobile" />
           {status ? <p className="fdm-order-result" role="status" data-testid="mobile-order-result"
             data-status={statuses.length === 1 ? statuses[0] : statuses.length ? "mixed" : typeof sent?.outcome === "string" ? sent.outcome : undefined}>

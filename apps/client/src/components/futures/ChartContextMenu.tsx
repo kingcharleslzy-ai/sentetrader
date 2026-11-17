@@ -106,6 +106,7 @@ export const menuHost = () => document.querySelector(".fdw-shell") ?? document.b
 export function useMenuPlace(ref: RefObject<HTMLElement | null>, x: number, y: number, key?: unknown, above?: number) {
   const [place, setPlace] = useState({ left: x, top: y, flip: false });
   useLayoutEffect(() => {
+    const measure = () => {
     const height = ref.current?.offsetHeight ?? 320;
     const menuWidth = ref.current?.offsetWidth ?? 248;
     const width = window.innerWidth || 1024;
@@ -113,7 +114,14 @@ export function useMenuPlace(ref: RefObject<HTMLElement | null>, x: number, y: n
     const room = (window.innerHeight || 768) - height - 8;
     // `above`: a dropdown's control top — one that would run off the bottom opens upward over it instead of covering it.
     const top = above !== undefined && y > room && above - height >= 8 ? above - height : Math.max(8, Math.min(y, room));
-    setPlace({ left, top, flip: left + menuWidth + 268 > width });
+    const flip = left + menuWidth + 268 > width;
+    setPlace(previous => previous.left === left && previous.top === top && previous.flip === flip ? previous : { left, top, flip });
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    if (ref.current) observer.observe(ref.current);
+    window.addEventListener("resize", measure);
+    return () => { observer.disconnect(); window.removeEventListener("resize", measure); };
   }, [ref, x, y, key, above]);
   return place;
 }

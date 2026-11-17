@@ -1557,3 +1557,25 @@ def test_reset_route_needs_the_matching_confirmation(http_service):
     assert unauthorized.value.code == 401
     body = json.loads(request(port, path, method="POST", payload={"confirmAccountId": ACCOUNT}).read())
     assert body["status"] == "reset" and body["balance"] == 1_000_000.0
+
+
+def test_recycled_quote_source_closes_both_connections_when_initial_feed_fails(monkeypatch):
+    source = TqQuoteSource(lambda: ("user", "pass"))
+    old_closed, new_closed = threading.Event(), threading.Event()
+    old = SimpleNamespace(close=old_closed.set)
+    new = SimpleNamespace(close=new_closed.set)
+    connections = iter([(old, {"old": object()}), (new, {"new": object()})])
+    monkeypatch.setattr(source, "MAX_PAPER_QUOTES", 1)
+    monkeypatch.setattr(source, "_connect", lambda symbols: next(connections))
+    feeds = []
+    def feed(engine, quotes):
+        feeds.append(set(quotes))
+        if "new" in quotes:
+            source._stop.set()
+            raise RuntimeError("initial snapshot rejected")
+    monkeypatch.setattr(source, "_feed_initial", feed)
+    engine = SimpleNamespace(wanted_symbols=lambda: {"new"}, mark_source_connected=lambda: None,
+                             mark_source_reconnecting=lambda: None)
+    source._run(engine)
+    assert feeds == [{"old"}, {"new"}]
+    assert old_closed.wait(2) and new_closed.wait(2)

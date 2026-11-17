@@ -207,7 +207,8 @@ def mentions(text: str, ctx: ParseContext | None = None) -> Mentions:
     """The words of `text` the order slots can rest on. Pure."""
     ctx = ctx or ParseContext()
     norm = _normalize(re.sub(r"(?<=[A-Za-z\d])\s+(?=\d)", "，", text or ""))  # “ag2612 1 手”: code and count stay apart
-    exclusions = tuple(_EXCLUDED_SCOPE.findall(norm))
+    exclusions = tuple(part.strip() for scope in _EXCLUDED_SCOPE.findall(norm)
+                       for part in re.split(r"和|以及|还有|、|与|及", scope) if part.strip())
     # A past opening describes the position; a negated scope excludes a contract from this action.
     norm = _OPENED_POSITION.sub(lambda hit: {"多": "多单", "空": "空单"}.get(hit[1], ""),
                                 _EXCLUDED_SCOPE.sub("，", norm))

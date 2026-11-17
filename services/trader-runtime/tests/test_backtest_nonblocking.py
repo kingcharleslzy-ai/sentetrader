@@ -14,6 +14,7 @@ import subprocess
 import sys
 import threading
 import time
+from pathlib import Path
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -66,6 +67,14 @@ def test_a_worker_ends_when_the_runtime_dies_without_shutting_it_down(tmp_path):
             os.kill(worker, 0)
         except ProcessLookupError:
             return
+        # Container PID 1 may not reap an orphan. A zombie has exited and
+        # cannot do work, even though kill(pid, 0) still finds its PID.
+        if sys.platform == "linux":
+            try:
+                if Path(f"/proc/{worker}/stat").read_text().rsplit(")", 1)[1].split()[0] == "Z":
+                    return
+            except FileNotFoundError:
+                return
         time.sleep(0.1)
     os.kill(worker, signal.SIGKILL)
     pytest.fail("the backtest worker outlived its Runtime")

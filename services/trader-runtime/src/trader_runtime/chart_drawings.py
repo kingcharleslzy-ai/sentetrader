@@ -418,8 +418,8 @@ def line_price_at(drawing: dict[str, Any], now: int, trading_seconds: Any) -> fl
         return None
     style = drawing.get("style") or {}
     # A ray runs on past its second point; a segment ends at its points unless its style extends it.
-    right = kind == "extended" or style.get("extendRight") or (kind == "ray" and t2 > t1)
-    left = kind == "extended" or style.get("extendLeft") or (kind == "ray" and t2 < t1)
+    right = style.get("extendRight", kind == "extended" or (kind == "ray" and t2 > t1))
+    left = style.get("extendLeft", kind == "extended" or (kind == "ray" and t2 < t1))
     if (now > max(t1, t2) and not right) or (now < min(t1, t2) and not left):
         return None
     span, elapsed = trading_seconds(t1, t2), trading_seconds(t1, now)

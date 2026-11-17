@@ -3197,9 +3197,11 @@ class TqQuoteSource:
                         old = api
                         api, quotes = new_api, new_quotes
                         cumulative = set(wanted)
-                        self._feed_initial(engine, new_quotes)
-                        threading.Thread(target=self._close_quietly, args=(old,),
-                                         name="paper-quote-recycle", daemon=True).start()
+                        try:
+                            self._feed_initial(engine, new_quotes)
+                        finally:
+                            threading.Thread(target=self._close_quietly, args=(old,),
+                                             name="paper-quote-recycle", daemon=True).start()
                 if self._calendar_refresh_due():
                     self._refresh_calendar(api)
                 if self._settlement_query_due():

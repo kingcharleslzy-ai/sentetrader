@@ -376,6 +376,7 @@ rm -f "\$backup" "\$backup-wal" "\$backup-shm"
 checker=\$(mktemp)
 cat > "\$checker" <<'PY'
 import sqlite3, sys
+from pathlib import Path
 
 TABLES = ("sessions", "events", "proposals", "proposal_audit", "tqkq_sim_order_links",
           "ai_execution_authorizations", "ai_stop_orders", "account_trades",
@@ -389,9 +390,17 @@ def counts(connection):
 
 
 source_path, backup_path = sys.argv[1], sys.argv[2]
-source = sqlite3.connect(source_path)
-backup = sqlite3.connect(backup_path)
+# Never create a missing source and mistake its empty schema for a verified backup.
+source = sqlite3.connect(Path(source_path).resolve().as_uri() + "?mode=ro", uri=True)
 before = counts(source)
+# These core tables predate optional features. Empty business tables are valid;
+# a missing/uninitialized/wrong database is not a Runtime recovery point.
+missing = {"sessions", "events", "proposals"} - before.keys()
+if missing:
+    source.close()
+    print("backup source is not an initialized Runtime database: missing " + ", ".join(sorted(missing)))
+    sys.exit(1)
+backup = sqlite3.connect(backup_path)
 source.backup(backup)
 after = counts(source)
 copied = counts(backup)
@@ -926,3 +935,4 @@ else
   [ "$rc" != 0 ] || rc=1
   exit "$rc"
 fi
+

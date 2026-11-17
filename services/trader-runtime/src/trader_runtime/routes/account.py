@@ -467,7 +467,8 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
             store, account.provider, application.state.fee_settings, user_id,
             symbol=None, days=90, trading_account_id=account.account_id, desk=ctx.services.research_desk)
         result = habit_compare(review["trades"], basis="gross" if review.get("costSource") == "account" else "net")
-        return {**result, "days": 90, "currency": account_currency(account.account_id)}
+        return {**result, "days": 90, "currency": account_currency(account.account_id),
+                "skippedSymbols": review.get("skippedSymbols", [])}
 
     # 通用报告推送 (2026-11-03): the 习惯对照 on screen goes out over the push (the session's own account), read
     # once a minute per account like the panel used to.
@@ -718,6 +719,9 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
                                        drawing_id=payload.drawing_id)
         except ValueError as error:
             raise HTTPException(status_code=422, detail=str(error)) from error
+        feed = getattr(application.state, "runtime_feed", None)
+        if feed:
+            await feed.publish_ui_nudge(user_id, "price-alerts")
         return {"alert": alert}
 
     @application.delete("/api/market/alerts/{alert_id}")
@@ -730,6 +734,9 @@ def register(application: FastAPI, ctx: RuntimeContext) -> None:
             raise HTTPException(status_code=404, detail="price_alert_not_found")
         if isinstance(cancelled, str):  # triggered: archived history, said in Chinese (#932)
             raise HTTPException(status_code=409, detail=cancelled)
+        feed = getattr(application.state, "runtime_feed", None)
+        if feed:
+            await feed.publish_ui_nudge(user_id, "price-alerts")
         return {"alert": cancelled}
 
     # 打法本 (2026-10-25): the user's own setups. An order placed under one (the ticket's 打法, a card's

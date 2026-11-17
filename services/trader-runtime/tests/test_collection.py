@@ -520,3 +520,29 @@ def test_get_many_batches_due_keys_joins_running_ones_and_records_failures_per_k
         await collector.close()
 
     asyncio.run(scenario())
+
+
+def test_a_slow_fetch_cannot_replace_another_instances_new_cache(tmp_path):
+    first = _collector(tmp_path, _Clock())
+    second = _collector(tmp_path, _Clock())
+    entered, release = threading.Event(), threading.Event()
+    def slow():
+        entered.set()
+        assert release.wait(5)
+        return {"status": "ok", "value": "old"}
+    try:
+        _read(first, slow, wait=0)
+        assert entered.wait(5)
+        assert _read(second, lambda: {"status": "ok", "value": "new"})["value"] == "new"
+        running = first._inflight["k"]
+        release.set()
+        running.result(timeout=5)
+        first._settled("k", 600, 60, "k_unavailable")
+        assert _read(first, slow)["value"] == "new"
+        assert second.kept.value("k")["value"] == "new"
+    finally:
+        release.set()
+        first.close()
+        second.close()
+        first.kept.connection.close()
+        second.kept.connection.close()

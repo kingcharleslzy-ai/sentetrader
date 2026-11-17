@@ -5,6 +5,7 @@ import asyncio
 import gzip
 import hashlib
 import json
+import logging
 import re
 import time
 from datetime import UTC, datetime
@@ -811,15 +812,29 @@ def register_workbench(application, current_user, root, adapter, store, broker, 
         result["verdict"] = {**verdict_facts(result, tuned=tuned_on_same_period(identity.get("definition"))),
                              "text": None, "source": None}
         result.pop("definition", None)
-        if persist:
-            await asyncio.to_thread(store.save_backtest_result, user_id=user, result=result)
+        def commit_result() -> None:
+            # The result and both notifications have one commit boundary. A
+            # failed stage rolls everything back; transport failure afterwards
+            # leaves the existing durable outbox to retry, never the backtest.
+            with store.transaction() as connection:
+                if persist:
+                    store.save_backtest_result(user_id=user, result=result, connection=connection)
+                if options.sessionId:
+                    turn_id = result["backtestId"]
+                    broker.stage(options.sessionId, kind="message", name="message.completed", payload={
+                        "turnId": turn_id, "role": "assistant", "agentId": "native",
+                        "text": f"「{identity.get('strategyName') or plan_name}」规则回测已完成；按收盘确认、下一根开盘成交，结果只用于研究，不会下单。"},
+                        connection=connection)
+                    broker.stage(options.sessionId, kind="chart", name="card.strategy_backtest",
+                                 payload=card_payload(result, turn_id=turn_id, task_id=result["backtestId"]),
+                                 connection=connection)
+
+        await asyncio.to_thread(commit_result)
         if options.sessionId:
-            turn_id = uuid4().hex
-            await broker.publish(options.sessionId, kind="message", name="message.completed", payload={
-                "turnId": turn_id, "role": "assistant", "agentId": "native",
-                "text": f"「{identity.get('strategyName') or plan_name}」规则回测已完成；按收盘确认、下一根开盘成交，结果只用于研究，不会下单。"})
-            await broker.publish(options.sessionId, kind="chart", name="card.strategy_backtest",
-                                 payload=card_payload(result, turn_id=turn_id, task_id=result["backtestId"]))
+            try:
+                await broker.flush()
+            except Exception:
+                logging.getLogger(__name__).exception("backtest_notifications_pending result=%s", result["backtestId"])
         return result
 
     async def run_rule_backtest(request: Request, user: str, *, raw_plan: dict, options: BacktestOptions,
@@ -1035,7 +1050,10 @@ def register_workbench(application, current_user, root, adapter, store, broker, 
             adapter.adapter_for_user(user) if hasattr(adapter, "adapter_for_user") else adapter)
         sentence = await model_verdict(generator, verdict, user_id=user)
         verdict = {**verdict, **sentence}
-        await asyncio.to_thread(store.update_backtest_result, backtest_id, user_id=user, changes={"verdict": verdict})
+        try:
+            await asyncio.to_thread(store.update_backtest_result, backtest_id, user_id=user, changes={"verdict": verdict})
+        except KeyError:
+            raise HTTPException(404, "没有这次回测") from None
         return verdict
 
     @application.get("/api/strategy-backtests/queue")

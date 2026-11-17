@@ -25,6 +25,15 @@ from trader_runtime.strategy_lab_engine import MIN_IS_TRADES, SPLIT, _segment, r
 HEADERS = {"Origin": "http://127.0.0.1:5173", "Authorization": "Bearer tpl-token"}
 
 
+def test_empty_error_still_requires_complete_statistics():
+    from pydantic import ValidationError
+
+    from trader_runtime.strategy_requests import LabVariantResult
+
+    with pytest.raises(ValidationError):
+        LabVariantResult(variantId="v1", error="")
+
+
 # -- split_metrics / rank on constructed trades ------------------------------------------------------------
 
 def seg(nets):

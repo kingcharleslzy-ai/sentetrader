@@ -25,7 +25,10 @@ def _notice_parts(name: str, symbol: str, notice: dict[str, Any],
                   today: str) -> tuple[str, str, str, dict[str, Any]]:
     """消息文本、turnId、时间戳与提醒卡（纯构造，不碰库）。"""
     day = str(notice.get("lastHoldDay") or "")
-    text = f"交割提醒：{name}（{symbol}）{notice.get('text') or ''}"
+    summary = f"{name}（{symbol}）{notice.get('text') or ''}"
+    if notice.get("estimated"):
+        summary += "（交易日按工作日估算）"
+    text = f"交割提醒：{summary}"
     turn_id = f"delivery-{symbol}-{today}"
     at = datetime.now(UTC).isoformat()
     left = notice.get("tradingDaysLeft")
@@ -33,7 +36,7 @@ def _notice_parts(name: str, symbol: str, notice: dict[str, Any],
     # the trading days left; the card asks the AI or opens the positions panel, never an order.
     card = reminder_card(
         turn_id=turn_id, kind="delivery", title="交割提醒", at=at, symbol=symbol,
-        summary=f"{name}（{symbol}）{notice.get('text') or ''}",
+        summary=summary,
         figures=[("最后持仓日", day or None),
                  ("剩余交易日", f"{left} 天" if isinstance(left, int) else None,
                   "danger" if notice.get("level") == "danger" else "warning")],
@@ -49,18 +52,26 @@ async def check_positions(app: Any, *, user_id: str, positions: list[dict[str, A
     sent = 0
     try:
         shared = getattr(app.state, "shared_market", None)
-        if shared is None or getattr(app.state, "replay_context", None) is not None:
+        if getattr(app.state, "replay_context", None) is not None:
             return 0  # 回放里没有“今天”，不发交割提醒
         held = [position for position in positions if int(position.get("volume") or 0) > 0]
         if not held or not reminder_enabled(app.state.store.user_preferences(user_id).model_dump(), "delivery"):
             return 0
-        catalog = await shared.instruments()
         # 只按持仓代码建索引（2026-10-13 省 CPU：目录约 900 条）。
         wanted = {str(position.get("symbol") or "").strip().upper() for position in held}
-        items = {symbol: item for item in catalog.get("items", [])
-                 if (symbol := str(item.get("symbol", "")).upper()) in wanted}
-        today = trading_today(trading_days=await shared.trading_days()).isoformat()
         foreign = await _foreign_notices(app, [symbol for symbol in wanted if foreign_trade_name(symbol)])
+        items: dict[str, Any] = {}
+        today = ""
+        if shared is not None and any(not foreign_trade_name(symbol) for symbol in wanted):
+            try:
+                catalog = await shared.instruments()
+                today = trading_today(trading_days=await shared.trading_days()).isoformat()
+                items = {symbol: item for item in catalog.get("items", [])
+                         if (symbol := str(item.get("symbol", "")).upper()) in wanted}
+            except Exception as error:
+                # A domestic source outage cannot suppress the independent
+                # MT5 contract table or its expiry reminders.
+                log.debug("domestic delivery catalog unavailable: %s", error)
         seen: set[str] = set()
         for position in held:
             symbol = str(position.get("symbol") or "").strip()
@@ -120,7 +131,7 @@ async def _deliver(app: Any, *, user_id: str, account_id: str, symbol: str, name
         trading_day=today, title="交割提醒", body=str(card["summary"]), symbol=symbol, name=name, at=at,
         message=text, turn_id=turn_id, cards=[("card.reminder", card)], speech=text,
         voice_kind=f"delivery-{symbol}-{notice.get('lastHoldDay') or today}",
-        push=PushMessage(kind="delivery", title=f"交割提醒 · {name}", body=str(notice.get("text") or ""),
+        push=PushMessage(kind="delivery", title=f"交割提醒 · {name}", body=str(card["summary"]),
                          short=f"{name}快到交割了", tag=f"delivery-{symbol}-{today}",
                          url=deep_link("card", str(card["cardId"]))),
         legacy=claim))

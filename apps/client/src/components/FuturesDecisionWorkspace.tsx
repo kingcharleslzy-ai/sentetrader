@@ -9,6 +9,7 @@ import { useModelCatalog } from "../hooks/useModelCatalog";
 import { useTradingAccounts, type TradingAccountsView } from "../hooks/useTradingAccounts";
 import { useAccountNavigation } from "../hooks/useAccountNavigation";
 import { AccountPnl } from "./AccountPnl";
+import { useIdentityFence } from "../hooks/useIdentityFence";
 import { useAccountPnl } from "../hooks/useAccountPnl";
 import { TradeReview } from "./TradeReview";
 import { ChevronLeft, CircleAlert, GripVertical, PanelRightClose, ReceiptText } from "lucide-react";
@@ -298,28 +299,35 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   const watchlist = useMemo(() => normalizeWatchlist(isGuest ? guestWatchlist : prefs.preferences.watchlist?.products),
     [isGuest, guestWatchlist, prefs.preferences.watchlist]);
   const [watchlistStatus, setWatchlistStatus] = useState("");
-  const toggleWatchlist = useCallback((product: string) => {
+  const watchlistFence = useIdentityFence([connectedRuntimeUrl, isGuest]);
+  const changeWatchlist = useCallback(async (product: string, intent: "toggle" | "add" | "remove", at?: number) => {
+    if (!watchlistFence.isCurrent()) return false;
     setWatchlistStatus("");
+    const change = (list: string[]) => {
+      const removing = intent === "remove" || (intent === "toggle" && list.includes(product));
+      if (removing) return list.filter(item => item !== product);
+      if (list.includes(product)) return list;
+      if (list.length >= WATCHLIST_MAX) throw new Error(`自选最多 ${WATCHLIST_MAX} 个，先移出一些再加`);
+      const index = at ?? list.length;
+      return [...list.slice(0, index), product, ...list.slice(index)];
+    };
     if (isGuest) {
-      // Same functional update: a second star while the first still renders lands on the new list.
       setGuestWatchlist(current => {
-        const list = normalizeWatchlist(current);
-        if (list.includes(product)) return list.filter(item => item !== product);
-        if (list.length >= WATCHLIST_MAX) { setWatchlistStatus(`自选最多 ${WATCHLIST_MAX} 个，先移出一些再加`); return list; }
-        return [...list, product];
+        try { return change(normalizeWatchlist(current)); }
+        catch (error) { setWatchlistStatus(preferenceErrorText(error)); return current; }
       });
-      return;
+      return true;
     }
-    if (!connectedRuntimeUrl) { setWatchlistStatus("连接后可设置"); return; }
-    // The list is computed when the queued write runs, off the latest saved document — two quick
-    // stars both land even if the first save has not returned (and the 50-limit is judged there).
-    void updatePreferences(latest => {
-      const list = normalizeWatchlist(latest?.preferences.watchlist?.products);
-      const removing = list.includes(product);
-      if (!removing && list.length >= WATCHLIST_MAX) throw new Error(`自选最多 ${WATCHLIST_MAX} 个，先移出一些再加`);
-      return { watchlist: { products: removing ? list.filter(item => item !== product) : [...list, product] } };
-    }).catch(error => setWatchlistStatus(preferenceErrorText(error)));
-  }, [isGuest, connectedRuntimeUrl, updatePreferences]);
+    if (!connectedRuntimeUrl) { setWatchlistStatus("连接后可设置"); return false; }
+    try {
+      await updatePreferences(latest => ({ watchlist: { products: change(normalizeWatchlist(latest?.preferences.watchlist?.products)) } }));
+      return watchlistFence.isCurrent();
+    } catch (error) {
+      if (watchlistFence.isCurrent()) setWatchlistStatus(preferenceErrorText(error));
+      return false;
+    }
+  }, [isGuest, connectedRuntimeUrl, updatePreferences, watchlistFence]);
+  const toggleWatchlist = useCallback((product: string) => { void changeWatchlist(product, "toggle"); }, [changeWatchlist]);
   const watchlistChange = isGuest || connectedRuntimeUrl ? toggleWatchlist : undefined;
   // "+" on the symbol tabs opens the same drawer; the chosen contract is pinned as well as selected.
   const [contractPinMode, setContractPinMode] = useState(false);
@@ -739,7 +747,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   const boardContracts = useMemo(() => gridAuto.filter((symbol, index, list) => list.findIndex(other => sameContract(other, symbol)) === index)
     .map(symbol => ({ symbol, name: contractLabel(symbol, props.instruments) })), [gridAuto, props.instruments]);
   const boardsControl = useBoardsControl(boards, () => selectView("dashboard"), boardsAvailable && preferencesLoaded, connectedRuntimeUrl, boardScale, boardContracts);
-  const boardBlocks = view === "dashboard" ? leavesOf(boards.board.layout) : [];
+  const boardBlocks = view === "dashboard" ? leavesOf(boardsControl.preview?.layout ?? boards.board.layout) : [];
   const boardModules = boardBlocks.map(moduleOf);
   // 色点联动 (owner 2026-11-05): a block whose colour is not 下单's follows a contract of its own on this board. 多块图表
   // (owner 2026-11-06): a chart that is 不联动 shows the contract and period it picked; every chart not showing the app's own
@@ -859,7 +867,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   // chat page is the same dock), or the board has a chat block, and the conversation can be used.
   const suggestions = useChatSuggestions({
     baseUrl: connectedRuntimeUrl,
-    enabled: !isGuest && (rightDock === "ai" || boardModules.includes("chat")) && !props.replayActive
+    enabled: !isGuest && (rightDock === "ai" || (boardModules.includes("chat") && ["medium", "large"].includes(boardsControl.sizes.chat ?? ""))) && !props.replayActive
       && !(props.agentAccount && (!props.agentAccount.authenticated || props.agentAccount.configurationRequired))
       && !access.reason("ai-chat"),
     sessionId: props.chatSessionId, accountId: props.state.runtime?.account?.id,
@@ -910,7 +918,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   // the AI 指令栏 and its result shows beside the AI 球 (which is on every desktop page for it).
   const aiBlocked = !connectedRuntimeUrl ? "连接后可以问 AI" : props.agentAccount && !props.agentAccount.authenticated ? "模型尚未就绪，请在设置里选择模型"
     : accessRef.current?.reason("ai-chat") || null;
-  const aiCommand = useAiCommand({ baseUrl: connectedRuntimeUrl, turns: props.state.turns, busy: Boolean(props.chatBusy || chat.sendingPrompt),
+  const aiCommand = useAiCommand({ baseUrl: connectedRuntimeUrl, sessionId: props.chatSessionId, turns: props.state.turns, busy: Boolean(props.chatBusy || chat.sendingPrompt),
     blockedReason: aiBlocked, available: !isGuest, failed: chat.promptError || undefined,
     onSend: (text, spoken) => {
       if (spoken && connectedRuntimeUrl) voiceReply.expect(connectedRuntimeUrl, props.state.turns.map(turn => turn.id));
@@ -1370,11 +1378,11 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
   const lastAiTurnId = useMemo(() => [...decisionTurns].reverse().find(turn => turn.role !== "user" && turn.origin !== "voice"
     && turn.completed !== false && !turn.cards.some(card => card.type === "task" && card.payload.status === "running"))?.id, [decisionTurns]);
   const [chatAtLatest, setChatAtLatest] = useState(true);
-  const chatLooking = (rightDock === "ai" || boardModules.includes("chat")) && chatAtLatest;
+  const chatLooking = (rightDock === "ai" || (boardModules.includes("chat") && boardsControl.sizes.chat === "large")) && chatAtLatest;
   const [chatSeen, setChatSeen] = useState<{ session: string | undefined; id: string }>();
   useEffect(() => {
-    if (lastAiTurnId && (chatLooking || chatSeen?.session !== props.chatSessionId)) setChatSeen({ session: props.chatSessionId, id: lastAiTurnId });
-  }, [lastAiTurnId, chatLooking, chatSeen?.session, props.chatSessionId]);
+    if ((chatLooking && chatSeen?.id !== (lastAiTurnId ?? "")) || chatSeen === undefined || chatSeen.session !== props.chatSessionId) setChatSeen({ session: props.chatSessionId, id: lastAiTurnId ?? "" });
+  }, [lastAiTurnId, chatLooking, chatSeen, props.chatSessionId]);
   const chatNewMessage = Boolean(lastAiTurnId) && !chatLooking && chatSeen !== undefined && chatSeen.session === props.chatSessionId && chatSeen.id !== lastAiTurnId;
   // A workspace-level orb; keep the existing contract-scoped activity reset and shared saved position.
   const aiOrb = !props.guest ? <AiOrb key={String(props.runtimeBaseUrl) + quote?.symbol} baseUrl={connectedRuntimeUrl} symbol={quote?.symbol} name={quote?.name} replay={Boolean(props.replayActive)} activity={appWorkbench.activity} error={appWorkbench.error} config={appWorkbench.config} onConfigChange={appWorkbench.updateConfig} onBriefStatusChange={setBriefStatus} onOpenChat={openChat} sessionId={props.chatSessionId} voiceAvailable={voiceAvailable} avatar={aiAvatarOf(preferences.ui?.aiAvatar)}
@@ -1468,18 +1476,14 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
       const item = props.instruments?.items.find(entry => sameContract(entry.symbol, row.symbol));
       const product = item ? watchlistKey(item) : undefined;
       const index = product ? watchlist.indexOf(product) : -1;
-      const restore = (key: string, at: number) => { void updatePreferences(latest => {
-        const list = normalizeWatchlist(latest?.preferences.watchlist?.products).filter(entry => entry !== key);
-        return { watchlist: { products: [...list.slice(0, at), key, ...list.slice(at)] } };
-      }).catch(error => setWatchlistStatus(preferenceErrorText(error))); };
       return [
         ...(alerts.available ? [{ label: "设提醒", run: () => {
           if (!sameContract(row.symbol, quote?.symbol)) selectContract(row.symbol);
           showMyReminders(); applyUiSurface("disclosure:reminder-alert-new", true);
         } }] : []),
         ...(product && watchlistChange ? [index >= 0
-          ? { label: "移出自选", danger: true, run: () => watchlistChange(product), undo: isGuest ? undefined : { text: `已移出 ${row.name}`, run: () => restore(product, index) } }
-          : { label: "加自选", run: () => watchlistChange(product) }] : []),
+          ? { label: "移出自选", danger: true, run: () => changeWatchlist(product, "remove"), undo: isGuest ? undefined : { text: `已移出 ${row.name}`, valid: watchlistFence.isCurrent, run: () => changeWatchlist(product, "add", index) } }
+          : { label: "加自选", run: () => changeWatchlist(product, "add") }] : []),
         { label: "看图", menuOnly: true, run: () => openRowChart(row.symbol) },
         ...(isGuest ? [] : [{ label: "下单…", menuOnly: true, run: () => { if (!sameContract(row.symbol, quote?.symbol)) selectContract(row.symbol); tapPage("order"); } }]),
       ];
@@ -1555,7 +1559,7 @@ export function FuturesDecisionWorkspace(props: FuturesDecisionWorkspaceProps) {
     const closeCheck = heldShown ? closeCheckTime(quote?.tradingSchedule, now) : null;
     const watch: WatchInfo = {
       positions: positions.map(position => `${shortName(position.symbol)}${position.direction === "long" ? "多单" : "空单"} ${position.volume} 手`),
-      alerts: alerts.active.map(alert => `${shortName(alert.symbol, alert.name)} ${alert.price}`),
+      alerts: alerts.active.map(alert => `${shortName(alert.symbol, alert.name)} ${alert.drawingId ? "碰到画的线" : alert.price}`),
       conditions: mobileStrategies.runs.filter(run => run.status === "monitoring" && run.reminderOnly).map(run => run.name),
       strategies: mobileStrategies.runs.filter(run => run.status === "monitoring" && !run.reminderOnly).map(run => `${run.name} · ${signalActionLabel(run.signalAction)}`),
       preopen: props.simulationOrders.filter(order => order.submitPhase === "PREPARED" && order.preopenAt)

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { requestJson } from "../api";
 import { feedReportServes, REPORT_RECHECK_MS, reportKey, useFeedReport } from "../feedView";
 import { LONG_READ_TIMEOUT_MS } from "../requestTimeout";
+import { feedReportEntry } from "../runtimeFeed";
 
 export type RoundTrip = { id: string; symbol: string; direction: string; volume: number; openTime: number; closeTime: number; openPrice: number; closePrice: number; gross: number; fees: number | null; net: number | null;
   /** A leg synthesized from the order link (limit price, no fill report); older Runtimes omit it. */
@@ -49,13 +50,15 @@ export function useTradeReview({ baseUrl, symbol, accountId, enabled = true }: {
     const query = symbol ? `?symbol=${encodeURIComponent(symbol)}` : "";
     const poll = async () => {
       if (feedReportServes(baseUrl, report)) { timer = setTimeout(poll, REPORT_RECHECK_MS); return; }
+      const before = feedReportEntry(report);
+      const current = () => !cancelled && feedReportEntry(report) === before && !feedReportServes(baseUrl, report);
       try {
         const next = await requestJson<TradeReviewData>(`${baseUrl}/api/trade-review${query}`, {
           headers: accountId === undefined ? undefined : { "X-AI-Trader-Account": accountId }, timeoutMs: LONG_READ_TIMEOUT_MS
         });
-        if (!cancelled) setResult({ baseUrl, symbol, accountId, review: next, error: "" });
+        if (current()) setResult({ baseUrl, symbol, accountId, review: next, error: "" });
       }
-      catch { if (!cancelled) setResult(previous => ({ baseUrl, symbol, accountId, review: previous?.review, error: "成交记录暂不可用" })); }
+      catch { if (current()) setResult(previous => ({ baseUrl, symbol, accountId, review: previous?.review, error: "成交记录暂不可用" })); }
       finally { if (!cancelled) timer = setTimeout(poll, 5000); }
     };
     void poll();

@@ -336,7 +336,8 @@ class AccountStore(StoreBase):
                        model: str | None, status: str, usage: dict[str, int], first_text_ms: int | None,
                        elapsed_ms: int) -> None:
         """One AI turn's token split (input / output / provider cache hits / reasoning) and its request
-        count. The daily quota still counts in user_token_usage; this is the per-turn measurement."""
+        count (adapter calls, including explicit fallback, excluding SDK-internal network retries).
+        The daily quota still counts in user_token_usage; this is the per-turn measurement."""
         now = datetime.now(UTC)
         cutoff = (now - timedelta(days=self.TURN_USAGE_KEEP_DAYS)).date().isoformat()
         with self.lock, self.connection:

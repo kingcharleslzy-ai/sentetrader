@@ -202,8 +202,8 @@ async function run({ plan, expected, out, monitorSeconds }) {
       if (["queued", "dispatched"].includes(reply.body?.status)) {
         reply = await until(async () => { const r = await api("GET", `/api/app/ui/commands/${commandId}`); return { ok: !["queued", "dispatched"].includes(r.body?.status), value: r }; }, "界面命令回执");
       }
-      // Explicit revision refusal (older servers omit state): the window did not execute the command.
-      if (reply.body?.status !== "rejected" || (reply.body?.state != null && reply.body?.reason !== "界面已变化，命令未执行；请读取最新状态后再操作")) break;
+      // Only an explicit pre-execution revision refusal proves the command did not run.
+      if (reply.body?.status !== "rejected" || reply.body?.reason !== "界面已变化，命令未执行；请读取最新状态后再操作") break;
       snapshot = await detail();
     }
     if (reply.status >= 400) throw new Error(`界面命令 ${JSON.stringify(changes)} 被拒（${reply.status}）：${JSON.stringify(reply.body).slice(0, 300)}`);

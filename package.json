@@ -28,7 +28,7 @@
     "test:sidecar": "uv run --project services/tqkq-sidecar --extra tqkq pytest services/tqkq-sidecar/tests -n 4 --durations=15 --durations-min=2",
     "test:workspace": "cd workspace && uv run --project ../services/trader-runtime pytest",
     "test:e2e": "npm --workspace @ai-trader/client run test:e2e",
-    "test:release": "node --test scripts/check_desktop_release.test.mjs scripts/ci_select_checks.test.mjs scripts/sync_public_repo.test.mjs scripts/readback.test.mjs && npm run test:mt5-bridge",
+    "test:release": "node --test scripts/check_desktop_release.test.mjs scripts/ci_select_checks.test.mjs scripts/sync_public_repo.test.mjs scripts/readback.test.mjs && python scripts/test_runtime_certificate_install.py && npm run test:mt5-bridge",
     "test:mt5-bridge": "uv run --no-project --python 3.12 python -m unittest discover -s services/mt5-bridge/tests",
     "test:changed": "node scripts/test_changed.mjs",
     "test:e2e:compose": "npm --workspace @ai-trader/client run test:e2e:compose",

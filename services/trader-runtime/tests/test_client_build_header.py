@@ -61,6 +61,9 @@ async def test_responses_carry_compat_headers(monkeypatch: pytest.MonkeyPatch, t
         assert health.headers["x-ai-trader-runtime"] == f"{__version__}+{RUNTIME_SHA[:7]}"
         assert "x-ai-trader-min-client" not in health.headers
         assert health.json()["minClientVersion"] == MIN_CLIENT_VERSION
+        oversized = await client.get("/healthz", headers={"X-AI-Trader-Client": "web/" + "9" * 5000 + ".1.0"})
+        assert oversized.status_code == 200
+        assert oversized.headers["x-ai-trader-client-compat"] == "unknown"
 
         client_headers = {"Authorization": "Bearer compat-token",
                           "X-AI-Trader-Client": f"web/{MIN_CLIENT_VERSION}+deadbee"}

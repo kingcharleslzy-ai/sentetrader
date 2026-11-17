@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from contextlib import nullcontext
 from typing import Any
 
 from .base import StoreBase, utc_after, utc_now
@@ -545,11 +546,11 @@ class StrategyStore(StoreBase):
         self, *, attempt_id: str, strategy_id: str, user_id: str,
         intent_id: str, signal_bar_time: str, trading_day: str,
         action: str, volume: int, trading_account_id: str | None = None,
-        signal_action: str | None = None,
+        signal_action: str | None = None, connection: sqlite3.Connection | None = None,
     ) -> bool:
         now = utc_now()
-        with self.lock, self.connection:
-            cursor = self.connection.execute(
+        with self.lock, (nullcontext(connection) if connection is not None else self.connection) as database:
+            cursor = database.execute(
                 """INSERT OR IGNORE INTO strategy_execution_attempts
                 (id, strategy_id, user_id, intent_id, signal_bar_time, trading_day,
                  action, volume, status, client_order_id, detail, created_at, updated_at, trading_account_id,
@@ -614,10 +615,11 @@ class StrategyStore(StoreBase):
         if str(offer["action"]) != action and (reset_at is None or str(reset_at) < str(offer["created_at"])):
             self.reset_strategy_signal(strategy_id=strategy_id, user_id=user_id)
 
-    def reset_strategy_signal(self, *, strategy_id: str, user_id: str) -> None:
+    def reset_strategy_signal(self, *, strategy_id: str, user_id: str, connection: sqlite3.Connection | None = None,
+    ) -> None:
         """The current signal is offered afresh (signal changed, 执行方式 changed, stopped)."""
-        with self.lock, self.connection:
-            self.connection.execute(
+        with self.lock, (nullcontext(connection) if connection is not None else self.connection) as database:
+            database.execute(
                 "UPDATE strategy_monitor_states SET signal_reset_at = ? WHERE strategy_id = ? AND user_id = ?",
                 (utc_now(), strategy_id, user_id),
             )
@@ -685,10 +687,10 @@ class StrategyStore(StoreBase):
 
     def finish_strategy_execution_attempt(
         self, *, attempt_id: str, status: str,
-        client_order_id: str | None = None, detail: str | None = None,
+        client_order_id: str | None = None, detail: str | None = None, connection: sqlite3.Connection | None = None,
     ) -> None:
-        with self.lock, self.connection:
-            cursor = self.connection.execute(
+        with self.lock, (nullcontext(connection) if connection is not None else self.connection) as database:
+            cursor = database.execute(
                 """UPDATE strategy_execution_attempts
                 SET status = ?, client_order_id = ?, detail = ?, updated_at = ?
                 WHERE id = ? AND status = 'RESERVED'""",
@@ -794,14 +796,14 @@ class StrategyStore(StoreBase):
 
     def update_strategy_execution_attempt(
         self, *, attempt_id: str, status: str,
-        client_order_id: str | None = None, detail: str | None = None, outcome: str | None = None,
+        client_order_id: str | None = None, detail: str | None = None, outcome: str | None = None, connection: sqlite3.Connection | None = None,
     ) -> None:
         """价差执行的多段生命周期 (撤单 / 补单 / 回退 / 未知): the spread executor rewrites the
         attempt unconditionally as its legs move — unlike finish_, which is the single RESERVED →
         terminal write of the single-contract path. ``outcome`` is the structured conclusion the
         settled card shows; COALESCE keeps an earlier one when a later write carries none."""
-        with self.lock, self.connection:
-            self.connection.execute(
+        with self.lock, (nullcontext(connection) if connection is not None else self.connection) as database:
+            database.execute(
                 """UPDATE strategy_execution_attempts
                 SET status = ?, client_order_id = COALESCE(?, client_order_id), detail = ?,
                     outcome = COALESCE(?, outcome), updated_at = ?
@@ -832,12 +834,13 @@ class StrategyStore(StoreBase):
             )
         return cursor.rowcount == 1
 
-    def mark_strategy_execution_follow(self, *, attempt_id: str, state: str) -> None:
+    def mark_strategy_execution_follow(self, *, attempt_id: str, state: str, connection: sqlite3.Connection | None = None,
+    ) -> None:
         """价差执行: 'following' while the executor's background task is still watching the legs,
         'done' once it reached its outcome. The restart sweep marks a still-following attempt
         UNKNOWN — SUBMITTED alone cannot tell dispatch from a completed fill."""
-        with self.lock, self.connection:
-            self.connection.execute(
+        with self.lock, (nullcontext(connection) if connection is not None else self.connection) as database:
+            database.execute(
                 "UPDATE strategy_execution_attempts SET follow_state = ?, updated_at = ? WHERE id = ?",
                 (state, utc_now(), attempt_id),
             )

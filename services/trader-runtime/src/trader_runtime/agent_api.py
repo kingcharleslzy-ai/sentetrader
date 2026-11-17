@@ -684,6 +684,8 @@ class AppCapabilities:
         await identity.verify()
         headers = identity.headers
         target = self.app
+        if session_id is not None and args.operation == "POST /api/ai-execution/resume":
+            raise HTTPException(409, "human_resume_forbidden_use_tool: 内置 AI 请用 resume_simulation_execution 恢复当前账户")
         if session_id is not None and args.operation in PROPOSAL_ROUTES:
             raise HTTPException(409, "proposal_route_forbidden_use_tool: 方案卡请直接调用 propose_order 工具生成，不要经 app_call")
         if args.operation == CHAT_SEND or args.operation in CHAT_OPERATIONS:

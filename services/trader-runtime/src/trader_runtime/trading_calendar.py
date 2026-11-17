@@ -257,9 +257,14 @@ def cme_schedule(at: datetime | None = None, hours: str = DEFAULT_CME_HOURS) -> 
 def cme_sessions(trading_day: str, hours: str = DEFAULT_CME_HOURS, holidays: bool = True) -> tuple[Session, ...]:
     """One CME trade date's sessions for a kind of hours, from New York wall-clock time (each moment's own US
     offset): its holiday hours (``CME_HOLIDAY_HOURS``) when ``holidays``, else the regular ``CME_HOURS``."""
+    day = date.fromisoformat(trading_day)
+    # Holiday trading hours belong to the next valid trade date. Inventing
+    # regular hours for the closed date counts those same hours a second time.
+    if day.weekday() >= 5 or (holidays and trading_day in CME_CLOSED_DAYS):
+        return ()
     kind = hours if hours in CME_HOURS else DEFAULT_CME_HOURS
     periods = (CME_HOLIDAY_HOURS.get(trading_day, {}) if holidays else {}).get(kind, CME_HOURS[kind])
-    midnight = datetime.combine(date.fromisoformat(trading_day), datetime.min.time(), tzinfo=NEW_YORK)
+    midnight = datetime.combine(day, datetime.min.time(), tzinfo=NEW_YORK)
 
     def at(minutes: int) -> int:
         wall = (midnight.replace(tzinfo=None) + timedelta(minutes=minutes)).replace(tzinfo=NEW_YORK)

@@ -518,6 +518,28 @@ test("建议问题：对话面板打开才按当前页面向 AI 要，最多 2 �
   expect(screen.getByLabelText("最近的对话")).toHaveTextContent("已有回复");
 });
 
+test("medium board chat fetches suggestions without marking a new answer as read", async () => {
+  const width = vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(800);
+  const height = vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(600);
+  plansRuntime({ owner: true, accounts: { current: "paper:u1", accounts: [] }, suggest: () =>
+    new Response(JSON.stringify({ items: ["看看当前行情"] }), { headers: { "Content-Type": "application/json" } }) });
+  const control = vi.spyOn(uiControl, "useUiControl").mockImplementation(() => {});
+  const values = props({ mode: "cloud", runtimeBaseUrl: "https://runtime.test", chatSessionId: "board-empty", state: { turns: [] } });
+  const view = render(<FuturesDecisionWorkspace {...values as any} />);
+  try {
+    await waitFor(() => expect(uiSurface("boards")).toBeDefined());
+    act(() => { control.mock.calls.at(-1)![3]({ boards: { editing: true } } as any); });
+    act(() => { control.mock.calls.at(-1)![3]({ boards: { preview: {
+      layout: { type: "split", direction: "row", children: ["chart", "chat"], splitPercentages: [60, 40] }, locks: { chat: "medium" }
+    } }, panel: null } as any); });
+    expect(await screen.findByRole("button", { name: "看看当前行情" })).toBeVisible();
+    view.rerender(<FuturesDecisionWorkspace {...{ ...values, state: { ...values.state, turns: [
+      { id: "new-answer", role: "assistant", text: "新回复", completed: true, timestamp: "now", cards: [] }
+    ] } } as any} />);
+    expect(screen.getByTestId("ai-orb")).toHaveAttribute("data-new-message", "true");
+  } finally { view.unmount(); control.mockRestore(); width.mockRestore(); height.mockRestore(); }
+});
+
 test("顶栏不显示交易账户切换；设置 → 账户里按“账户名 / 本站模拟”列出，非本人账户才带角色", async () => {
   plansRuntime({ owner: false, accounts: { current: "tqkq:u1", accounts: [
     { id: "tqkq:u1", displayName: "lzy393705181", role: "owner", environment: "simulation", executionOwner: true, providerKind: "tqkq-sidecar" },
@@ -3643,7 +3665,7 @@ test("习惯对照 reaches the formal snapshot as review.habits (not only the re
     act(() => { control.mock.calls.at(-1)![3]({ view: "review" } as any); });
     await screen.findByTestId("habit-compare");
     await waitFor(() => expect(control.mock.calls.at(-1)![2].review?.habits).toEqual(
-      { status: "ok", actual: { count: 9, pnl: 3670 }, planned: { count: 6, pnl: 1995 }, gap: -1675, picks: ["h1"] }));
+      { skippedSymbols: [], currency: "CNY", status: "ok", actual: { count: 9, pnl: 3670 }, planned: { count: 6, pnl: 1995 }, gap: -1675, picks: ["h1"] }));
   } finally { view.unmount(); control.mockRestore(); }
 });
 
@@ -3664,4 +3686,15 @@ test("有新消息: the orb's dot marks an AI reply the user has not seen and cl
   openAiPanel();
   await waitFor(() => expect(screen.getByTestId("ai-orb")).not.toHaveAttribute("data-new-message"));
   view.unmount();
+});
+
+
+test("an empty conversation establishes a baseline before its first unseen answer", () => {
+  const values = props({ chatSessionId: "new-empty", state: { turns: [], runtime: { simulationTrading: true } } });
+  const view = render(<FuturesDecisionWorkspace {...values as any} />);
+  expect(screen.getByTestId("ai-orb")).not.toHaveAttribute("data-new-message");
+  view.rerender(<FuturesDecisionWorkspace {...{ ...values, state: { ...values.state, turns: [
+    { id: "first", role: "assistant", text: "第一条回复", completed: true, timestamp: "now", cards: [] }
+  ] } } as any} />);
+  expect(screen.getByTestId("ai-orb")).toHaveAttribute("data-new-message", "true");
 });

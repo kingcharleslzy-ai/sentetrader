@@ -107,6 +107,8 @@ def _armed_at(stops: list[dict[str, Any]], symbol: str, direction: str, at: int)
 
 
 def _leg_ns(leg: dict[str, Any]) -> int:
+    if leg.get("atNs") is not None:
+        return int(leg["atNs"])
     return int(datetime.fromisoformat(leg["time"]).timestamp() * NS)
 
 

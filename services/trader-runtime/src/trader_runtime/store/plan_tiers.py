@@ -96,7 +96,7 @@ class PlanTierStore(StoreBase):
     ) -> dict[str, Any] | None:
         """Partial update; setting the default clears the previous one in the
         same transaction (exactly one default tier at any moment)."""
-        with self.lock, self.connection:
+        with self.transaction():
             if self.connection.execute(
                 "SELECT 1 FROM plan_tiers WHERE name = ?", (name,),
             ).fetchone() is None:

@@ -144,7 +144,7 @@ function PositionProtection({ position, quote, priceTick, stops, busy, onCreate,
 }) {
   const [open, setOpen] = useDisclosureSurface("position-protection", { id: `position:${positionKey(position)}` });
   const decimals = decimalsForTick(priceTick);
-  const tick = priceTick ?? 1;
+  const tick = priceTick != null && Number.isFinite(priceTick) && priceTick > 0 ? priceTick : undefined;
   const exchange = position.symbol.split(".")[0]?.toUpperCase();
   const separate = exchange === "SHFE" || exchange === "INE";
   const today = Math.max(0, (position.todayVolume ?? 0) - (position.frozenToday ?? 0));
@@ -172,6 +172,7 @@ function PositionProtection({ position, quote, priceTick, stops, busy, onCreate,
   const pick = (choice: typeof bucket) => {
     const existing = own(choice);
     setBucket(choice);
+    setEditingRecord(JSON.stringify([existing?.stopId, existing?.triggerPrice, existing?.takeProfitPrice, existing?.trailing, existing?.breakeven]));
     if (!existing) return;  // nothing on these lots yet: keep what was typed
     setStopInput(existing.triggerPrice != null ? String(existing.triggerPrice) : "");
     setTakeInput(existing.takeProfitPrice != null ? String(existing.takeProfitPrice) : "");
@@ -185,12 +186,13 @@ function PositionProtection({ position, quote, priceTick, stops, busy, onCreate,
   const takeRead = readNumber(takeInput, TAKE_PRICE_RULE);
   const stopPrice = stopRead.problem === null ? stopRead.value ?? undefined : undefined;
   const takePrice = takeRead.problem === null ? takeRead.value ?? undefined : undefined;
-  const offTick = (value: number) => Math.abs(value / tick - Math.round(value / tick)) > 1e-6;
+  const offTick = (value: number) => tick !== undefined && Math.abs(value / tick - Math.round(value / tick)) > 1e-6;
   const last = positionLastPrice(position, quote);
   const long = position.direction === "long";
   const issue = (() => {
     const typed = stopRead.problem ?? takeRead.problem;
     if (typed) return typed;
+    if (tick === undefined) return "这个合约的最小变动价位尚不可用";
     if (stopPrice !== undefined) {
       if (offTick(stopPrice)) return `止损 ${stopPrice} 不在最小变动价位上`;
       if (last !== undefined && (long ? stopPrice >= last : stopPrice <= last))
@@ -236,8 +238,8 @@ function PositionProtection({ position, quote, priceTick, stops, busy, onCreate,
       ))}
       {open ? (
         <div className="fdw-protect-form" data-testid="position-protect-form">
-          <label>止损<input aria-label="止损价" data-testid="row-stop-input" type="number" inputMode="decimal" min="0" step={tick} placeholder="不设" value={stopInput} onChange={(event) => setStopInput(event.target.value)} /></label>
-          <label>止盈<input aria-label="止盈价" data-testid="row-take-input" type="number" inputMode="decimal" min="0" step={tick} placeholder="不设" value={takeInput} onChange={(event) => setTakeInput(event.target.value)} /></label>
+          <label>止损<input aria-label="止损价" data-testid="row-stop-input" type="number" inputMode="decimal" min="0" step={tick ?? "any"} placeholder="不设" value={stopInput} onChange={(event) => setStopInput(event.target.value)} /></label>
+          <label>止盈<input aria-label="止盈价" data-testid="row-take-input" type="number" inputMode="decimal" min="0" step={tick ?? "any"} placeholder="不设" value={takeInput} onChange={(event) => setTakeInput(event.target.value)} /></label>
           {stopPrice !== undefined ? <StopMotionFields value={stopMotion} onChange={setStopMotion} atrTimeframe={atrTimeframe} /> : null}
           {separate && today > 0 && historical > 0 ? (
             <span className="fdw-protect-buckets" role="group" aria-label="保护哪部分仓量">
@@ -293,7 +295,7 @@ export function PositionRows({ positions, instruments, quote: shownQuote, busy, 
     const available = Math.max(0, position.volume - (position.frozenToday ?? 0) - (position.frozenHistorical ?? 0));
     const item = instruments?.items.find(entry => entry.symbol.toUpperCase() === position.symbol.toUpperCase());
     const name = position.instrumentName || contractLabel(position.symbol, instruments);
-    const decimals = decimalsForTick(item?.priceTick ?? (position.accountId && !sameContract(position.symbol, quote?.symbol) ? undefined : quote?.priceTick));
+    const decimals = decimalsForTick(item?.priceTick ?? (sameContract(position.symbol, quote?.symbol) ? quote?.priceTick : undefined));
     const last = positionLastPrice(position, quote);
     const openPrice = position.openPrice ?? undefined;
     const usd = position.currency === "USD";
@@ -327,7 +329,7 @@ export function PositionRows({ positions, instruments, quote: shownQuote, busy, 
         </span>
         {/* 两本账（2026-10-22）：外盘行也能挂保护——Runtime 按合约把它挂在美元子账户上（account_for_symbol）。 */}
         {onCreateStop && onCancelStop ? (
-          <PositionProtection position={position} quote={quote} priceTick={item?.priceTick ?? quote?.priceTick}
+          <PositionProtection position={position} quote={quote} priceTick={item?.priceTick ?? (sameContract(position.symbol, quote?.symbol) ? quote?.priceTick : undefined)}
             stops={rowStops} busy={busy || (protectionBusy ?? false)} onCreate={onCreateStop} onCancel={onCancelStop} />
         ) : null}
       </SwipeRow>

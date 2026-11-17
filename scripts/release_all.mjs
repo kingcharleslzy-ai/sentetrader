@@ -46,7 +46,8 @@ const DESKTOP_VERSION_FILES = new Set(["package.json", "package-lock.json", "app
   "packages/ui-events/package.json", "apps/client/public/version.json"]);
 const SEGMENT_RULES = [
   ["runtime-deploy", (file) => file.startsWith("services/") || file.startsWith("deploy/vps/")],
-  ["web-deploy", (file) => file.startsWith("apps/client/") || file.startsWith("packages/") || file.startsWith("deploy/web/")],
+  ["web-deploy", (file) => file.startsWith("apps/client/") || file.startsWith("packages/") || file.startsWith("deploy/web/")
+    || file === "package.json" || file === "package-lock.json"],
   ["desktop-update", (file) => file.startsWith("apps/desktop/") || file.startsWith("apps/client/") || file.startsWith("packages/")
     || /^scripts\/publish[^/]*$/.test(file) || DESKTOP_VERSION_FILES.has(file)],
 ];
