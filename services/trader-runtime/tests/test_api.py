@@ -142,13 +142,16 @@ async def test_instrument_catalog_is_read_only_searchable_and_main_filterable(
     assert payload["schemaVersion"] == 1
     assert payload["dataStatus"] == "simulated"
     assert payload["count"] == 1
-    assert payload["items"][0] == {
+    item = dict(payload["items"][0])
+    # 交割月提醒 (2026-10-02)：目录条目带 deliveryNotice；它随真实日期变（2026-11 起 au2612 进入提醒窗口），
+    # 这里只认它是交割月提醒或没有，不钉死某一天的结果。
+    notice = item.pop("deliveryNotice")
+    assert notice is None or notice["kind"] == "delivery_month"
+    assert item == {
         "symbol": "SHFE.au2612", "exchangeId": "SHFE", "instrumentId": "au2612",
         "instrumentName": "沪金2612", "productId": "au", "priceTick": 0.02,
         "volumeMultiple": 1000.0, "deliveryYear": 2026, "deliveryMonth": 12,
         "expireRestDays": 90, "hasNight": True, "isMain": True, "openLimit": 0,
-        # 交割月提醒 (2026-10-02)：目录条目带 deliveryNotice（12 月交割还远，这里为 None）。
-        "deliveryNotice": None,
         # 收盘提醒 (2026-10-03)：时段从目录读（快照同款规整，HH:MM），不占 K 线订阅。
         "tradingSchedule": {"day": [["09:00", "10:15"], ["10:30", "11:30"], ["13:30", "15:00"]],
                             "night": [["21:00", "02:30"]]},

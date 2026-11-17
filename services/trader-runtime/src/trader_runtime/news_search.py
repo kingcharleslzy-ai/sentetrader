@@ -5,12 +5,12 @@ import asyncio
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, time
 from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 
 from .research_desk import debate_sessions
-from .research_live import CALENDAR_CATEGORY, product_key
+from .research_live import CALENDAR_CATEGORY, _moment, product_key
 from .trading_calendar import trading_day_of
 from .web_search import CHINA, OFFICIAL_DOMAINS, WebSearchClient, WebSearchError
 
@@ -101,12 +101,19 @@ class NewsSearchService:
                 log.info("news_search_unavailable product=%s", product)
                 break
             rows = []
+            found = now.isoformat(timespec="seconds")
             for entry in result["results"]:
                 host = urlsplit(entry["link"]).hostname or ""
                 if any(host == site or host.endswith("." + site) for site in sites or FEED_HOSTS) != bool(sites):
                     continue  # a listed round keeps its sites; an open round drops the outlets read directly
+                # The search gives a date without the hour (it reads as 00:00): the list runs new → old, so a
+                # midnight stamp put every found item under the whole day's flashes, out of sight
+                # (owner 2026-11-17). Such an item is dated when it was found.
+                moment = _moment(entry["publishDate"])
+                dated = moment is None or (moment.date() == now.date() and moment.time() == time(0, 0))
                 rows.append({"标题": entry["title"], "内容": entry["content"] or entry["title"],
-                             "发布时间": entry["publishDate"], "链接": entry["link"], "_products": [product]})
+                             "发布时间": found if dated else entry["publishDate"], "链接": entry["link"],
+                             "_products": [product]})
             receipt = self.live.ingest_search(product, rows)
             collected += receipt["stored"]
             log.info("news_search_collected provider=deepseek product=%s rows=%d stored=%d kind=%s",
