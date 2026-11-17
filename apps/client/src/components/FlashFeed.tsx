@@ -14,7 +14,7 @@ export type FlashFilter = "product" | "watch" | "macro" | "all";
 export const FLASH_FILTERS: [FlashFilter, string][] = [["product", "当前品种"], ["watch", "持仓与自选"], ["macro", "宏观"], ["all", "全部"]];
 /** 按时间（默认）/ 按影响：AI 判为强、直接讲本品种的在前。 */
 export type FlashSort = "time" | "impact";
-export const FLASH_SORTS: [FlashSort, string][] = [["time", "按时间"], ["impact", "按影响"]];
+export const FLASH_SORTS: [FlashSort, string][] = [["impact", "按影响"], ["time", "按时间"]];
 /** `ai`: the model's reading for the screened product (null while not judged); `direct`: recalled by the
  *  product's own words (false: a macro item the model kept for it). */
 export type FlashItem = { id: string; source: string; sources: string[]; publishedAt: string; title: string; text: string; link: string | null; products: string[]; tags: string[]; origTitle?: string | null;
@@ -170,7 +170,7 @@ const bodyOf = (item: Pick<FlashItem, "text" | "origTitle">) =>
   item.origTitle && item.text.trim() === item.origTitle.trim() ? "" : item.text;
 const figure = (value: number | null) => value === null || value === undefined ? "—" : String(value);
 
-export function FlashFeed({ baseUrl, symbol, visible, filter, onFilterChange, sort = "time", onSortChange, watchProducts, instruments, onSelectSymbol, onState, debate, calendarSurface = "flash-calendar" }: {
+export function FlashFeed({ baseUrl, symbol, visible, filter, onFilterChange, sort = "impact", onSortChange, watchProducts, instruments, onSelectSymbol, onState, debate, calendarSurface = "flash-calendar" }: {
   baseUrl: string | undefined;
   /** The panel's reading contract (the chart's, unless pinned): 当前品种 filters on its product. */
   symbol: string | undefined;
@@ -366,7 +366,7 @@ export function FlashFeed({ baseUrl, symbol, visible, filter, onFilterChange, so
       <div className="flash-filters" role="group" aria-label="快讯筛选">
         {FLASH_FILTERS.map(([value, label]) => <button type="button" key={value} aria-pressed={filter === value} onClick={() => onFilterChange(value)}>{label}</button>)}
       </div>
-      {screened ? <div className="flash-sort" role="group" aria-label="快讯排序" title="默认按时间；按影响时强的、报道多的排前面">
+      {screened ? <div className="flash-sort" role="group" aria-label="快讯排序" title="默认按影响：强的、直接讲本品种的排前面，同档按时间；按时间时最新在上">
         {FLASH_SORTS.map(([value, label]) => <button type="button" key={value} aria-pressed={sort === value} onClick={() => onSortChange?.(value)}>{label}</button>)}
       </div> : null}
     </div>

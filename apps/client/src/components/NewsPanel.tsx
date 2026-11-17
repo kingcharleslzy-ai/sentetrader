@@ -94,7 +94,7 @@ export function NewsPanel({ baseUrl, symbol, guest = false, replay = false, onGu
   const underDesk = SUBPAGES.some(([value]) => value === tab);
   const back = (value: Tab) => <button type="button" className="news-panel-back" onClick={() => setTab("desk")}>‹ 品种 · {LABELS.get(value)}</button>;
   const [flashFilter, setFlashFilter] = useState<FlashFilter>("product");
-  const [flashSort, setFlashSort] = useState<FlashSort>("time");
+  const [flashSort, setFlashSort] = useState<FlashSort>("impact");
   const [flash, setFlash] = useState<FlashState>();
   const onFlashState = useCallback((state: FlashState) => setFlash(state), []);
   // Never paint the previous product's content while the new effect starts.

@@ -1067,7 +1067,7 @@ class NewsNavigation(BaseModel):
     tab: Literal["sheet", "desk", "debate", "flash", "news", "data"] | None = None
     # 快讯页签的筛选（2026-10-03）：当前品种 / 持仓与自选 / 宏观 / 全部；只给筛选不给 tab 时客户端顺带切到快讯页。
     flashFilter: Literal["product", "watch", "macro", "all"] | None = None
-    # 快讯排序（2026-10-07）：time 按时间（默认，最新在上）/ impact 按影响（AI 判为强、直接讲本品种的在前）；
+    # 快讯排序（2026-10-07）：impact 按影响（默认，2026-11-17；AI 判为强、直接讲本品种的在前，同档按时间）/ time 按时间（最新在上）；
     # 只给排序也切到快讯页。
     flashSort: Literal["time", "impact"] | None = None
     pinnedSymbol: str | None = Field(default=None, pattern=SYMBOL_PATTERN, max_length=40)

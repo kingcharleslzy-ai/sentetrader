@@ -117,7 +117,7 @@ export function useBoardsControl(handle: BoardsHandle, show: () => void, availab
   }, [canvasBox, minimum]);
   const [taken, setTaken] = useState<BoardBlock | null>(null);
   useEffect(() => { if (!taken) return; const timer = setTimeout(() => setTaken(null), 6000); return () => clearTimeout(timer); }, [taken]);
-  const [flash, setFlashState] = useState<{ filter: BoardFlashFilter; sort: BoardFlashSort }>({ filter: "watch", sort: "time" });
+  const [flash, setFlashState] = useState<{ filter: BoardFlashFilter; sort: BoardFlashSort }>({ filter: "watch", sort: "impact" });
   const setFlash = useCallback((patch: Partial<{ filter: BoardFlashFilter; sort: BoardFlashSort }>) => setFlashState(current => ({ ...current, ...patch })), []);
   const [library, setLibraryState] = useState(false);
   const [sizes, setSizes] = useState<Partial<Record<BoardBlock, BoardSize>>>({});
